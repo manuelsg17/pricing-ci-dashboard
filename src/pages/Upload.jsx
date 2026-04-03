@@ -85,60 +85,102 @@ function parseRows(sheetData, city) {
   }).filter(r => r.observed_date && r.competition_name)
 }
 
+// Detecta la ciudad a partir del nombre de la pestaña
+const SHEET_CITY_MAP = {
+  lima_pricing_ci_final:        'Lima',
+  lima_pricing_ci_corp_final:   'Lima',
+  lima_corp:                    'Lima',
+  tru_pricing_ci_final:         'Trujillo',
+  trujillo:                     'Trujillo',
+  arq_pricing_ci_final:         'Arequipa',
+  arequipa:                     'Arequipa',
+  airport_ci_final:             'Airport',
+  airport:                      'Airport',
+}
+
+function detectCity(sheetName) {
+  const key = sheetName.toLowerCase().replace(/[\s-]/g, '_')
+  for (const [pattern, city] of Object.entries(SHEET_CITY_MAP)) {
+    if (key.includes(pattern.replace(/_/g, '')) || key === pattern) return city
+  }
+  // Fallback por palabras clave
+  if (key.includes('lima'))      return 'Lima'
+  if (key.includes('tru') || key.includes('trujillo')) return 'Trujillo'
+  if (key.includes('arq') || key.includes('arequipa')) return 'Arequipa'
+  if (key.includes('airport') || key.includes('aero')) return 'Airport'
+  return null
+}
+
 const BATCH_SIZE = 500
 
 export default function Upload() {
-  const [city,     setCity]     = useState(CITIES[0])
-  const [rows,     setRows]     = useState([])
+  const [sheets,   setSheets]   = useState([])   // [{ name, city, rowCount, rows }]
   const [preview,  setPreview]  = useState([])
-  const [thresholds, setThresholds] = useState([])
-  const [progress, setProgress] = useState(null)  // { current, total, done, error }
+  const [allRows,  setAllRows]  = useState([])
+  const [progress, setProgress] = useState(null)
   const [fileInfo, setFileInfo] = useState(null)
-
-  // Cargar thresholds para asignación de brackets en preview
-  const loadThresholds = async (c, cat) => {
-    const { data } = await sb.from('distance_thresholds')
-      .select('*')
-      .eq('city', c)
-    setThresholds(data || [])
-  }
 
   const handleFile = async (file) => {
     setProgress(null)
-    setFileInfo({ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB' })
+    setPreview([])
+    setAllRows([])
+    setFileInfo({ name: file.name, size: (file.size / 1024 / 1024).toFixed(1) + ' MB' })
 
-    const buf  = await file.arrayBuffer()
-    const wb   = XLSX.read(buf, { type: 'array', cellDates: false })
-    const sheet = wb.Sheets[wb.SheetNames[0]]
-    const raw  = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
+    const buf = await file.arrayBuffer()
+    const wb  = XLSX.read(buf, { type: 'array', cellDates: false })
 
-    const parsed = parseRows(raw, city)
-    await loadThresholds(city, null)
-
-    const withComputed = parsed.map(r => {
-      const cityThresh = thresholds.length
-        ? thresholds.filter(t => t.category === r.category || t.category === 'all')
-        : []
-      return {
-        ...r,
-        _bracket_computed:  assignBracket(r.distance_km, cityThresh),
-        _effective_price:   computeEffectivePrice(r)?.toFixed(2) ?? null,
-      }
+    // Procesar solo pestañas que NO sean "_raw" ni de configuración
+    const dataSheets = wb.SheetNames.filter(n => {
+      const lower = n.toLowerCase()
+      return !lower.includes('raw') &&
+             !lower.includes('legend') &&
+             !lower.includes('sheet4') &&
+             !lower.includes('apoyo') &&
+             !lower.includes('weight')
     })
 
-    setRows(parsed)
-    setPreview(withComputed.slice(0, 20))
+    const parsed = []
+    for (const sheetName of dataSheets) {
+      const city = detectCity(sheetName)
+      if (!city) continue  // ignorar pestañas no reconocidas
+
+      const sheet = wb.Sheets[sheetName]
+      const raw   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
+      const rows  = parseRows(raw, city)
+      if (rows.length === 0) continue
+
+      parsed.push({ name: sheetName, city, rowCount: rows.length, rows })
+    }
+
+    const allParsed = parsed.flatMap(s => s.rows)
+    setSheets(parsed)
+    setAllRows(allParsed)
+    setPreview(allParsed.slice(0, 20).map(r => ({
+      ...r,
+      _bracket_computed: r.distance_bracket || '(auto BD)',
+      _effective_price:  computeEffectivePrice(r)?.toFixed(2) ?? null,
+    })))
+  }
+
+  const updateSheetCity = (idx, newCity) => {
+    setSheets(prev => {
+      const updated = prev.map((s, i) =>
+        i === idx ? { ...s, city: newCity, rows: s.rows.map(r => ({ ...r, city: newCity })) } : s
+      )
+      setAllRows(updated.flatMap(s => s.rows))
+      return updated
+    })
   }
 
   const handleIngest = async () => {
-    if (!rows.length) return
-    setProgress({ current: 0, total: rows.length, done: false, error: null })
+    if (!allRows.length) return
+    setProgress({ current: 0, total: allRows.length, done: false, error: null })
 
     const batchId = crypto.randomUUID()
     let inserted  = 0
 
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const batch = rows.slice(i, i + BATCH_SIZE).map(r => ({
+    for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
+      const batch = allRows.slice(i, i + BATCH_SIZE).map(r => ({
         ...r,
         upload_batch_id: batchId,
       }))
@@ -148,23 +190,23 @@ export default function Upload() {
         return
       }
       inserted += batch.length
-      setProgress({ current: inserted, total: rows.length, done: false, error: null })
+      setProgress({ current: inserted, total: allRows.length, done: false, error: null })
     }
 
-    // Log del batch
     await sb.from('upload_batches').insert({
-      id:         batchId,
-      filename:   fileInfo?.name,
-      row_count:  rows.length,
-      city,
+      id:        batchId,
+      filename:  fileInfo?.name,
+      row_count: allRows.length,
+      city:      'multi',
     })
 
-    setProgress({ current: rows.length, total: rows.length, done: true, error: null })
+    setProgress({ current: allRows.length, total: allRows.length, done: true, error: null })
   }
 
   const handleClear = () => {
-    setRows([])
+    setSheets([])
     setPreview([])
+    setAllRows([])
     setProgress(null)
     setFileInfo(null)
   }
@@ -173,20 +215,50 @@ export default function Upload() {
     <div className="upload-page">
       <h1>Cargar Data</h1>
 
-      <div className="upload-meta">
-        <label>Ciudad del archivo:</label>
-        <select value={city} onChange={e => setCity(e.target.value)}>
-          {CITIES.map(c => <option key={c}>{c}</option>)}
-        </select>
-        {fileInfo && (
-          <span style={{ fontSize: 11, color: '#888' }}>
-            {fileInfo.name} ({fileInfo.size})
-            {' · '}{rows.length} filas parseadas
-          </span>
-        )}
-      </div>
+      {!allRows.length && <DropZone onFile={handleFile} />}
 
-      {!rows.length && <DropZone onFile={handleFile} />}
+      {/* Resumen de pestañas detectadas */}
+      {sheets.length > 0 && (
+        <div className="config-section" style={{ marginBottom: 12 }}>
+          <h2>Pestañas detectadas — verifica la ciudad asignada</h2>
+          <table className="config-table">
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left' }}>Pestaña</th>
+                <th style={{ textAlign: 'left' }}>Ciudad detectada</th>
+                <th># Filas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sheets.map((s, i) => (
+                <tr key={i}>
+                  <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>{s.name}</td>
+                  <td>
+                    <select
+                      value={s.city}
+                      onChange={e => updateSheetCity(i, e.target.value)}
+                      style={{ fontSize: 12, padding: '2px 4px' }}
+                    >
+                      {CITIES.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>{s.rowCount.toLocaleString()}</td>
+                </tr>
+              ))}
+              <tr style={{ background: '#f9fbe7', fontWeight: 700 }}>
+                <td style={{ textAlign: 'left' }}>TOTAL</td>
+                <td></td>
+                <td style={{ textAlign: 'right' }}>{allRows.length.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+          {fileInfo && (
+            <p style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
+              Archivo: {fileInfo.name} ({fileInfo.size})
+            </p>
+          )}
+        </div>
+      )}
 
       {preview.length > 0 && <PreviewTable rows={preview} />}
 
@@ -199,7 +271,7 @@ export default function Upload() {
         />
       )}
 
-      {rows.length > 0 && (
+      {allRows.length > 0 && (
         <div className="upload-actions">
           {!progress?.done && (
             <button
@@ -207,12 +279,10 @@ export default function Upload() {
               onClick={handleIngest}
               disabled={!!progress && !progress.done && !progress.error}
             >
-              Insertar {rows.length} filas en Supabase
+              Insertar {allRows.length.toLocaleString()} filas en Supabase
             </button>
           )}
-          <button className="btn-clear" onClick={handleClear}>
-            Limpiar
-          </button>
+          <button className="btn-clear" onClick={handleClear}>Limpiar</button>
         </div>
       )}
     </div>
