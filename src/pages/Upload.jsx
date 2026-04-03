@@ -228,11 +228,12 @@ function parseRows(sheetData, city) {
   .filter(r => r !== null && r.observed_date && r.competition_name)
 }
 
-// Detecta la ciudad a partir del nombre de la pestaña
+// Detecta la ciudad a partir del nombre de la pestaña o archivo
 const SHEET_CITY_MAP = {
+  lima_pricing_ci_corp_final:   'Corp',
+  lima_pricing_ci_corp:         'Corp',
+  lima_corp:                    'Corp',
   lima_pricing_ci_final:        'Lima',
-  lima_pricing_ci_corp_final:   'Lima',
-  lima_corp:                    'Lima',
   tru_pricing_ci_final:         'Trujillo',
   trujillo:                     'Trujillo',
   arq_pricing_ci_final:         'Arequipa',
@@ -246,7 +247,8 @@ function detectCity(sheetName) {
   for (const [pattern, city] of Object.entries(SHEET_CITY_MAP)) {
     if (key.includes(pattern.replace(/_/g, '')) || key === pattern) return city
   }
-  // Fallback por palabras clave
+  // Fallback por palabras clave (corp antes de lima para evitar falso match)
+  if (key.includes('corp'))      return 'Corp'
   if (key.includes('lima'))      return 'Lima'
   if (key.includes('tru') || key.includes('trujillo')) return 'Trujillo'
   if (key.includes('arq') || key.includes('arequipa')) return 'Arequipa'

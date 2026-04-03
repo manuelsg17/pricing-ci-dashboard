@@ -3,13 +3,16 @@
 // Basadas en los archivos CSV reales (Dic 2025 – Mar 2026)
 // ============================================================
 
-export const CITIES = ['Lima', 'Trujillo', 'Arequipa', 'Airport']
+// Lima, Trujillo, Arequipa, Airport = CI regular
+// Corp = análisis corporativo (Yango vs Cabify en segmento corporativo)
+export const CITIES = ['Lima', 'Trujillo', 'Arequipa', 'Airport', 'Corp']
 
 export const CATEGORIES_BY_CITY = {
-  Lima:     ['Premier', 'Economy', 'Comfort', 'TukTuk', 'XL', 'Corp'],
+  Lima:     ['Premier', 'Economy', 'Comfort', 'TukTuk', 'XL'],
   Trujillo: ['Economy', 'Comfort'],
   Arequipa: ['Economy', 'Comfort'],
   Airport:  ['Comfort', 'Premier', 'Economy'],
+  Corp:     ['Corp'],
 }
 
 // Competidores reales por ciudad+categoría (extraídos de los CSV)
@@ -22,8 +25,6 @@ export const COMPETITORS_BY_CITY_CATEGORY = {
     Comfort:  ['Yango', 'Uber', 'InDrive', 'Cabify'],
     TukTuk:   ['Yango', 'Uber'],
     XL:       ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    Corp:     ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL',
-               'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
   },
   Trujillo: {
     Economy:  ['Yango', 'Uber', 'InDrive', 'Cabify'],
@@ -38,6 +39,10 @@ export const COMPETITORS_BY_CITY_CATEGORY = {
     Premier:  ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
     Economy:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
   },
+  Corp: {
+    Corp: ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL',
+           'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
+  },
 }
 
 // Nombre mostrado de Yango según contexto
@@ -48,7 +53,6 @@ export const YANGO_DISPLAY_NAME = {
     Comfort:  'Yango',
     TukTuk:   'Yango',
     XL:       'Yango',
-    Corp:     'Yango',
   },
   Trujillo: {
     Economy:  'Yango',
@@ -62,6 +66,9 @@ export const YANGO_DISPLAY_NAME = {
     Comfort:  'Yango',
     Premier:  'Yango (Comfort+)',
     Economy:  'Yango',
+  },
+  Corp: {
+    Corp: 'Yango Economy',
   },
 }
 
@@ -108,4 +115,4 @@ export const COMPETITOR_COLORS = {
 }
 
 // Ciudades con configuración de pesos independiente
-export const WEIGHT_CITIES = ['all', 'Lima', 'Trujillo', 'Arequipa', 'Airport']
+export const WEIGHT_CITIES = ['all', 'Lima', 'Trujillo', 'Arequipa', 'Airport', 'Corp']
