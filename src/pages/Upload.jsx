@@ -52,26 +52,37 @@ const COL_MAP = {
 
 // ── Helpers de parseo ──────────────────────────────────────
 
+function excelSerialToDate(serial) {
+  const date = new Date((serial - 25569) * 86400 * 1000)
+  return date.toISOString().slice(0, 10)
+}
+
 function parseExcelDate(val) {
-  if (!val) return null
+  if (val === null || val === undefined || val === '') return null
+
+  // Número serial de Excel (como número o como string numérico puro, ej: "45659")
+  if (typeof val === 'number') return excelSerialToDate(Math.floor(val))
+  if (typeof val === 'string' && /^\d{4,6}$/.test(val.trim())) {
+    return excelSerialToDate(parseInt(val.trim(), 10))
+  }
+
   if (typeof val === 'string') {
     const s = val.trim()
     // Formato DD/MM/YYYY → YYYY-MM-DD
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
       const [d, m, y] = s.split('/')
-      return `${y}-${m}-${d}`
+      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
     }
     // Formato DD-MM-YYYY
-    if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
+    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
       const [d, m, y] = s.split('-')
-      return `${y}-${m}-${d}`
+      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
     }
-    return s.slice(0, 10)
+    // Ya en formato YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+    return null
   }
-  if (typeof val === 'number') {
-    const date = new Date((val - 25569) * 86400 * 1000)
-    return date.toISOString().slice(0, 10)
-  }
+
   if (val instanceof Date) return val.toISOString().slice(0, 10)
   return null
 }
@@ -104,6 +115,9 @@ const NUMERIC_COLS = new Set([
 
 // Columnas que deben ser enteros
 const INT_COLS = new Set(['year', 'week'])
+
+// Columnas de fecha/hora — necesitan el valor RAW (no convertido a string)
+const RAW_COLS = new Set(['observed_date', 'observed_time'])
 
 function toNumeric(val) {
   if (val === null || val === undefined || val === '') return null
@@ -151,9 +165,10 @@ function parseRows(sheetData, city) {
       const dbCol = COL_MAP[String(h || '').trim()]
       if (!dbCol) return
       const raw = row[i] ?? null
-      if (NUMERIC_COLS.has(dbCol)) obj[dbCol] = toNumeric(raw)
-      else if (INT_COLS.has(dbCol))   obj[dbCol] = toInt(raw)
-      else                            obj[dbCol] = cleanStr(raw)
+      if (RAW_COLS.has(dbCol))        obj[dbCol] = raw              // fecha/hora: conservar número original
+      else if (NUMERIC_COLS.has(dbCol)) obj[dbCol] = toNumeric(raw)
+      else if (INT_COLS.has(dbCol))     obj[dbCol] = toInt(raw)
+      else                              obj[dbCol] = cleanStr(raw)
     })
 
     // Fecha y hora
