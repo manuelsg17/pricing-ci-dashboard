@@ -172,8 +172,11 @@ function cleanStr(val) {
 function parseRows(sheetData, city) {
   if (!sheetData.length) return []
 
-  // Encontrar la fila de cabeceras (primera fila no vacía)
-  const headerRowIdx = sheetData.findIndex(r => r && r.some(c => c !== null && c !== ''))
+  // Encontrar la fila de cabeceras: la primera que contenga al menos una columna conocida en COL_MAP
+  // (ignora filas de metadata como "colocar lista de eleccion", "InDrive", "All exc. InDrive"…)
+  const headerRowIdx = sheetData.findIndex(r =>
+    r && r.some(c => COL_MAP[String(c || '').trim()])
+  )
   if (headerRowIdx === -1) return []
   const headers = sheetData[headerRowIdx]
 
