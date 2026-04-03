@@ -1,0 +1,154 @@
+.config-page {
+  padding: 12px 16px;
+  flex: 1;
+}
+
+.config-page h1 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--color-text);
+}
+
+.config-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: 14px;
+}
+
+.config-tab {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px 4px 0 0;
+  background: #f0f0f0;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.config-tab.active {
+  background: var(--color-panel);
+  color: var(--color-text);
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  border-bottom: 1px solid #fff;
+  margin-bottom: -2px;
+}
+
+.config-section {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.config-section h2 {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-muted);
+}
+
+.config-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  width: 100%;
+}
+
+.config-table th {
+  background: #f5f5f5;
+  padding: 4px 8px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.config-table td {
+  padding: 3px 4px;
+  border: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.config-table td:first-child { text-align: left; font-weight: 600; padding-left: 8px; }
+
+.config-table input[type="number"],
+.config-table input[type="text"] {
+  width: 70px;
+  padding: 2px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  text-align: right;
+  font-size: 11px;
+}
+
+.config-table input:focus { border-color: var(--color-yango); outline: none; }
+
+.config-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-save {
+  padding: 6px 16px;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-save:hover { background: #2d2d5e; }
+.btn-save:disabled { background: #999; cursor: not-allowed; }
+
+.config-save-ok  { color: #2e7d32; font-size: 11px; }
+.config-save-err { color: #b71c1c; font-size: 11px; }
+
+.weight-sum { font-size: 11px; font-weight: 700; }
+.weight-sum.ok  { color: #2e7d32; }
+.weight-sum.warn{ color: #f57f17; }
+
+/* Selector ciudad+categoría para distancias */
+.threshold-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.threshold-selector label { font-size: 11px; font-weight: 600; color: var(--color-muted); }
+
+.threshold-selector select {
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* Tabs de ciudad para pesos */
+.city-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.city-tab {
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #f0f0f0;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.city-tab.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }

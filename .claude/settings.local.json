@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(brew list:*)",
+      "Bash(command -v brew)",
+      "Bash(export PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\")",
+      "Bash(npm --version)"
+    ]
+  }
+}
