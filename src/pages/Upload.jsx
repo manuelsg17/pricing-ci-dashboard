@@ -72,8 +72,9 @@ function parseExcelTime(val) {
     return null
   }
   if (typeof val === 'number') {
-    // Fracción del día → HH:MM:SS
-    const totalSeconds = Math.round(val * 86400)
+    // Usar solo la parte fraccionaria (ignorar parte entera = fecha)
+    const fraction = val % 1
+    const totalSeconds = Math.round(fraction * 86400)
     const h = Math.floor(totalSeconds / 3600)
     const m = Math.floor((totalSeconds % 3600) / 60)
     const s = totalSeconds % 60
