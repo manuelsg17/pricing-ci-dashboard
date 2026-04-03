@@ -62,6 +62,29 @@ function parseExcelDate(val) {
   return String(val).slice(0, 10)
 }
 
+// Excel guarda el tiempo como fracción del día: 0.5 = 12:00:00
+function parseExcelTime(val) {
+  if (!val && val !== 0) return null
+  // Ya es string tipo "10:30" o "10:30:00"
+  if (typeof val === 'string') {
+    // Verificar que sea formato de hora válido
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(val.trim())) return val.trim()
+    return null
+  }
+  if (typeof val === 'number') {
+    // Fracción del día → HH:MM:SS
+    const totalSeconds = Math.round(val * 86400)
+    const h = Math.floor(totalSeconds / 3600)
+    const m = Math.floor((totalSeconds % 3600) / 60)
+    const s = totalSeconds % 60
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  }
+  if (val instanceof Date) {
+    return val.toTimeString().slice(0, 8)
+  }
+  return null
+}
+
 function parseRows(sheetData, city) {
   if (!sheetData.length) return []
   const headers = sheetData[0]
@@ -71,8 +94,9 @@ function parseRows(sheetData, city) {
       const dbCol = COL_MAP[h]
       if (dbCol) obj[dbCol] = row[i] ?? null
     })
-    // Normalizar fecha
+    // Normalizar fecha y hora
     obj.observed_date = parseExcelDate(obj.observed_date)
+    obj.observed_time = parseExcelTime(obj.observed_time)
     // Normalizar surge
     if (typeof obj.surge === 'string') {
       obj.surge = obj.surge.toLowerCase() === 'si' || obj.surge.toLowerCase() === 'yes' || obj.surge === '1'
