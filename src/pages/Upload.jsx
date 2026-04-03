@@ -261,18 +261,16 @@ export default function Upload() {
   const [preview,  setPreview]  = useState([])
   const [allRows,  setAllRows]  = useState([])
   const [progress, setProgress] = useState(null)
-  const [fileInfo, setFileInfo] = useState(null)
+  const [parsing,  setParsing]  = useState(null) // null | "Procesando archivo X…"
 
-  const handleFile = async (file) => {
-    setProgress(null)
-    setPreview([])
-    setAllRows([])
-    setFileInfo({ name: file.name, size: (file.size / 1024 / 1024).toFixed(1) + ' MB' })
-
+  // Procesa un único archivo (File) y devuelve array de sheets
+  const parseSingleFile = async (file) => {
     const buf = await file.arrayBuffer()
     const wb  = XLSX.read(buf, { type: 'array', cellDates: false })
 
-    // Procesar solo pestañas que NO sean "_raw" ni de configuración
+    // Para CSV el sheet name suele ser "Sheet1" — usar nombre de archivo como contexto
+    const fileCity = detectCity(file.name.replace(/\.[^.]+$/, ''))
+
     const dataSheets = wb.SheetNames.filter(n => {
       const lower = n.toLowerCase()
       return !lower.includes('raw') &&
@@ -284,21 +282,49 @@ export default function Upload() {
 
     const parsed = []
     for (const sheetName of dataSheets) {
-      const city = detectCity(sheetName)
-      if (!city) continue  // ignorar pestañas no reconocidas
+      // Ciudad: primero intenta por nombre de pestaña, luego por nombre de archivo
+      const city = detectCity(sheetName) ?? fileCity
+      if (!city) continue
 
       const sheet = wb.Sheets[sheetName]
       const raw   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
       const rows  = parseRows(raw, city)
       if (rows.length === 0) continue
 
-      parsed.push({ name: sheetName, city, rowCount: rows.length, rows })
+      // Etiqueta legible: usar nombre de archivo para CSV (una sola hoja)
+      const label = wb.SheetNames.length === 1
+        ? file.name.replace(/\.[^.]+$/, '')
+        : sheetName
+
+      parsed.push({ name: label, city, rowCount: rows.length, rows })
+    }
+    return parsed
+  }
+
+  const handleFile = async (files) => {
+    setProgress(null)
+    setPreview([])
+    setAllRows([])
+    setSheets([])
+
+    const allParsed = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      setParsing(`Procesando ${i + 1}/${files.length}: ${file.name}…`)
+      // Dar un tick al navegador para que renderice el mensaje
+      await new Promise(r => setTimeout(r, 0))
+
+      const fileParsed = await parseSingleFile(file)
+      allParsed.push(...fileParsed)
     }
 
-    const allParsed = parsed.flatMap(s => s.rows)
-    setSheets(parsed)
-    setAllRows(allParsed)
-    setPreview(allParsed.slice(0, 20).map(r => ({
+    setParsing(null)
+
+    const allRows = allParsed.flatMap(s => s.rows)
+    setSheets(allParsed)
+    setAllRows(allRows)
+    setPreview(allRows.slice(0, 20).map(r => ({
       ...r,
       _bracket_computed: r.distance_bracket || '(auto BD)',
       _effective_price:  computeEffectivePrice(r)?.toFixed(2) ?? null,
@@ -338,7 +364,7 @@ export default function Upload() {
 
     await sb.from('upload_batches').insert({
       id:        batchId,
-      filename:  fileInfo?.name,
+      filename:  sheets.map(s => s.name).join(', '),
       row_count: allRows.length,
       city:      'multi',
     })
@@ -351,23 +377,31 @@ export default function Upload() {
     setPreview([])
     setAllRows([])
     setProgress(null)
-    setFileInfo(null)
+    setParsing(null)
   }
 
   return (
     <div className="upload-page">
       <h1>Cargar Data</h1>
 
-      {!allRows.length && <DropZone onFile={handleFile} />}
+      {!allRows.length && !parsing && <DropZone onFile={handleFile} />}
 
-      {/* Resumen de pestañas detectadas */}
+      {/* Indicador de parseo */}
+      {parsing && (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: '#555', fontSize: 14 }}>
+          <div style={{ marginBottom: 8, fontSize: 22 }}>⏳</div>
+          {parsing}
+        </div>
+      )}
+
+      {/* Resumen de archivos detectados */}
       {sheets.length > 0 && (
         <div className="config-section" style={{ marginBottom: 12 }}>
-          <h2>Pestañas detectadas — verifica la ciudad asignada</h2>
+          <h2>Archivos detectados — verifica la ciudad asignada</h2>
           <table className="config-table">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>Pestaña</th>
+                <th style={{ textAlign: 'left' }}>Archivo / Pestaña</th>
                 <th style={{ textAlign: 'left' }}>Ciudad detectada</th>
                 <th># Filas</th>
               </tr>
@@ -395,11 +429,6 @@ export default function Upload() {
               </tr>
             </tbody>
           </table>
-          {fileInfo && (
-            <p style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
-              Archivo: {fileInfo.name} ({fileInfo.size})
-            </p>
-          )}
         </div>
       )}
 

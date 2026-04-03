@@ -4,20 +4,21 @@ export default function DropZone({ onFile }) {
   const inputRef = useRef()
   const [dragging, setDragging] = useState(false)
 
-  const handleFile = (file) => {
-    if (!file) return
-    const ext = file.name.split('.').pop().toLowerCase()
-    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+  const handleFiles = (files) => {
+    if (!files || files.length === 0) return
+    const arr = Array.from(files)
+    const invalid = arr.filter(f => !['xlsx', 'xls', 'csv'].includes(f.name.split('.').pop().toLowerCase()))
+    if (invalid.length) {
       alert('Solo se aceptan archivos .xlsx, .xls o .csv')
       return
     }
-    onFile(file)
+    onFile(arr)
   }
 
   const onDrop = (e) => {
     e.preventDefault()
     setDragging(false)
-    handleFile(e.dataTransfer.files[0])
+    handleFiles(e.dataTransfer.files)
   }
 
   return (
@@ -30,15 +31,16 @@ export default function DropZone({ onFile }) {
     >
       <div className="dropzone__icon">📂</div>
       <div className="dropzone__text">
-        Arrastra tu archivo aquí o haz clic para seleccionar
+        Arrastra uno o varios archivos aquí, o haz clic para seleccionar
       </div>
-      <div className="dropzone__hint">.xlsx · .xls · .csv</div>
+      <div className="dropzone__hint">.xlsx · .xls · .csv · selección múltiple permitida</div>
       <input
         ref={inputRef}
         type="file"
         accept=".xlsx,.xls,.csv"
+        multiple
         style={{ display: 'none' }}
-        onChange={e => handleFile(e.target.files[0])}
+        onChange={e => handleFiles(e.target.files)}
       />
     </div>
   )
