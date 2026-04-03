@@ -28,7 +28,7 @@ export function useFilters() {
   const [surge,      setSurge]      = useState(null)   // null=ambos, true/false
   const [compareVs,  setCompareVs]  = useState('Yango')
   const [viewMode,   setViewMode]   = useState('weekly') // 'weekly' | 'daily'
-  const [weekStart,  setWeekStart]  = useState(toISODate(getMondayWeeksAgo(7)))
+  const [weekStart,  setWeekStart]  = useState(toISODate(getMondayWeeksAgo(70)))
   const [dailyStart, setDailyStart] = useState(toISODate(getMondayWeeksAgo(1)))
   const [dailyEnd,   setDailyEnd]   = useState(toISODate(new Date()))
   const [zones,      setZones]      = useState(['All'])
