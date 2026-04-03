@@ -9,45 +9,66 @@ import PreviewTable        from '../components/upload/PreviewTable'
 import IngestProgress      from '../components/upload/IngestProgress'
 import '../styles/upload.css'
 
-// Mapa: nombre de columna en Excel → nombre en BD
+// Mapa: nombre de columna en Excel/CSV → nombre en BD
+// Incluye variantes con "(for pivot)" usadas en ARQ, TRU, AIRPORT
 const COL_MAP = {
-  'Year':                   'year',
-  'Rush Hour':              'rush_hour',
-  'Rush hour':              'rush_hour',
-  'Point A':                'point_a',
-  'Point B':                'point_b',
-  'Travel Distance (Km)':   'distance_km',
-  'Travel Distance (km)':   'distance_km',
-  'Category':               'category',
-  'Week':                   'week',
-  'Timeslot':               'timeslot',
-  'Distance bracket':       'distance_bracket',
-  'Distance Bracket':       'distance_bracket',
-  'Date':                   'observed_date',
-  'Time':                   'observed_time',
-  'Competition Name':       'competition_name',
-  'Surge':                  'surge',
-  'Travel Time(Min)':       'travel_time_min',
-  'Travel Time (Min)':      'travel_time_min',
-  'ETA(min)':               'eta_min',
-  'ETA (min)':              'eta_min',
-  'Recommend Price':        'recommended_price',
-  'Recommended Price':      'recommended_price',
-  'Minimal bid':            'minimal_bid',
-  'Minimal Bid':            'minimal_bid',
-  'Price With Discount':    'price_with_discount',
-  'PriceW/ODiscount':       'price_without_discount',
-  'Price W/O Discount':     'price_without_discount',
-  'Zone':                   'zone',
-  'Bid 1':                  'bid_1',
-  'Bid 2':                  'bid_2',
-  'Bid 3':                  'bid_3',
-  'Bid 4':                  'bid_4',
-  'Bid 5':                  'bid_5',
-  'Discount offer':         'discount_offer',
-  'Discount Offer':         'discount_offer',
-  'Diff(manualy calc)':     'diff',
-  'Diff (manually calc)':   'diff',
+  'Year':                           'year',
+  'Rush Hour':                      'rush_hour',
+  'Rush hour':                      'rush_hour',
+  'Point A':                        'point_a',
+  'Point B':                        'point_b',
+  'Travel Distance (Km)':           'distance_km',
+  'Travel Distance (km)':           'distance_km',
+  'Category':                       'category',
+  'Week':                           'week',
+  'Week (for pivot)':               'week',
+  'Timeslot':                       'timeslot',
+  'Timeslot (for pivot)':           'timeslot',
+  'Distance bracket':               'distance_bracket',
+  'Distance Bracket':               'distance_bracket',
+  'Distance bracket (for pivot)':   'distance_bracket',
+  'Distance Bracket (for pivot)':   'distance_bracket',
+  'Date':                           'observed_date',
+  'Time':                           'observed_time',
+  'Competition Name':               'competition_name',
+  'Surge':                          'surge',
+  'Travel Time(Min)':               'travel_time_min',
+  'Travel Time (Min)':              'travel_time_min',
+  'ETA(min)':                       'eta_min',
+  'ETA (min)':                      'eta_min',
+  'ETA (Min)':                      'eta_min',
+  'Recommend Price':                'recommended_price',
+  'Recommended Price':              'recommended_price',
+  'Minimal bid':                    'minimal_bid',
+  'Minimal Bid':                    'minimal_bid',
+  'Price With Discount':            'price_with_discount',
+  'PriceW/ODiscount':               'price_without_discount',
+  'Price W/O Discount':             'price_without_discount',
+  'Zone':                           'zone',
+  'Bid 1':                          'bid_1',
+  'Bid 2':                          'bid_2',
+  'Bid 3':                          'bid_3',
+  'Bid 4':                          'bid_4',
+  'Bid 5':                          'bid_5',
+  'Discount offer':                 'discount_offer',
+  'Discount Offer':                 'discount_offer',
+  'Diff(manualy calc)':             'diff',
+  'Diff (manually calc)':           'diff',
+  'Diff (manualy calc)':            'diff',
+}
+
+// Normalización de categorías (CSV → nombre canónico en BD)
+const CATEGORY_NORMALIZE = {
+  'Comfort+/Premier': 'Premier',
+  'Comfort/Comfort+': 'Comfort',
+}
+
+// Normalización de nombres de competidor
+const COMPETITOR_NORMALIZE = {
+  'Indrive':        'InDrive',
+  'Yango premier':  'YangoPremier',
+  'Yango  premier': 'YangoPremier',
+  'DiDi':           'Didi',
 }
 
 // ── Helpers de parseo ──────────────────────────────────────
@@ -122,10 +143,10 @@ const RAW_COLS = new Set(['observed_date', 'observed_time'])
 function toNumeric(val) {
   if (val === null || val === undefined || val === '') return null
   if (typeof val === 'number') return isNaN(val) ? null : val
-  // "13,2" → 13.2  |  "13.2" → 13.2
-  const clean = String(val).trim().replace(/\./g, '').replace(',', '.')
-  // Caso: punto como separador de miles y coma decimal (ej: "1.234,56")
-  const n = parseFloat(String(val).trim().replace(',', '.'))
+  // Quitar prefijo de moneda (ej: "S/.9.00" → "9.00", "$8.50" → "8.50")
+  // y normalizar coma decimal ("13,2" → "13.2")
+  const s = String(val).trim().replace(/^[^\d-]+/, '').replace(',', '.')
+  const n = parseFloat(s)
   return isNaN(n) ? null : n
 }
 
@@ -197,6 +218,10 @@ function parseRows(sheetData, city) {
     obj.competition_name = cleanStr(obj.competition_name)
     obj.category         = cleanStr(obj.category)
     obj.distance_bracket = cleanStr(obj.distance_bracket)
+
+    // Normalizar categorías y competidores a nombres canónicos en BD
+    if (obj.category)         obj.category         = CATEGORY_NORMALIZE[obj.category]         ?? obj.category
+    if (obj.competition_name) obj.competition_name = COMPETITOR_NORMALIZE[obj.competition_name] ?? obj.competition_name
 
     return obj
   })

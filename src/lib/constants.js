@@ -1,48 +1,54 @@
 // ============================================================
 // CONSTANTES DEL NEGOCIO
+// Basadas en los archivos CSV reales (Dic 2025 – Mar 2026)
 // ============================================================
 
 export const CITIES = ['Lima', 'Trujillo', 'Arequipa', 'Airport']
 
 export const CATEGORIES_BY_CITY = {
-  Lima:     ['Premier', 'TukTuk', 'XL', 'Economy', 'Comfort'],
+  Lima:     ['Premier', 'Economy', 'Comfort', 'TukTuk', 'XL', 'Corp'],
   Trujillo: ['Economy', 'Comfort'],
   Arequipa: ['Economy', 'Comfort'],
-  Airport:  ['Comfort', 'Premier'],
+  Airport:  ['Comfort', 'Premier', 'Economy'],
 }
 
-// Competidores disponibles según ciudad+categoría
-// Nota: "YangoPremier" es el nombre normalizado en BD (limpiado desde "Yango premier")
+// Competidores reales por ciudad+categoría (extraídos de los CSV)
+// Nota: "Premier" en BD = "Comfort+/Premier" en CSV (normalizado en Upload)
+//       "Comfort" en BD = "Comfort/Comfort+" en CSV (normalizado en Upload)
 export const COMPETITORS_BY_CITY_CATEGORY = {
   Lima: {
+    Premier:  ['Yango', 'YangoPremier', 'Uber', 'Cabify'],
     Economy:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    Comfort:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    Premier:  ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+    Comfort:  ['Yango', 'Uber', 'InDrive', 'Cabify'],
     TukTuk:   ['Yango', 'Uber'],
     XL:       ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+    Corp:     ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL',
+               'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
   },
   Trujillo: {
-    Economy:  ['Yango', 'InDrive'],
-    Comfort:  ['Yango', 'YangoComfort+', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+    Economy:  ['Yango', 'Uber', 'InDrive', 'Cabify'],
+    Comfort:  ['Yango', 'YangoComfort+', 'Uber', 'InDrive', 'Cabify'],
   },
   Arequipa: {
-    Economy:  ['Yango', 'InDrive'],
+    Economy:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
     Comfort:  ['Yango', 'YangoComfort+', 'Uber', 'Didi', 'InDrive', 'Cabify'],
   },
   Airport: {
-    Comfort:  ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+    Comfort:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
     Premier:  ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+    Economy:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
   },
 }
 
 // Nombre mostrado de Yango según contexto
 export const YANGO_DISPLAY_NAME = {
   Lima: {
+    Premier:  'Yango (Comfort+)',
     Economy:  'Yango',
     Comfort:  'Yango',
-    Premier:  'Yango (Comfort+)',
     TukTuk:   'Yango',
     XL:       'Yango',
+    Corp:     'Yango',
   },
   Trujillo: {
     Economy:  'Yango',
@@ -55,6 +61,7 @@ export const YANGO_DISPLAY_NAME = {
   Airport: {
     Comfort:  'Yango',
     Premier:  'Yango (Comfort+)',
+    Economy:  'Yango',
   },
 }
 
@@ -82,14 +89,22 @@ export const DEFAULT_WEIGHTS = {
 
 // Colores de competidores para gráficos
 export const COMPETITOR_COLORS = {
-  Yango:        '#E53935',   // rojo
-  YangoPremier: '#B71C1C',   // rojo oscuro
-  YangoComfort: '#EF5350',   // rojo claro
-  'YangoComfort+': '#FF5722',
-  Uber:         '#000000',   // negro
-  Didi:         '#FF6D00',   // naranja
-  InDrive:      '#2E7D32',   // verde
-  Cabify:       '#7B1FA2',   // morado
+  Yango:               '#E53935',
+  YangoPremier:        '#B71C1C',
+  YangoComfort:        '#EF5350',
+  'YangoComfort+':     '#FF5722',
+  'Yango Economy':     '#E53935',
+  'Yango Comfort':     '#EF9A9A',
+  'Yango Comfort+':    '#FF5722',
+  'Yango Premier':     '#B71C1C',
+  'Yango XL':          '#D32F2F',
+  Uber:                '#000000',
+  Didi:                '#FF6D00',
+  InDrive:             '#2E7D32',
+  Cabify:              '#7B1FA2',
+  'Cabify Lite':       '#AB47BC',
+  'Cabify Extra Comfort': '#6A1B9A',
+  'Cabify XL':         '#4A148C',
 }
 
 // Ciudades con configuración de pesos independiente
