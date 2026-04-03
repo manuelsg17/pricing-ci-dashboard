@@ -27,11 +27,11 @@ SELECT
          AND (COALESCE(bid_1,0) + COALESCE(bid_2,0) + COALESCE(bid_3,0)
               + COALESCE(bid_4,0) + COALESCE(bid_5,0)) > 0
     THEN (
-      COALESCE(NULLIF(bid_1, 0), NULL) +
-      COALESCE(NULLIF(bid_2, 0), NULL) +
-      COALESCE(NULLIF(bid_3, 0), NULL) +
-      COALESCE(NULLIF(bid_4, 0), NULL) +
-      COALESCE(NULLIF(bid_5, 0), NULL)
+      COALESCE(NULLIF(bid_1, 0), 0) +
+      COALESCE(NULLIF(bid_2, 0), 0) +
+      COALESCE(NULLIF(bid_3, 0), 0) +
+      COALESCE(NULLIF(bid_4, 0), 0) +
+      COALESCE(NULLIF(bid_5, 0), 0)
     )::numeric / NULLIF(
       (CASE WHEN COALESCE(bid_1,0) > 0 THEN 1 ELSE 0 END +
        CASE WHEN COALESCE(bid_2,0) > 0 THEN 1 ELSE 0 END +
