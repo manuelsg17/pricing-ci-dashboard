@@ -75,10 +75,10 @@ export function usePricingData(filters, dbWeights) {
   }, [city, category, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd])
 
   // ── Construir matriz de datos ───────────────────────────
-  const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, chartData, periods } =
+  const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods } =
     useMemo(() => {
       if (!rawRows.length) {
-        return { priceMatrix: {}, deltaMatrix: {}, semaforoMatrix: {}, sampleMatrix: {}, chartData: {}, periods: [] }
+        return { priceMatrix: {}, deltaMatrix: {}, semaforoMatrix: {}, sampleMatrix: {}, diffMatrix: {}, chartData: {}, deltaChartData: {}, periods: [] }
       }
 
       const weights = buildWeightsMap(dbWeights || [], city) || DEFAULT_WEIGHTS
@@ -119,16 +119,20 @@ export function usePricingData(filters, dbWeights) {
       const deltaMatrix    = {}
       const semaforoMatrix = {}
       const sampleMatrix   = {}
+      const diffMatrix     = {}
       const chartData      = {}
+      const deltaChartData = {}
 
-      // Inicializar chartData por bracket
-      for (const b of BRACKETS) chartData[b] = []
+      // Inicializar chartData por bracket + WA
+      for (const b of [...BRACKETS, '_wa']) {
+        chartData[b]      = []
+        deltaChartData[b] = []
+      }
 
       for (const period of periods) {
-        const periodPrices = {}
-
+        // ── Paso 1: construir priceMatrix para todos los competidores ──
         for (const comp of competitors) {
-          const bracketData = nested[comp]?.[period.key] || {}
+          const bracketData  = nested[comp]?.[period.key] || {}
           const bracketPrices = {}
           const bracketCounts = {}
 
@@ -144,37 +148,69 @@ export function usePricingData(filters, dbWeights) {
 
           priceMatrix[comp][period.key]  = { ...bracketPrices, _wa: wa }
           sampleMatrix[comp][period.key] = { ...bracketCounts }
-          periodPrices[comp] = wa
         }
 
-        // Calcular delta vs compareVs
-        const basePrice = periodPrices[filters.compareVs]
+        // ── Paso 2: calcular delta/semaforo/diff vs compareVs ──
+        const baseData = priceMatrix[filters.compareVs]?.[period.key] || {}
+        const baseWA   = baseData._wa ?? null
+
         for (const comp of competitors) {
           if (!deltaMatrix[comp])    deltaMatrix[comp]    = {}
           if (!semaforoMatrix[comp]) semaforoMatrix[comp] = {}
+          if (!diffMatrix[comp])     diffMatrix[comp]     = {}
 
-          const delta = comp === filters.compareVs
-            ? 0
-            : computeDelta(periodPrices[comp], basePrice)
+          const isBase   = comp === filters.compareVs
+          const compData = priceMatrix[comp][period.key]
+          const compWA   = compData._wa ?? null
 
-          deltaMatrix[comp][period.key]    = delta
-          semaforoMatrix[comp][period.key] = getSemaforoClass(delta)
-        }
+          const deltaWA = isBase ? 0 : computeDelta(compWA, baseWA)
+          const diffWA  = isBase ? 0 : (compWA != null && baseWA != null ? compWA - baseWA : null)
 
-        // Datos para gráficos por bracket
-        for (const b of BRACKETS) {
-          const point = { period: period.label }
-          for (const comp of competitors) {
-            point[comp] = nested[comp]?.[period.key]?.[b]?.avgPrice ?? null
+          const bDelta    = {}
+          const bSemaforo = {}
+          const bDiff     = {}
+
+          for (const b of BRACKETS) {
+            const compP = compData[b]
+            const baseP = baseData[b] ?? null
+            const d     = isBase ? 0 : computeDelta(compP, baseP)
+            bDelta[b]    = d
+            bSemaforo[b] = getSemaforoClass(d)
+            bDiff[b]     = isBase ? 0 : (compP != null && baseP != null ? compP - baseP : null)
           }
-          chartData[b].push(point)
+
+          deltaMatrix[comp][period.key]    = { _wa: deltaWA,            ...bDelta }
+          semaforoMatrix[comp][period.key] = { _wa: getSemaforoClass(deltaWA), ...bSemaforo }
+          diffMatrix[comp][period.key]     = { _wa: diffWA,             ...bDiff }
         }
+
+        // ── Paso 3: chartData por bracket + WA ──
+        for (const b of BRACKETS) {
+          const pricePoint = { period: period.label }
+          const deltaPoint = { period: period.label }
+          for (const comp of competitors) {
+            pricePoint[comp] = priceMatrix[comp][period.key][b] ?? null
+            deltaPoint[comp] = deltaMatrix[comp][period.key][b] ?? null
+          }
+          chartData[b].push(pricePoint)
+          deltaChartData[b].push(deltaPoint)
+        }
+
+        // WA chart
+        const waPricePoint = { period: period.label }
+        const waDeltaPoint = { period: period.label }
+        for (const comp of competitors) {
+          waPricePoint[comp] = priceMatrix[comp][period.key]._wa ?? null
+          waDeltaPoint[comp] = deltaMatrix[comp][period.key]._wa ?? null
+        }
+        chartData['_wa'].push(waPricePoint)
+        deltaChartData['_wa'].push(waDeltaPoint)
       }
 
-      return { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, chartData, periods }
+      return { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
     }, [rawRows, dbWeights, filters])
 
-  return { loading, error, priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, chartData, periods }
+  return { loading, error, priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
 }
 
 // ── Helpers de formato ──────────────────────────────────

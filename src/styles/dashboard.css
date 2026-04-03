@@ -184,6 +184,69 @@
 
 .state-box--error { color: #b71c1c; background: #ffebee; border-color: #ef9a9a; }
 
+/* ── Secciones por bracket ───────────────────────────── */
+.bracket-section {
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 12px;
+}
+
+.bracket-section__title {
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 5px 10px;
+  border-radius: 3px 3px 0 0;
+  margin-bottom: 6px;
+}
+
+.bracket-section__tables {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+  overflow-x: auto;
+}
+
+.bracket-section__table-wrap {
+  min-width: 0;
+}
+
+.bracket-section__table-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 0 3px;
+}
+
+.bracket-section__charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Celda base (Yango en delta/diff) */
+.bs-base-cell {
+  background: #f0f0f0 !important;
+  color: #888;
+  font-weight: 700;
+}
+
+/* Diferencia S/ colores suaves */
+.diff-pos { color: #1b5e20; }
+.diff-neg { color: #b71c1c; }
+
+@media (max-width: 1200px) {
+  .bracket-section__tables { grid-template-columns: 1fr; }
+  .bracket-section__charts { grid-template-columns: 1fr; }
+}
+
 /* ── Gráficos ────────────────────────────────────────── */
 .charts-grid {
   display: grid;
