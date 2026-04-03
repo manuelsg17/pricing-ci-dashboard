@@ -50,82 +50,142 @@ const COL_MAP = {
   'Diff (manually calc)':   'diff',
 }
 
+// ── Helpers de parseo ──────────────────────────────────────
+
 function parseExcelDate(val) {
   if (!val) return null
-  if (typeof val === 'string') return val.slice(0, 10)
-  // Número serial de Excel
+  if (typeof val === 'string') {
+    const s = val.trim()
+    // Formato DD/MM/YYYY → YYYY-MM-DD
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [d, m, y] = s.split('/')
+      return `${y}-${m}-${d}`
+    }
+    // Formato DD-MM-YYYY
+    if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
+      const [d, m, y] = s.split('-')
+      return `${y}-${m}-${d}`
+    }
+    return s.slice(0, 10)
+  }
   if (typeof val === 'number') {
     const date = new Date((val - 25569) * 86400 * 1000)
     return date.toISOString().slice(0, 10)
   }
   if (val instanceof Date) return val.toISOString().slice(0, 10)
-  return String(val).slice(0, 10)
+  return null
 }
 
-// Excel guarda el tiempo como fracción del día: 0.5 = 12:00:00
 function parseExcelTime(val) {
-  if (!val && val !== 0) return null
-  // Ya es string tipo "10:30" o "10:30:00"
+  if (val === null || val === undefined || val === '') return null
   if (typeof val === 'string') {
-    // Verificar que sea formato de hora válido
-    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(val.trim())) return val.trim()
+    const s = val.trim()
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) return s
     return null
   }
   if (typeof val === 'number') {
-    // Usar solo la parte fraccionaria (ignorar parte entera = fecha)
-    const fraction = val % 1
+    const fraction    = val % 1
     const totalSeconds = Math.round(fraction * 86400)
     const h = Math.floor(totalSeconds / 3600)
     const m = Math.floor((totalSeconds % 3600) / 60)
     const s = totalSeconds % 60
     return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
   }
-  if (val instanceof Date) {
-    return val.toTimeString().slice(0, 8)
-  }
+  if (val instanceof Date) return val.toTimeString().slice(0, 8)
   return null
 }
 
-// Columnas numéricas en la BD
+// Columnas que deben ser números en la BD
 const NUMERIC_COLS = new Set([
   'distance_km','travel_time_min','eta_min','recommended_price','minimal_bid',
   'price_with_discount','price_without_discount','bid_1','bid_2','bid_3',
-  'bid_4','bid_5','discount_offer','diff','year','week',
+  'bid_4','bid_5','discount_offer','diff',
 ])
+
+// Columnas que deben ser enteros
+const INT_COLS = new Set(['year', 'week'])
 
 function toNumeric(val) {
   if (val === null || val === undefined || val === '') return null
-  if (typeof val === 'number') return val
-  // Reemplazar coma decimal española → punto
-  const clean = String(val).trim().replace(',', '.')
-  const n = parseFloat(clean)
+  if (typeof val === 'number') return isNaN(val) ? null : val
+  // "13,2" → 13.2  |  "13.2" → 13.2
+  const clean = String(val).trim().replace(/\./g, '').replace(',', '.')
+  // Caso: punto como separador de miles y coma decimal (ej: "1.234,56")
+  const n = parseFloat(String(val).trim().replace(',', '.'))
   return isNaN(n) ? null : n
+}
+
+function toInt(val) {
+  const n = toNumeric(val)
+  return n === null ? null : Math.round(n)
+}
+
+function parseBool(val) {
+  if (val === null || val === undefined || val === '') return null
+  if (typeof val === 'boolean') return val
+  if (typeof val === 'number') return val !== 0
+  const s = String(val).trim().toLowerCase()
+  if (s === '' || s === 'null' || s === 'n/a') return null
+  return s === 'si' || s === 'sí' || s === 'yes' || s === '1' || s === 'true' || s === 'rush hour'
+}
+
+function cleanStr(val) {
+  if (val === null || val === undefined) return null
+  return String(val).trim() || null
 }
 
 function parseRows(sheetData, city) {
   if (!sheetData.length) return []
-  const headers = sheetData[0]
-  return sheetData.slice(1).map(row => {
+
+  // Encontrar la fila de cabeceras (primera fila no vacía)
+  const headerRowIdx = sheetData.findIndex(r => r && r.some(c => c !== null && c !== ''))
+  if (headerRowIdx === -1) return []
+  const headers = sheetData[headerRowIdx]
+
+  return sheetData.slice(headerRowIdx + 1).map(row => {
+    // Ignorar filas completamente vacías
+    if (!row || row.every(c => c === null || c === '')) return null
+
     const obj = { city }
     headers.forEach((h, i) => {
-      const dbCol = COL_MAP[h]
+      const dbCol = COL_MAP[String(h || '').trim()]
       if (!dbCol) return
       const raw = row[i] ?? null
-      obj[dbCol] = NUMERIC_COLS.has(dbCol) ? toNumeric(raw) : raw
+      if (NUMERIC_COLS.has(dbCol)) obj[dbCol] = toNumeric(raw)
+      else if (INT_COLS.has(dbCol))   obj[dbCol] = toInt(raw)
+      else                            obj[dbCol] = cleanStr(raw)
     })
-    // Normalizar fecha y hora
+
+    // Fecha y hora
     obj.observed_date = parseExcelDate(obj.observed_date)
     obj.observed_time = parseExcelTime(obj.observed_time)
-    // Normalizar surge
-    if (typeof obj.surge === 'string') {
-      obj.surge = obj.surge.toLowerCase() === 'si' || obj.surge.toLowerCase() === 'yes' || obj.surge === '1'
-    }
-    // Normalizar rush_hour
-    if (typeof obj.rush_hour === 'string') {
-      obj.rush_hour = obj.rush_hour.toLowerCase().includes('rush')
-    }
+
+    // Booleans — forzar true/false/null sin excepción
+    const rawSurge    = obj.surge
+    const rawRushHour = obj.rush_hour
+
+    obj.surge = typeof rawSurge === 'boolean'
+      ? rawSurge
+      : parseBool(rawSurge)
+
+    obj.rush_hour = typeof rawRushHour === 'string'
+      ? (rawRushHour.toLowerCase().includes('rush') ? true : rawRushHour.toLowerCase().includes('valley') ? false : null)
+      : typeof rawRushHour === 'boolean'
+        ? rawRushHour
+        : parseBool(rawRushHour)
+
+    // Red de seguridad final: si algo raro llegó, forzar null
+    if (obj.surge    !== null && typeof obj.surge    !== 'boolean') obj.surge    = null
+    if (obj.rush_hour !== null && typeof obj.rush_hour !== 'boolean') obj.rush_hour = null
+
+    // Limpiar nombres clave (sin espacios extra, sin saltos de línea)
+    obj.competition_name = cleanStr(obj.competition_name)
+    obj.category         = cleanStr(obj.category)
+    obj.distance_bracket = cleanStr(obj.distance_bracket)
+
     return obj
-  }).filter(r => r.observed_date && r.competition_name)
+  })
+  .filter(r => r !== null && r.observed_date && r.competition_name)
 }
 
 // Detecta la ciudad a partir del nombre de la pestaña
