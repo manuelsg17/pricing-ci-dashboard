@@ -85,6 +85,22 @@ function parseExcelTime(val) {
   return null
 }
 
+// Columnas numéricas en la BD
+const NUMERIC_COLS = new Set([
+  'distance_km','travel_time_min','eta_min','recommended_price','minimal_bid',
+  'price_with_discount','price_without_discount','bid_1','bid_2','bid_3',
+  'bid_4','bid_5','discount_offer','diff','year','week',
+])
+
+function toNumeric(val) {
+  if (val === null || val === undefined || val === '') return null
+  if (typeof val === 'number') return val
+  // Reemplazar coma decimal española → punto
+  const clean = String(val).trim().replace(',', '.')
+  const n = parseFloat(clean)
+  return isNaN(n) ? null : n
+}
+
 function parseRows(sheetData, city) {
   if (!sheetData.length) return []
   const headers = sheetData[0]
@@ -92,7 +108,9 @@ function parseRows(sheetData, city) {
     const obj = { city }
     headers.forEach((h, i) => {
       const dbCol = COL_MAP[h]
-      if (dbCol) obj[dbCol] = row[i] ?? null
+      if (!dbCol) return
+      const raw = row[i] ?? null
+      obj[dbCol] = NUMERIC_COLS.has(dbCol) ? toNumeric(raw) : raw
     })
     // Normalizar fecha y hora
     obj.observed_date = parseExcelDate(obj.observed_date)
