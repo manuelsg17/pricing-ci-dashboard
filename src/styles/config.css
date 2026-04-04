@@ -3,6 +3,53 @@
   flex: 1;
 }
 
+/* ── Shared config action buttons ───────────────────────── */
+.btn-save-sm {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-yango);
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-save-sm:hover { background: var(--color-yango-dark); }
+.btn-save-sm:disabled { opacity: 0.5; cursor: default; }
+
+.btn-delete-sm {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: #dc2626;
+  cursor: pointer;
+}
+.btn-delete-sm:hover { background: #fee2e2; }
+
+.btn-add-row {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.btn-add-row:hover { border-color: var(--color-yango); color: var(--color-yango); }
+
+.save-msg { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 10px; }
+.save-msg--ok  { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+.save-msg--err { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+
+.config-loading { padding: 20px; color: var(--color-muted); font-size: 13px; }
+
 .config-page h1 {
   font-size: 18px;
   font-weight: 800;

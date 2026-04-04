@@ -8,6 +8,9 @@ import DropZone            from '../components/upload/DropZone'
 import PreviewTable        from '../components/upload/PreviewTable'
 import IngestProgress      from '../components/upload/IngestProgress'
 import BotUpload           from '../components/upload/BotUpload'
+import OutlierReview          from '../components/upload/OutlierReview'
+import { usePriceRules }      from '../hooks/usePriceRules'
+import { useRushHourConfig }  from '../hooks/useRushHourConfig'
 import '../styles/upload.css'
 
 // Mapa: nombre de columna en Excel/CSV → nombre en BD
@@ -263,12 +266,16 @@ function detectCity(sheetName) {
 const BATCH_SIZE = 500
 
 export default function Upload() {
-  const [sheets,    setSheets]    = useState([])   // [{ name, city, rowCount, rows }]
+  const [sheets,    setSheets]    = useState([])
   const [preview,   setPreview]   = useState([])
   const [allRows,   setAllRows]   = useState([])
   const [progress,  setProgress]  = useState(null)
-  const [parsing,   setParsing]   = useState(null) // null | "Procesando archivo X…"
+  const [parsing,   setParsing]   = useState(null)
   const [uploadTab, setUploadTab] = useState('manual')
+  const [suspects,  setSuspects]  = useState(null)  // null | array de filas sospechosas
+
+  const { checkOutliers }    = usePriceRules()
+  const { isRushHour }       = useRushHourConfig()
 
   // Procesa un único archivo (File) y devuelve array de sheets
   const parseSingleFile = async (file) => {
@@ -348,17 +355,43 @@ export default function Upload() {
     })
   }
 
-  const handleIngest = async () => {
-    if (!allRows.length) return
-    setProgress({ current: 0, total: allRows.length, done: false, error: null })
+  // Llamado cuando el usuario hace click en "Insertar N filas"
+  // Primero valida outliers; si los hay muestra OutlierReview
+  const handleIngestClick = () => {
+    const { ok, suspects: found } = checkOutliers(allRows)
+    if (found.length > 0) {
+      setSuspects(found)  // muestra el panel de revisión
+    } else {
+      handleIngest(allRows)
+    }
+  }
+
+  // Llamado desde OutlierReview cuando el usuario confirma
+  const handleOutlierConfirm = (corrections) => {
+    const finalRows = allRows.map((row, idx) => {
+      const corr = corrections[idx]
+      if (!corr) return row
+      if (corr.exclude) return null
+      const newPrice = parseFloat(corr.price)
+      if (!isNaN(newPrice) && newPrice !== row.price_without_discount) {
+        return { ...row, price_without_discount: newPrice }
+      }
+      return row
+    }).filter(Boolean)
+    setSuspects(null)
+    handleIngest(finalRows)
+  }
+
+  const handleIngest = async (rowsToInsert) => {
+    if (!rowsToInsert?.length) return
+    setProgress({ current: 0, total: rowsToInsert.length, done: false, error: null })
 
     const batchId = crypto.randomUUID()
     let inserted  = 0
 
     // ── Paso 1: Borrar filas existentes del mismo rango de fechas+ciudad ──
-    // Agrupa por ciudad y calcula el rango de fechas de lo que se va a subir
     const cityDateRanges = {}
-    for (const r of allRows) {
+    for (const r of rowsToInsert) {
       if (!r.city || !r.observed_date) continue
       if (!cityDateRanges[r.city]) cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
       if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
@@ -370,6 +403,7 @@ export default function Upload() {
         .from('pricing_observations')
         .delete()
         .eq('city', city)
+        .eq('data_source', 'manual')
         .gte('observed_date', min)
         .lte('observed_date', max)
       if (delErr) {
@@ -379,10 +413,15 @@ export default function Upload() {
     }
 
     // ── Paso 2: Insertar las filas nuevas ──────────────────────────────────
-    for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
-      const batch = allRows.slice(i, i + BATCH_SIZE).map(r => ({
+    for (let i = 0; i < rowsToInsert.length; i += BATCH_SIZE) {
+      const batch = rowsToInsert.slice(i, i + BATCH_SIZE).map(r => ({
         ...r,
+        data_source:    'manual',
         upload_batch_id: batchId,
+        // Recalcular rush_hour con la config del dashboard (sobreescribe el Excel)
+        rush_hour: r.observed_time
+          ? (isRushHour(r.observed_time, r.city) ?? r.rush_hour)
+          : r.rush_hour,
       }))
       const { error } = await sb.from('pricing_observations').insert(batch)
       if (error) {
@@ -390,13 +429,13 @@ export default function Upload() {
         return
       }
       inserted += batch.length
-      setProgress({ current: inserted, total: allRows.length, done: false, error: null })
+      setProgress({ current: inserted, total: rowsToInsert.length, done: false, error: null })
     }
 
     await sb.from('upload_batches').insert({
       id:        batchId,
       filename:  sheets.map(s => s.name).join(', '),
-      row_count: allRows.length,
+      row_count: rowsToInsert.length,
       city:      'multi',
     })
 
@@ -409,6 +448,7 @@ export default function Upload() {
     setAllRows([])
     setProgress(null)
     setParsing(null)
+    setSuspects(null)
   }
 
   return (
@@ -484,7 +524,16 @@ export default function Upload() {
         </div>
       )}
 
-      {preview.length > 0 && <PreviewTable rows={preview} />}
+      {preview.length > 0 && !suspects && <PreviewTable rows={preview} />}
+
+      {/* Panel de revisión de outliers */}
+      {suspects && (
+        <OutlierReview
+          suspects={suspects}
+          onConfirm={handleOutlierConfirm}
+          onCancel={() => setSuspects(null)}
+        />
+      )}
 
       {progress && (
         <IngestProgress
@@ -506,7 +555,7 @@ export default function Upload() {
               </div>
               <button
                 className="btn-ingest"
-                onClick={handleIngest}
+                onClick={handleIngestClick}
                 disabled={!!progress && !progress.done && !progress.error}
               >
                 Insertar {allRows.length.toLocaleString()} filas en Supabase

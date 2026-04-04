@@ -56,9 +56,31 @@ export default function BotUpload() {
 
     try {
       const batchId = crypto.randomUUID()
+
+      // Borrar solo filas previas del BOT para el mismo rango de fechas+ciudad
+      // (las filas del Excel/hubs NO se tocan)
+      const cityDateRanges = {}
+      for (const r of rows) {
+        if (!r.city || !r.observed_date) continue
+        if (!cityDateRanges[r.city]) cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
+        if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
+        if (r.observed_date > cityDateRanges[r.city].max) cityDateRanges[r.city].max = r.observed_date
+      }
+      for (const [city, { min, max }] of Object.entries(cityDateRanges)) {
+        const { error: delErr } = await sb
+          .from('pricing_observations')
+          .delete()
+          .eq('city', city)
+          .eq('data_source', 'bot')
+          .gte('observed_date', min)
+          .lte('observed_date', max)
+        if (delErr) throw delErr
+      }
+
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const chunk = rows.slice(i, i + BATCH_SIZE).map(r => ({
           ...r,
+          data_source: 'bot',
           upload_batch_id: batchId,
           uploaded_at: new Date().toISOString(),
         }))
@@ -67,7 +89,7 @@ export default function BotUpload() {
         inserted += chunk.length
         setProgress({ done: inserted, total: rows.length })
       }
-      setMessage({ type: 'ok', text: `✓ ${inserted} filas insertadas correctamente desde el bot.` })
+      setMessage({ type: 'ok', text: `✓ ${inserted} filas del bot insertadas. Los datos de los hubs no fueron afectados.` })
       setRows([])
       setSkipped([])
       setFileName('')

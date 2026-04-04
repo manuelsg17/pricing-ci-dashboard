@@ -39,6 +39,25 @@ export default function BracketSection({
 
   const isBase = (comp) => comp === compareVs
 
+  function compBadge(comp) {
+    const color = COMPETITOR_COLORS[comp]
+    if (!color) return comp
+    return (
+      <span style={{
+        background: color,
+        color: '#fff',
+        borderRadius: 4,
+        padding: '2px 8px',
+        fontWeight: 700,
+        fontSize: 11,
+        whiteSpace: 'nowrap',
+        letterSpacing: 0.2,
+      }}>
+        {comp}
+      </span>
+    )
+  }
+
   return (
     <div className="bracket-section">
       <div className="bracket-section__title">{label}</div>
@@ -58,7 +77,7 @@ export default function BracketSection({
               <tbody>
                 {competitors.map(comp => (
                   <tr key={comp} className={isBase(comp) ? 'row-yango' : ''}>
-                    <td className="col-label">{comp}</td>
+                    <td className="col-label">{compBadge(comp)}</td>
                     {periods.map(p => {
                       const v = getPrice(comp, p.key)
                       return (
@@ -88,7 +107,7 @@ export default function BracketSection({
               <tbody>
                 {competitors.map(comp => (
                   <tr key={comp} className={isBase(comp) ? 'row-yango' : ''}>
-                    <td className="col-label">{comp}</td>
+                    <td className="col-label">{compBadge(comp)}</td>
                     {periods.map(p => {
                       const d = getDelta(comp, p.key)
                       const sem = getSemaforo(comp, p.key)
@@ -126,7 +145,7 @@ export default function BracketSection({
               <tbody>
                 {competitors.map(comp => (
                   <tr key={comp} className={isBase(comp) ? 'row-yango' : ''}>
-                    <td className="col-label">{comp}</td>
+                    <td className="col-label">{compBadge(comp)}</td>
                     {periods.map(p => {
                       const d = getDiff(comp, p.key)
                       if (isBase(comp)) {

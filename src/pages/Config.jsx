@@ -3,12 +3,16 @@ import { useConfig }         from '../hooks/useConfig'
 import ThresholdsTable       from '../components/config/ThresholdsTable'
 import WeightsTable          from '../components/config/WeightsTable'
 import SemaforoEditor        from '../components/config/SemaforoEditor'
+import PriceRulesTable       from '../components/config/PriceRulesTable'
+import RushHourConfig        from '../components/config/RushHourConfig'
 import '../styles/config.css'
 
 const TABS = [
   { id: 'thresholds', label: 'Distancias' },
   { id: 'weights',    label: 'Pesos' },
   { id: 'semaforo',   label: 'Semáforo' },
+  { id: 'pricerules', label: 'Límites Precio' },
+  { id: 'rushhour',   label: 'Rush Hour' },
 ]
 
 export default function Config() {
@@ -66,6 +70,9 @@ export default function Config() {
           saving={saving}
         />
       )}
+
+      {activeTab === 'pricerules' && <PriceRulesTable />}
+      {activeTab === 'rushhour'   && <RushHourConfig />}
     </div>
   )
 }

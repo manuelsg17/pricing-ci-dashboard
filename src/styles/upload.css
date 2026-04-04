@@ -3,6 +3,126 @@
   flex: 1;
 }
 
+/* ── Outlier Review ─────────────────────────────── */
+.outlier-review {
+  background: var(--color-panel);
+  border: 2px solid #f59e0b;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.outlier-review__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+}
+
+.outlier-review__icon { font-size: 22px; }
+
+.outlier-review__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 2px;
+}
+
+.outlier-review__sub {
+  font-size: 12px;
+  color: #78350f;
+}
+
+.outlier-review__table-wrap {
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.outlier-review__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.outlier-review__table thead th {
+  background: #f3f4f6;
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+}
+
+.outlier-review__table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.outlier-review__table tbody tr.outlier-row--excluded {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.outlier-review__table td {
+  padding: 6px 10px;
+}
+
+.outlier-value {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.outlier-threshold {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.outlier-input {
+  width: 90px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 12px;
+  outline: none;
+}
+
+.outlier-input:focus { border-color: var(--color-yango); }
+
+.outlier-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-yango);
+}
+
+.outlier-review__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-top: 1px solid var(--color-border);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.outlier-review__summary {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.outlier-review__actions {
+  display: flex;
+  gap: 8px;
+}
+
 .upload-overwrite-notice {
   background: #fffbeb;
   border: 1px solid #fcd34d;
