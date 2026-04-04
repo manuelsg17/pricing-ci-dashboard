@@ -666,7 +666,7 @@ export default function DataEntry() {
                       </thead>
                       <tbody>
                         {BRACKETS.filter(b => catRefs.some(r => r.bracket === b)).map(bracket => {
-                          const bracketRefs = catRefs.filter(r => r.bracket === b)
+                          const bracketRefs = catRefs.filter(r => r.bracket === bracket)
                           return bracketRefs.map((ref, ri) =>
                             timeslots.map((ts, ti) => {
                               const state = rowState(uiCat, ref, ts)
