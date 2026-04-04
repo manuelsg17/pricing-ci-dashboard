@@ -6,6 +6,7 @@ import LoginScreen    from './components/layout/LoginScreen'
 import Dashboard      from './pages/Dashboard'
 import Config         from './pages/Config'
 import Upload         from './pages/Upload'
+import DistanceRefs   from './pages/DistanceRefs'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -46,6 +47,7 @@ export default function App() {
       {activeTab === 'dashboard' && <Dashboard dbWeights={dbWeights} />}
       {activeTab === 'config'    && <Config />}
       {activeTab === 'upload'    && <Upload />}
+      {activeTab === 'distances' && <DistanceRefs />}
     </>
   )
 }

@@ -1,14 +1,15 @@
-import { CITIES, CATEGORIES_BY_CITY, COMPETITORS_BY_CITY_CATEGORY } from '../../lib/constants'
+import { CITIES, CATEGORIES_BY_CITY, AEROPUERTO_SUBCATEGORIES, getCompetitors } from '../../lib/constants'
 
 export default function FilterBar({
   filters, zones,
-  setCity, setCategory, setZone, setSurge,
+  setCity, setCategory, setSubCategory, setZone, setSurge,
   setCompareVs, setViewMode, setWeekStart,
   setDailyStart, setDailyEnd,
 }) {
-  const { city, category, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd } = filters
+  const { city, category, subCategory, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd } = filters
   const categories  = CATEGORIES_BY_CITY[city] || []
-  const competitors = COMPETITORS_BY_CITY_CATEGORY[city]?.[category] || []
+  const competitors = getCompetitors(city, category, subCategory)
+  const showSubCategory = category === 'Aeropuerto'
 
   // Forzar que weekStart siempre sea lunes
   const handleWeekStart = (e) => {
@@ -39,6 +40,19 @@ export default function FilterBar({
           {categories.map(c => <option key={c}>{c}</option>)}
         </select>
       </div>
+
+      {/* Sub-categoría (solo Aeropuerto) */}
+      {showSubCategory && (
+        <>
+          <div className="filter-bar__divider" />
+          <div className="filter-bar__group">
+            <span className="filter-bar__label">Sub-cat.</span>
+            <select value={subCategory || ''} onChange={e => setSubCategory(e.target.value)}>
+              {AEROPUERTO_SUBCATEGORIES.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+        </>
+      )}
 
       <div className="filter-bar__divider" />
 

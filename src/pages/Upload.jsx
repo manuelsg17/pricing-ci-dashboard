@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
 import { sb }              from '../lib/supabase'
-import { CITIES }          from '../lib/constants'
+import { DB_CITIES as CITIES } from '../lib/constants'
 import { computeEffectivePrice } from '../algorithms/indrive'
 import { assignBracket }         from '../algorithms/brackets'
 import DropZone            from '../components/upload/DropZone'
 import PreviewTable        from '../components/upload/PreviewTable'
 import IngestProgress      from '../components/upload/IngestProgress'
+import BotUpload           from '../components/upload/BotUpload'
 import '../styles/upload.css'
 
 // Mapa: nombre de columna en Excel/CSV → nombre en BD
@@ -262,11 +263,12 @@ function detectCity(sheetName) {
 const BATCH_SIZE = 500
 
 export default function Upload() {
-  const [sheets,   setSheets]   = useState([])   // [{ name, city, rowCount, rows }]
-  const [preview,  setPreview]  = useState([])
-  const [allRows,  setAllRows]  = useState([])
-  const [progress, setProgress] = useState(null)
-  const [parsing,  setParsing]  = useState(null) // null | "Procesando archivo X…"
+  const [sheets,    setSheets]    = useState([])   // [{ name, city, rowCount, rows }]
+  const [preview,   setPreview]   = useState([])
+  const [allRows,   setAllRows]   = useState([])
+  const [progress,  setProgress]  = useState(null)
+  const [parsing,   setParsing]   = useState(null) // null | "Procesando archivo X…"
+  const [uploadTab, setUploadTab] = useState('manual')
 
   // Procesa un único archivo (File) y devuelve array de sheets
   const parseSingleFile = async (file) => {
@@ -389,6 +391,27 @@ export default function Upload() {
     <div className="upload-page">
       <h1>Cargar Data</h1>
 
+      {/* Sub-tabs */}
+      <div className="upload-tabs">
+        <button
+          className={`upload-tab${uploadTab === 'manual' ? ' active' : ''}`}
+          onClick={() => setUploadTab('manual')}
+        >
+          📋 Excel / CSV Manual
+        </button>
+        <button
+          className={`upload-tab${uploadTab === 'bot' ? ' active' : ''}`}
+          onClick={() => setUploadTab('bot')}
+        >
+          🤖 Bot Data
+        </button>
+      </div>
+
+      {/* Bot upload */}
+      {uploadTab === 'bot' && <BotUpload />}
+
+      {/* Manual upload */}
+      {uploadTab === 'manual' && <>
       {!allRows.length && !parsing && <DropZone onFile={handleFile} />}
 
       {/* Indicador de parseo */}
@@ -462,6 +485,7 @@ export default function Upload() {
           <button className="btn-clear" onClick={handleClear}>Limpiar</button>
         </div>
       )}
+      </>}
     </div>
   )
 }

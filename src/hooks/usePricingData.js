@@ -22,11 +22,11 @@ export function usePricingData(filters, dbWeights) {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
 
-  const { city, category, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd } = filters
+  const { dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd } = filters
 
   // ── Cargar datos desde Supabase ──────────────────────────
   useEffect(() => {
-    if (!city || !category) return
+    if (!dbCity || !dbCategory) return
     setLoading(true)
     setError(null)
 
@@ -41,8 +41,8 @@ export function usePricingData(filters, dbWeights) {
           const { year: y2, week: w2 } = getYearWeek(lastDate)
 
           const { data, error: err } = await sb.rpc('get_dashboard_data_weekly', {
-            p_city:        city,
-            p_category:    category,
+            p_city:        dbCity,
+            p_category:    dbCategory,
             p_zone:        zone === 'All' ? null : zone,
             p_surge:       surge,
             p_week_start:  w1,
@@ -54,8 +54,8 @@ export function usePricingData(filters, dbWeights) {
           setRawRows(data || [])
         } else {
           const { data, error: err } = await sb.rpc('get_dashboard_data_daily', {
-            p_city:       city,
-            p_category:   category,
+            p_city:       dbCity,
+            p_category:   dbCategory,
             p_zone:       zone === 'All' ? null : zone,
             p_surge:      surge,
             p_date_start: dailyStart,
@@ -72,7 +72,7 @@ export function usePricingData(filters, dbWeights) {
     }
 
     fetchData()
-  }, [city, category, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd])
+  }, [dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd])
 
   // ── Construir matriz de datos ───────────────────────────
   const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods } =
@@ -81,7 +81,7 @@ export function usePricingData(filters, dbWeights) {
         return { priceMatrix: {}, deltaMatrix: {}, semaforoMatrix: {}, sampleMatrix: {}, diffMatrix: {}, chartData: {}, deltaChartData: {}, periods: [] }
       }
 
-      const weights = buildWeightsMap(dbWeights || [], city) || DEFAULT_WEIGHTS
+      const weights = buildWeightsMap(dbWeights || [], filters.dbCity) || DEFAULT_WEIGHTS
 
       // Determinar períodos (columnas)
       let periods = []

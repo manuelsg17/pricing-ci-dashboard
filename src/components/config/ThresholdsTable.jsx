@@ -1,12 +1,21 @@
 import { useState, useMemo } from 'react'
-import { BRACKETS, BRACKET_LABELS, CITIES, CATEGORIES_BY_CITY } from '../../lib/constants'
+import { BRACKETS, BRACKET_LABELS, DB_CITIES } from '../../lib/constants'
+
+// Categorías a nivel DB (para configuración de umbrales)
+const DB_CATEGORIES_BY_CITY = {
+  Lima:     ['Premier', 'Economy', 'Comfort', 'TukTuk', 'XL'],
+  Trujillo: ['Economy', 'Comfort'],
+  Arequipa: ['Economy', 'Comfort'],
+  Airport:  ['Comfort', 'Premier', 'Economy'],
+  Corp:     ['Corp'],
+}
 
 export default function ThresholdsTable({ thresholds, onSave, saving }) {
   // Combinar todas las city+category configuradas (incluye 'all')
   const cityCategories = useMemo(() => {
     const pairs = new Set()
-    CITIES.forEach(city => {
-      CATEGORIES_BY_CITY[city].forEach(cat => pairs.add(`${city}|||${cat}`))
+    DB_CITIES.forEach(city => {
+      DB_CATEGORIES_BY_CITY[city].forEach(cat => pairs.add(`${city}|||${cat}`))
     })
     // Agregar las que ya existen en DB
     thresholds.forEach(t => pairs.add(`${t.city}|||${t.category}`))
@@ -16,8 +25,8 @@ export default function ThresholdsTable({ thresholds, onSave, saving }) {
     })
   }, [thresholds])
 
-  const [selectedCity, setSelectedCity] = useState(CITIES[0])
-  const [selectedCat,  setSelectedCat]  = useState(CATEGORIES_BY_CITY[CITIES[0]][0])
+  const [selectedCity, setSelectedCity] = useState(DB_CITIES[0])
+  const [selectedCat,  setSelectedCat]  = useState(DB_CATEGORIES_BY_CITY[DB_CITIES[0]][0])
   const [local,        setLocal]        = useState({})
   const [saveMsg,      setSaveMsg]      = useState('')
 
@@ -64,15 +73,15 @@ export default function ThresholdsTable({ thresholds, onSave, saving }) {
           value={selectedCity}
           onChange={e => {
             setSelectedCity(e.target.value)
-            setSelectedCat(CATEGORIES_BY_CITY[e.target.value]?.[0] || '')
+            setSelectedCat(DB_CATEGORIES_BY_CITY[e.target.value]?.[0] || '')
           }}
         >
-          {CITIES.map(c => <option key={c}>{c}</option>)}
+          {DB_CITIES.map(c => <option key={c}>{c}</option>)}
         </select>
 
         <label>Categoría</label>
         <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)}>
-          {(CATEGORIES_BY_CITY[selectedCity] || []).map(c => <option key={c}>{c}</option>)}
+          {(DB_CATEGORIES_BY_CITY[selectedCity] || []).map(c => <option key={c}>{c}</option>)}
         </select>
       </div>
 

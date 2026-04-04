@@ -1,15 +1,22 @@
 import '../../styles/topbar.css'
 
 const TABS = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'config',    label: 'Configuración' },
-  { id: 'upload',    label: 'Cargar Data' },
+  { id: 'dashboard', label: '📊 Dashboard' },
+  { id: 'config',    label: '⚙️ Configuración' },
+  { id: 'upload',    label: '📤 Cargar Data' },
+  { id: 'distances', label: '📍 Distancias Ref.' },
 ]
 
 export default function Topbar({ activeTab, onTabChange, userEmail, onLogout }) {
   return (
     <nav className="topbar">
-      <span className="topbar__brand">Pricing CI</span>
+      <div className="topbar__brand">
+        <div className="topbar__brand-icon">Y</div>
+        <div className="topbar__brand-text">
+          <span className="topbar__brand-title">Pricing CI</span>
+          <span className="topbar__brand-sub">Yango Peru</span>
+        </div>
+      </div>
 
       <div className="topbar__tabs">
         {TABS.map(t => (
@@ -23,6 +30,7 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout }) 
         ))}
       </div>
 
+      <div className="topbar__spacer" />
       <span className="topbar__user" title={userEmail}>{userEmail}</span>
       <button className="topbar__logout" onClick={onLogout}>Salir</button>
     </nav>

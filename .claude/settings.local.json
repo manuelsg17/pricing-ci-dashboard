@@ -5,7 +5,18 @@
       "Bash(brew list:*)",
       "Bash(command -v brew)",
       "Bash(export PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\")",
-      "Bash(npm --version)"
+      "Bash(npm --version)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep -v '^$')",
+      "Bash(python3 -:*)",
+      "Bash(npm run:*)",
+      "Bash(/usr/local/bin/npm run:*)",
+      "Bash(/opt/homebrew/bin/npm run:*)",
+      "Bash(~/.nvm/versions/node/v24.14.1/bin/npm run:*)",
+      "Bash(export NVM_DIR=\"$HOME/.nvm\")",
+      "Bash(source \"$NVM_DIR/nvm.sh\")"
     ]
   }
 }

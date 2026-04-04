@@ -19,8 +19,11 @@ export default function LoginScreen({ onLogin }) {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div className="login-card__logo">Pricing CI</div>
-        <div className="login-card__subtitle">Yango Peru — Dashboard</div>
+        <div className="login-card__logo">
+          <span className="login-card__logo-icon">Y</span>
+          Pricing CI
+        </div>
+        <div className="login-card__subtitle">Yango Peru — Inteligencia Competitiva</div>
 
         <label htmlFor="email">Correo</label>
         <input
