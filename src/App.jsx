@@ -8,6 +8,7 @@ import Config         from './pages/Config'
 import Upload         from './pages/Upload'
 import DistanceRefs   from './pages/DistanceRefs'
 import RawData        from './pages/RawData'
+import DataEntry      from './pages/DataEntry'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -46,6 +47,7 @@ export default function App() {
       />
 
       {activeTab === 'dashboard' && <Dashboard dbWeights={dbWeights} />}
+      {activeTab === 'dataentry' && <DataEntry />}
       {activeTab === 'rawdata'   && <RawData />}
       {activeTab === 'config'    && <Config />}
       {activeTab === 'upload'    && <Upload />}

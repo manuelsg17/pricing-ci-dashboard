@@ -1,11 +1,12 @@
 import '../../styles/topbar.css'
 
 const TABS = [
-  { id: 'dashboard', label: '📊 Dashboard' },
-  { id: 'rawdata',   label: '🗃 Data Raw' },
-  { id: 'config',    label: '⚙️ Configuración' },
-  { id: 'upload',    label: '📤 Cargar Data' },
-  { id: 'distances', label: '📍 Distancias Ref.' },
+  { id: 'dashboard',  label: '📊 Dashboard' },
+  { id: 'dataentry',  label: '✏️ Ingresar CI' },
+  { id: 'rawdata',    label: '🗃 Data Raw' },
+  { id: 'config',     label: '⚙️ Configuración' },
+  { id: 'upload',     label: '📤 Cargar Data' },
+  { id: 'distances',  label: '📍 Distancias Ref.' },
 ]
 
 export default function Topbar({ activeTab, onTabChange, userEmail, onLogout }) {
