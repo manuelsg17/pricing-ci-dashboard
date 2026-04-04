@@ -198,6 +198,7 @@ export function mapBotRows(rows) {
       observed_time:          time,
       point_a:                String(row.start_address || '').trim().slice(0, 200) || null,
       point_b:                String(row.end_address   || '').trim().slice(0, 200) || null,
+      distance_km:            null,   // el bot no entrega km, solo bracket
       distance_bracket:       bracket || null,
       surge,
       recommended_price,
@@ -205,7 +206,6 @@ export function mapBotRows(rows) {
       price_with_discount,
       minimal_bid,
       eta_min,
-      // run_id útil para identificar el lote del bot
       zone: null,
     })
   }
