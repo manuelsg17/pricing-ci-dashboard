@@ -187,6 +187,108 @@
 .btn-save-row:hover { background: var(--color-yango-dark); }
 .btn-save-row:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Category tabs ───────────────────────────────────── */
+.drefs-cat-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.drefs-cat-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.drefs-cat-tab:hover { border-color: var(--color-yango); color: var(--color-yango); }
+.drefs-cat-tab.active {
+  background: var(--color-yango);
+  color: #fff;
+  border-color: var(--color-yango);
+  font-weight: 600;
+}
+
+.drefs-cat-count {
+  background: rgba(0,0,0,0.15);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  text-align: center;
+}
+
+.drefs-cat-tab.active .drefs-cat-count { background: rgba(255,255,255,0.3); }
+
+/* ── Pending badge ────────────────────────────────────── */
+.drefs-pending-badge {
+  margin-left: 8px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: none;
+}
+
+/* ── Row states ───────────────────────────────────────── */
+.drefs-table tr.row-edited td { background: #fffbeb; }
+.drefs-table tr.row-edited:hover td { background: #fef3c7; }
+
+/* ── Bulk save button ─────────────────────────────────── */
+.btn-save-all {
+  padding: 6px 14px;
+  background: #166534;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-save-all:hover { background: #14532d; }
+.btn-save-all:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-add-category {
+  padding: 6px 14px;
+  background: var(--color-yango);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-add-category:hover { background: var(--color-yango-dark); }
+.btn-add-category:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Bulk messages ────────────────────────────────────── */
+.drefs-bulk-msg {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.drefs-bulk-msg--ok  { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+.drefs-bulk-msg--err { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+
 /* ── State ───────────────────────────────────────────── */
 .drefs-empty {
   padding: 32px;

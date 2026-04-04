@@ -5,6 +5,7 @@ import WeightsTable          from '../components/config/WeightsTable'
 import SemaforoEditor        from '../components/config/SemaforoEditor'
 import PriceRulesTable       from '../components/config/PriceRulesTable'
 import RushHourConfig        from '../components/config/RushHourConfig'
+import CITimeslotsConfig     from '../components/config/CITimeslotsConfig'
 import '../styles/config.css'
 
 const TABS = [
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'semaforo',   label: 'Semáforo' },
   { id: 'pricerules', label: 'Límites Precio' },
   { id: 'rushhour',   label: 'Rush Hour' },
+  { id: 'timeslots',  label: 'Timeslots CI' },
 ]
 
 export default function Config() {
@@ -73,6 +75,7 @@ export default function Config() {
 
       {activeTab === 'pricerules' && <PriceRulesTable />}
       {activeTab === 'rushhour'   && <RushHourConfig />}
+      {activeTab === 'timeslots'  && <CITimeslotsConfig />}
     </div>
   )
 }

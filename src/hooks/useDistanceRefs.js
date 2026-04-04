@@ -54,5 +54,15 @@ export function useDistanceRefs(dbCity) {
     }])
   }, [dbCity])
 
-  return { refs, loading, saving, error, saveRef, deleteRef, addRow, reload: load }
+  const addCategoryRows = useCallback((category, brackets) => {
+    const newRows = brackets.map((b, i) => ({
+      id: `new_${Date.now()}_${i}_${Math.random().toString(36).slice(2)}`,
+      city: dbCity, category, bracket: b,
+      point_a: '', coordinate_a: '', point_b: '', coordinate_b: '',
+      waze_distance: '', _isNew: true,
+    }))
+    setRefs(prev => [...prev, ...newRows])
+  }, [dbCity])
+
+  return { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows, reload: load }
 }
