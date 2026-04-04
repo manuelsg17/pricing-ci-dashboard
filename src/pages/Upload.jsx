@@ -355,6 +355,30 @@ export default function Upload() {
     const batchId = crypto.randomUUID()
     let inserted  = 0
 
+    // ── Paso 1: Borrar filas existentes del mismo rango de fechas+ciudad ──
+    // Agrupa por ciudad y calcula el rango de fechas de lo que se va a subir
+    const cityDateRanges = {}
+    for (const r of allRows) {
+      if (!r.city || !r.observed_date) continue
+      if (!cityDateRanges[r.city]) cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
+      if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
+      if (r.observed_date > cityDateRanges[r.city].max) cityDateRanges[r.city].max = r.observed_date
+    }
+
+    for (const [city, { min, max }] of Object.entries(cityDateRanges)) {
+      const { error: delErr } = await sb
+        .from('pricing_observations')
+        .delete()
+        .eq('city', city)
+        .gte('observed_date', min)
+        .lte('observed_date', max)
+      if (delErr) {
+        setProgress(p => ({ ...p, error: `Error al limpiar datos previos: ${delErr.message}`, done: false }))
+        return
+      }
+    }
+
+    // ── Paso 2: Insertar las filas nuevas ──────────────────────────────────
     for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
       const batch = allRows.slice(i, i + BATCH_SIZE).map(r => ({
         ...r,
@@ -474,13 +498,20 @@ export default function Upload() {
       {allRows.length > 0 && (
         <div className="upload-actions">
           {!progress?.done && (
-            <button
-              className="btn-ingest"
-              onClick={handleIngest}
-              disabled={!!progress && !progress.done && !progress.error}
-            >
-              Insertar {allRows.length.toLocaleString()} filas en Supabase
-            </button>
+            <>
+              <div className="upload-overwrite-notice">
+                ⚠️ Al insertar se <strong>borrarán automáticamente</strong> las filas existentes
+                del mismo rango de fechas y ciudad, luego se insertan las nuevas.
+                Subir el mismo Excel dos veces no genera duplicados.
+              </div>
+              <button
+                className="btn-ingest"
+                onClick={handleIngest}
+                disabled={!!progress && !progress.done && !progress.error}
+              >
+                Insertar {allRows.length.toLocaleString()} filas en Supabase
+              </button>
+            </>
           )}
           <button className="btn-clear" onClick={handleClear}>Limpiar</button>
         </div>
