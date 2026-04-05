@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useFilters }      from '../hooks/useFilters'
 import { usePricingData }  from '../hooks/usePricingData'
+import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
 import { BRACKETS, BRACKET_LABELS } from '../lib/constants'
@@ -24,6 +26,19 @@ export default function Dashboard({ dbWeights }) {
     priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix,
     chartData, deltaChartData, periods,
   } = usePricingData(filters, dbWeights)
+
+  // Load market events for daily view
+  const [marketEvents, setMarketEvents] = useState([])
+  useEffect(() => {
+    if (filters.viewMode !== 'daily') { setMarketEvents([]); return }
+    sb.from('market_events')
+      .select('id, city, event_date, event_type, impact, description')
+      .eq('city', filters.dbCity)
+      .gte('event_date', filters.dailyStart)
+      .lte('event_date', filters.dailyEnd)
+      .order('event_date')
+      .then(({ data }) => setMarketEvents(data || []))
+  }, [filters.viewMode, filters.dbCity, filters.dailyStart, filters.dailyEnd])
 
   return (
     <div className="dashboard">
@@ -57,6 +72,7 @@ export default function Dashboard({ dbWeights }) {
           compareVs={filters.compareVs}
           chartData={chartData[bracket] || []}
           deltaChartData={deltaChartData[bracket] || []}
+          events={marketEvents}
         />
       ))}
     </div>

@@ -1,8 +1,10 @@
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer,
+  ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import { COMPETITOR_COLORS } from '../../lib/constants'
+
+const IMPACT_COLORS = { alto: '#dc2626', medio: '#d97706', bajo: '#94a3b8' }
 
 /**
  * Una sección del dashboard por bracket (o Weighted Average).
@@ -21,6 +23,7 @@ export default function BracketSection({
   compareVs,
   chartData,
   deltaChartData,
+  events = [],
 }) {
   const key = bracket  // '_wa' o 'very_short' etc.
 
@@ -172,15 +175,16 @@ export default function BracketSection({
 
       {/* Gráficos */}
       <div className="bracket-section__charts">
-        <MiniChart title="Precio S/." data={chartData} competitors={competitors} yFormatter={v => v.toFixed(1)} />
-        <MiniChart title="% Delta" data={deltaChartData} competitors={competitors} yFormatter={v => `${v.toFixed(0)}%`} isPercent />
+        <MiniChart title="Precio S/." data={chartData} competitors={competitors} yFormatter={v => v.toFixed(1)} events={events} />
+        <MiniChart title="% Delta" data={deltaChartData} competitors={competitors} yFormatter={v => `${v.toFixed(0)}%`} isPercent events={events} />
       </div>
     </div>
   )
 }
 
-function MiniChart({ title, data, competitors, yFormatter, isPercent = false }) {
+function MiniChart({ title, data, competitors, yFormatter, isPercent = false, events = [] }) {
   const hasData = data && data.length > 0 && competitors.some(c => data.some(d => d[c] != null))
+  const periodKeys = new Set((data || []).map(d => d.period))
 
   return (
     <div className="chart-card">
@@ -200,6 +204,24 @@ function MiniChart({ title, data, competitors, yFormatter, isPercent = false }) 
               contentStyle={{ fontSize: 11 }}
               formatter={(v) => v != null ? yFormatter(v) : 'N/A'}
             />
+            {events.map(evt => {
+              if (!periodKeys.has(evt.event_date)) return null
+              return (
+                <ReferenceLine
+                  key={evt.id}
+                  x={evt.event_date}
+                  stroke={IMPACT_COLORS[evt.impact] || '#f97316'}
+                  strokeDasharray="4 2"
+                  strokeWidth={1.5}
+                  label={{
+                    value: evt.event_type === 'huelga' ? 'H' : evt.event_type === 'lluvia' ? 'L' : '●',
+                    fill: IMPACT_COLORS[evt.impact] || '#f97316',
+                    fontSize: 8,
+                    fontWeight: 'bold',
+                  }}
+                />
+              )
+            })}
             {competitors.map(comp => (
               <Line
                 key={comp}

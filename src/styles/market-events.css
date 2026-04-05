@@ -1,0 +1,231 @@
+/* ══════════════════════════════════════════════════════════
+   Market Events — Anotaciones de mercado
+   ══════════════════════════════════════════════════════════ */
+
+.mevt-page {
+  padding: 16px 20px 40px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mevt-page h1 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+  margin: 0 0 2px;
+}
+
+.mevt-page__desc {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* ── Filter bar ─────────────────────────────────────────── */
+.mevt-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.mevt-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.mevt-ctrl__label {
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.mevt-ctrl select,
+.mevt-ctrl input[type="date"] {
+  padding: 5px 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  outline: none;
+  background: var(--color-bg);
+  transition: border-color 0.15s;
+}
+
+.mevt-ctrl select:focus,
+.mevt-ctrl input:focus { border-color: var(--color-yango); }
+
+.mevt-btn-add {
+  margin-left: auto;
+  padding: 6px 14px;
+  background: var(--color-yango);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mevt-btn-add:hover { background: var(--color-yango-dark); }
+
+/* ── Message ────────────────────────────────────────────── */
+.mevt-msg {
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mevt-msg--ok  { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+.mevt-msg--err { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+
+/* ── Section ────────────────────────────────────────────── */
+.mevt-section {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.mevt-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mevt-section__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-muted);
+}
+
+/* ── Table ──────────────────────────────────────────────── */
+.mevt-table-wrap { overflow-x: auto; }
+
+.mevt-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.mevt-table th {
+  background: #f0f4f8;
+  color: var(--color-muted);
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mevt-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--color-border-soft);
+  vertical-align: middle;
+}
+
+.mevt-table tbody tr.mevt-row-new td { background: var(--color-yango-light); }
+.mevt-table tbody tr:hover td { background: #f8fafc; }
+.mevt-table tbody tr.mevt-row-new:hover td { background: #fce4e4; }
+
+.mevt-input {
+  padding: 4px 7px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--color-bg);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.mevt-input:focus { border-color: var(--color-yango); }
+
+/* ── Impact badges ──────────────────────────────────────── */
+.mevt-impact {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.mevt-impact--alto   { background: var(--sem-red-bg);    color: var(--sem-red-fg); }
+.mevt-impact--medio  { background: var(--sem-yellow-bg); color: var(--sem-yellow-fg); }
+.mevt-impact--bajo   { background: #f1f5f9; color: var(--color-muted); }
+
+/* ── Event type badges ──────────────────────────────────── */
+.mevt-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+/* ── Buttons ────────────────────────────────────────────── */
+.mevt-btn-save {
+  padding: 3px 10px;
+  background: var(--color-yango);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mevt-btn-save:hover    { background: var(--color-yango-dark); }
+.mevt-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mevt-btn-del {
+  padding: 3px 8px;
+  border: 1px solid #f5c6c6;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #dc3545;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mevt-btn-del:hover { background: var(--sem-red-bg); border-color: #dc3545; }
+
+/* ── Empty ──────────────────────────────────────────────── */
+.mevt-empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 12px;
+}

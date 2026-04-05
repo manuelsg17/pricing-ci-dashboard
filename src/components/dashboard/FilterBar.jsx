@@ -5,8 +5,9 @@ export default function FilterBar({
   setCity, setCategory, setSubCategory, setZone, setSurge,
   setCompareVs, setViewMode, setWeekStart,
   setDailyStart, setDailyEnd,
+  setHistoricFrom, setHistoricTo,
 }) {
-  const { city, category, subCategory, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd } = filters
+  const { city, category, subCategory, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
   const categories  = CATEGORIES_BY_CITY[city] || []
   const competitors = getCompetitors(city, category, subCategory)
   const showSubCategory = category === 'Aeropuerto'
@@ -103,13 +104,17 @@ export default function FilterBar({
             className={viewMode === 'daily' ? 'active' : ''}
             onClick={() => setViewMode('daily')}
           >Diario</button>
+          <button
+            className={viewMode === 'historic' ? 'active' : ''}
+            onClick={() => setViewMode('historic')}
+          >Histórico</button>
         </div>
       </div>
 
       <div className="filter-bar__divider" />
 
       {/* Selector de fechas según modo */}
-      {viewMode === 'weekly' ? (
+      {viewMode === 'weekly' && (
         <div className="filter-bar__group">
           <span className="filter-bar__label">Inicio (lunes)</span>
           <input
@@ -118,7 +123,8 @@ export default function FilterBar({
             onChange={handleWeekStart}
           />
         </div>
-      ) : (
+      )}
+      {viewMode === 'daily' && (
         <>
           <div className="filter-bar__group">
             <span className="filter-bar__label">Desde</span>
@@ -127,6 +133,18 @@ export default function FilterBar({
           <div className="filter-bar__group">
             <span className="filter-bar__label">Hasta</span>
             <input type="date" value={dailyEnd} onChange={e => setDailyEnd(e.target.value)} />
+          </div>
+        </>
+      )}
+      {viewMode === 'historic' && (
+        <>
+          <div className="filter-bar__group">
+            <span className="filter-bar__label">Desde (lunes)</span>
+            <input type="date" value={historicFrom} onChange={e => setHistoricFrom(e.target.value)} />
+          </div>
+          <div className="filter-bar__group">
+            <span className="filter-bar__label">Hasta (lunes)</span>
+            <input type="date" value={historicTo} onChange={e => setHistoricTo(e.target.value)} />
           </div>
         </>
       )}

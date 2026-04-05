@@ -32,7 +32,7 @@ export function usePricingData(filters, dbWeights) {
 
     async function fetchData() {
       try {
-        if (viewMode === 'weekly') {
+        if (viewMode === 'weekly' || viewMode === 'historic') {
           const firstWeek = weekColumns[0]
           const lastWeek  = weekColumns[weekColumns.length - 1]
           const { year: y1, week: w1 } = getYearWeek(firstWeek)
@@ -85,7 +85,7 @@ export function usePricingData(filters, dbWeights) {
 
       // Determinar períodos (columnas)
       let periods = []
-      if (filters.viewMode === 'weekly') {
+      if (filters.viewMode === 'weekly' || filters.viewMode === 'historic') {
         periods = filters.weekColumns.map(d => {
           const { year, week } = getYearWeek(d)
           return { key: `${year}-W${String(week).padStart(2,'0')}`, label: formatWeekLabel(d), year, week }
@@ -102,7 +102,7 @@ export function usePricingData(filters, dbWeights) {
       // Agrupar: competitor → period → bracket → { avgPrice, count }
       const nested = {}
       for (const row of rawRows) {
-        const periodKey = filters.viewMode === 'weekly'
+        const periodKey = (filters.viewMode === 'weekly' || filters.viewMode === 'historic')
           ? `${row.year}-W${String(row.week).padStart(2,'0')}`
           : row.observed_date
 

@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react'
-import { useAuth }    from './lib/auth'
-import { sb }         from './lib/supabase'
-import Topbar         from './components/layout/Topbar'
-import LoginScreen    from './components/layout/LoginScreen'
-import Dashboard      from './pages/Dashboard'
-import Config         from './pages/Config'
-import Upload         from './pages/Upload'
-import DistanceRefs   from './pages/DistanceRefs'
-import RawData        from './pages/RawData'
-import DataEntry      from './pages/DataEntry'
+import { useAuth }     from './lib/auth'
+import { sb }          from './lib/supabase'
+import Topbar          from './components/layout/Topbar'
+import LoginScreen     from './components/layout/LoginScreen'
+import Dashboard       from './pages/Dashboard'
+import Config          from './pages/Config'
+import Upload          from './pages/Upload'
+import DistanceRefs    from './pages/DistanceRefs'
+import RawData         from './pages/RawData'
+import DataEntry       from './pages/DataEntry'
+import DriverEarnings  from './pages/DriverEarnings'
+import WeeklyReport    from './pages/WeeklyReport'
+import MarketEvents    from './pages/MarketEvents'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -48,6 +51,9 @@ export default function App() {
 
       {activeTab === 'dashboard' && <Dashboard dbWeights={dbWeights} />}
       {activeTab === 'dataentry' && <DataEntry />}
+      {activeTab === 'earnings'  && <DriverEarnings />}
+      {activeTab === 'report'    && <WeeklyReport />}
+      {activeTab === 'events'    && <MarketEvents />}
       {activeTab === 'rawdata'   && <RawData />}
       {activeTab === 'config'    && <Config />}
       {activeTab === 'upload'    && <Upload />}

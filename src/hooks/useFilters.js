@@ -30,11 +30,13 @@ export function useFilters() {
   const [zone,        setZone]        = useState('All')
   const [surge,       setSurge]       = useState(null)   // null=ambos, true/false
   const [compareVs,   setCompareVs]   = useState('Yango')
-  const [viewMode,    setViewMode]    = useState('weekly') // 'weekly' | 'daily'
-  const [weekStart,   setWeekStart]   = useState(toISODate(getMondayWeeksAgo(7)))
-  const [dailyStart,  setDailyStart]  = useState(toISODate(getMondayWeeksAgo(1)))
-  const [dailyEnd,    setDailyEnd]    = useState(toISODate(new Date()))
-  const [zones,       setZones]       = useState(['All'])
+  const [viewMode,      setViewMode]      = useState('weekly') // 'weekly' | 'daily' | 'historic'
+  const [weekStart,     setWeekStart]     = useState(toISODate(getMondayWeeksAgo(7)))
+  const [dailyStart,    setDailyStart]    = useState(toISODate(getMondayWeeksAgo(1)))
+  const [dailyEnd,      setDailyEnd]      = useState(toISODate(new Date()))
+  const [historicFrom,  setHistoricFrom]  = useState(toISODate(getMondayWeeksAgo(24)))
+  const [historicTo,    setHistoricTo]    = useState(toISODate(getMondayWeeksAgo(0)))
+  const [zones,         setZones]         = useState(['All'])
 
   // Cascada: cuando cambia ciudad, resetear categoría (NO fechas)
   useEffect(() => {
@@ -80,15 +82,27 @@ export function useFilters() {
       })
   }, [dbCity, dbCategory])
 
-  // Calcular rango de semanas (8 semanas desde weekStart)
+  // Calcular rango de semanas según el modo
   const weekColumns = useMemo(() => {
+    if (viewMode === 'historic') {
+      // All mondays from historicFrom to historicTo
+      const from  = new Date(historicFrom + 'T00:00:00')
+      const to    = new Date(historicTo   + 'T00:00:00')
+      const cols  = []
+      const d     = new Date(from)
+      while (d <= to && cols.length < 52) {
+        cols.push(new Date(d))
+        d.setDate(d.getDate() + 7)
+      }
+      return cols.length ? cols : [from]
+    }
     const base = new Date(weekStart + 'T00:00:00')
     return Array.from({ length: 8 }, (_, i) => {
       const d = new Date(base)
       d.setDate(d.getDate() + i * 7)
       return d
     })
-  }, [weekStart])
+  }, [viewMode, weekStart, historicFrom, historicTo])
 
   const competitors = useMemo(
     () => getCompetitors(city, category, subCategory),
@@ -109,8 +123,10 @@ export function useFilters() {
     weekColumns,
     dailyStart,
     dailyEnd,
+    historicFrom,
+    historicTo,
     competitors,
-  }), [city, category, subCategory, dbCity, dbCategory, zone, surge, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, competitors])
+  }), [city, category, subCategory, dbCity, dbCategory, zone, surge, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, historicFrom, historicTo, competitors])
 
   return {
     filters,
@@ -126,5 +142,7 @@ export function useFilters() {
     setWeekStart,
     setDailyStart,
     setDailyEnd,
+    setHistoricFrom,
+    setHistoricTo,
   }
 }

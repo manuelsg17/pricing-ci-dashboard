@@ -3,6 +3,9 @@ import '../../styles/topbar.css'
 const TABS = [
   { id: 'dashboard',  label: '📊 Dashboard' },
   { id: 'dataentry',  label: '✏️ Ingresar CI' },
+  { id: 'earnings',   label: '💰 Ganancias' },
+  { id: 'report',     label: '📄 Reporte' },
+  { id: 'events',     label: '📌 Eventos' },
   { id: 'rawdata',    label: '🗃 Data Raw' },
   { id: 'config',     label: '⚙️ Configuración' },
   { id: 'upload',     label: '📤 Cargar Data' },

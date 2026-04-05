@@ -4,7 +4,33 @@ import {
 } from 'recharts'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 
-export default function BracketChart({ title, data, competitors, mode = 'price' }) {
+const IMPACT_COLORS = { alto: '#dc2626', medio: '#d97706', bajo: '#64748b' }
+
+const EVENT_TYPE_LABELS = {
+  huelga: 'Huelga', lluvia: 'Lluvia', feriado: 'Feriado',
+  promo_competidor: 'Promo', regulacion: 'Regulación', otro: 'Evento',
+}
+
+// Custom label rendered on the reference line
+function EventLabel({ viewBox, event }) {
+  const { x, y } = viewBox
+  return (
+    <g>
+      <rect x={x - 1} y={y} width={2} height={140} fill={IMPACT_COLORS[event.impact] || '#f97316'} opacity={0.7} />
+      <text
+        x={x + 4}
+        y={y + 12}
+        fill={IMPACT_COLORS[event.impact] || '#f97316'}
+        fontSize={9}
+        fontWeight={700}
+      >
+        {EVENT_TYPE_LABELS[event.event_type] || '●'}
+      </text>
+    </g>
+  )
+}
+
+export default function BracketChart({ title, data, competitors, mode = 'price', events = [] }) {
   if (!data || data.length === 0) {
     return (
       <div className="chart-card">
@@ -15,6 +41,9 @@ export default function BracketChart({ title, data, competitors, mode = 'price' 
       </div>
     )
   }
+
+  // Map event dates to period keys that appear in the data
+  const periodKeys = new Set(data.map(d => d.period))
 
   return (
     <div className="chart-card">
@@ -35,6 +64,20 @@ export default function BracketChart({ title, data, competitors, mode = 'price' 
             contentStyle={{ fontSize: 11 }}
             formatter={(v) => v !== null ? Number(v).toFixed(2) : 'N/A'}
           />
+          {/* Event markers: only show if the date appears as a period key */}
+          {events.map(evt => {
+            if (!periodKeys.has(evt.event_date)) return null
+            return (
+              <ReferenceLine
+                key={evt.id}
+                x={evt.event_date}
+                stroke={IMPACT_COLORS[evt.impact] || '#f97316'}
+                strokeDasharray="4 2"
+                strokeWidth={1.5}
+                label={<EventLabel event={evt} />}
+              />
+            )
+          })}
           {competitors.map(comp => (
             <Line
               key={comp}

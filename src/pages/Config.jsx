@@ -6,15 +6,19 @@ import SemaforoEditor        from '../components/config/SemaforoEditor'
 import PriceRulesTable       from '../components/config/PriceRulesTable'
 import RushHourConfig        from '../components/config/RushHourConfig'
 import CITimeslotsConfig     from '../components/config/CITimeslotsConfig'
+import CommissionsConfig     from '../components/config/CommissionsConfig'
+import BonusesConfig         from '../components/config/BonusesConfig'
 import '../styles/config.css'
 
 const TABS = [
-  { id: 'thresholds', label: 'Distancias' },
-  { id: 'weights',    label: 'Pesos' },
-  { id: 'semaforo',   label: 'Semáforo' },
-  { id: 'pricerules', label: 'Límites Precio' },
-  { id: 'rushhour',   label: 'Rush Hour' },
-  { id: 'timeslots',  label: 'Timeslots CI' },
+  { id: 'thresholds',  label: 'Distancias' },
+  { id: 'weights',     label: 'Pesos' },
+  { id: 'semaforo',    label: 'Semáforo' },
+  { id: 'pricerules',  label: 'Límites Precio' },
+  { id: 'rushhour',    label: 'Rush Hour' },
+  { id: 'timeslots',   label: 'Timeslots CI' },
+  { id: 'commissions', label: 'Comisiones' },
+  { id: 'bonuses',     label: 'Bonos' },
 ]
 
 export default function Config() {
@@ -74,8 +78,10 @@ export default function Config() {
       )}
 
       {activeTab === 'pricerules' && <PriceRulesTable />}
-      {activeTab === 'rushhour'   && <RushHourConfig />}
-      {activeTab === 'timeslots'  && <CITimeslotsConfig />}
+      {activeTab === 'rushhour'    && <RushHourConfig />}
+      {activeTab === 'timeslots'   && <CITimeslotsConfig />}
+      {activeTab === 'commissions' && <CommissionsConfig />}
+      {activeTab === 'bonuses'     && <BonusesConfig />}
     </div>
   )
 }
