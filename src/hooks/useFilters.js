@@ -32,8 +32,14 @@ export function useFilters() {
   const [compareVs,   setCompareVs]   = useState('Yango')
   const [viewMode,      setViewMode]      = useState('weekly') // 'weekly' | 'daily' | 'historic'
   const [weekStart,     setWeekStart]     = useState(toISODate(getMondayWeeksAgo(7)))
-  const [dailyStart,    setDailyStart]    = useState(toISODate(getMondayWeeksAgo(1)))
-  const [dailyEnd,      setDailyEnd]      = useState(toISODate(new Date()))
+  const [dailyStart,    setDailyStart]    = useState(toISODate(new Date(Date.now() - 6 * 86400000))) // show last 7 days initially
+  
+  const dailyEnd = useMemo(() => {
+    const d = new Date(dailyStart + 'T00:00:00')
+    d.setDate(d.getDate() + 6)
+    return toISODate(d)
+  }, [dailyStart])
+
   const [historicFrom,  setHistoricFrom]  = useState(toISODate(getMondayWeeksAgo(24)))
   const [historicTo,    setHistoricTo]    = useState(toISODate(getMondayWeeksAgo(0)))
   const [zones,         setZones]         = useState(['All'])
@@ -141,7 +147,6 @@ export function useFilters() {
     setViewMode,
     setWeekStart,
     setDailyStart,
-    setDailyEnd,
     setHistoricFrom,
     setHistoricTo,
   }

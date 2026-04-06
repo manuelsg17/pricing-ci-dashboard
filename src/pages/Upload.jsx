@@ -61,11 +61,8 @@ const COL_MAP = {
   'Diff (manualy calc)':            'diff',
 }
 
-// Normalización de categorías (CSV → nombre canónico en BD)
-const CATEGORY_NORMALIZE = {
-  'Comfort+/Premier': 'Premier',
-  'Comfort/Comfort+': 'Comfort',
-}
+// Normalización de categorías (opcional, ahora desactivada por defecto para preservar inputs)
+const CATEGORY_NORMALIZE = {}
 
 // Normalización de nombres de competidor
 const COMPETITOR_NORMALIZE = {

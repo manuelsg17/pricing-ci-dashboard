@@ -4,7 +4,7 @@ export default function FilterBar({
   filters, zones,
   setCity, setCategory, setSubCategory, setZone, setSurge,
   setCompareVs, setViewMode, setWeekStart,
-  setDailyStart, setDailyEnd,
+  setDailyStart,
   setHistoricFrom, setHistoricTo,
 }) {
   const { city, category, subCategory, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
@@ -125,16 +125,10 @@ export default function FilterBar({
         </div>
       )}
       {viewMode === 'daily' && (
-        <>
-          <div className="filter-bar__group">
-            <span className="filter-bar__label">Desde</span>
-            <input type="date" value={dailyStart} onChange={e => setDailyStart(e.target.value)} />
-          </div>
-          <div className="filter-bar__group">
-            <span className="filter-bar__label">Hasta</span>
-            <input type="date" value={dailyEnd} onChange={e => setDailyEnd(e.target.value)} />
-          </div>
-        </>
+        <div className="filter-bar__group">
+          <span className="filter-bar__label">Desde</span>
+          <input type="date" value={dailyStart} onChange={e => setDailyStart(e.target.value)} />
+        </div>
       )}
       {viewMode === 'historic' && (
         <>

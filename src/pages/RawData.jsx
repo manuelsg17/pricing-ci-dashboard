@@ -1,6 +1,23 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { sb } from '../lib/supabase'
 import { useRawData } from '../hooks/useRawData'
 import '../styles/raw-data.css'
+
+const DB_CATEGORIES = {
+  Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'Premier', 'TukTuk', 'XL'],
+  Trujillo: ['Economy', 'Comfort/Comfort+', 'Comfort'],
+  Arequipa: ['Economy', 'Comfort/Comfort+', 'Comfort'],
+  Airport:  ['Economy', 'Comfort', 'Comfort+/Premier', 'Premier'],
+  Corp:     ['Corp']
+}
+
+const DB_COMPETITORS = {
+  Lima:     ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+  Trujillo: ['Yango', 'YangoComfort+', 'Uber', 'InDrive', 'Cabify'],
+  Arequipa: ['Yango', 'YangoComfort+', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+  Airport:  ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+  Corp:     ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL', 'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
+}
 
 // DB-level city labels for tabs
 const CITY_TABS = [
@@ -43,17 +60,30 @@ function fmt(val, decimals = 2) {
 }
 
 export default function RawData() {
-  const [dbCity, setDbCity] = useState('Lima')
+  const getInitialState = (key, defaultVal) => {
+    const saved = sessionStorage.getItem(`rawData_${key}`)
+    return saved !== null ? saved : defaultVal
+  }
 
-  // Column filters (local state, applied to useRawData)
-  const [dbCategory,  setDbCategory]  = useState('')
-  const [competition, setCompetition] = useState('')
-  const [surge,       setSurge]       = useState('')
-  const [bracket,     setBracket]     = useState('')
-  const [dateFrom,    setDateFrom]    = useState('')
-  const [dateTo,      setDateTo]      = useState('')
-  const [searchA,     setSearchA]     = useState('')
-  const [searchB,     setSearchB]     = useState('')
+  const [dbCity, setDbCity] = useState(getInitialState('dbCity', 'Lima'))
+  const [dbCategory,  setDbCategory]  = useState(getInitialState('dbCategory', ''))
+  const [competition, setCompetition] = useState(getInitialState('competition', ''))
+  const [surge,       setSurge]       = useState(getInitialState('surge', ''))
+  const [bracket,     setBracket]     = useState(getInitialState('bracket', ''))
+  const [dateFrom,    setDateFrom]    = useState(getInitialState('dateFrom', ''))
+  const [dateTo,      setDateTo]      = useState(getInitialState('dateTo', ''))
+  const [searchA,     setSearchA]     = useState(getInitialState('searchA', ''))
+  const [searchB,     setSearchB]     = useState(getInitialState('searchB', ''))
+
+  useEffect(() => { sessionStorage.setItem('rawData_dbCity', dbCity) }, [dbCity])
+  useEffect(() => { sessionStorage.setItem('rawData_dbCategory', dbCategory) }, [dbCategory])
+  useEffect(() => { sessionStorage.setItem('rawData_competition', competition) }, [competition])
+  useEffect(() => { sessionStorage.setItem('rawData_surge', surge) }, [surge])
+  useEffect(() => { sessionStorage.setItem('rawData_bracket', bracket) }, [bracket])
+  useEffect(() => { sessionStorage.setItem('rawData_dateFrom', dateFrom) }, [dateFrom])
+  useEffect(() => { sessionStorage.setItem('rawData_dateTo', dateTo) }, [dateTo])
+  useEffect(() => { sessionStorage.setItem('rawData_searchA', searchA) }, [searchA])
+  useEffect(() => { sessionStorage.setItem('rawData_searchB', searchB) }, [searchB])
 
   const filters = {
     dbCity,
@@ -68,6 +98,54 @@ export default function RawData() {
   }
 
   const { rows, total, page, loading, error, fetch, pageSize } = useRawData(filters)
+
+  const [editingId, setEditingId] = useState(null)
+  const [editField, setEditField] = useState(null)
+  const [editValue, setEditValue] = useState('')
+
+  const startEdit = (id, field, value) => {
+    setEditingId(id)
+    setEditField(field)
+    setEditValue(value === null || value === undefined ? '' : value)
+  }
+
+  const handleEditKeyDown = async (e, id, field) => {
+    if (e.key === 'Escape') {
+      setEditingId(null)
+    } else if (e.key === 'Enter') {
+      const parsed = parseFloat(editValue)
+      const finalVal = isNaN(parsed) ? null : parsed
+      const { error: updErr } = await sb
+        .from('pricing_observations')
+        .update({ [field]: finalVal })
+        .eq('id', id)
+      
+      if (!updErr) {
+        rows.find(r => r.id === id)[field] = finalVal
+      } else {
+        alert("Error actualizando: " + updErr.message)
+      }
+      setEditingId(null)
+    }
+  }
+
+  const renderEditable = (r, field, decimals = 2) => {
+    if (editingId === r.id && editField === field) {
+      return (
+        <input 
+          autoFocus
+          type="number" 
+          step="any"
+          value={editValue} 
+          onChange={e => setEditValue(e.target.value)} 
+          onKeyDown={e => handleEditKeyDown(e, r.id, field)}
+          onBlur={() => setEditingId(null)}
+          style={{ width: '60px', padding: '2px' }}
+        />
+      )
+    }
+    return <span onDoubleClick={() => startEdit(r.id, field, r[field])} style={{cursor: 'pointer'}} title="Doble clic para editar">{fmt(r[field], decimals)}</span>
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
@@ -123,21 +201,17 @@ export default function RawData() {
         </div>
         <div className="raw-data__filter-group">
           <label>Categoría</label>
-          <input
-            type="text"
-            value={dbCategory}
-            onChange={e => setDbCategory(e.target.value)}
-            placeholder="Economy…"
-          />
+          <select value={dbCategory} onChange={e => setDbCategory(e.target.value)}>
+            <option value="">Todos</option>
+            {(DB_CATEGORIES[dbCity] || []).map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
         <div className="raw-data__filter-group">
           <label>Competidor</label>
-          <input
-            type="text"
-            value={competition}
-            onChange={e => setCompetition(e.target.value)}
-            placeholder="Yango…"
-          />
+          <select value={competition} onChange={e => setCompetition(e.target.value)}>
+            <option value="">Todos</option>
+            {(DB_COMPETITORS[dbCity] || []).map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
         <div className="raw-data__filter-group">
           <label>Surge</label>
@@ -233,7 +307,6 @@ export default function RawData() {
               <th colSpan={4} className="col-price">Precios (S/.)</th>
               <th colSpan={5} className="col-bid">Bids InDrive</th>
               <th className="col-eta">ETA</th>
-              <th className="col-eta">Viaje</th>
             </tr>
             {/* Column labels */}
             <tr>
@@ -260,7 +333,6 @@ export default function RawData() {
               <th className="col-bid">Bid 4</th>
               <th className="col-bid">Bid 5</th>
               <th className="col-eta">ETA (min)</th>
-              <th className="col-eta">Viaje (min)</th>
             </tr>
           </thead>
           <tbody>
@@ -312,17 +384,16 @@ export default function RawData() {
                 <td className="col-price">{fmt(r.distance_km, 1)}</td>
                 <td className="col-point" title={r.point_a ?? ''}>{r.point_a ?? '—'}</td>
                 <td className="col-point" title={r.point_b ?? ''}>{r.point_b ?? '—'}</td>
-                <td className="col-price">{fmt(r.price_without_discount)}</td>
-                <td className="col-price">{fmt(r.price_with_discount)}</td>
-                <td className="col-price">{fmt(r.recommended_price)}</td>
-                <td className="col-price">{fmt(r.minimal_bid)}</td>
-                <td className="col-bid">{fmt(r.bid_1)}</td>
-                <td className="col-bid">{fmt(r.bid_2)}</td>
-                <td className="col-bid">{fmt(r.bid_3)}</td>
-                <td className="col-bid">{fmt(r.bid_4)}</td>
-                <td className="col-bid">{fmt(r.bid_5)}</td>
+                <td className="col-price">{renderEditable(r, 'price_without_discount')}</td>
+                <td className="col-price">{renderEditable(r, 'price_with_discount')}</td>
+                <td className="col-price">{renderEditable(r, 'recommended_price')}</td>
+                <td className="col-price">{renderEditable(r, 'minimal_bid')}</td>
+                <td className="col-bid">{renderEditable(r, 'bid_1')}</td>
+                <td className="col-bid">{renderEditable(r, 'bid_2')}</td>
+                <td className="col-bid">{renderEditable(r, 'bid_3')}</td>
+                <td className="col-bid">{renderEditable(r, 'bid_4')}</td>
+                <td className="col-bid">{renderEditable(r, 'bid_5')}</td>
                 <td className="col-eta">{fmt(r.eta_min, 1)}</td>
-                <td className="col-eta">{fmt(r.travel_time_min, 1)}</td>
               </tr>
             ))}
           </tbody>
