@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 /**
  * OutlierReview — muestra filas con precios sospechosos antes del insert.
  * El usuario puede corregir el precio o marcar la fila como "excluir".
@@ -112,6 +114,3 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
     </div>
   )
 }
-
-// useState import necesario
-import { useState } from 'react'
