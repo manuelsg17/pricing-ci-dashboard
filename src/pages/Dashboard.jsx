@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useFilters }      from '../hooks/useFilters'
 import { usePricingData }  from '../hooks/usePricingData'
 import { sb }              from '../lib/supabase'
@@ -17,9 +17,10 @@ const SECTIONS = [
   { bracket: 'very_long',  label: BRACKET_LABELS.very_long },
 ]
 
-export default function Dashboard({ dbWeights }) {
-  const filterState = useFilters()
+export default function Dashboard({ dbWeights, country = 'Peru' }) {
+  const filterState = useFilters(country)
   const { filters } = filterState
+  const dashRef = useRef(null)
 
   const {
     loading, error,
@@ -40,9 +41,88 @@ export default function Dashboard({ dbWeights }) {
       .then(({ data }) => setMarketEvents(data || []))
   }, [filters.viewMode, filters.dbCity, filters.dailyStart, filters.dailyEnd])
 
+  // ── KPI computations ────────────────────────────────────────────────
+  const kpis = useMemo(() => {
+    if (!periods.length || !priceMatrix) return null
+    const latestKey = periods[periods.length - 1]?.key
+    if (!latestKey) return null
+
+    const yangoComp = filters.compareVs
+    const yangoWA   = priceMatrix[yangoComp]?.[latestKey]?.['_wa'] ?? null
+
+    // Collect all competitor WA prices for latest period
+    const compPrices = filters.competitors
+      .map(c => ({ comp: c, wa: priceMatrix[c]?.[latestKey]?.['_wa'] ?? null }))
+      .filter(x => x.wa != null)
+      .sort((a, b) => a.wa - b.wa)
+
+    const leader   = compPrices[0] || null
+    const yangoRank = yangoWA != null
+      ? compPrices.findIndex(x => x.comp === yangoComp) + 1
+      : null
+
+    // Total observations (count) for latest period across all competitors + brackets
+    let totalObs = 0
+    for (const comp of filters.competitors) {
+      for (const b of BRACKETS) {
+        const entry = priceMatrix[comp]?.[latestKey]?.[b]
+        if (typeof entry === 'object' && entry?.count) totalObs += entry.count
+        else if (typeof entry === 'number') totalObs++ // fallback
+      }
+    }
+
+    const lastPeriodLabel = periods[periods.length - 1]?.label || '—'
+
+    return { yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel }
+  }, [periods, priceMatrix, filters.compareVs, filters.competitors])
+
+  // ── Export PNG ────────────────────────────────────────────────────────
+  async function handleExportPNG() {
+    const { default: html2canvas } = await import('html2canvas')
+    const canvas = await html2canvas(dashRef.current, { scale: 2, useCORS: true })
+    const link = document.createElement('a')
+    link.download = `dashboard-ci-${filters.dbCity}-${filters.dbCategory}.png`
+    link.href = canvas.toDataURL()
+    link.click()
+  }
+
   return (
-    <div className="dashboard">
+    <div className="dashboard" ref={dashRef}>
       <FilterBar {...filterState} />
+
+      {/* ── KPI Bar ── */}
+      {!loading && kpis && (
+        <div className="kpi-bar">
+          <div className="kpi-card">
+            <div className="kpi-card__label">Avg Yango (WA)</div>
+            <div className="kpi-card__value">
+              {kpis.yangoWA != null ? `S/ ${kpis.yangoWA.toFixed(2)}` : '—'}
+            </div>
+          </div>
+          <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
+            <div className="kpi-card__label">Líder de mercado</div>
+            <div className="kpi-card__value">
+              {kpis.leader ? kpis.leader.comp : '—'}
+            </div>
+            <div className="kpi-card__sub">
+              {kpis.leader ? `S/ ${kpis.leader.wa.toFixed(2)}` : ''}
+            </div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-card__label">Posición Yango</div>
+            <div className="kpi-card__value">
+              {kpis.yangoRank != null ? `${kpis.yangoRank}º de ${kpis.total}` : '—'}
+            </div>
+          </div>
+          <div className="kpi-card">
+            <div className="kpi-card__label">Datos al</div>
+            <div className="kpi-card__value kpi-card__value--sm">{kpis.lastPeriodLabel}</div>
+          </div>
+          <button className="kpi-export-btn" onClick={handleExportPNG} title="Exportar como imagen PNG">
+            📷 Exportar
+          </button>
+        </div>
+      )}
 
       {loading && (
         <div className="state-box">Cargando datos…</div>

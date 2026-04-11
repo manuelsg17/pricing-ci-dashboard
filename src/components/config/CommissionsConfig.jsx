@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
-import { DB_CITIES } from '../../lib/constants'
+import { DB_CITIES, COMPETITOR_COLORS } from '../../lib/constants'
 
 const CITY_OPTIONS = [{ value: '', label: 'Todas las ciudades' }, ...DB_CITIES.map(c => ({ value: c, label: c }))]
+const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
 export default function CommissionsConfig() {
   const { allRows, loading, saveCommission, deleteCommission, addRow } = useCompetitorCommissions()
@@ -63,13 +64,16 @@ export default function CommissionsConfig() {
           {allRows.map(row => (
             <tr key={row.id}>
               <td>
-                <input
-                  type="text"
-                  value={getField(row, 'competitor_name')}
+                <select
+                  value={getField(row, 'competitor_name') || ''}
                   onChange={e => setField(row.id, 'competitor_name', e.target.value)}
-                  placeholder="Ej: Uber"
-                  style={{ width: 140 }}
-                />
+                  style={{ width: 155 }}
+                >
+                  <option value="">— Seleccionar —</option>
+                  {ALL_COMPETITORS.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </td>
               <td>
                 <select

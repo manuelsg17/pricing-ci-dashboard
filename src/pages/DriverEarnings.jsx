@@ -3,31 +3,19 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip as RechartTooltip,
   Legend, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { sb }                      from '../lib/supabase'
 import { useAuth }                 from '../lib/auth'
-import { COMPETITOR_COLORS }       from '../lib/constants'
+import { COMPETITOR_COLORS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses }     from '../hooks/useCompetitorBonuses'
 import { useEarningsScenarios }     from '../hooks/useEarningsScenarios'
+import CommissionsConfig from '../components/config/CommissionsConfig'
+import BonusesConfig     from '../components/config/BonusesConfig'
 import '../styles/driver-earnings.css'
 
-// ── Mappings ───────────────────────────────────────────────────────────────
-const UI_CITIES = ['Lima', 'Trujillo', 'Arequipa', 'Aeropuerto', 'Corp']
-const DB_CITY_MAP = {
-  Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa',
-  Aeropuerto: 'Airport', Corp: 'Corp',
-}
-const CATEGORIES_BY_DB_CITY = {
-  Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'TukTuk', 'XL'],
-  Trujillo: ['Economy', 'Comfort/Comfort+'],
-  Arequipa: ['Economy', 'Comfort/Comfort+'],
-  Airport:  ['Economy', 'Comfort', 'Comfort+/Premier'],
-  Corp:     ['Corp'],
-}
-const UI_CAT_TO_DB = {
-  'Economy': 'Economy', 'Comfort': 'Comfort', 'Comfort+/Premier': 'Premier',
-  'Comfort/Comfort+': 'Comfort', 'TukTuk': 'TukTuk', 'XL': 'XL', 'Corp': 'Corp',
-}
+// (city/category constants are derived dynamically from COUNTRY_CONFIG via props)
 
 // ── ISO week helpers ────────────────────────────────────────────────────────
 function getISOYearWeek(date = new Date()) {
@@ -44,13 +32,15 @@ function formatWeekLabel(year, week) {
 }
 
 // ── Currency formatter ──────────────────────────────────────────────────────
-function fmt(n) {
-  if (n == null || isNaN(n)) return '—'
-  return `S/ ${n.toFixed(2)}`
+function makeFmt(currency) {
+  return (n) => {
+    if (n == null || isNaN(n)) return '—'
+    return `${currency} ${n.toFixed(2)}`
+  }
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
-export default function DriverEarnings() {
+export default function DriverEarnings({ country = 'Peru' }) {
   const { session } = useAuth()
   const userEmail   = session?.user?.email || ''
 
@@ -65,15 +55,22 @@ export default function DriverEarnings() {
   const [saveMsg,    setSaveMsg]    = useState(null)
   const [showBonuses,  setShowBonuses]  = useState(false)
   const [showHistory,  setShowHistory]  = useState(false)
+  const [showConfigPanel, setShowConfigPanel] = useState(false)
+  const [configTab,       setConfigTab]       = useState('commissions')
 
   // Loaded from DB
   const [avgPrices,    setAvgPrices]    = useState({}) // comp → {avg, count}
   const [priceEdits,   setPriceEdits]   = useState({}) // comp → overridden value
   const [loadingPrices, setLoadingPrices] = useState(false)
 
-  const dbCity     = DB_CITY_MAP[uiCity]
-  const dbCat      = UI_CAT_TO_DB[uiCat] || uiCat
-  const categories = CATEGORIES_BY_DB_CITY[dbCity] || []
+  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  const fmt = useMemo(() => makeFmt(countryConfig.currency), [countryConfig])
+  const uiCities    = countryConfig.cities
+  const { dbCity, dbCategory: dbCat } = useMemo(
+    () => resolveDbParams(uiCity, uiCat, null, country),
+    [uiCity, uiCat, country]
+  )
+  const categories  = countryConfig.categoriesByCity[uiCity] || []
 
   const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity)
   const { bonuses }                        = useCompetitorBonuses(dbCity)
@@ -109,10 +106,20 @@ export default function DriverEarnings() {
 
   useEffect(() => { loadPrices() }, [loadPrices])
 
+  // Reset city/category when country changes
+  useEffect(() => {
+    const firstCity = countryConfig.cities[0]
+    setUiCity(firstCity)
+    const cats = countryConfig.categoriesByCity[firstCity] || []
+    setUiCat(cats[0] || 'Economy')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country])
+
   // Reset category when city changes
   useEffect(() => {
-    const cats = CATEGORIES_BY_DB_CITY[DB_CITY_MAP[uiCity]] || []
+    const cats = countryConfig.categoriesByCity[uiCity] || []
     setUiCat(cats[0] || 'Economy')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiCity])
 
   // ── Effective price per competitor ─────────────────────────────────────
@@ -130,13 +137,13 @@ export default function DriverEarnings() {
     return result
   }, [avgPrices, priceEdits])
 
-  // ── Competitors to show (those with data OR configured commissions) ─────
+  // ── Competitors to show (base = expected list from constants, plus any extras from data/commissions) ─
   const competitors = useMemo(() => {
-    const fromData  = Object.keys(effectivePrices)
-    const fromComms = commRows.filter(r => !r.city || r.city === dbCity).map(r => r.competitor_name)
-    const all = [...new Set([...fromData, ...fromComms])]
-    return all.sort()
-  }, [effectivePrices, commRows, dbCity])
+    const fromConstants = getCompetitors(uiCity, uiCat, null, country)
+    const fromData      = Object.keys(effectivePrices)
+    const fromComms     = commRows.filter(r => !r.city || r.city === dbCity).map(r => r.competitor_name)
+    return [...new Set([...fromConstants, ...fromData, ...fromComms])].sort()
+  }, [effectivePrices, commRows, dbCity, uiCity, uiCat])
 
   // ── Calculation ────────────────────────────────────────────────────────
   function calcCell(comp, n) {
@@ -248,6 +255,104 @@ export default function DriverEarnings() {
     setSaving(false)
   }
 
+  // ── Generate PDF ─────────────────────────────────────────────────────
+  function generateEarningsPDF() {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const ss = [...tripScale].sort((a, b) => a - b)
+
+    // Title
+    doc.setFontSize(14); doc.setFont('helvetica', 'bold')
+    doc.text(`Comparador de Ganancias — ${uiCity} · ${uiCat}`, 14, 16)
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100)
+    doc.text(
+      `${formatWeekLabel(refYear, refWeek)}   ·   Generado: ${new Date().toLocaleString('es-PE')}   ·   ${userEmail}`,
+      14, 22,
+    )
+    doc.setTextColor(0)
+
+    // Results matrix
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+    doc.text(`Ganancia Semanal Neta (${countryConfig.currency})`, 14, 30)
+    autoTable(doc, {
+      startY: 34,
+      head:   [['App', ...ss.map(n => `${n} viajes`)]],
+      body:   competitors.map(comp => {
+        const row = [comp]
+        for (const n of ss) {
+          const cell = calcCell(comp, n)
+          row.push(cell ? `${fmt(cell.total)}${cell.totalBonus > 0 ? ' ✦' : ''}` : '—')
+        }
+        return row
+      }),
+      styles:       { fontSize: 9, cellPadding: 3 },
+      headStyles:   { fillColor: [229, 57, 53], textColor: 255, fontStyle: 'bold' },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 36 } },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 0) {
+          const comp = data.cell.text[0]?.replace(' ✦', '')
+          if (comp && isYango(comp)) data.cell.styles.fillColor = [254, 226, 226]
+        }
+      },
+    })
+
+    // Reference prices
+    const refY = doc.lastAutoTable.finalY + 10
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+    doc.text('Precios de Referencia', 14, refY)
+    autoTable(doc, {
+      startY: refY + 4,
+      head:   [['Competidor', `Precio prom. / viaje (${countryConfig.currency})`, '# Observaciones', 'Comisión %']],
+      body:   competitors.map(comp => {
+        const data = avgPrices[comp]
+        const ep   = effectivePrices[comp]
+        return [
+          comp,
+          ep ? `${fmt(ep.price)}${priceEdits[comp] !== undefined ? ' (editado)' : ''}` : '—',
+          data ? `${data.count} obs.` : '— sin datos',
+          `${commissions[comp] ?? '—'} %`,
+        ]
+      }),
+      styles:     { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [71, 85, 105], textColor: 255, fontStyle: 'bold' },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    })
+
+    // Bonuses
+    const bonusRows = competitors.flatMap(comp =>
+      (bonuses[comp] || []).map(b => [
+        comp,
+        b.bonus_type === 'viajes' ? 'Viajes' : b.bonus_type === 'horas' ? 'Horas' : 'Zona',
+        b.threshold,
+        fmt(b.bonus_amount),
+        b.description || '—',
+      ])
+    )
+    if (bonusRows.length > 0) {
+      const bonusY = doc.lastAutoTable.finalY + 10
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+      doc.text('Bonos de Referencia', 14, bonusY)
+      autoTable(doc, {
+        startY: bonusY + 4,
+        head:   [['Competidor', 'Tipo', 'Umbral', 'Monto', 'Descripción']],
+        body:   bonusRows,
+        styles:     { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 36 } },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+      })
+    }
+
+    if (notes) {
+      const notesY = doc.lastAutoTable.finalY + 6
+      doc.setFontSize(9); doc.setFont('helvetica', 'italic'); doc.setTextColor(100)
+      doc.text(`Notas: ${notes}`, 14, notesY)
+    }
+
+    doc.save(`ganancias-${uiCity}-${uiCat}-sem${refWeek}-${refYear}.pdf`.replace(/\//g, '-'))
+  }
+
   // ── Sorted trip scale for display ─────────────────────────────────────
   const sortedScale = [...tripScale].sort((a, b) => a - b)
 
@@ -269,7 +374,7 @@ export default function DriverEarnings() {
         <div className="earn-panel__body">
           {/* City tabs */}
           <div className="earn-city-tabs">
-            {UI_CITIES.map(c => (
+            {uiCities.map(c => (
               <button
                 key={c}
                 className={`earn-city-tab${uiCity === c ? ' active' : ''}`}
@@ -364,41 +469,55 @@ export default function DriverEarnings() {
         <div style={{ overflowX: 'auto' }}>
           {loadingPrices ? (
             <div className="earn-no-data">Cargando precios…</div>
-          ) : Object.keys(avgPrices).length === 0 ? (
-            <div className="earn-no-data">
-              No hay datos CI para <strong>{uiCity} · {uiCat} · {formatWeekLabel(refYear, refWeek)}</strong>.
-              Los precios editables quedan en blanco.
-            </div>
           ) : (
-            <table className="earn-ref-table">
-              <thead>
-                <tr>
-                  <th>Competidor</th>
-                  <th>Precio promedio / viaje</th>
-                  <th># Observaciones</th>
-                  <th>Comisión %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(avgPrices).map(([comp, { avg, count }]) => (
-                  <tr key={comp}>
-                    <td><strong>{comp}</strong></td>
-                    <td>
-                      <input
-                        type="number"
-                        className={`earn-ref-input${priceEdits[comp] !== undefined ? ' earn-ref-input--edited' : ''}`}
-                        value={priceEdits[comp] !== undefined ? priceEdits[comp] : avg.toFixed(2)}
-                        min="0"
-                        step="0.01"
-                        onChange={e => setPriceEdits(prev => ({ ...prev, [comp]: e.target.value }))}
-                      />
-                    </td>
-                    <td><span className="earn-ref-count">{count} obs.</span></td>
-                    <td><span className="earn-ref-count">{commissions[comp] ?? '—'} %</span></td>
+            <>
+              {Object.keys(avgPrices).length === 0 && (
+                <div className="earn-no-data" style={{ marginBottom: 8 }}>
+                  No hay datos CI para <strong>{uiCity} · {uiCat} · {formatWeekLabel(refYear, refWeek)}</strong>.
+                  Puedes ingresar precios manualmente en las celdas de abajo.
+                </div>
+              )}
+              <table className="earn-ref-table">
+                <thead>
+                  <tr>
+                    <th>Competidor</th>
+                    <th>Precio prom. / viaje</th>
+                    <th># Observaciones</th>
+                    <th>Comisión %</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {competitors.map(comp => {
+                    const data = avgPrices[comp]
+                    const displayVal = priceEdits[comp] !== undefined
+                      ? priceEdits[comp]
+                      : data ? data.avg.toFixed(2) : ''
+                    return (
+                      <tr key={comp} className={!data ? 'earn-ref-row--nodata' : ''}>
+                        <td><strong>{comp}</strong></td>
+                        <td>
+                          <input
+                            type="number"
+                            className={`earn-ref-input${priceEdits[comp] !== undefined ? ' earn-ref-input--edited' : ''}${!data ? ' earn-ref-input--manual' : ''}`}
+                            value={displayVal}
+                            min="0"
+                            step="0.01"
+                            placeholder={data ? undefined : 'Ingresa precio…'}
+                            onChange={e => setPriceEdits(prev => ({ ...prev, [comp]: e.target.value }))}
+                          />
+                        </td>
+                        <td>
+                          <span className="earn-ref-count">
+                            {data ? `${data.count} obs.` : '— sin datos'}
+                          </span>
+                        </td>
+                        <td><span className="earn-ref-count">{commissions[comp] ?? '—'} %</span></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </>
           )}
         </div>
       </div>
@@ -553,6 +672,9 @@ export default function DriverEarnings() {
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
               />
+              <button className="earn-btn-pdf" onClick={generateEarningsPDF}>
+                📄 Descargar PDF
+              </button>
               <button className="earn-btn-save" onClick={handleSave} disabled={saving}>
                 {saving ? 'Guardando…' : '💾 Guardar escenario'}
               </button>
@@ -565,6 +687,36 @@ export default function DriverEarnings() {
           </div>
         </div>
       )}
+
+      {/* ── Inline config panel ── */}
+      <div className="earn-config-panel">
+        <button
+          className="earn-config-panel__toggle"
+          onClick={() => setShowConfigPanel(p => !p)}
+        >
+          {showConfigPanel ? '▲' : '▼'} ⚙️ Configurar Comisiones y Bonos
+        </button>
+        {showConfigPanel && (
+          <div className="earn-config-panel__body">
+            <div className="earn-config-tabs">
+              <button
+                className={`earn-config-tab${configTab === 'commissions' ? ' active' : ''}`}
+                onClick={() => setConfigTab('commissions')}
+              >
+                Comisiones
+              </button>
+              <button
+                className={`earn-config-tab${configTab === 'bonuses' ? ' active' : ''}`}
+                onClick={() => setConfigTab('bonuses')}
+              >
+                Bonos
+              </button>
+            </div>
+            {configTab === 'commissions' && <CommissionsConfig />}
+            {configTab === 'bonuses'     && <BonusesConfig />}
+          </div>
+        )}
+      </div>
 
       {/* ── History ── */}
       <div>

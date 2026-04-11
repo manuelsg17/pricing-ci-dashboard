@@ -1,75 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb }               from '../lib/supabase'
 import { useAuth }          from '../lib/auth'
-import { BRACKETS, BRACKET_LABELS, COMPETITOR_COLORS } from '../lib/constants'
+import { BRACKETS, BRACKET_LABELS, COMPETITOR_COLORS, getCountryConfig, getCompetitors, resolveDbParams } from '../lib/constants'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots }    from '../hooks/useCITimeslots'
 import '../styles/data-entry.css'
 
-// ── Mapeos ciudad ──────────────────────────────────────────────────────────
-const UI_CITIES = ['Lima', 'Trujillo', 'Arequipa', 'Aeropuerto', 'Corp']
-
-const DB_CITY_MAP = {
-  Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa',
-  Aeropuerto: 'Airport', Corp: 'Corp',
-}
-
-// Categorías tal como las ve el hub expert (NUNCA nombres internos de BD)
-const CATEGORIES_BY_DB_CITY = {
-  Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'TukTuk', 'XL'],
-  Trujillo: ['Economy', 'Comfort/Comfort+'],
-  Arequipa: ['Economy', 'Comfort/Comfort+'],
-  Airport:  ['Economy', 'Comfort', 'Comfort+/Premier'],
-  Corp:     ['Corp'],
-}
-
-// Nombre UI → nombre en BD (para INSERT)
-const UI_CAT_TO_DB = {
-  'Economy':          'Economy',
-  'Comfort':          'Comfort',
-  'Comfort+/Premier': 'Premier',
-  'Comfort/Comfort+': 'Comfort',
-  'TukTuk':           'TukTuk',
-  'XL':               'XL',
-  'Corp':             'Corp',
-}
-
-// Nombre BD → nombre UI (para agrupar refs cargadas de BD)
-const DB_CAT_TO_UI = {
-  Lima:     { Economy:'Economy', Comfort:'Comfort', Premier:'Comfort+/Premier', TukTuk:'TukTuk', XL:'XL' },
-  Trujillo: { Economy:'Economy', Comfort:'Comfort/Comfort+' },
-  Arequipa: { Economy:'Economy', Comfort:'Comfort/Comfort+' },
-  Airport:  { Economy:'Economy', Comfort:'Comfort', Premier:'Comfort+/Premier' },
-  Corp:     { Corp:'Corp' },
-}
-
-// Competidores por ciudad + categoría UI
-const COMPETITORS_BY = {
-  Lima: {
-    'Economy':          ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    'Comfort':          ['Yango', 'Uber', 'InDrive', 'Cabify'],
-    'Comfort+/Premier': ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    'TukTuk':           ['Yango', 'Uber', 'InDrive'],
-    'XL':               ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-  },
-  Trujillo: {
-    'Economy':         ['Yango', 'Uber', 'InDrive', 'Cabify'],
-    'Comfort/Comfort+':['Yango', 'YangoComfort+', 'Uber', 'InDrive', 'Cabify'],
-  },
-  Arequipa: {
-    'Economy':         ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    'Comfort/Comfort+':['Yango', 'YangoComfort+', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-  },
-  Airport: {
-    'Economy':          ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    'Comfort':          ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-    'Comfort+/Premier': ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-  },
-  Corp: {
-    'Corp': ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL',
-             'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
-  },
-}
+// (city/category/competitor constants are derived dynamically from COUNTRY_CONFIG via props)
 
 // Colores de sección por categoría
 const CAT_COLORS = {
@@ -221,7 +158,7 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
 }
 
 // ── Componente principal ───────────────────────────────────────────────────
-export default function DataEntry() {
+export default function DataEntry({ country = 'Peru' }) {
   const { session }    = useAuth()
   const userEmail      = session?.user?.email || ''
 
@@ -241,24 +178,92 @@ export default function DataEntry() {
   const [saving,   setSaving]   = useState(false)
   const [msg,      setMsg]      = useState(null)
 
-  // Timer
-  const sessionStartRef = useRef(Date.now())
-  const [elapsed,  setElapsed]  = useState('00:00')
+  // Session management
+  const sessionStartRef    = useRef(null)
+  const [sessionActive,    setSessionActive]    = useState(false)
+  const [elapsed,          setElapsed]          = useState('00:00')
+
+  // Session history
+  const [showHistory,      setShowHistory]      = useState(false)
+  const [sessionHistory,   setSessionHistory]   = useState([])
+  const [histLoading,      setHistLoading]      = useState(false)
+  const [histFrom,         setHistFrom]         = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
+  })
+  const [histTo,           setHistTo]           = useState(() => new Date().toISOString().slice(0, 10))
+  const [histCity,         setHistCity]         = useState('')
+  const [histEmail,        setHistEmail]        = useState('')
 
   const { isRushHour }  = useRushHourConfig()
   const { timeslots }   = useCITimeslots()
 
-  const dbCity     = DB_CITY_MAP[uiCity]
-  const categories = CATEGORIES_BY_DB_CITY[dbCity] || []
+  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  const uiCities      = countryConfig.cities
+  const categories    = countryConfig.categoriesByCity[uiCity] || []
 
-  // ── Timer ──────────────────────────────────────────────
+  // dbCity: the DB city for the current UI city (use first non-special category)
+  const { dbCity } = useMemo(
+    () => resolveDbParams(uiCity, categories[0] || '', null, country),
+    [uiCity, categories, country]
+  )
+
+  // Reverse lookup: dbCategory → uiCategory for the current city
+  // Built from countryConfig.categoryDbMap entries matching uiCity
+  const dbCatToUICat = useMemo(() => {
+    const map = {}
+    for (const [key, val] of Object.entries(countryConfig.categoryDbMap)) {
+      const parts = key.split('|||')
+      if (parts[0] === uiCity && parts.length === 2) {
+        // key: "Lima|||Economy" → val: { dbCity, dbCategory }
+        // uiCat = parts[1], dbCategory = val.dbCategory
+        map[val.dbCategory] = parts[1]
+      }
+    }
+    return map
+  }, [countryConfig, uiCity])
+
+  // ── Timer — only when session is active ───────────────
   useEffect(() => {
-    sessionStartRef.current = Date.now()
+    if (!sessionActive) return
     const id = setInterval(() => {
       setElapsed(fmtElapsed(Date.now() - sessionStartRef.current))
     }, 1000)
     return () => clearInterval(id)
-  }, [uiCity, date]) // reset timer cuando cambia ciudad o fecha
+  }, [sessionActive])
+
+  // ── Start session ──────────────────────────────────────
+  function handleStartSession() {
+    sessionStartRef.current = Date.now()
+    setElapsed('00:00')
+    setSessionActive(true)
+    setMsg(null)
+  }
+
+  // ── Load session history ───────────────────────────────
+  async function loadSessionHistory() {
+    setHistLoading(true)
+    let q = sb.from('ci_sessions').select('*').order('started_at', { ascending: false }).limit(200)
+    if (histFrom) q = q.gte('observed_date', histFrom)
+    if (histTo)   q = q.lte('observed_date', histTo)
+    if (histCity) q = q.eq('city', histCity)
+    if (histEmail) q = q.ilike('user_email', `%${histEmail}%`)
+    const { data } = await q
+    setSessionHistory(data || [])
+    setHistLoading(false)
+  }
+
+  useEffect(() => {
+    if (showHistory) loadSessionHistory()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistory])
+
+  // ── Reset city when country changes ───────────────────
+  useEffect(() => {
+    setUiCity(countryConfig.cities[0])
+    setEntries({})
+    setIndriveExtra({})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country])
 
   // ── Load refs ──────────────────────────────────────────
   useEffect(() => {
@@ -288,15 +293,14 @@ export default function DataEntry() {
 
   // ── Group refs by UI category + bracket ───────────────
   const refsByUICat = useMemo(() => {
-    const catMap = DB_CAT_TO_UI[dbCity] || {}
     const result = {}
     for (const cat of categories) result[cat] = []
     for (const ref of refs) {
-      const uiCat = catMap[ref.category]
+      const uiCat = dbCatToUICat[ref.category]
       if (uiCat && result[uiCat]) result[uiCat].push(ref)
     }
     return result
-  }, [refs, dbCity, categories])
+  }, [refs, dbCatToUICat, categories])
 
   // ── Entry helpers ──────────────────────────────────────
   const priceKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
@@ -328,7 +332,7 @@ export default function DataEntry() {
   // ── Row validation ─────────────────────────────────────
   // Returns 'empty' | 'full' | 'partial' for a (uiCat, ref, ts) row
   function rowState(uiCat, ref, ts) {
-    const comps = COMPETITORS_BY[dbCity]?.[uiCat] || []
+    const comps = getCompetitors(uiCity, uiCat, null, country)
     const vals  = comps.map(c => entries[priceKey(uiCat, ref.id, ts.label, c)] ?? '')
     const filled = vals.filter(v => v !== '' && !isNaN(parseFloat(v)))
     if (filled.length === 0)          return 'empty'
@@ -343,7 +347,7 @@ export default function DataEntry() {
 
   // ── Build rows to insert ───────────────────────────────
   function buildRows(uiCat, ref, ts) {
-    const comps = COMPETITORS_BY[dbCity]?.[uiCat] || []
+    const comps = getCompetitors(uiCity, uiCat, null, country)
     const { year, week } = getISOYearWeek(date)
     const rush = isRushHour(ts.start_time?.slice(0, 5), dbCity) ?? false
     return comps.map(comp => {
@@ -362,7 +366,7 @@ export default function DataEntry() {
   function buildInsertPayload(r) {
     const base = {
       city:                   dbCity,
-      category:               UI_CAT_TO_DB[r.uiCat] || r.uiCat,
+      category:               resolveDbParams(uiCity, r.uiCat, null, country).dbCategory,
       competition_name:       r.comp,
       observed_date:          date,
       observed_time:          r.ts.start_time?.slice(0, 5),
@@ -376,6 +380,7 @@ export default function DataEntry() {
       year:                   r.year,
       week:                   r.week,
       data_source:            'manual',
+      country,
     }
     if (r.comp === 'InDrive') {
       r.bids.forEach((b, i) => {
@@ -429,7 +434,7 @@ export default function DataEntry() {
 
     // Group by (dbCat, ts) for targeted delete
     const combos = new Set(
-      rowsToInsert.map(r => `${UI_CAT_TO_DB[r.uiCat] || r.uiCat}|${r.ts.start_time?.slice(0, 5)}`)
+      rowsToInsert.map(r => `${resolveDbParams(uiCity, r.uiCat, null, country).dbCategory}|${r.ts.start_time?.slice(0, 5)}`)
     )
     for (const combo of combos) {
       const [cat, time] = combo.split('|')
@@ -458,16 +463,19 @@ export default function DataEntry() {
 
     if (isFinish) {
       const now    = new Date()
-      const dur    = Math.round((now - new Date(sessionStartRef.current)) / 60000 * 10) / 10
+      const start  = sessionStartRef.current || Date.now()
+      const dur    = Math.round((now - new Date(start)) / 60000 * 10) / 10
       await sb.from('ci_sessions').insert({
         city:             dbCity,
         observed_date:    date,
         user_email:       userEmail,
-        started_at:       new Date(sessionStartRef.current).toISOString(),
+        started_at:       new Date(start).toISOString(),
         ended_at:         now.toISOString(),
         duration_minutes: dur,
         rows_saved:       payloads.length,
       })
+      setSessionActive(false)
+      setElapsed('00:00')
       setMsg({ type: 'ok', text: `✓ Sesión completada en ${dur} min. ${payloads.length} registros guardados.` })
     } else {
       setMsg({ type: 'ok', text: `✓ ${payloads.length} registros guardados. Puedes seguir completando.` })
@@ -540,23 +548,39 @@ export default function DataEntry() {
       <div className="de-header">
         <div className="de-header__left">
           <h1>Ingresar CI</h1>
-          <div className="de-timer" title="Tiempo de sesión">{elapsed}</div>
+          {sessionActive && (
+            <div className="de-timer de-timer--active" title="Sesión en curso">
+              ⏱ {elapsed}
+            </div>
+          )}
         </div>
         <div className="de-header__actions">
-          <button
-            className="de-btn-save"
-            onClick={handleSaveProgress}
-            disabled={saving || filledCount === 0}
-          >
-            {saving ? 'Guardando…' : `💾 Guardar progreso${filledCount > 0 ? ` (${filledCount})` : ''}`}
-          </button>
-          <button
-            className="de-btn-finish"
-            onClick={handleFinishSession}
-            disabled={saving}
-          >
-            ✅ Terminar sesión
-          </button>
+          {!sessionActive ? (
+            <button
+              className="de-btn-start"
+              onClick={handleStartSession}
+              disabled={saving}
+            >
+              ▶ Iniciar Sesión
+            </button>
+          ) : (
+            <>
+              <button
+                className="de-btn-save"
+                onClick={handleSaveProgress}
+                disabled={saving || filledCount === 0}
+              >
+                {saving ? 'Guardando…' : `💾 Guardar progreso${filledCount > 0 ? ` (${filledCount})` : ''}`}
+              </button>
+              <button
+                className="de-btn-finish"
+                onClick={handleFinishSession}
+                disabled={saving}
+              >
+                ⏹ Terminar Sesión
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -564,7 +588,7 @@ export default function DataEntry() {
       <div className="de-session-bar">
         {/* City tabs */}
         <div className="de-city-tabs">
-          {UI_CITIES.map(c => (
+          {uiCities.map(c => (
             <button
               key={c}
               className={`de-city-tab${uiCity === c ? ' active' : ''}`}
@@ -621,7 +645,7 @@ export default function DataEntry() {
         <>
           {categories.map(uiCat => {
             const catRefs  = refsByUICat[uiCat] || []
-            const comps    = COMPETITORS_BY[dbCity]?.[uiCat] || []
+            const comps    = getCompetitors(uiCity, uiCat, null, country)
             const colors   = CAT_COLORS[uiCat] || CAT_COLORS['Corp']
             const totalRows = catRefs.length * timeslots.length
 
@@ -749,20 +773,28 @@ export default function DataEntry() {
       {/* Footer repeat buttons */}
       {!refsLoading && refs.length > 0 && (
         <div className="de-footer">
-          <button
-            className="de-btn-save"
-            onClick={handleSaveProgress}
-            disabled={saving || filledCount === 0}
-          >
-            {saving ? 'Guardando…' : `💾 Guardar progreso${filledCount > 0 ? ` (${filledCount})` : ''}`}
-          </button>
-          <button
-            className="de-btn-finish"
-            onClick={handleFinishSession}
-            disabled={saving}
-          >
-            ✅ Terminar sesión
-          </button>
+          {sessionActive ? (
+            <>
+              <button
+                className="de-btn-save"
+                onClick={handleSaveProgress}
+                disabled={saving || filledCount === 0}
+              >
+                {saving ? 'Guardando…' : `💾 Guardar progreso${filledCount > 0 ? ` (${filledCount})` : ''}`}
+              </button>
+              <button
+                className="de-btn-finish"
+                onClick={handleFinishSession}
+                disabled={saving}
+              >
+                ⏹ Terminar Sesión
+              </button>
+            </>
+          ) : (
+            <button className="de-btn-start" onClick={handleStartSession} disabled={saving}>
+              ▶ Iniciar Sesión
+            </button>
+          )}
           {msg && (
             <span className={msg.type === 'ok' ? 'de-footer-ok' : 'de-footer-err'}>
               {msg.text}
@@ -770,6 +802,96 @@ export default function DataEntry() {
           )}
         </div>
       )}
+
+      {/* ── Session History ── */}
+      <div className="de-session-history">
+        <button
+          className="de-history-toggle"
+          onClick={() => setShowHistory(p => !p)}
+        >
+          {showHistory ? '▲' : '▼'} 📋 Historial de Sesiones
+        </button>
+
+        {showHistory && (
+          <div className="de-history-body">
+            {/* Filters */}
+            <div className="de-history-filters">
+              <label className="de-ctrl">
+                <span>Desde</span>
+                <input type="date" value={histFrom} onChange={e => setHistFrom(e.target.value)} />
+              </label>
+              <label className="de-ctrl">
+                <span>Hasta</span>
+                <input type="date" value={histTo} onChange={e => setHistTo(e.target.value)} />
+              </label>
+              <label className="de-ctrl">
+                <span>Ciudad</span>
+                <select value={histCity} onChange={e => setHistCity(e.target.value)}>
+                  <option value="">Todas</option>
+                  {['Lima', 'Trujillo', 'Arequipa', 'Airport', 'Corp'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="de-ctrl">
+                <span>Usuario</span>
+                <input
+                  type="text"
+                  placeholder="@correo"
+                  value={histEmail}
+                  onChange={e => setHistEmail(e.target.value)}
+                  style={{ width: 160 }}
+                />
+              </label>
+              <button className="de-btn-filter" onClick={loadSessionHistory} disabled={histLoading}>
+                {histLoading ? 'Buscando…' : '🔍 Buscar'}
+              </button>
+            </div>
+
+            {/* Table */}
+            {histLoading ? (
+              <div className="de-loading" style={{ padding: '12px 0' }}>Cargando historial…</div>
+            ) : sessionHistory.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: '12px 0' }}>
+                No hay sesiones con los filtros seleccionados.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="de-history-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Ciudad</th>
+                      <th>Usuario</th>
+                      <th>Inicio</th>
+                      <th>Fin</th>
+                      <th>Duración</th>
+                      <th>Obs. guardadas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sessionHistory.map(s => {
+                      const start = new Date(s.started_at)
+                      const end   = new Date(s.ended_at)
+                      return (
+                        <tr key={s.id}>
+                          <td>{start.toLocaleDateString('es-PE')}</td>
+                          <td>{s.city}</td>
+                          <td style={{ color: 'var(--color-muted)', fontSize: 11 }}>{s.user_email || '—'}</td>
+                          <td>{start.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td>{end.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td><strong>{s.duration_minutes} min</strong></td>
+                          <td>{s.rows_saved}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

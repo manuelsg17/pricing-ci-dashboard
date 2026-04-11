@@ -509,3 +509,78 @@
 }
 
 .earn-btn-del:hover { background: var(--sem-red-bg); border-color: #dc3545; }
+
+/* ── Reference row — no data ──────────────────────────────── */
+.earn-ref-row--nodata td { color: var(--color-muted); }
+.earn-ref-input--manual { background: #fefce8 !important; border-color: #fcd34d !important; }
+
+/* ── PDF button ───────────────────────────────────────────── */
+.earn-btn-pdf {
+  padding: 7px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.earn-btn-pdf:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+
+/* ── Inline config panel ──────────────────────────────────── */
+.earn-config-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-panel);
+}
+
+.earn-config-panel__toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.earn-config-panel__toggle:hover { background: #f1f5f9; }
+
+.earn-config-panel__body { border-top: 1px solid var(--color-border); padding: 0; }
+
+.earn-config-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+  padding: 8px 12px 0;
+  background: #f8fafc;
+}
+
+.earn-config-tab {
+  padding: 6px 16px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.15s;
+}
+.earn-config-tab.active {
+  background: var(--color-panel);
+  border-color: var(--color-border);
+  border-bottom-color: var(--color-panel);
+  color: var(--color-yango);
+  margin-bottom: -1px;
+}
+.earn-config-tab:not(.active):hover { color: var(--color-text); background: #e2e8f0; }

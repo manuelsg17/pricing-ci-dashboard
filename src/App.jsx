@@ -11,12 +11,19 @@ import RawData         from './pages/RawData'
 import DataEntry       from './pages/DataEntry'
 import DriverEarnings  from './pages/DriverEarnings'
 import WeeklyReport    from './pages/WeeklyReport'
-import MarketEvents    from './pages/MarketEvents'
+import MarketEvents      from './pages/MarketEvents'
+import AccessManagement  from './pages/AccessManagement'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [dbWeights, setDbWeights] = useState([])
+  const [country,   setCountry]   = useState(() => localStorage.getItem('country') || 'Peru')
+
+  function handleCountryChange(c) {
+    setCountry(c)
+    localStorage.setItem('country', c)
+  }
 
   // Pre-cargar pesos al iniciar sesión (para usePricingData)
   useEffect(() => {
@@ -47,17 +54,20 @@ export default function App() {
         onTabChange={setActiveTab}
         userEmail={session.user.email}
         onLogout={signOut}
+        country={country}
+        onCountryChange={handleCountryChange}
       />
 
-      {activeTab === 'dashboard' && <Dashboard dbWeights={dbWeights} />}
-      {activeTab === 'dataentry' && <DataEntry />}
-      {activeTab === 'earnings'  && <DriverEarnings />}
-      {activeTab === 'report'    && <WeeklyReport />}
-      {activeTab === 'events'    && <MarketEvents />}
+      {activeTab === 'dashboard' && <Dashboard dbWeights={dbWeights} country={country} />}
+      {activeTab === 'dataentry' && <DataEntry country={country} />}
+      {activeTab === 'earnings'  && <DriverEarnings country={country} />}
+      {activeTab === 'report'    && <WeeklyReport country={country} />}
+      {activeTab === 'events'    && <MarketEvents country={country} />}
       {activeTab === 'rawdata'   && <RawData />}
       {activeTab === 'config'    && <Config />}
       {activeTab === 'upload'    && <Upload />}
       {activeTab === 'distances' && <DistanceRefs />}
+      {activeTab === 'access'    && <AccessManagement />}
     </>
   )
 }

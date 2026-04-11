@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useCompetitorBonuses } from '../../hooks/useCompetitorBonuses'
-import { DB_CITIES } from '../../lib/constants'
+import { DB_CITIES, COMPETITOR_COLORS } from '../../lib/constants'
 
 const CITY_OPTIONS = [{ value: '', label: 'Todas' }, ...DB_CITIES.map(c => ({ value: c, label: c }))]
+const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 const TYPE_OPTIONS = [
   { value: 'viajes', label: 'Viajes' },
   { value: 'horas',  label: 'Horas' },
@@ -77,13 +78,16 @@ export default function BonusesConfig() {
             {allRows.map(row => (
               <tr key={row.id}>
                 <td>
-                  <input
-                    type="text"
-                    value={getField(row, 'competitor_name')}
+                  <select
+                    value={getField(row, 'competitor_name') || ''}
                     onChange={e => setField(row.id, 'competitor_name', e.target.value)}
-                    placeholder="Uber"
-                    style={{ width: 110 }}
-                  />
+                    style={{ width: 140 }}
+                  >
+                    <option value="">— Seleccionar —</option>
+                    {ALL_COMPETITORS.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
                 </td>
                 <td>
                   <select

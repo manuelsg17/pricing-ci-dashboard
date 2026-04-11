@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import { COUNTRIES, COUNTRY_CONFIG } from '../../lib/constants'
+import { useI18n } from '../../context/LanguageContext'
 import '../../styles/topbar.css'
 
 // Estructura de navegación agrupada
@@ -25,6 +27,7 @@ const NAV = [
       { id: 'events',    label: '📌 Eventos'         },
       { id: 'distances', label: '📍 Distancias Ref.' },
       { id: 'config',    label: '⚙️ Configuración'  },
+      { id: 'access',    label: '🔐 Accesos'         },
     ],
   },
 ]
@@ -88,14 +91,16 @@ function DropdownMenu({ item, activeTab, onTabChange }) {
   )
 }
 
-export default function Topbar({ activeTab, onTabChange, userEmail, onLogout }) {
+export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, country = 'Peru', onCountryChange }) {
+  const { lang, setLang, languages } = useI18n()
+
   return (
     <nav className="topbar">
       <div className="topbar__brand">
         <div className="topbar__brand-icon">Y</div>
         <div className="topbar__brand-text">
           <span className="topbar__brand-title">Pricing CI</span>
-          <span className="topbar__brand-sub">Yango Peru</span>
+          <span className="topbar__brand-sub">{COUNTRY_CONFIG[country]?.label || 'Yango'}</span>
         </div>
       </div>
 
@@ -123,8 +128,34 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout }) 
         })}
       </div>
 
-      <span className="topbar__user" title={userEmail}>{userEmail}</span>
-      <button className="topbar__logout" onClick={onLogout}>Salir</button>
+      <div className="topbar__right">
+        {/* Country selector */}
+        <select
+          className="topbar__country-select"
+          value={country}
+          onChange={e => onCountryChange?.(e.target.value)}
+          title="Seleccionar país"
+        >
+          {COUNTRIES.map(c => (
+            <option key={c} value={c}>{COUNTRY_CONFIG[c].label}</option>
+          ))}
+        </select>
+
+        {/* Language selector */}
+        <select
+          className="topbar__lang-select"
+          value={lang}
+          onChange={e => setLang(e.target.value)}
+          title="Idioma / Language / Язык"
+        >
+          {languages.map(l => (
+            <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+          ))}
+        </select>
+
+        <span className="topbar__user" title={userEmail}>{userEmail}</span>
+        <button className="topbar__logout" onClick={onLogout}>Salir</button>
+      </div>
     </nav>
   )
 }

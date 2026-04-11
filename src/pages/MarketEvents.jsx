@@ -1,14 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb }      from '../lib/supabase'
 import { useAuth } from '../lib/auth'
+import { getCountryConfig } from '../lib/constants'
 import '../styles/market-events.css'
-
-const DB_CITIES     = ['Lima', 'Trujillo', 'Arequipa', 'Airport', 'Corp']
-const UI_CITIES     = ['Lima', 'Trujillo', 'Arequipa', 'Aeropuerto', 'Corp']
-const DB_CITY_MAP   = {
-  Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa',
-  Aeropuerto: 'Airport', Corp: 'Corp', 'Todas': null,
-}
 
 const EVENT_TYPES = [
   { value: 'huelga',            label: 'Huelga' },
@@ -35,9 +29,12 @@ function thirtyDaysAgo() {
   return d.toISOString().slice(0, 10)
 }
 
-export default function MarketEvents() {
+export default function MarketEvents({ country = 'Peru' }) {
   const { session } = useAuth()
   const userEmail   = session?.user?.email || ''
+  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  const uiCities      = countryConfig.cities
+  const dbCities      = countryConfig.dbCities
 
   const [filterCity,  setFilterCity]  = useState('Todas')
   const [filterFrom,  setFilterFrom]  = useState(thirtyDaysAgo())
@@ -61,8 +58,7 @@ export default function MarketEvents() {
       .order('event_date', { ascending: false })
 
     if (filterCity !== 'Todas') {
-      const dbCity = DB_CITY_MAP[filterCity]
-      if (dbCity) q = q.eq('city', dbCity)
+      q = q.eq('city', filterCity)
     }
 
     const { data } = await q
@@ -84,7 +80,7 @@ export default function MarketEvents() {
   function addRow() {
     const tempId = `new_${Date.now()}`
     setEvents(prev => [{
-      id: tempId, city: filterCity !== 'Todas' ? (DB_CITY_MAP[filterCity] || 'Lima') : 'Lima',
+      id: tempId, city: filterCity !== 'Todas' ? filterCity : (dbCities[0] || 'Lima'),
       event_date: todayStr(), event_type: 'otro', description: '',
       impact: 'medio', user_email: userEmail, _isNew: true,
     }, ...prev])
@@ -139,7 +135,7 @@ export default function MarketEvents() {
           <span className="mevt-ctrl__label">Ciudad</span>
           <select value={filterCity} onChange={e => setFilterCity(e.target.value)}>
             <option value="Todas">Todas</option>
-            {UI_CITIES.map(c => <option key={c}>{c}</option>)}
+            {uiCities.map(c => <option key={c}>{c}</option>)}
           </select>
         </label>
 
@@ -201,7 +197,7 @@ export default function MarketEvents() {
                         onChange={e => setField(row.id, 'city', e.target.value)}
                         style={{ width: 100 }}
                       >
-                        {DB_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        {dbCities.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </td>
                     <td>

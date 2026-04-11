@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  CITIES,
-  CATEGORIES_BY_CITY,
-  AEROPUERTO_SUBCATEGORIES,
+  getCountryConfig,
   resolveDbParams,
   getCompetitors,
 } from '../lib/constants'
@@ -23,9 +21,14 @@ function toISODate(d) {
   return d.toISOString().slice(0, 10)
 }
 
-export function useFilters() {
+export function useFilters(country = 'Peru') {
+  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  const CITIES              = countryConfig.cities
+  const CATEGORIES_BY_CITY  = countryConfig.categoriesByCity
+  const AEROPUERTO_SUBCATEGORIES = countryConfig.aeropuertoSubcategories || []
+
   const [city,        setCity]        = useState(CITIES[0])
-  const [category,    setCategory]    = useState(CATEGORIES_BY_CITY[CITIES[0]][0])
+  const [category,    setCategory]    = useState(CATEGORIES_BY_CITY[CITIES[0]]?.[0] || '')
   const [subCategory, setSubCategory] = useState(null)  // solo para Aeropuerto
   const [zone,        setZone]        = useState('All')
   const [surge,       setSurge]       = useState(null)   // null=ambos, true/false
@@ -44,12 +47,24 @@ export function useFilters() {
   const [historicTo,    setHistoricTo]    = useState(toISODate(getMondayWeeksAgo(0)))
   const [zones,         setZones]         = useState(['All'])
 
+  // Cascada: cuando cambia país, resetear ciudad y categoría
+  useEffect(() => {
+    const firstCity = CITIES[0]
+    setCity(firstCity)
+    const cats = CATEGORIES_BY_CITY[firstCity] || []
+    setCategory(cats[0] || '')
+    setSubCategory(null)
+    setZone('All')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country])
+
   // Cascada: cuando cambia ciudad, resetear categoría (NO fechas)
   useEffect(() => {
     const cats = CATEGORIES_BY_CITY[city] || []
     setCategory(cats[0] || '')
     setSubCategory(null)
     setZone('All')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city])
 
   // Cascada: cuando cambia categoría, resetear zona, compareVs y subCategory
@@ -60,22 +75,24 @@ export function useFilters() {
     } else {
       setSubCategory(null)
     }
-    const comps = getCompetitors(city, category, category === 'Aeropuerto' ? AEROPUERTO_SUBCATEGORIES[0] : null)
+    const comps = getCompetitors(city, category, category === 'Aeropuerto' ? AEROPUERTO_SUBCATEGORIES[0] : null, country)
     setCompareVs(comps[0] || 'Yango')
-  }, [city, category])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city, category, country])
 
   // Cuando cambia subCategory (Aeropuerto), actualizar compareVs
   useEffect(() => {
     if (category === 'Aeropuerto' && subCategory) {
-      const comps = getCompetitors(city, category, subCategory)
+      const comps = getCompetitors(city, category, subCategory, country)
       setCompareVs(comps[0] || 'Yango')
     }
-  }, [city, category, subCategory])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city, category, subCategory, country])
 
   // Resolver parámetros de DB
   const { dbCity, dbCategory } = useMemo(
-    () => resolveDbParams(city, category, subCategory),
-    [city, category, subCategory]
+    () => resolveDbParams(city, category, subCategory, country),
+    [city, category, subCategory, country]
   )
 
   // Cargar zonas disponibles para city+category (usando DB params)
@@ -111,8 +128,8 @@ export function useFilters() {
   }, [viewMode, weekStart, historicFrom, historicTo])
 
   const competitors = useMemo(
-    () => getCompetitors(city, category, subCategory),
-    [city, category, subCategory]
+    () => getCompetitors(city, category, subCategory, country),
+    [city, category, subCategory, country]
   )
 
   const filters = useMemo(() => ({

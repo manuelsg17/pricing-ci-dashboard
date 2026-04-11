@@ -242,3 +242,15 @@
   padding-top: 10px;
   border-top: 1px solid var(--color-border-soft);
 }
+
+/* ── Category header for "Todos" mode ─────────────────────── */
+.report-cat-header {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-yango);
+  padding: 12px 0 6px;
+  border-bottom: 2px solid var(--color-yango);
+  margin-bottom: 12px;
+  margin-top: 8px;
+  letter-spacing: -0.2px;
+}
