@@ -401,7 +401,7 @@ export default function DataEntry({ country = 'Peru' }) {
 
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps   = COMPETITORS_BY[dbCity]?.[uiCat] || []
+      const comps   = getCompetitors(uiCity, uiCat, null, country)
       for (const ref of catRefs) {
         for (const ts of timeslots) {
           const state = rowState(uiCat, ref, ts)
@@ -535,7 +535,7 @@ export default function DataEntry({ country = 'Peru' }) {
     let n = 0
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps   = COMPETITORS_BY[dbCity]?.[uiCat] || []
+      const comps   = getCompetitors(uiCity, uiCat, null, country)
       n += catRefs.length * timeslots.length * comps.length
     }
     return n
