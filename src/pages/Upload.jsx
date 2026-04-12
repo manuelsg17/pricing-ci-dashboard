@@ -412,15 +412,35 @@ export default function Upload() {
 
     // ── Paso 2: Insertar las filas nuevas ──────────────────────────────────
     for (let i = 0; i < rowsToInsert.length; i += BATCH_SIZE) {
-      const batch = rowsToInsert.slice(i, i + BATCH_SIZE).map(r => ({
-        ...r,
-        data_source:    'manual',
-        upload_batch_id: batchId,
-        // Recalcular rush_hour con la config del dashboard (sobreescribe el Excel)
-        rush_hour: r.observed_time
-          ? (isRushHour(r.observed_time, r.city) ?? r.rush_hour)
-          : r.rush_hour,
-      }))
+      const batch = rowsToInsert.slice(i, i + BATCH_SIZE).map(r => {
+        let row = {
+          ...r,
+          data_source:    'manual',
+          upload_batch_id: batchId,
+          rush_hour: r.observed_time
+            ? (isRushHour(r.observed_time, r.city) ?? r.rush_hour)
+            : r.rush_hour,
+        }
+        // Para InDrive: calcular minimal_bid y price_without_discount desde bids
+        // si las fórmulas de Excel no fueron evaluadas (llegan como 0 o null)
+        if (row.competition_name === 'InDrive') {
+          const bidVals = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
+            .map(b => parseFloat(b)).filter(n => !isNaN(n) && n > 0)
+          if (bidVals.length) {
+            const curMin = parseFloat(row.minimal_bid)
+            if (!curMin || curMin === 0) row.minimal_bid = Math.min(...bidVals)
+            if (!row.price_without_discount || row.price_without_discount === 0) {
+              const allForAvg = [...bidVals]
+              const mn = parseFloat(row.minimal_bid)
+              if (!isNaN(mn) && mn > 0) allForAvg.push(mn)
+              row.price_without_discount = parseFloat(
+                (allForAvg.reduce((a, b) => a + b, 0) / allForAvg.length).toFixed(2)
+              )
+            }
+          }
+        }
+        return row
+      })
       const { error } = await sb.from('pricing_observations').insert(batch)
       if (error) {
         setProgress(p => ({ ...p, error: error.message, done: false }))

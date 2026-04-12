@@ -241,6 +241,7 @@ export default function InDriveConfig() {
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
           Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; S/{OUTLIER_THRESHOLD} se excluyen del cálculo de promedio como outliers.
+          {' '}· Total en BD: <strong>{analysisData.length}</strong> | Con bids: <strong>{analysisRows.length}</strong> | Sin bids: <strong style={{ color: noBidsCount > 0 ? '#dc2626' : 'inherit' }}>{noBidsCount}</strong>
           {noBidsCount > 0 && <> · {noBidsCount} filas sin bids excluidas del análisis.</>}
           {summary.some(r => r.outlierRecs > 0) && (
             <> · <span style={{ color: '#dc2626' }}>⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt; S/{OUTLIER_THRESHOLD}) excluidos del promedio.</span></>
