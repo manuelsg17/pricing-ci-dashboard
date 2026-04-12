@@ -8,6 +8,7 @@ import DropZone            from '../components/upload/DropZone'
 import PreviewTable        from '../components/upload/PreviewTable'
 import IngestProgress      from '../components/upload/IngestProgress'
 import BotUpload           from '../components/upload/BotUpload'
+import BotConverter        from '../components/upload/BotConverter'
 import OutlierReview          from '../components/upload/OutlierReview'
 import { usePriceRules }      from '../hooks/usePriceRules'
 import { useRushHourConfig }  from '../hooks/useRushHourConfig'
@@ -466,10 +467,19 @@ export default function Upload() {
         >
           🤖 Bot Data
         </button>
+        <button
+          className={`upload-tab${uploadTab === 'convert' ? ' active' : ''}`}
+          onClick={() => setUploadTab('convert')}
+        >
+          🔄 Bot → Excel
+        </button>
       </div>
 
-      {/* Bot upload */}
+      {/* Bot upload to DB */}
       {uploadTab === 'bot' && <BotUpload />}
+
+      {/* Bot → Excel converter */}
+      {uploadTab === 'convert' && <BotConverter />}
 
       {/* Manual upload */}
       {uploadTab === 'manual' && <>

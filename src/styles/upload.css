@@ -356,3 +356,30 @@
   padding: 8px 12px;
   border-radius: var(--radius-sm);
 }
+
+/* ── Bot → Excel Converter ──────────────────────────────── */
+
+.bot-converter {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.bot-converter__intro {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.bot-converter__intro p { margin: 0 0 4px; }
+
+.bot-converter__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
