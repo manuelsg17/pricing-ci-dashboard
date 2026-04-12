@@ -59,7 +59,7 @@ export const COUNTRY_CONFIG = {
     categoriesByCity: {
       Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'TukTuk', 'XL', 'Aeropuerto', 'Corp'],
       Trujillo: ['Economy', 'Comfort/Comfort+'],
-      Arequipa: ['Economy', 'Comfort/Comfort+'],
+      Arequipa: ['Economy', 'Comfort/Comfort+', 'XL'],
     },
 
     aeropuertoSubcategories: ['Economy', 'Comfort', 'Comfort+/Premier'],
@@ -78,6 +78,7 @@ export const COUNTRY_CONFIG = {
       'Trujillo|||Comfort/Comfort+':  { dbCity: 'Trujillo', dbCategory: 'Comfort' },
       'Arequipa|||Economy':           { dbCity: 'Arequipa', dbCategory: 'Economy' },
       'Arequipa|||Comfort/Comfort+':  { dbCity: 'Arequipa', dbCategory: 'Comfort' },
+      'Arequipa|||XL':                { dbCity: 'Arequipa', dbCategory: 'XL' },
     },
 
     competitorsByDbCityCategory: {
@@ -95,6 +96,7 @@ export const COUNTRY_CONFIG = {
       Arequipa: {
         Economy:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
         Comfort:  ['Yango', 'YangoComfort+', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        XL:       ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
       },
       Airport: {
         Comfort:  ['Yango', 'Uber', 'Didi', 'InDrive', 'Cabify'],
@@ -110,7 +112,7 @@ export const COUNTRY_CONFIG = {
     yangoDisplayName: {
       Lima:     { Premier: 'Yango (Comfort+)', Economy: 'Yango', Comfort: 'Yango', TukTuk: 'Yango', XL: 'Yango' },
       Trujillo: { Economy: 'Yango', Comfort: 'Yango (Comfort)' },
-      Arequipa: { Economy: 'Yango', Comfort: 'Yango (Comfort)' },
+      Arequipa: { Economy: 'Yango', Comfort: 'Yango (Comfort)', XL: 'Yango' },
       Airport:  { Comfort: 'Yango', Premier: 'Yango (Comfort+)', Economy: 'Yango' },
       Corp:     { Corp: 'Yango Economy' },
     },

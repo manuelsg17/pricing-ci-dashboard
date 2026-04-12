@@ -39,6 +39,7 @@ const VEHICLE_CATEGORY_MAP = {
     economy:  'Economy',
     comfort:  'Comfort',
     premium:  'Comfort',  // En ARQ, premium = Comfort/Comfort+
+    xl:       'XL',
   },
   airport: {
     economy:  'Economy',
