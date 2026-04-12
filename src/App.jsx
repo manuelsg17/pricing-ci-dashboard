@@ -19,7 +19,7 @@ import BotVsHubs        from './pages/BotVsHubs'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
-  const { canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
+  const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [dbWeights, setDbWeights] = useState([])
   const [country,   setCountry]   = useState(() => localStorage.getItem('country') || 'Peru')
@@ -67,6 +67,21 @@ export default function App() {
 
   if (!session) {
     return <LoginScreen onLogin={signIn} />
+  }
+
+  if (profile && profile.is_active === false) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', gap: 16, textAlign: 'center', padding: 20
+      }}>
+        <h2 style={{ color: '#d32f2f' }}>Acceso Suspendido</h2>
+        <p style={{ color: '#555' }}>Tu cuenta ha sido desactivada. Por favor, contacta al administrador del sistema.</p>
+        <button onClick={signOut} style={{ padding: '8px 16px', background: '#d32f2f', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+          Cerrar sesión
+        </button>
+      </div>
+    )
   }
 
   return (
