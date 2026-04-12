@@ -1,6 +1,7 @@
 // Edge Function: create-user
 // Crea un usuario en Supabase Auth + inserta en user_profiles.
 // Requiere SUPABASE_SERVICE_ROLE_KEY (disponible automáticamente en Edge Functions).
+// IMPORTANTE: Desactivar "Verify JWT" en Settings de esta función en el dashboard.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -10,16 +11,29 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  console.log('[create-user] method:', req.method)
-
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    console.log('[create-user] parsing body...')
+    // Cliente admin (usa service_role — solo funciona en Edge Functions)
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    // Verificar JWT del caller manualmente (ya que "Verify JWT" está desactivado en gateway)
+    const authHeader = req.headers.get('Authorization') || ''
+    const jwt = authHeader.replace('Bearer ', '').trim()
+    const { data: { user: caller }, error: callerError } = await admin.auth.getUser(jwt)
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ error: 'No autorizado' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const { email, password, first_name, last_name, role_id, invited_by } = await req.json()
-    console.log('[create-user] email:', email, 'role_id:', role_id)
 
     if (!email || !password) {
       return new Response(JSON.stringify({ error: 'Email y contraseña son requeridos' }), {
@@ -27,31 +41,22 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Cliente admin con service_role (solo disponible en Edge Functions)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-
     // 1. Crear usuario en Supabase Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Confirma automáticamente, no requiere email de verificación
+      email_confirm: true,
     })
 
     if (authError) {
-      console.error('[create-user] auth error:', authError.message)
       return new Response(JSON.stringify({ error: authError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-    console.log('[create-user] auth user created:', authData.user.id)
 
     // 2. Insertar en user_profiles
-    const { error: profileError } = await supabaseAdmin.from('user_profiles').insert({
-      email: email.trim().toLowerCase(),
+    const { error: profileError } = await admin.from('user_profiles').insert({
+      email:      email.trim().toLowerCase(),
       first_name: (first_name || '').trim(),
       last_name:  (last_name  || '').trim(),
       role_id:    role_id ? parseInt(role_id) : null,
@@ -59,8 +64,8 @@ Deno.serve(async (req) => {
     })
 
     if (profileError) {
-      // Si falla el perfil, eliminar el usuario de Auth para no dejar inconsistencias
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      // Rollback: eliminar auth user si falla el perfil
+      await admin.auth.admin.deleteUser(authData.user.id)
       return new Response(JSON.stringify({ error: profileError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
