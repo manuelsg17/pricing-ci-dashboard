@@ -109,6 +109,9 @@ export default function RawData() {
   const [editField, setEditField] = useState(null)
   const [editValue, setEditValue] = useState('')
 
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState(null)   // { type: 'ok'|'err', text }
+
   const OUTLIER_THRESHOLD = 100
 
   const handleDelete = async (id) => {
@@ -195,6 +198,25 @@ export default function RawData() {
     setSearchB('')
     setDataSource('')
     setOutlierOnly(false)
+  }
+
+  const handleSyncInDrive = async () => {
+    setSyncing(true)
+    setSyncMsg(null)
+    try {
+      const { data, error } = await sb.rpc('apply_indrive_bot_prices',
+        dbCity ? { p_city: dbCity } : {}
+      )
+      if (error) throw error
+      const count = typeof data === 'number' ? data : 0
+      setSyncMsg({ type: 'ok', text: `✓ ${count.toLocaleString()} filas InDrive actualizadas` })
+      fetch(page)
+    } catch (e) {
+      setSyncMsg({ type: 'err', text: 'Error: ' + e.message })
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncMsg(null), 5000)
+    }
   }
 
   const isYangoRow = (r) =>
@@ -308,6 +330,28 @@ export default function RawData() {
               {total > 0 && <> · Mostrando {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)}</>}
             </>
           }
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={handleSyncInDrive}
+            disabled={syncing}
+            style={{
+              padding: '4px 10px', fontSize: 12,
+              border: '1px solid #d1d5db', borderRadius: 4,
+              background: syncing ? '#f3f4f6' : '#fff',
+              cursor: syncing ? 'default' : 'pointer',
+            }}
+            title="Recalcula price_without_discount para datos bot de InDrive usando los % configurados en Config > InDrive"
+          >
+            {syncing ? 'Sincronizando…' : '⟳ Precios InDrive (bot)'}
+          </button>
+          {syncMsg && (
+            <span style={{ fontSize: 12, fontWeight: 600,
+              color: syncMsg.type === 'ok' ? '#166534' : '#991b1b' }}>
+              {syncMsg.text}
+            </span>
+          )}
         </div>
 
         {total > pageSize && (
