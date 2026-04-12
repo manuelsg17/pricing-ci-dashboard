@@ -19,6 +19,7 @@ function UsersTab({ roles }) {
   const [firstName,  setFirstName]  = useState('')
   const [lastName,   setLastName]   = useState('')
   const [email,      setEmail]      = useState('')
+  const [password,   setPassword]   = useState('')
   const [roleId,     setRoleId]     = useState('')
   const [saving,     setSaving]     = useState(false)
 
@@ -40,29 +41,40 @@ function UsersTab({ roles }) {
   }
 
   async function handleChangeRole(userId, newRoleId) {
-    await sb.from('user_profiles')
+    const { error } = await sb.from('user_profiles')
       .update({ role_id: newRoleId ? parseInt(newRoleId) : null })
       .eq('id', userId)
+    if (error) {
+      setMsg({ type: 'err', text: `Error al actualizar rol: ${error.message}` })
+    } else {
+      setMsg({ type: 'ok', text: '✓ Rol actualizado.' })
+      setTimeout(() => setMsg(null), 3000)
+    }
     load()
   }
 
   async function handleInvite(e) {
     e.preventDefault()
-    if (!email.trim()) return
+    if (!email.trim() || !password.trim()) return
     setSaving(true); setMsg(null)
-    const { error } = await sb.from('user_profiles').insert({
-      email:      email.trim().toLowerCase(),
-      first_name: firstName.trim(),
-      last_name:  lastName.trim(),
-      role_id:    roleId ? parseInt(roleId) : null,
-      invited_by: currentEmail,
+
+    const { data, error } = await sb.functions.invoke('create-user', {
+      body: {
+        email:      email.trim().toLowerCase(),
+        password:   password.trim(),
+        first_name: firstName.trim(),
+        last_name:  lastName.trim(),
+        role_id:    roleId || null,
+        invited_by: currentEmail,
+      },
     })
+
     setSaving(false)
-    if (error) {
-      setMsg({ type: 'err', text: `Error: ${error.message}` })
+    if (error || data?.error) {
+      setMsg({ type: 'err', text: `Error: ${data?.error || error?.message}` })
     } else {
-      setMsg({ type: 'ok', text: `✓ Usuario ${email} registrado.` })
-      setFirstName(''); setLastName(''); setEmail(''); setRoleId('')
+      setMsg({ type: 'ok', text: `✓ Usuario ${email} creado con acceso al sistema.` })
+      setFirstName(''); setLastName(''); setEmail(''); setPassword(''); setRoleId('')
       setShowForm(false)
       load()
     }
@@ -100,6 +112,12 @@ function UsersTab({ roles }) {
               <span>Email *</span>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="usuario@empresa.com" />
             </label>
+            <label>
+              <span>Contraseña inicial *</span>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Mínimo 6 caracteres" minLength={6} />
+            </label>
+          </div>
+          <div className="am-form__row">
             <label>
               <span>Puesto / Rol</span>
               <select value={roleId} onChange={e => setRoleId(e.target.value)}>
