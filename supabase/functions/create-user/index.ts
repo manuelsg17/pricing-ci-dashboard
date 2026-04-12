@@ -10,15 +10,16 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  console.log('[create-user] method:', req.method)
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Nota: Supabase verifica el JWT a nivel de gateway antes de llegar aquí.
-    // No es necesario verificar el Authorization header manualmente.
-
+    console.log('[create-user] parsing body...')
     const { email, password, first_name, last_name, role_id, invited_by } = await req.json()
+    console.log('[create-user] email:', email, 'role_id:', role_id)
 
     if (!email || !password) {
       return new Response(JSON.stringify({ error: 'Email y contraseña son requeridos' }), {
@@ -41,10 +42,12 @@ Deno.serve(async (req) => {
     })
 
     if (authError) {
+      console.error('[create-user] auth error:', authError.message)
       return new Response(JSON.stringify({ error: authError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    console.log('[create-user] auth user created:', authData.user.id)
 
     // 2. Insertar en user_profiles
     const { error: profileError } = await supabaseAdmin.from('user_profiles').insert({

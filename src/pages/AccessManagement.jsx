@@ -58,25 +58,44 @@ function UsersTab({ roles }) {
     if (!email.trim() || !password.trim()) return
     setSaving(true); setMsg(null)
 
-    const { data, error } = await sb.functions.invoke('create-user', {
-      body: {
-        email:      email.trim().toLowerCase(),
-        password:   password.trim(),
-        first_name: firstName.trim(),
-        last_name:  lastName.trim(),
-        role_id:    roleId || null,
-        invited_by: currentEmail,
-      },
-    })
+    try {
+      const { data: { session: currentSession } } = await sb.auth.getSession()
+      const token = currentSession?.access_token
 
-    setSaving(false)
-    if (error || data?.error) {
-      setMsg({ type: 'err', text: `Error: ${data?.error || error?.message}` })
-    } else {
-      setMsg({ type: 'ok', text: `✓ Usuario ${email} creado con acceso al sistema.` })
-      setFirstName(''); setLastName(''); setEmail(''); setPassword(''); setRoleId('')
-      setShowForm(false)
-      load()
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const anonKey     = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'apikey':        anonKey,
+          'Authorization': token ? `Bearer ${token}` : `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({
+          email:      email.trim().toLowerCase(),
+          password:   password.trim(),
+          first_name: firstName.trim(),
+          last_name:  lastName.trim(),
+          role_id:    roleId || null,
+          invited_by: currentEmail,
+        }),
+      })
+
+      const json = await res.json().catch(() => ({}))
+      setSaving(false)
+
+      if (!res.ok) {
+        setMsg({ type: 'err', text: `Error ${res.status}: ${json?.error || JSON.stringify(json)}` })
+      } else {
+        setMsg({ type: 'ok', text: `✓ Usuario ${email} creado con acceso al sistema.` })
+        setFirstName(''); setLastName(''); setEmail(''); setPassword(''); setRoleId('')
+        setShowForm(false)
+        load()
+      }
+    } catch (err) {
+      setSaving(false)
+      setMsg({ type: 'err', text: `Error de red: ${err.message}` })
     }
   }
 
