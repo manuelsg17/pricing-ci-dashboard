@@ -182,7 +182,7 @@ function parseRows(sheetData, city) {
   if (headerRowIdx === -1) return []
   const headers = sheetData[headerRowIdx]
 
-  return sheetData.slice(headerRowIdx + 1).map(row => {
+  const mappedRows = sheetData.slice(headerRowIdx + 1).map(row => {
     // Ignorar filas completamente vacías
     if (!row || row.every(c => c === null || c === '')) return null
 
@@ -230,7 +230,43 @@ function parseRows(sheetData, city) {
 
     return obj
   })
-  .filter(r => r !== null && r.observed_date && r.competition_name)
+
+  // Fill-down: hereda competition_name, observed_date y category de la fila anterior
+  // cuando la celda llega null (patrón de celdas combinadas en Excel).
+  // Se resetea en filas completamente vacías (null) para no cruzar secciones.
+  let lastDate       = null
+  let lastCompetitor = null
+  let lastCategory   = null
+  const filled = []
+  for (const r of mappedRows) {
+    if (!r) {
+      lastDate = null; lastCompetitor = null; lastCategory = null
+      filled.push(r)
+      continue
+    }
+    if (r.observed_date)     lastDate       = r.observed_date
+    else if (lastDate)       r.observed_date = lastDate
+
+    if (r.competition_name)  lastCompetitor = r.competition_name
+    else if (lastCompetitor) r.competition_name = lastCompetitor
+
+    if (r.category)          lastCategory   = r.category
+    else if (lastCategory)   r.category     = lastCategory
+
+    filled.push(r)
+  }
+
+  // Contar descartadas para diagnóstico visible en la UI
+  let droppedNoDate = 0
+  let droppedNoCompetitor = 0
+  const rows = filled.filter(r => {
+    if (!r) return false
+    if (!r.observed_date)    { droppedNoDate++;       return false }
+    if (!r.competition_name) { droppedNoCompetitor++; return false }
+    return true
+  })
+
+  return { rows, droppedNoDate, droppedNoCompetitor }
 }
 
 // Detecta la ciudad a partir del nombre de la pestaña o archivo
@@ -300,15 +336,15 @@ export default function Upload() {
 
       const sheet = wb.Sheets[sheetName]
       const raw   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
-      const rows  = parseRows(raw, city)
-      if (rows.length === 0) continue
+      const { rows, droppedNoDate, droppedNoCompetitor } = parseRows(raw, city)
+      if (rows.length === 0 && droppedNoDate === 0 && droppedNoCompetitor === 0) continue
 
       // Etiqueta legible: usar nombre de archivo para CSV (una sola hoja)
       const label = wb.SheetNames.length === 1
         ? file.name.replace(/\.[^.]+$/, '')
         : sheetName
 
-      parsed.push({ name: label, city, rowCount: rows.length, rows })
+      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, rows })
     }
     return parsed
   }
@@ -522,29 +558,39 @@ export default function Upload() {
               <tr>
                 <th style={{ textAlign: 'left' }}>Archivo / Pestaña</th>
                 <th style={{ textAlign: 'left' }}>Ciudad detectada</th>
-                <th># Filas</th>
+                <th># Filas válidas</th>
+                <th style={{ textAlign: 'left' }}>Descartadas</th>
               </tr>
             </thead>
             <tbody>
-              {sheets.map((s, i) => (
-                <tr key={i}>
-                  <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>{s.name}</td>
-                  <td>
-                    <select
-                      value={s.city}
-                      onChange={e => updateSheetCity(i, e.target.value)}
-                      style={{ fontSize: 12, padding: '2px 4px' }}
-                    >
-                      {CITIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>{s.rowCount.toLocaleString()}</td>
-                </tr>
-              ))}
+              {sheets.map((s, i) => {
+                const dropped = (s.droppedNoDate || 0) + (s.droppedNoCompetitor || 0)
+                return (
+                  <tr key={i}>
+                    <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>{s.name}</td>
+                    <td>
+                      <select
+                        value={s.city}
+                        onChange={e => updateSheetCity(i, e.target.value)}
+                        style={{ fontSize: 12, padding: '2px 4px' }}
+                      >
+                        {CITIES.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{s.rowCount.toLocaleString()}</td>
+                    <td style={{ fontSize: 11, color: dropped > 0 ? '#dc2626' : '#9ca3af' }}>
+                      {dropped > 0
+                        ? `⚠ ${dropped} (${s.droppedNoDate} sin fecha · ${s.droppedNoCompetitor} sin competidor)`
+                        : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
               <tr style={{ background: '#f9fbe7', fontWeight: 700 }}>
                 <td style={{ textAlign: 'left' }}>TOTAL</td>
                 <td></td>
                 <td style={{ textAlign: 'right' }}>{allRows.length.toLocaleString()}</td>
+                <td></td>
               </tr>
             </tbody>
           </table>

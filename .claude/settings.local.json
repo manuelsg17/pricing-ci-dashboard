@@ -18,7 +18,9 @@
       "Bash(export NVM_DIR=\"$HOME/.nvm\")",
       "Bash(source \"$NVM_DIR/nvm.sh\")",
       "Bash(python3)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(grep -i \"check\\\\|constraint\\\\|trigger\" /Users/manuel/Library/CloudStorage/ProtonDrive-hello_email25@pm.me-folder/claude_projects/Yango/pricing-ci-dashboard/supabase/*.sql)",
+      "Bash(grep -A 30 \"INSERT INTO distance_thresholds\" /Users/manuel/Library/CloudStorage/ProtonDrive-hello_email25@pm.me-folder/claude_projects/Yango/pricing-ci-dashboard/supabase/*.sql)"
     ]
   }
 }
