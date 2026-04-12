@@ -10,7 +10,7 @@ export function useRawData(filters) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
-  const { dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource } = filters
+  const { dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource, outlierOnly } = filters
 
   const fetch = useCallback(async (p = 0) => {
     if (!dbCity) return
@@ -35,6 +35,9 @@ export function useRawData(filters) {
       if (searchA)    q = q.ilike('point_a', `%${searchA}%`)
       if (searchB)    q = q.ilike('point_b', `%${searchB}%`)
       if (dataSource) q = q.eq('data_source', dataSource)
+      if (outlierOnly) q = q.or(
+        'price_without_discount.gt.100,price_with_discount.gt.100,recommended_price.gt.100,minimal_bid.gt.100'
+      )
 
       const { data, error: err, count } = await q
       if (err) throw err
@@ -46,9 +49,9 @@ export function useRawData(filters) {
     } finally {
       setLoading(false)
     }
-  }, [dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource])
+  }, [dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource, outlierOnly])
 
   useEffect(() => { fetch(0) }, [fetch])
 
-  return { rows, total, page, loading, error, fetch, pageSize: PAGE_SIZE }
+  return { rows, setRows, total, setTotal, page, loading, error, fetch, pageSize: PAGE_SIZE }
 }

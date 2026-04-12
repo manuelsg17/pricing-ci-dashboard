@@ -358,3 +358,36 @@
 }
 
 .col-source { width: 52px; text-align: center; }
+
+/* ── Outlier highlighting ─────────────────────────────────── */
+.cell-outlier {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.raw-data__row--outlier {
+  background: #fff5f5;
+}
+
+/* ── Actions column (delete) ──────────────────────────────── */
+.col-actions {
+  width: 36px;
+  text-align: center;
+  padding: 0 4px !important;
+}
+
+.raw-data__delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0.4;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: opacity 0.15s;
+}
+
+.raw-data__delete-btn:hover {
+  opacity: 1;
+  background: #fee2e2;
+}

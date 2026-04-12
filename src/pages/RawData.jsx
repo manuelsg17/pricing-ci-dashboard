@@ -75,6 +75,7 @@ export default function RawData() {
   const [searchA,     setSearchA]     = useState(getInitialState('searchA', ''))
   const [searchB,     setSearchB]     = useState(getInitialState('searchB', ''))
   const [dataSource,  setDataSource]  = useState(getInitialState('dataSource', ''))
+  const [outlierOnly, setOutlierOnly] = useState(() => sessionStorage.getItem('rawData_outlierOnly') === 'true')
 
   useEffect(() => { sessionStorage.setItem('rawData_dbCity', dbCity) }, [dbCity])
   useEffect(() => { sessionStorage.setItem('rawData_dbCategory', dbCategory) }, [dbCategory])
@@ -86,6 +87,7 @@ export default function RawData() {
   useEffect(() => { sessionStorage.setItem('rawData_searchA', searchA) }, [searchA])
   useEffect(() => { sessionStorage.setItem('rawData_searchB', searchB) }, [searchB])
   useEffect(() => { sessionStorage.setItem('rawData_dataSource', dataSource) }, [dataSource])
+  useEffect(() => { sessionStorage.setItem('rawData_outlierOnly', outlierOnly) }, [outlierOnly])
 
   const filters = {
     dbCity,
@@ -98,13 +100,33 @@ export default function RawData() {
     searchA,
     searchB,
     dataSource,
+    outlierOnly,
   }
 
-  const { rows, total, page, loading, error, fetch, pageSize } = useRawData(filters)
+  const { rows, setRows, total, setTotal, page, loading, error, fetch, pageSize } = useRawData(filters)
 
   const [editingId, setEditingId] = useState(null)
   const [editField, setEditField] = useState(null)
   const [editValue, setEditValue] = useState('')
+
+  const OUTLIER_THRESHOLD = 100
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Eliminar esta observación? Esta acción no se puede deshacer.')) return
+    const { error: delErr } = await sb.from('pricing_observations').delete().eq('id', id)
+    if (!delErr) {
+      setRows(prev => prev.filter(r => r.id !== id))
+      setTotal(prev => prev - 1)
+    } else {
+      alert('Error al eliminar: ' + delErr.message)
+    }
+  }
+
+  const isOutlierRow = (r) =>
+    parseFloat(r.price_without_discount) > OUTLIER_THRESHOLD ||
+    parseFloat(r.price_with_discount) > OUTLIER_THRESHOLD ||
+    parseFloat(r.recommended_price) > OUTLIER_THRESHOLD ||
+    parseFloat(r.minimal_bid) > OUTLIER_THRESHOLD
 
   const startEdit = (id, field, value) => {
     setEditingId(id)
@@ -172,6 +194,7 @@ export default function RawData() {
     setSearchA('')
     setSearchB('')
     setDataSource('')
+    setOutlierOnly(false)
   }
 
   const isYangoRow = (r) =>
@@ -259,6 +282,16 @@ export default function RawData() {
             placeholder="Buscar…"
           />
         </div>
+        <div className="raw-data__filter-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={outlierOnly}
+              onChange={e => setOutlierOnly(e.target.checked)}
+            />
+            <span style={{ color: outlierOnly ? '#dc2626' : undefined }}>⚠ Outliers (&gt;S/100)</span>
+          </label>
+        </div>
         <button className="raw-data__filter-reset" onClick={resetFilters} title="Limpiar filtros">
           ✕ Limpiar
         </button>
@@ -320,6 +353,7 @@ export default function RawData() {
               <th colSpan={4} className="col-price">Precios (S/.)</th>
               <th colSpan={5} className="col-bid">Bids InDrive</th>
               <th className="col-eta">ETA</th>
+              <th className="col-actions"></th>
             </tr>
             {/* Column labels */}
             <tr>
@@ -347,17 +381,18 @@ export default function RawData() {
               <th className="col-bid">Bid 4</th>
               <th className="col-bid">Bid 5</th>
               <th className="col-eta">ETA (min)</th>
+              <th className="col-actions"></th>
             </tr>
           </thead>
           <tbody>
             {loading && rows.length === 0 && (
               <tr>
-                <td colSpan={25} className="raw-data__state">Cargando datos…</td>
+                <td colSpan={26} className="raw-data__state">Cargando datos…</td>
               </tr>
             )}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={25} className="raw-data__state">
+                <td colSpan={26} className="raw-data__state">
                   No se encontraron filas con los filtros actuales.
                 </td>
               </tr>
@@ -365,7 +400,10 @@ export default function RawData() {
             {rows.map((r, i) => (
               <tr
                 key={r.id ?? i}
-                className={isYangoRow(r) ? 'raw-data__row--yango' : ''}
+                className={[
+                  isYangoRow(r) ? 'raw-data__row--yango' : '',
+                  isOutlierRow(r) ? 'raw-data__row--outlier' : '',
+                ].filter(Boolean).join(' ')}
               >
                 <td className="col-year">{r.year ?? '—'}</td>
                 <td className="col-week">{r.week ?? '—'}</td>
@@ -403,16 +441,23 @@ export default function RawData() {
                 <td className="col-price">{fmt(r.distance_km, 1)}</td>
                 <td className="col-point" title={r.point_a ?? ''}>{r.point_a ?? '—'}</td>
                 <td className="col-point" title={r.point_b ?? ''}>{r.point_b ?? '—'}</td>
-                <td className="col-price">{renderEditable(r, 'price_without_discount')}</td>
-                <td className="col-price">{renderEditable(r, 'price_with_discount')}</td>
-                <td className="col-price">{renderEditable(r, 'recommended_price')}</td>
-                <td className="col-price">{renderEditable(r, 'minimal_bid')}</td>
+                <td className={`col-price${parseFloat(r.price_without_discount) > OUTLIER_THRESHOLD ? ' cell-outlier' : ''}`}>{renderEditable(r, 'price_without_discount')}</td>
+                <td className={`col-price${parseFloat(r.price_with_discount) > OUTLIER_THRESHOLD ? ' cell-outlier' : ''}`}>{renderEditable(r, 'price_with_discount')}</td>
+                <td className={`col-price${parseFloat(r.recommended_price) > OUTLIER_THRESHOLD ? ' cell-outlier' : ''}`}>{renderEditable(r, 'recommended_price')}</td>
+                <td className={`col-price${parseFloat(r.minimal_bid) > OUTLIER_THRESHOLD ? ' cell-outlier' : ''}`}>{renderEditable(r, 'minimal_bid')}</td>
                 <td className="col-bid">{renderEditable(r, 'bid_1')}</td>
                 <td className="col-bid">{renderEditable(r, 'bid_2')}</td>
                 <td className="col-bid">{renderEditable(r, 'bid_3')}</td>
                 <td className="col-bid">{renderEditable(r, 'bid_4')}</td>
                 <td className="col-bid">{renderEditable(r, 'bid_5')}</td>
                 <td className="col-eta">{fmt(r.eta_min, 1)}</td>
+                <td className="col-actions">
+                  <button
+                    className="raw-data__delete-btn"
+                    onClick={() => handleDelete(r.id)}
+                    title="Eliminar fila"
+                  >🗑</button>
+                </td>
               </tr>
             ))}
           </tbody>

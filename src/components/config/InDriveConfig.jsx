@@ -9,7 +9,9 @@
  *    para estimar el precio efectivo en datos del bot (que no captura bids).
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+
+const OUTLIER_THRESHOLD = 100  // PEN — precios por encima se excluyen del análisis estadístico
 import { sb } from '../../lib/supabase'
 
 // Combinaciones para la sección de config (editable por el usuario)
@@ -58,31 +60,28 @@ export default function InDriveConfig() {
   const [cfgLoaded, setCfgLoaded] = useState(false)
 
   // ── Cargar datos históricos de la BD ─────────────────────────
-  useEffect(() => {
-    async function load() {
-      setAnalysisLoading(true)
-      setAnalysisError(null)
-      try {
-        // Solo datos manuales InDrive que tengan al menos un bid y precio recomendado
-        const { data, error } = await sb
-          .from('pricing_observations')
-          .select('city, category, observed_date, recommended_price, bid_1, bid_2, bid_3, bid_4, bid_5')
-          .eq('competition_name', 'InDrive')
-          .eq('data_source', 'manual')
-          .not('recommended_price', 'is', null)
-          .gt('recommended_price', 0)
-          .limit(30000)
+  const loadAnalysis = useCallback(async () => {
+    setAnalysisLoading(true)
+    setAnalysisError(null)
+    try {
+      // Datos manuales InDrive — sin filtrar por rec_price para no excluir Lima u otras ciudades
+      const { data, error } = await sb
+        .from('pricing_observations')
+        .select('city, category, observed_date, recommended_price, bid_1, bid_2, bid_3, bid_4, bid_5')
+        .eq('competition_name', 'InDrive')
+        .eq('data_source', 'manual')
+        .limit(50000)
 
-        if (error) throw error
-        setAnalysisData(data || [])
-      } catch (e) {
-        setAnalysisError(e.message)
-      } finally {
-        setAnalysisLoading(false)
-      }
+      if (error) throw error
+      setAnalysisData(data || [])
+    } catch (e) {
+      setAnalysisError(e.message)
+    } finally {
+      setAnalysisLoading(false)
     }
-    load()
   }, [])
+
+  useEffect(() => { loadAnalysis() }, [loadAnalysis])
 
   // ── Cargar config guardada ────────────────────────────────────
   useEffect(() => {
@@ -100,29 +99,44 @@ export default function InDriveConfig() {
     loadCfg()
   }, [])
 
-  // ── Análisis: filtrar filas con bids válidos ──────────────────
+  // ── Análisis: filtrar filas con bids válidos (rec_price puede ser null) ──
   const analysisRows = useMemo(() =>
     analysisData.filter(r => avgBids(r) !== null),
   [analysisData])
+
+  // Filas excluidas del análisis (sin bids)
+  const noBidsCount = useMemo(() =>
+    analysisData.length - analysisRows.length,
+  [analysisData, analysisRows])
 
   // ── Análisis summary: agrupar por ciudad+categoría ─────────────
   const summary = useMemo(() => {
     const groups = {}
     for (const row of analysisRows) {
       const key = `${row.city}|${row.category}`
-      if (!groups[key]) groups[key] = { city: row.city, category: row.category, recs: [], bids: [] }
-      groups[key].recs.push(row.recommended_price)
-      groups[key].bids.push(avgBids(row))
+      if (!groups[key]) groups[key] = {
+        city: row.city, category: row.category,
+        recs: [], bids: [], outlierRecs: 0,
+      }
+      const rec = parseFloat(row.recommended_price)
+      const bid = avgBids(row)
+      groups[key].bids.push(bid)
+      if (!isNaN(rec) && rec > 0 && rec <= OUTLIER_THRESHOLD) {
+        groups[key].recs.push(rec)
+      } else if (!isNaN(rec) && rec > OUTLIER_THRESHOLD) {
+        groups[key].outlierRecs++
+      }
     }
     return Object.values(groups).map(g => {
-      const avgRec    = g.recs.length ? g.recs.reduce((a, b) => a + b, 0) / g.recs.length : null
-      const avgBid    = g.bids.length ? g.bids.reduce((a, b) => a + b, 0) / g.bids.length : null
-      const pctDiff   = avgRec && avgBid ? ((avgBid / avgRec) - 1) * 100 : null
-      const minRec    = Math.min(...g.recs)
-      const maxRec    = Math.max(...g.recs)
+      const avgRec  = g.recs.length ? g.recs.reduce((a, b) => a + b, 0) / g.recs.length : null
+      const avgBid  = g.bids.length ? g.bids.reduce((a, b) => a + b, 0) / g.bids.length : null
+      const pctDiff = avgRec && avgBid ? ((avgBid / avgRec) - 1) * 100 : null
+      const minRec  = g.recs.length ? Math.min(...g.recs) : null
+      const maxRec  = g.recs.length ? Math.max(...g.recs) : null
       return {
         city: g.city, category: g.category,
-        obsBids: g.bids.length,
+        obsBids:     g.bids.length,
+        outlierRecs: g.outlierRecs,
         avgRec:  avgRec?.toFixed(2) ?? null,
         minRec:  minRec?.toFixed(2) ?? null,
         maxRec:  maxRec?.toFixed(2) ?? null,
@@ -140,7 +154,8 @@ export default function InDriveConfig() {
       if (!week) continue
       const key = `${row.city}|${row.category}|${week}`
       if (!groups[key]) groups[key] = { city: row.city, category: row.category, week, recs: [], bids: [] }
-      groups[key].recs.push(row.recommended_price)
+      const rec = parseFloat(row.recommended_price)
+      if (!isNaN(rec) && rec > 0 && rec <= OUTLIER_THRESHOLD) groups[key].recs.push(rec)
       groups[key].bids.push(avgBids(row))
     }
     return Object.values(groups).map(g => {
@@ -203,6 +218,14 @@ export default function InDriveConfig() {
           <h2 style={{ margin: 0 }}>Análisis histórico — Bids vs Precio recomendado</h2>
           <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
             <button
+              onClick={() => loadAnalysis()}
+              disabled={analysisLoading}
+              style={{ padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 4, background: '#f9fafb', cursor: 'pointer', fontSize: 12 }}
+              title="Recargar datos"
+            >
+              ↻ Recargar
+            </button>
+            <button
               onClick={() => setAnalysisView('summary')}
               style={tabBtnStyle(analysisView === 'summary')}
             >
@@ -217,10 +240,10 @@ export default function InDriveConfig() {
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          Solo datos manuales (hubs) con bids registrados. La columna <strong>Rec. min/max</strong> ayuda
-          a identificar outliers en el precio recomendado que distorsionan el promedio.
-          {analysisData.length > 0 && analysisRows.length < analysisData.length && (
-            <> · {analysisData.length - analysisRows.length} filas sin bids excluidas del análisis.</>
+          Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; S/{OUTLIER_THRESHOLD} se excluyen del cálculo de promedio como outliers.
+          {noBidsCount > 0 && <> · {noBidsCount} filas sin bids excluidas del análisis.</>}
+          {summary.some(r => r.outlierRecs > 0) && (
+            <> · <span style={{ color: '#dc2626' }}>⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt; S/{OUTLIER_THRESHOLD}) excluidos del promedio.</span></>
           )}
         </p>
 
@@ -267,9 +290,9 @@ export default function InDriveConfig() {
                       <td style={{ textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
                         {r.minRec != null ? `S/ ${r.minRec}` : '—'}
                       </td>
-                      <td style={{ textAlign: 'right', color: parseFloat(r.maxRec) > 50 ? '#dc2626' : '#9ca3af', fontSize: 11 }}>
+                      <td style={{ textAlign: 'right', color: r.outlierRecs > 0 ? '#dc2626' : '#9ca3af', fontSize: 11 }}>
                         {r.maxRec != null ? `S/ ${r.maxRec}` : '—'}
-                        {parseFloat(r.maxRec) > 50 && <span title="Posible outlier"> ⚠</span>}
+                        {r.outlierRecs > 0 && <span title={`${r.outlierRecs} precios > S/${OUTLIER_THRESHOLD} excluidos`}> ⚠</span>}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         {r.avgBid != null ? `S/ ${r.avgBid}` : '—'}
