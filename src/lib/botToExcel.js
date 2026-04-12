@@ -190,14 +190,30 @@ export function convertBotToExcel(rawRows) {
   const { ok, skipped } = mapBotRows(rawRows)
 
   // 2. Filtrar solo los competidores del scope actual
-  const filtered         = ok.filter(r => INCLUDE_COMPETITORS.has(r.competition_name))
+  const inScope           = ok.filter(r => INCLUDE_COMPETITORS.has(r.competition_name))
   const skippedCompetitor = ok
     .filter(r => !INCLUDE_COMPETITORS.has(r.competition_name))
     .map(r => ({ row: r, reason: `Competidor fuera de scope: ${r.competition_name}` }))
 
-  const allSkipped = [...skipped, ...skippedCompetitor]
+  // 3. Filtrar filas sin precio en columna de salida
+  //    · No-InDrive: necesita price_without_discount (col S)
+  //    · InDrive:    necesita recommended_price (col P)
+  const filtered        = inScope.filter(r =>
+    r.competition_name === 'InDrive'
+      ? r.recommended_price != null
+      : r.price_without_discount != null,
+  )
+  const skippedNoPrice  = inScope
+    .filter(r =>
+      r.competition_name === 'InDrive'
+        ? r.recommended_price == null
+        : r.price_without_discount == null,
+    )
+    .map(r => ({ row: r, reason: 'Sin precio en columna de salida' }))
 
-  // 3. Agrupar por ciudad
+  const allSkipped = [...skipped, ...skippedCompetitor, ...skippedNoPrice]
+
+  // 4. Agrupar por ciudad
   const byCity = { Lima: [], Trujillo: [], Arequipa: [] }
   for (const row of filtered) {
     if (byCity[row.city] !== undefined) {
@@ -207,10 +223,11 @@ export function convertBotToExcel(rawRows) {
 
   // 4. Generar xlsx por ciudad (solo si tiene filas)
   const files   = {}
-  const summary = { Lima: 0, Trujillo: 0, Arequipa: 0, total: filtered.length }
+  const summary = { Lima: 0, Trujillo: 0, Arequipa: 0, total: 0 }
 
   for (const city of ['Lima', 'Trujillo', 'Arequipa']) {
-    summary[city] = byCity[city].length
+    summary[city]  = byCity[city].length
+    summary.total += byCity[city].length
     if (byCity[city].length > 0) {
       files[city] = buildCityXlsx(byCity[city], city)
     }
