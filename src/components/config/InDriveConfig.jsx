@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+// useMemo kept for summary/weekly client-side mapping
 
 const OUTLIER_THRESHOLD = 100  // PEN — precios por encima se excluyen del análisis estadístico
 import { sb } from '../../lib/supabase'
@@ -27,36 +28,14 @@ const CONFIG_ROWS = [
   { city: 'Arequipa', category: 'Comfort'  },
 ]
 
-// Calcula promedio de bids.
-// Prioridad: bid_1..bid_5 individuales → price_without_discount → minimal_bid
-// Muchas filas subidas desde Excel solo tienen el resumen (minimal_bid / price_without_discount)
-// sin bid_1..bid_5 individuales — el fallback permite incluirlas en el análisis.
-function avgBids(row) {
-  const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
-    .filter(b => b != null && b > 0)
-  if (bids.length) return bids.reduce((a, b) => a + b, 0) / bids.length
-  const pwo = parseFloat(row.price_without_discount)
-  if (!isNaN(pwo) && pwo > 0) return pwo
-  const mb = parseFloat(row.minimal_bid)
-  if (!isNaN(mb) && mb > 0) return mb
-  return null
-}
-
-// ISO week desde fecha "YYYY-MM-DD"
-function isoWeek(dateStr) {
-  if (!dateStr) return null
-  const d   = new Date(dateStr + 'T12:00:00')
-  const day = d.getDay() || 7
-  d.setDate(d.getDate() + 4 - day)
-  const yearStart = new Date(d.getFullYear(), 0, 1)
-  return `${d.getFullYear()}-W${String(Math.ceil(((d - yearStart) / 86400000 + 1) / 7)).padStart(2, '0')}`
-}
 
 export default function InDriveConfig() {
   const [analysisView, setAnalysisView] = useState('summary')  // 'summary' | 'weekly'
 
   // ── Estado de análisis histórico ─────────────────────────────
-  const [analysisData,    setAnalysisData]    = useState([])
+  const [summaryData,     setSummaryData]     = useState([])
+  const [weeklyData,      setWeeklyData]      = useState([])
+  const [counts,          setCounts]          = useState({ total_rows: 0, rows_with_bids: 0 })
   const [analysisLoading, setAnalysisLoading] = useState(true)
   const [analysisError,   setAnalysisError]   = useState(null)
 
@@ -66,21 +45,22 @@ export default function InDriveConfig() {
   const [saveMsg,   setSaveMsg]   = useState(null)
   const [cfgLoaded, setCfgLoaded] = useState(false)
 
-  // ── Cargar datos históricos de la BD ─────────────────────────
+  // ── Cargar datos históricos via RPC (agrupado en el servidor) ──
   const loadAnalysis = useCallback(async () => {
     setAnalysisLoading(true)
     setAnalysisError(null)
     try {
-      // Datos manuales InDrive — sin filtrar por rec_price para no excluir Lima u otras ciudades
-      const { data, error } = await sb
-        .from('pricing_observations')
-        .select('city, category, observed_date, recommended_price, minimal_bid, price_without_discount, bid_1, bid_2, bid_3, bid_4, bid_5')
-        .eq('competition_name', 'InDrive')
-        .eq('data_source', 'manual')
-        .limit(50000)
-
-      if (error) throw error
-      setAnalysisData(data || [])
+      const [summaryRes, weeklyRes, countsRes] = await Promise.all([
+        sb.rpc('get_indrive_summary', { outlier_threshold: OUTLIER_THRESHOLD }),
+        sb.rpc('get_indrive_weekly',  { outlier_threshold: OUTLIER_THRESHOLD }),
+        sb.rpc('get_indrive_counts'),
+      ])
+      if (summaryRes.error) throw summaryRes.error
+      if (weeklyRes.error)  throw weeklyRes.error
+      if (countsRes.error)  throw countsRes.error
+      setSummaryData(summaryRes.data || [])
+      setWeeklyData(weeklyRes.data   || [])
+      setCounts(countsRes.data?.[0]  || { total_rows: 0, rows_with_bids: 0 })
     } catch (e) {
       setAnalysisError(e.message)
     } finally {
@@ -106,80 +86,34 @@ export default function InDriveConfig() {
     loadCfg()
   }, [])
 
-  // ── Análisis: filtrar filas con bids válidos (rec_price puede ser null) ──
-  const analysisRows = useMemo(() =>
-    analysisData.filter(r => avgBids(r) !== null),
-  [analysisData])
+  // summary y weekly ya vienen agregados del servidor (via RPC)
+  // Solo calculamos pctDiff aquí ya que el RPC no lo incluye
+  const summary = useMemo(() =>
+    summaryData.map(r => ({
+      ...r,
+      obsBids:     Number(r.obs_with_bids),
+      outlierRecs: Number(r.outlier_recs),
+      avgRec:  r.avg_rec  != null ? String(r.avg_rec)  : null,
+      minRec:  r.min_rec  != null ? String(r.min_rec)  : null,
+      maxRec:  r.max_rec  != null ? String(r.max_rec)  : null,
+      avgBid:  r.avg_bid  != null ? String(r.avg_bid)  : null,
+      pctDiff: (r.avg_rec && r.avg_bid)
+        ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
+        : null,
+    }))
+  , [summaryData])
 
-  // Filas excluidas del análisis (sin bids)
-  const noBidsCount = useMemo(() =>
-    analysisData.length - analysisRows.length,
-  [analysisData, analysisRows])
-
-  // ── Análisis summary: agrupar por ciudad+categoría ─────────────
-  const summary = useMemo(() => {
-    const groups = {}
-    for (const row of analysisRows) {
-      const key = `${row.city}|${row.category}`
-      if (!groups[key]) groups[key] = {
-        city: row.city, category: row.category,
-        recs: [], bids: [], outlierRecs: 0,
-      }
-      const rec = parseFloat(row.recommended_price)
-      const bid = avgBids(row)
-      groups[key].bids.push(bid)
-      if (!isNaN(rec) && rec > 0 && rec <= OUTLIER_THRESHOLD) {
-        groups[key].recs.push(rec)
-      } else if (!isNaN(rec) && rec > OUTLIER_THRESHOLD) {
-        groups[key].outlierRecs++
-      }
-    }
-    return Object.values(groups).map(g => {
-      const avgRec  = g.recs.length ? g.recs.reduce((a, b) => a + b, 0) / g.recs.length : null
-      const avgBid  = g.bids.length ? g.bids.reduce((a, b) => a + b, 0) / g.bids.length : null
-      const pctDiff = avgRec && avgBid ? ((avgBid / avgRec) - 1) * 100 : null
-      const minRec  = g.recs.length ? Math.min(...g.recs) : null
-      const maxRec  = g.recs.length ? Math.max(...g.recs) : null
-      return {
-        city: g.city, category: g.category,
-        obsBids:     g.bids.length,
-        outlierRecs: g.outlierRecs,
-        avgRec:  avgRec?.toFixed(2) ?? null,
-        minRec:  minRec?.toFixed(2) ?? null,
-        maxRec:  maxRec?.toFixed(2) ?? null,
-        avgBid:  avgBid?.toFixed(2) ?? null,
-        pctDiff: pctDiff?.toFixed(1) ?? null,
-      }
-    }).sort((a, b) => a.city.localeCompare(b.city) || a.category.localeCompare(b.category))
-  }, [analysisRows])
-
-  // ── Análisis semanal: agrupar por ciudad+categoría+semana ──────
-  const weekly = useMemo(() => {
-    const groups = {}
-    for (const row of analysisRows) {
-      const week = isoWeek(row.observed_date)
-      if (!week) continue
-      const key = `${row.city}|${row.category}|${week}`
-      if (!groups[key]) groups[key] = { city: row.city, category: row.category, week, recs: [], bids: [] }
-      const rec = parseFloat(row.recommended_price)
-      if (!isNaN(rec) && rec > 0 && rec <= OUTLIER_THRESHOLD) groups[key].recs.push(rec)
-      groups[key].bids.push(avgBids(row))
-    }
-    return Object.values(groups).map(g => {
-      const avgRec  = g.recs.length ? g.recs.reduce((a, b) => a + b, 0) / g.recs.length : null
-      const avgBid  = g.bids.length ? g.bids.reduce((a, b) => a + b, 0) / g.bids.length : null
-      const pctDiff = avgRec && avgBid ? ((avgBid / avgRec) - 1) * 100 : null
-      return {
-        city: g.city, category: g.category, week: g.week,
-        obs:     g.bids.length,
-        avgRec:  avgRec?.toFixed(2) ?? null,
-        avgBid:  avgBid?.toFixed(2) ?? null,
-        pctDiff: pctDiff?.toFixed(1) ?? null,
-      }
-    }).sort((a, b) =>
-      a.city.localeCompare(b.city) || a.category.localeCompare(b.category) || b.week.localeCompare(a.week)
-    )
-  }, [analysisRows])
+  const weekly = useMemo(() =>
+    weeklyData.map(r => ({
+      ...r,
+      obs:    Number(r.obs),
+      avgRec: r.avg_rec != null ? String(r.avg_rec) : null,
+      avgBid: r.avg_bid != null ? String(r.avg_bid) : null,
+      pctDiff: (r.avg_rec && r.avg_bid)
+        ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
+        : null,
+    }))
+  , [weeklyData])
 
   // ── Helpers config ────────────────────────────────────────────
   function getCfg(city, category) {
@@ -248,8 +182,7 @@ export default function InDriveConfig() {
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
           Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; S/{OUTLIER_THRESHOLD} se excluyen del cálculo de promedio como outliers.
-          {' '}· Total en BD: <strong>{analysisData.length}</strong> | Con bids: <strong>{analysisRows.length}</strong> | Sin bids: <strong style={{ color: noBidsCount > 0 ? '#dc2626' : 'inherit' }}>{noBidsCount}</strong>
-          {noBidsCount > 0 && <> · {noBidsCount} filas sin bids excluidas del análisis.</>}
+          {' '}· Total en BD: <strong>{counts.total_rows}</strong> | Con bids: <strong>{counts.rows_with_bids}</strong> | Sin bids: <strong style={{ color: (counts.total_rows - counts.rows_with_bids) > 0 ? '#dc2626' : 'inherit' }}>{counts.total_rows - counts.rows_with_bids}</strong>
           {summary.some(r => r.outlierRecs > 0) && (
             <> · <span style={{ color: '#dc2626' }}>⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt; S/{OUTLIER_THRESHOLD}) excluidos del promedio.</span></>
           )}
@@ -258,7 +191,7 @@ export default function InDriveConfig() {
         {analysisLoading && <div className="state-box">Calculando análisis…</div>}
         {analysisError   && <div className="state-box state-box--error">Error: {analysisError}</div>}
 
-        {!analysisLoading && !analysisError && analysisRows.length === 0 && (
+        {!analysisLoading && !analysisError && summary.length === 0 && (
           <div className="state-box">
             Sin datos manuales de InDrive con bids aún.
             Una vez que los hubs ingresen observaciones con bids, aquí aparecerá el análisis.
@@ -270,7 +203,7 @@ export default function InDriveConfig() {
           </div>
         )}
 
-        {!analysisLoading && !analysisError && analysisRows.length > 0 && (
+        {!analysisLoading && !analysisError && summary.length > 0 && (
           <>
             {analysisView === 'summary' && (
               <table className="config-table">
