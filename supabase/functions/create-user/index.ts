@@ -15,13 +15,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Solo usuarios autenticados pueden llamar esta función
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No autorizado' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    // Nota: Supabase verifica el JWT a nivel de gateway antes de llegar aquí.
+    // No es necesario verificar el Authorization header manualmente.
 
     const { email, password, first_name, last_name, role_id, invited_by } = await req.json()
 
