@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth'
 // All known sections in the app
 export const ALL_SECTIONS = [
   'dashboard', 'earnings', 'report',
-  'dataentry', 'upload', 'rawdata',
+  'dataentry', 'upload', 'rawdata', 'botvshubs',
   'events', 'distances', 'config', 'access',
 ]
 
@@ -16,6 +16,7 @@ export const SECTION_LABELS = {
   dataentry: '✏️ Ingresar CI',
   upload:    '📤 Cargar Data',
   rawdata:   '🗃 Data Raw',
+  botvshubs: '📊 Bot vs Hubs',
   events:    '📌 Eventos',
   distances: '📍 Distancias Ref.',
   config:    '⚙️ Configuración',

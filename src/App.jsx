@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useAuth }     from './lib/auth'
-import { sb }          from './lib/supabase'
-import Topbar          from './components/layout/Topbar'
+import { useAuth }           from './lib/auth'
+import { sb }                from './lib/supabase'
+import { useAccessControl }  from './hooks/useAccessControl'
+import { COUNTRIES }         from './lib/constants'
+import Topbar                from './components/layout/Topbar'
 import LoginScreen     from './components/layout/LoginScreen'
 import Dashboard       from './pages/Dashboard'
 import Config          from './pages/Config'
@@ -17,6 +19,7 @@ import BotVsHubs        from './pages/BotVsHubs'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
+  const { canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [dbWeights, setDbWeights] = useState([])
   const [country,   setCountry]   = useState(() => localStorage.getItem('country') || 'Peru')
@@ -33,7 +36,25 @@ export default function App() {
       .then(({ data }) => setDbWeights(data || []))
   }, [session])
 
-  if (loading) {
+  // Países permitidos según rol
+  const allowedCountries = COUNTRIES.filter(c => canAccessCountry(c))
+
+  // Si el país seleccionado no está permitido, forzar al primero disponible
+  useEffect(() => {
+    if (acLoading || allowedCountries.length === 0) return
+    if (!allowedCountries.includes(country)) {
+      handleCountryChange(allowedCountries[0])
+    }
+  }, [acLoading])
+
+  // Si el tab activo no es accesible, redirigir a dashboard
+  useEffect(() => {
+    if (!acLoading && !canAccess(activeTab)) {
+      setActiveTab('dashboard')
+    }
+  }, [acLoading])
+
+  if (loading || acLoading) {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -57,19 +78,21 @@ export default function App() {
         onLogout={signOut}
         country={country}
         onCountryChange={handleCountryChange}
+        canAccess={canAccess}
+        allowedCountries={allowedCountries}
       />
 
-      {activeTab === 'dashboard' && <Dashboard dbWeights={dbWeights} country={country} />}
-      {activeTab === 'dataentry' && <DataEntry country={country} />}
-      {activeTab === 'earnings'  && <DriverEarnings country={country} />}
-      {activeTab === 'report'    && <WeeklyReport country={country} />}
-      {activeTab === 'events'    && <MarketEvents country={country} />}
-      {activeTab === 'rawdata'   && <RawData />}
-      {activeTab === 'botvshubs' && <BotVsHubs />}
-      {activeTab === 'config'    && <Config />}
-      {activeTab === 'upload'    && <Upload />}
-      {activeTab === 'distances' && <DistanceRefs />}
-      {activeTab === 'access'    && <AccessManagement />}
+      {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} country={country} />}
+      {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry country={country} />}
+      {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings country={country} />}
+      {activeTab === 'report'    && canAccess('report')    && <WeeklyReport country={country} />}
+      {activeTab === 'events'    && canAccess('events')    && <MarketEvents country={country} />}
+      {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
+      {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
+      {activeTab === 'config'    && canAccess('config')    && <Config />}
+      {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
+      {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
+      {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
     </>
   )
 }

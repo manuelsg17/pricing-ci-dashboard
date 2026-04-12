@@ -42,11 +42,12 @@ function getGroupOf(tabId) {
   return null
 }
 
-function DropdownMenu({ item, activeTab, onTabChange }) {
+function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
-  const isActive = item.children.some(c => c.id === activeTab)
+  const children = visibleChildren || item.children
+  const isActive = children.some(c => c.id === activeTab)
 
   // Close on outside click
   useEffect(() => {
@@ -77,7 +78,7 @@ function DropdownMenu({ item, activeTab, onTabChange }) {
 
       {open && (
         <div className="topbar__menu">
-          {item.children.map(child => (
+          {children.map(child => (
             <button
               key={child.id}
               className={`topbar__menu-item${activeTab === child.id ? ' topbar__menu-item--active' : ''}`}
@@ -92,7 +93,7 @@ function DropdownMenu({ item, activeTab, onTabChange }) {
   )
 }
 
-export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, country = 'Peru', onCountryChange }) {
+export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, country = 'Peru', onCountryChange, canAccess = () => true, allowedCountries = COUNTRIES }) {
   const { lang, setLang, languages } = useI18n()
 
   return (
@@ -108,6 +109,7 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
       <div className="topbar__tabs">
         {NAV.map(item => {
           if (item.direct) {
+            if (!canAccess(item.id)) return null
             return (
               <button
                 key={item.id}
@@ -118,12 +120,15 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
               </button>
             )
           }
+          const visibleChildren = item.children.filter(c => canAccess(c.id))
+          if (visibleChildren.length === 0) return null
           return (
             <DropdownMenu
               key={item.id}
               item={item}
               activeTab={activeTab}
               onTabChange={onTabChange}
+              visibleChildren={visibleChildren}
             />
           )
         })}
@@ -136,8 +141,9 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
           value={country}
           onChange={e => onCountryChange?.(e.target.value)}
           title="Seleccionar país"
+          disabled={allowedCountries.length <= 1}
         >
-          {COUNTRIES.map(c => (
+          {allowedCountries.map(c => (
             <option key={c} value={c}>{COUNTRY_CONFIG[c].label}</option>
           ))}
         </select>
