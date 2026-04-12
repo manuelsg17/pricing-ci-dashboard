@@ -206,29 +206,29 @@
 
 .topbar__country-select {
   padding: 4px 10px;
-  border: 1px solid rgba(255,255,255,0.25);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: rgba(255,255,255,0.1);
-  color: #fff;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: border-color 0.15s;
 }
-.topbar__country-select:hover { background: rgba(255,255,255,0.2); }
-.topbar__country-select option { background: #1e293b; color: #fff; }
+.topbar__country-select:hover { border-color: var(--color-yango); }
+.topbar__country-select option { background: #ffffff; color: var(--color-text); }
 
 .topbar__lang-select {
   appearance: none;
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.25);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  color: #fff;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-size: 12px;
   font-weight: 600;
   padding: 5px 10px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: border-color 0.15s;
 }
-.topbar__lang-select:hover { background: rgba(255,255,255,0.2); }
-.topbar__lang-select option { background: #1e293b; color: #fff; }
+.topbar__lang-select:hover { border-color: var(--color-yango); }
+.topbar__lang-select option { background: #ffffff; color: var(--color-text); }

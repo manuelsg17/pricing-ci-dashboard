@@ -249,7 +249,7 @@ function RolesTab() {
     const { error } = await sb.from('roles').insert({
       name:        newName.trim().toLowerCase().replace(/\s+/g, '_'),
       label:       newLabel.trim(),
-      permissions: { sections: [], countries: [] },
+      permissions: { sections: ['dashboard'], countries: ['all'] },
     })
     setSaving(false)
     if (!error) {

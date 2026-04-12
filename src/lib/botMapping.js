@@ -10,11 +10,12 @@
 
 // Normalización de nombres de app → competition_name de la BD
 const APP_MAP = {
-  uber:    'Uber',
-  yango:   'Yango',
-  didi:    'Didi',
-  indrive: 'InDrive',
-  cabify:  'Cabify',
+  uber:      'Uber',
+  yango:     'Yango',
+  yango_api: 'Yango',
+  didi:      'Didi',
+  indrive:   'InDrive',
+  cabify:    'Cabify',
 }
 
 // Normalización vehicle_category + city → category DB
