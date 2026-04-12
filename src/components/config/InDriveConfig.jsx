@@ -27,12 +27,19 @@ const CONFIG_ROWS = [
   { city: 'Arequipa', category: 'Comfort'  },
 ]
 
-// Calcula promedio de bids (ignora nulos y ceros)
+// Calcula promedio de bids.
+// Prioridad: bid_1..bid_5 individuales → price_without_discount → minimal_bid
+// Muchas filas subidas desde Excel solo tienen el resumen (minimal_bid / price_without_discount)
+// sin bid_1..bid_5 individuales — el fallback permite incluirlas en el análisis.
 function avgBids(row) {
   const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
     .filter(b => b != null && b > 0)
-  if (!bids.length) return null
-  return bids.reduce((a, b) => a + b, 0) / bids.length
+  if (bids.length) return bids.reduce((a, b) => a + b, 0) / bids.length
+  const pwo = parseFloat(row.price_without_discount)
+  if (!isNaN(pwo) && pwo > 0) return pwo
+  const mb = parseFloat(row.minimal_bid)
+  if (!isNaN(mb) && mb > 0) return mb
+  return null
 }
 
 // ISO week desde fecha "YYYY-MM-DD"
@@ -67,7 +74,7 @@ export default function InDriveConfig() {
       // Datos manuales InDrive — sin filtrar por rec_price para no excluir Lima u otras ciudades
       const { data, error } = await sb
         .from('pricing_observations')
-        .select('city, category, observed_date, recommended_price, bid_1, bid_2, bid_3, bid_4, bid_5')
+        .select('city, category, observed_date, recommended_price, minimal_bid, price_without_discount, bid_1, bid_2, bid_3, bid_4, bid_5')
         .eq('competition_name', 'InDrive')
         .eq('data_source', 'manual')
         .limit(50000)
