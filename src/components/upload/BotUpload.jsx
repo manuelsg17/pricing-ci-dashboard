@@ -28,8 +28,25 @@ export default function BotUpload() {
       const raw    = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
       const { ok, skipped: skip } = mapBotRows(raw)
-      setRows(ok)
-      setSkipped(skip)
+
+      // Filtrar filas sin precio en columna de salida:
+      // · No-InDrive: necesita price_without_discount
+      // · InDrive:    necesita recommended_price (bids son opcionales)
+      const validRows   = ok.filter(r =>
+        r.competition_name === 'InDrive'
+          ? r.recommended_price != null
+          : r.price_without_discount != null,
+      )
+      const noPriceRows = ok
+        .filter(r =>
+          r.competition_name === 'InDrive'
+            ? r.recommended_price == null
+            : r.price_without_discount == null,
+        )
+        .map(r => ({ row: r, reason: 'Sin precio en columna de salida' }))
+
+      setRows(validRows)
+      setSkipped([...skip, ...noPriceRows])
     } catch (e) {
       setMessage({ type: 'err', text: 'Error al parsear el archivo: ' + e.message })
     }

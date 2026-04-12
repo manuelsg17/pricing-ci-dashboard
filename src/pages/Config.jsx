@@ -8,6 +8,7 @@ import RushHourConfig        from '../components/config/RushHourConfig'
 import CITimeslotsConfig     from '../components/config/CITimeslotsConfig'
 import CommissionsConfig     from '../components/config/CommissionsConfig'
 import BonusesConfig         from '../components/config/BonusesConfig'
+import InDriveConfig         from '../components/config/InDriveConfig'
 import '../styles/config.css'
 
 const TABS = [
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'timeslots',   label: 'Timeslots CI' },
   { id: 'commissions', label: 'Comisiones' },
   { id: 'bonuses',     label: 'Bonos' },
+  { id: 'indrive',     label: 'InDrive' },
 ]
 
 export default function Config() {
@@ -82,6 +84,7 @@ export default function Config() {
       {activeTab === 'timeslots'   && <CITimeslotsConfig />}
       {activeTab === 'commissions' && <CommissionsConfig />}
       {activeTab === 'bonuses'     && <BonusesConfig />}
+      {activeTab === 'indrive'     && <InDriveConfig />}
     </div>
   )
 }
