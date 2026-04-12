@@ -4,6 +4,7 @@
  * Dos secciones:
  * 1. Análisis histórico — calcula cuánto varía el promedio de bids
  *    vs el precio recomendado, usando solo datos ingresados por hubs (data_source='manual').
+ *    Vista general (por ciudad/categoría) y vista semanal.
  * 2. Configuración de ajuste — el usuario define el % a aplicar
  *    para estimar el precio efectivo en datos del bot (que no captura bids).
  */
@@ -11,15 +12,18 @@
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 
-const CITY_CATEGORIES = {
-  Lima:     ['Economy', 'Comfort', 'Premier', 'XL', 'TukTuk'],
-  Trujillo: ['Economy', 'Comfort'],
-  Arequipa: ['Economy', 'Comfort'],
-}
-
-const ALL_ROWS = Object.entries(CITY_CATEGORIES).flatMap(([city, cats]) =>
-  cats.map(category => ({ city, category }))
-)
+// Combinaciones para la sección de config (editable por el usuario)
+const CONFIG_ROWS = [
+  { city: 'Lima',     category: 'Economy'  },
+  { city: 'Lima',     category: 'Comfort'  },
+  { city: 'Lima',     category: 'Premier'  },
+  { city: 'Lima',     category: 'XL'       },
+  { city: 'Lima',     category: 'TukTuk'   },
+  { city: 'Trujillo', category: 'Economy'  },
+  { city: 'Trujillo', category: 'Comfort'  },
+  { city: 'Arequipa', category: 'Economy'  },
+  { city: 'Arequipa', category: 'Comfort'  },
+]
 
 // Calcula promedio de bids (ignora nulos y ceros)
 function avgBids(row) {
@@ -29,16 +33,28 @@ function avgBids(row) {
   return bids.reduce((a, b) => a + b, 0) / bids.length
 }
 
+// ISO week desde fecha "YYYY-MM-DD"
+function isoWeek(dateStr) {
+  if (!dateStr) return null
+  const d   = new Date(dateStr + 'T12:00:00')
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() + 4 - day)
+  const yearStart = new Date(d.getFullYear(), 0, 1)
+  return `${d.getFullYear()}-W${String(Math.ceil(((d - yearStart) / 86400000 + 1) / 7)).padStart(2, '0')}`
+}
+
 export default function InDriveConfig() {
+  const [analysisView, setAnalysisView] = useState('summary')  // 'summary' | 'weekly'
+
   // ── Estado de análisis histórico ─────────────────────────────
-  const [analysisData, setAnalysisData] = useState([])  // filas de pricing_observations
+  const [analysisData,    setAnalysisData]    = useState([])
   const [analysisLoading, setAnalysisLoading] = useState(true)
   const [analysisError,   setAnalysisError]   = useState(null)
 
   // ── Estado de config (ajustes) ───────────────────────────────
-  const [config,   setConfig]   = useState({})   // { "Lima|Economy": 0.0, ... }
-  const [saving,   setSaving]   = useState(false)
-  const [saveMsg,  setSaveMsg]  = useState(null)
+  const [config,    setConfig]    = useState({})
+  const [saving,    setSaving]    = useState(false)
+  const [saveMsg,   setSaveMsg]   = useState(null)
   const [cfgLoaded, setCfgLoaded] = useState(false)
 
   // ── Cargar datos históricos de la BD ─────────────────────────
@@ -47,15 +63,15 @@ export default function InDriveConfig() {
       setAnalysisLoading(true)
       setAnalysisError(null)
       try {
-        // Solo datos manuales InDrive que tengan al menos un bid
+        // Solo datos manuales InDrive que tengan al menos un bid y precio recomendado
         const { data, error } = await sb
           .from('pricing_observations')
-          .select('city, category, recommended_price, bid_1, bid_2, bid_3, bid_4, bid_5')
+          .select('city, category, observed_date, recommended_price, bid_1, bid_2, bid_3, bid_4, bid_5')
           .eq('competition_name', 'InDrive')
           .eq('data_source', 'manual')
           .not('recommended_price', 'is', null)
           .gt('recommended_price', 0)
-          .limit(20000)
+          .limit(30000)
 
         if (error) throw error
         setAnalysisData(data || [])
@@ -74,7 +90,9 @@ export default function InDriveConfig() {
       const { data } = await sb.from('indrive_config').select('city, category, adjustment_pct, note')
       if (data) {
         const map = {}
-        data.forEach(r => { map[`${r.city}|${r.category}`] = { pct: r.adjustment_pct ?? 0, note: r.note ?? '' } })
+        data.forEach(r => {
+          map[`${r.city}|${r.category}`] = { pct: r.adjustment_pct ?? 0, note: r.note ?? '' }
+        })
         setConfig(map)
       }
       setCfgLoaded(true)
@@ -82,37 +100,69 @@ export default function InDriveConfig() {
     loadCfg()
   }, [])
 
-  // ── Análisis: agrupar por ciudad+categoría ─────────────────────
-  const analysis = useMemo(() => {
+  // ── Análisis: filtrar filas con bids válidos ──────────────────
+  const analysisRows = useMemo(() =>
+    analysisData.filter(r => avgBids(r) !== null),
+  [analysisData])
+
+  // ── Análisis summary: agrupar por ciudad+categoría ─────────────
+  const summary = useMemo(() => {
     const groups = {}
-    for (const row of analysisData) {
+    for (const row of analysisRows) {
       const key = `${row.city}|${row.category}`
       if (!groups[key]) groups[key] = { city: row.city, category: row.category, recs: [], bids: [] }
       groups[key].recs.push(row.recommended_price)
-      const b = avgBids(row)
-      if (b != null) groups[key].bids.push(b)
+      groups[key].bids.push(avgBids(row))
     }
     return Object.values(groups).map(g => {
-      const avgRec = g.recs.length ? g.recs.reduce((a, b) => a + b, 0) / g.recs.length : null
-      const avgBid = g.bids.length ? g.bids.reduce((a, b) => a + b, 0) / g.bids.length : null
-      const pctDiff = avgRec && avgBid ? ((avgBid / avgRec) - 1) * 100 : null
+      const avgRec    = g.recs.length ? g.recs.reduce((a, b) => a + b, 0) / g.recs.length : null
+      const avgBid    = g.bids.length ? g.bids.reduce((a, b) => a + b, 0) / g.bids.length : null
+      const pctDiff   = avgRec && avgBid ? ((avgBid / avgRec) - 1) * 100 : null
+      const minRec    = Math.min(...g.recs)
+      const maxRec    = Math.max(...g.recs)
       return {
-        city:     g.city,
-        category: g.category,
-        obsTotal: g.recs.length,
-        obsBids:  g.bids.length,
-        avgRec:   avgRec?.toFixed(2) ?? null,
-        avgBid:   avgBid?.toFixed(2) ?? null,
-        pctDiff:  pctDiff?.toFixed(1) ?? null,
+        city: g.city, category: g.category,
+        obsBids: g.bids.length,
+        avgRec:  avgRec?.toFixed(2) ?? null,
+        minRec:  minRec?.toFixed(2) ?? null,
+        maxRec:  maxRec?.toFixed(2) ?? null,
+        avgBid:  avgBid?.toFixed(2) ?? null,
+        pctDiff: pctDiff?.toFixed(1) ?? null,
       }
     }).sort((a, b) => a.city.localeCompare(b.city) || a.category.localeCompare(b.category))
-  }, [analysisData])
+  }, [analysisRows])
+
+  // ── Análisis semanal: agrupar por ciudad+categoría+semana ──────
+  const weekly = useMemo(() => {
+    const groups = {}
+    for (const row of analysisRows) {
+      const week = isoWeek(row.observed_date)
+      if (!week) continue
+      const key = `${row.city}|${row.category}|${week}`
+      if (!groups[key]) groups[key] = { city: row.city, category: row.category, week, recs: [], bids: [] }
+      groups[key].recs.push(row.recommended_price)
+      groups[key].bids.push(avgBids(row))
+    }
+    return Object.values(groups).map(g => {
+      const avgRec  = g.recs.length ? g.recs.reduce((a, b) => a + b, 0) / g.recs.length : null
+      const avgBid  = g.bids.length ? g.bids.reduce((a, b) => a + b, 0) / g.bids.length : null
+      const pctDiff = avgRec && avgBid ? ((avgBid / avgRec) - 1) * 100 : null
+      return {
+        city: g.city, category: g.category, week: g.week,
+        obs:     g.bids.length,
+        avgRec:  avgRec?.toFixed(2) ?? null,
+        avgBid:  avgBid?.toFixed(2) ?? null,
+        pctDiff: pctDiff?.toFixed(1) ?? null,
+      }
+    }).sort((a, b) =>
+      a.city.localeCompare(b.city) || a.category.localeCompare(b.category) || b.week.localeCompare(a.week)
+    )
+  }, [analysisRows])
 
   // ── Helpers config ────────────────────────────────────────────
   function getCfg(city, category) {
     return config[`${city}|${category}`] ?? { pct: 0, note: '' }
   }
-
   function setCfgField(city, category, field, value) {
     const key = `${city}|${category}`
     setConfig(prev => ({ ...prev, [key]: { ...getCfg(city, category), [field]: value } }))
@@ -122,7 +172,7 @@ export default function InDriveConfig() {
     setSaving(true)
     setSaveMsg(null)
     try {
-      const upserts = ALL_ROWS.map(({ city, category }) => {
+      const upserts = CONFIG_ROWS.map(({ city, category }) => {
         const cfg = getCfg(city, category)
         return {
           city,
@@ -149,60 +199,135 @@ export default function InDriveConfig() {
     <div>
       {/* ── Sección 1: Análisis histórico ── */}
       <div className="config-section">
-        <h2>Análisis histórico — Bids vs Precio recomendado</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <h2 style={{ margin: 0 }}>Análisis histórico — Bids vs Precio recomendado</h2>
+          <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+            <button
+              onClick={() => setAnalysisView('summary')}
+              style={tabBtnStyle(analysisView === 'summary')}
+            >
+              Por ciudad/cat
+            </button>
+            <button
+              onClick={() => setAnalysisView('weekly')}
+              style={tabBtnStyle(analysisView === 'weekly')}
+            >
+              Por semana
+            </button>
+          </div>
+        </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          Calculado a partir de observaciones manuales (ingresadas por hubs) que incluyen bids.
-          Muestra cuánto varía en promedio el precio efectivo (promedio de bids) respecto al precio recomendado del bot.
-          Esta variación es la referencia para configurar el ajuste a aplicar a datos del bot.
+          Solo datos manuales (hubs) con bids registrados. La columna <strong>Rec. min/max</strong> ayuda
+          a identificar outliers en el precio recomendado que distorsionan el promedio.
+          {analysisData.length > 0 && analysisRows.length < analysisData.length && (
+            <> · {analysisData.length - analysisRows.length} filas sin bids excluidas del análisis.</>
+          )}
         </p>
 
         {analysisLoading && <div className="state-box">Calculando análisis…</div>}
         {analysisError   && <div className="state-box state-box--error">Error: {analysisError}</div>}
 
-        {!analysisLoading && !analysisError && (
-          analysis.length === 0 ? (
-            <div className="state-box">
-              Sin datos manuales de InDrive con bids aún.
-              Una vez que los hubs ingresen observaciones con los 5 bids, aquí aparecerá el análisis.
-            </div>
-          ) : (
-            <table className="config-table">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>Ciudad</th>
-                  <th style={{ textAlign: 'left' }}>Categoría</th>
-                  <th>Obs. totales</th>
-                  <th>Obs. con bids</th>
-                  <th>Avg precio rec.</th>
-                  <th>Avg bids</th>
-                  <th>Diferencia %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {analysis.map(r => (
-                  <tr key={`${r.city}|${r.category}`}>
-                    <td style={{ textAlign: 'left', fontWeight: 600 }}>{r.city}</td>
-                    <td style={{ textAlign: 'left' }}>{r.category}</td>
-                    <td style={{ textAlign: 'right' }}>{r.obsTotal.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right' }}>{r.obsBids.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      {r.avgRec != null ? `S/ ${r.avgRec}` : '—'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {r.avgBid != null ? `S/ ${r.avgBid}` : '—'}
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                      {r.pctDiff != null ? (
-                        <span style={{ color: parseFloat(r.pctDiff) > 0 ? '#166534' : '#991b1b' }}>
-                          {parseFloat(r.pctDiff) > 0 ? '+' : ''}{r.pctDiff}%
-                        </span>
-                      ) : '—'}
-                    </td>
+        {!analysisLoading && !analysisError && analysisRows.length === 0 && (
+          <div className="state-box">
+            Sin datos manuales de InDrive con bids aún.
+            Una vez que los hubs ingresen observaciones con bids, aquí aparecerá el análisis.
+            <br />
+            <em style={{ fontSize: 11, color: '#888' }}>
+              Nota: si Lima no aparece, significa que aún no hay datos manuales de InDrive para Lima
+              (el dato del bot no cuenta porque el bot no captura bids).
+            </em>
+          </div>
+        )}
+
+        {!analysisLoading && !analysisError && analysisRows.length > 0 && (
+          <>
+            {analysisView === 'summary' && (
+              <table className="config-table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Ciudad</th>
+                    <th style={{ textAlign: 'left' }}>Categoría</th>
+                    <th>Obs. con bids</th>
+                    <th>Avg rec.</th>
+                    <th>Rec. mín</th>
+                    <th>Rec. máx</th>
+                    <th>Avg bids</th>
+                    <th>Diferencia %</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )
+                </thead>
+                <tbody>
+                  {summary.map(r => (
+                    <tr key={`${r.city}|${r.category}`}>
+                      <td style={{ textAlign: 'left', fontWeight: 600 }}>{r.city}</td>
+                      <td style={{ textAlign: 'left' }}>{r.category}</td>
+                      <td style={{ textAlign: 'right' }}>{r.obsBids.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {r.avgRec != null ? `S/ ${r.avgRec}` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
+                        {r.minRec != null ? `S/ ${r.minRec}` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', color: parseFloat(r.maxRec) > 50 ? '#dc2626' : '#9ca3af', fontSize: 11 }}>
+                        {r.maxRec != null ? `S/ ${r.maxRec}` : '—'}
+                        {parseFloat(r.maxRec) > 50 && <span title="Posible outlier"> ⚠</span>}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {r.avgBid != null ? `S/ ${r.avgBid}` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                        {r.pctDiff != null ? (
+                          <span style={{ color: Math.abs(parseFloat(r.pctDiff)) > 80 ? '#dc2626' : parseFloat(r.pctDiff) > 0 ? '#166534' : '#991b1b' }}>
+                            {parseFloat(r.pctDiff) > 0 ? '+' : ''}{r.pctDiff}%
+                            {Math.abs(parseFloat(r.pctDiff)) > 80 && (
+                              <span title="Diferencia extrema — posibles outliers en precio recomendado"> ⚠</span>
+                            )}
+                          </span>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {analysisView === 'weekly' && (
+              <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+                <table className="config-table">
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Ciudad</th>
+                      <th style={{ textAlign: 'left' }}>Categoría</th>
+                      <th style={{ textAlign: 'left' }}>Semana</th>
+                      <th>Obs.</th>
+                      <th>Avg rec.</th>
+                      <th>Avg bids</th>
+                      <th>Diferencia %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {weekly.map((r, i) => (
+                      <tr key={i}>
+                        <td style={{ textAlign: 'left', fontWeight: 600 }}>{r.city}</td>
+                        <td style={{ textAlign: 'left' }}>{r.category}</td>
+                        <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>{r.week}</td>
+                        <td style={{ textAlign: 'right' }}>{r.obs}</td>
+                        <td style={{ textAlign: 'right' }}>{r.avgRec != null ? `S/ ${r.avgRec}` : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{r.avgBid != null ? `S/ ${r.avgBid}` : '—'}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                          {r.pctDiff != null ? (
+                            <span style={{ color: Math.abs(parseFloat(r.pctDiff)) > 80 ? '#dc2626' : parseFloat(r.pctDiff) > 0 ? '#166534' : '#991b1b' }}>
+                              {parseFloat(r.pctDiff) > 0 ? '+' : ''}{r.pctDiff}%
+                              {Math.abs(parseFloat(r.pctDiff)) > 80 && ' ⚠'}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -210,9 +335,8 @@ export default function InDriveConfig() {
       <div className="config-section" style={{ marginTop: 24 }}>
         <h2>Configuración de ajuste — Datos del bot</h2>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          Define el % a aplicar al precio recomendado de InDrive en datos ingresados por el bot
-          para estimar el precio efectivo (promedio de bids).
-          <strong> Solo aplica a datos del bot</strong> — la data ingresada por hubs ya incluye los bids reales.
+          Define el % a aplicar al precio recomendado de InDrive en datos ingresados por el bot.
+          <strong> Solo aplica a datos del bot</strong> — la data de hubs ya incluye los bids reales.
           <br />
           Fórmula: <code>precio_estimado = precio_recomendado × (1 + ajuste%/100)</code>
         </p>
@@ -232,9 +356,9 @@ export default function InDriveConfig() {
                 </tr>
               </thead>
               <tbody>
-                {ALL_ROWS.map(({ city, category }) => {
+                {CONFIG_ROWS.map(({ city, category }) => {
                   const cfg  = getCfg(city, category)
-                  const hist = analysis.find(a => a.city === city && a.category === category)
+                  const hist = summary.find(a => a.city === city && a.category === category)
                   return (
                     <tr key={`${city}|${category}`}>
                       <td style={{ textAlign: 'left', fontWeight: 600 }}>{city}</td>
@@ -272,7 +396,7 @@ export default function InDriveConfig() {
                       </td>
                       <td style={{ textAlign: 'center', color: '#888', fontSize: 12 }}>
                         {hist?.pctDiff != null
-                          ? <span title={`${hist.obsBids} obs. con bids`}>
+                          ? <span title={`${hist.obsBids} obs. con bids (avg rec S/${hist.avgRec})`}>
                               {parseFloat(hist.pctDiff) > 0 ? '+' : ''}{hist.pctDiff}%
                             </span>
                           : <span title="Sin datos históricos">—</span>
@@ -307,4 +431,17 @@ export default function InDriveConfig() {
       </div>
     </div>
   )
+}
+
+function tabBtnStyle(active) {
+  return {
+    padding: '4px 12px',
+    border: '1px solid #d1d5db',
+    borderRadius: 4,
+    fontSize: 12,
+    cursor: 'pointer',
+    fontWeight: active ? 700 : 400,
+    background: active ? 'var(--color-yango)' : '#f9fafb',
+    color: active ? '#fff' : '#374151',
+  }
 }

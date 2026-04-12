@@ -10,7 +10,7 @@ export function useRawData(filters) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
-  const { dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB } = filters
+  const { dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource } = filters
 
   const fetch = useCallback(async (p = 0) => {
     if (!dbCity) return
@@ -32,8 +32,9 @@ export function useRawData(filters) {
       if (bracket)       q = q.eq('distance_bracket', bracket)
       if (dateFrom)      q = q.gte('observed_date', dateFrom)
       if (dateTo)        q = q.lte('observed_date', dateTo)
-      if (searchA)       q = q.ilike('point_a', `%${searchA}%`)
-      if (searchB)       q = q.ilike('point_b', `%${searchB}%`)
+      if (searchA)    q = q.ilike('point_a', `%${searchA}%`)
+      if (searchB)    q = q.ilike('point_b', `%${searchB}%`)
+      if (dataSource) q = q.eq('data_source', dataSource)
 
       const { data, error: err, count } = await q
       if (err) throw err
@@ -45,7 +46,7 @@ export function useRawData(filters) {
     } finally {
       setLoading(false)
     }
-  }, [dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB])
+  }, [dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource])
 
   useEffect(() => { fetch(0) }, [fetch])
 

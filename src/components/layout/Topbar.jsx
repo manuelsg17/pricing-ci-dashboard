@@ -16,9 +16,10 @@ const NAV = [
   {
     id: 'datos', label: 'Gestión de Datos', icon: '🗄️',
     children: [
-      { id: 'dataentry', label: '✏️ Ingresar CI' },
-      { id: 'upload',    label: '📤 Cargar Data' },
-      { id: 'rawdata',   label: '🗃 Data Raw'    },
+      { id: 'dataentry',  label: '✏️ Ingresar CI'  },
+      { id: 'upload',     label: '📤 Cargar Data'  },
+      { id: 'rawdata',    label: '🗃 Data Raw'      },
+      { id: 'botvshubs',  label: '📊 Bot vs Hubs'  },
     ],
   },
   {

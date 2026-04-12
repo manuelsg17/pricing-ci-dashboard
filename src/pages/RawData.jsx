@@ -74,6 +74,7 @@ export default function RawData() {
   const [dateTo,      setDateTo]      = useState(getInitialState('dateTo', ''))
   const [searchA,     setSearchA]     = useState(getInitialState('searchA', ''))
   const [searchB,     setSearchB]     = useState(getInitialState('searchB', ''))
+  const [dataSource,  setDataSource]  = useState(getInitialState('dataSource', ''))
 
   useEffect(() => { sessionStorage.setItem('rawData_dbCity', dbCity) }, [dbCity])
   useEffect(() => { sessionStorage.setItem('rawData_dbCategory', dbCategory) }, [dbCategory])
@@ -84,6 +85,7 @@ export default function RawData() {
   useEffect(() => { sessionStorage.setItem('rawData_dateTo', dateTo) }, [dateTo])
   useEffect(() => { sessionStorage.setItem('rawData_searchA', searchA) }, [searchA])
   useEffect(() => { sessionStorage.setItem('rawData_searchB', searchB) }, [searchB])
+  useEffect(() => { sessionStorage.setItem('rawData_dataSource', dataSource) }, [dataSource])
 
   const filters = {
     dbCity,
@@ -95,6 +97,7 @@ export default function RawData() {
     dateTo,
     searchA,
     searchB,
+    dataSource,
   }
 
   const { rows, total, page, loading, error, fetch, pageSize } = useRawData(filters)
@@ -168,6 +171,7 @@ export default function RawData() {
     setDateTo('')
     setSearchA('')
     setSearchB('')
+    setDataSource('')
   }
 
   const isYangoRow = (r) =>
@@ -227,6 +231,14 @@ export default function RawData() {
             {BRACKET_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
+          </select>
+        </div>
+        <div className="raw-data__filter-group">
+          <label>Fuente</label>
+          <select value={dataSource} onChange={e => setDataSource(e.target.value)}>
+            <option value="">Todos</option>
+            <option value="manual">Hubs (manual)</option>
+            <option value="bot">Bot</option>
           </select>
         </div>
         <div className="raw-data__filter-group">
@@ -302,6 +314,7 @@ export default function RawData() {
               <th colSpan={2} className="col-date">Fecha / Hora</th>
               <th colSpan={2} className="col-rush">Flags</th>
               <th colSpan={2} className="col-cat">Servicio</th>
+              <th className="col-source">Fuente</th>
               <th colSpan={3} className="col-bracket">Ruta</th>
               <th colSpan={2} className="col-point">Puntos</th>
               <th colSpan={4} className="col-price">Precios (S/.)</th>
@@ -318,6 +331,7 @@ export default function RawData() {
               <th className="col-surge">Surge</th>
               <th className="col-cat">Categoría</th>
               <th className="col-comp">Competidor</th>
+              <th className="col-source">Fuente</th>
               <th className="col-bracket">Bracket</th>
               <th className="col-zone">Zona</th>
               <th className="col-price">Dist (km)</th>
@@ -338,12 +352,12 @@ export default function RawData() {
           <tbody>
             {loading && rows.length === 0 && (
               <tr>
-                <td colSpan={24} className="raw-data__state">Cargando datos…</td>
+                <td colSpan={25} className="raw-data__state">Cargando datos…</td>
               </tr>
             )}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={24} className="raw-data__state">
+                <td colSpan={25} className="raw-data__state">
                   No se encontraron filas con los filtros actuales.
                 </td>
               </tr>
@@ -374,6 +388,11 @@ export default function RawData() {
                 <td className="col-cat">{r.category ?? '—'}</td>
                 <td className="col-comp" style={isYangoRow(r) ? { color: 'var(--color-yango)', fontWeight: 600 } : {}}>
                   {r.competition_name ?? '—'}
+                </td>
+                <td className="col-source">
+                  {r.data_source === 'bot'
+                    ? <span className="badge-bot">Bot</span>
+                    : <span className="badge-hub">Hub</span>}
                 </td>
                 <td className="col-bracket">
                   {r.distance_bracket

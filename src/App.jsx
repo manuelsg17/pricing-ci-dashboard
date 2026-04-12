@@ -13,6 +13,7 @@ import DriverEarnings  from './pages/DriverEarnings'
 import WeeklyReport    from './pages/WeeklyReport'
 import MarketEvents      from './pages/MarketEvents'
 import AccessManagement  from './pages/AccessManagement'
+import BotVsHubs        from './pages/BotVsHubs'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -64,6 +65,7 @@ export default function App() {
       {activeTab === 'report'    && <WeeklyReport country={country} />}
       {activeTab === 'events'    && <MarketEvents country={country} />}
       {activeTab === 'rawdata'   && <RawData />}
+      {activeTab === 'botvshubs' && <BotVsHubs />}
       {activeTab === 'config'    && <Config />}
       {activeTab === 'upload'    && <Upload />}
       {activeTab === 'distances' && <DistanceRefs />}
