@@ -49,9 +49,9 @@ export default function InDriveConfig({ country = 'Peru' }) {
     const threshold = cfgCountry.outlierThreshold || 100
     try {
       const [summaryRes, weeklyRes, countsRes] = await Promise.all([
-        sb.rpc('get_indrive_summary', { outlier_threshold: threshold }),
-        sb.rpc('get_indrive_weekly',  { outlier_threshold: threshold }),
-        sb.rpc('get_indrive_counts'),
+        sb.rpc('get_indrive_summary', { outlier_threshold: threshold, p_country: country }),
+        sb.rpc('get_indrive_weekly',  { outlier_threshold: threshold, p_country: country }),
+        sb.rpc('get_indrive_counts',  { p_country: country }),
       ])
       if (summaryRes.error) throw summaryRes.error
       if (weeklyRes.error)  throw weeklyRes.error
@@ -64,7 +64,7 @@ export default function InDriveConfig({ country = 'Peru' }) {
     } finally {
       setAnalysisLoading(false)
     }
-  }, [])
+  }, [country])
 
   useEffect(() => { loadAnalysis() }, [loadAnalysis])
 
@@ -72,6 +72,7 @@ export default function InDriveConfig({ country = 'Peru' }) {
   useEffect(() => {
     async function loadCfg() {
       const { data } = await sb.from('indrive_config').select('city, category, adjustment_pct, note')
+        .eq('country', country)
       if (data) {
         const map = {}
         data.forEach(r => {
@@ -82,7 +83,7 @@ export default function InDriveConfig({ country = 'Peru' }) {
       setCfgLoaded(true)
     }
     loadCfg()
-  }, [])
+  }, [country])
 
   // summary y weekly ya vienen agregados del servidor (via RPC)
   // Solo calculamos pctDiff aquí ya que el RPC no lo incluye

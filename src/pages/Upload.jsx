@@ -479,11 +479,12 @@ export default function Upload({ country = 'Peru' }) {
     // La función PL/pgSQL corre en una sola transacción: si el INSERT falla,
     // el DELETE se revierte y los datos originales quedan intactos.
     const { error } = await sb.rpc('upsert_pricing_batch', {
-      p_rows:       finalRows,
+      p_rows:        finalRows,
       p_city_ranges: cityRanges,
-      p_batch_id:   batchId,
-      p_filename:   sheets.map(s => s.name).join(', '),
-      p_row_count:  finalRows.length,
+      p_batch_id:    batchId,
+      p_filename:    sheets.map(s => s.name).join(', '),
+      p_row_count:   finalRows.length,
+      p_country:     country,
     })
 
     if (error) {

@@ -84,7 +84,7 @@ export function useFilters(country = 'Peru') {
   // Cargar zonas disponibles para city+category (usando DB params)
   useEffect(() => {
     if (!dbCity || !dbCategory) return
-    sb.rpc('get_available_zones', { p_city: dbCity, p_category: dbCategory })
+    sb.rpc('get_available_zones', { p_city: dbCity, p_category: dbCategory, p_country: country })
       .then(({ data }) => {
         const list = ['All', ...(data || []).map(r => r.zone).filter(z => z && z !== 'All')]
         setZones(list)
@@ -119,6 +119,7 @@ export function useFilters(country = 'Peru') {
   )
 
   const filters = useMemo(() => ({
+    country,
     city,
     category,
     subCategory,
@@ -135,7 +136,7 @@ export function useFilters(country = 'Peru') {
     historicFrom,
     historicTo,
     competitors,
-  }), [city, category, subCategory, dbCity, dbCategory, zone, surge, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, historicFrom, historicTo, competitors])
+  }), [country, city, category, subCategory, dbCity, dbCategory, zone, surge, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, historicFrom, historicTo, competitors])
 
   return {
     filters,

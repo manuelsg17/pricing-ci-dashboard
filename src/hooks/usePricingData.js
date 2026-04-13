@@ -22,7 +22,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
 
-  const { dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd } = filters
+  const { country, dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd } = filters
 
   // ── Cargar datos desde Supabase ──────────────────────────
   useEffect(() => {
@@ -43,6 +43,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
           const { data, error: err } = await sb.rpc('get_dashboard_data_weekly', {
             p_city:        dbCity,
             p_category:    dbCategory,
+            p_country:     country,
             p_zone:        zone === 'All' ? null : zone,
             p_surge:       surge,
             p_week_start:  w1,
@@ -56,6 +57,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
           const { data, error: err } = await sb.rpc('get_dashboard_data_daily', {
             p_city:       dbCity,
             p_category:   dbCategory,
+            p_country:    country,
             p_zone:       zone === 'All' ? null : zone,
             p_surge:      surge,
             p_date_start: dailyStart,
@@ -72,7 +74,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
     }
 
     fetchData()
-  }, [dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd])
+  }, [country, dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd])
 
   // ── Construir matriz de datos ───────────────────────────
   const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods } =

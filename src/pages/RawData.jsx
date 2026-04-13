@@ -195,7 +195,7 @@ export default function RawData({ country = 'Peru' }) {
     setSyncMsg(null)
     try {
       const { data, error } = await sb.rpc('apply_indrive_bot_prices',
-        dbCity ? { p_city: dbCity } : {}
+        dbCity ? { p_city: dbCity, p_country: country } : { p_country: country }
       )
       if (error) throw error
       const count = typeof data === 'number' ? data : 0
