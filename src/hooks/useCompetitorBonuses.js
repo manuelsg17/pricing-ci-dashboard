@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 
-export function useCompetitorBonuses(city) {
+export function useCompetitorBonuses(city, country = 'Peru') {
   const [allRows, setAllRows] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -13,12 +13,13 @@ export function useCompetitorBonuses(city) {
     const { data, error: e } = await sb
       .from('competitor_bonuses')
       .select('*')
+      .eq('country', country)
       .order('competitor_name')
       .order('sort_order')
     if (e) setError(e.message)
     else if (data) setAllRows(data)
     setLoading(false)
-  }, [])
+  }, [country])
 
   useEffect(() => { load() }, [load])
 
@@ -38,6 +39,7 @@ export function useCompetitorBonuses(city) {
     const payload = {
       competitor_name: row.competitor_name,
       city:            row.city || null,
+      country,
       bonus_type:      row.bonus_type,
       threshold:       Number(row.threshold),
       bonus_amount:    Number(row.bonus_amount),
@@ -54,7 +56,7 @@ export function useCompetitorBonuses(city) {
     }
     if (!err) await load()
     return !err
-  }, [load])
+  }, [load, country])
 
   const deleteBonus = useCallback(async (id) => {
     if (String(id).startsWith('new_')) {

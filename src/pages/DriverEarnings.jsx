@@ -75,10 +75,10 @@ export default function DriverEarnings({ country = 'Peru' }) {
   )
   const categories  = countryConfig.categoriesByCity[uiCity] || []
 
-  const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity)
-  const { bonuses }                        = useCompetitorBonuses(dbCity)
+  const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity, country)
+  const { bonuses }                        = useCompetitorBonuses(dbCity, country)
   const { scenarios, loading: loadingHist, saveScenario, deleteScenario } =
-    useEarningsScenarios(dbCity, dbCat)
+    useEarningsScenarios(dbCity, dbCat, country)
 
   // ── Load avg prices ────────────────────────────────────────────────────
   const loadPrices = useCallback(async () => {

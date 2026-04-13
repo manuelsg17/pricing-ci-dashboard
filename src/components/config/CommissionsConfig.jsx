@@ -8,7 +8,7 @@ export default function CommissionsConfig({ country = 'Peru' }) {
   const config = getCountryConfig(country)
   const CITY_OPTIONS = [{ value: '', label: 'Todas las ciudades' }, ...config.dbCities.map(c => ({ value: c, label: c }))]
 
-  const { allRows, loading, saveCommission, deleteCommission, addRow } = useCompetitorCommissions()
+  const { allRows, loading, saveCommission, deleteCommission, addRow } = useCompetitorCommissions(null, country)
   const [saving, setSaving] = useState(false)
   const [msg,    setMsg]    = useState(null)
   const [edits,  setEdits]  = useState({})

@@ -53,6 +53,7 @@ export default function MarketEvents({ country = 'Peru' }) {
     let q = sb
       .from('market_events')
       .select('*')
+      .eq('country', country)
       .gte('event_date', filterFrom)
       .lte('event_date', filterTo)
       .order('event_date', { ascending: false })
@@ -65,7 +66,7 @@ export default function MarketEvents({ country = 'Peru' }) {
     setEvents(data || [])
     setEdits({})
     setLoading(false)
-  }, [filterCity, filterFrom, filterTo])
+  }, [country, filterCity, filterFrom, filterTo])
 
   useEffect(() => { load() }, [load])
 
@@ -91,6 +92,7 @@ export default function MarketEvents({ country = 'Peru' }) {
     const merged = { ...row, ...edits[row.id] }
     const payload = {
       city:        merged.city,
+      country,
       event_date:  merged.event_date,
       event_type:  merged.event_type,
       description: merged.description,

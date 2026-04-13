@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 
-export function useCompetitorCommissions(city) {
+export function useCompetitorCommissions(city, country = 'Peru') {
   const [allRows, setAllRows] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -13,11 +13,12 @@ export function useCompetitorCommissions(city) {
     const { data, error: e } = await sb
       .from('competitor_commissions')
       .select('*')
+      .eq('country', country)
       .order('competitor_name')
     if (e) setError(e.message)
     else if (data) setAllRows(data)
     setLoading(false)
-  }, [])
+  }, [country])
 
   useEffect(() => { load() }, [load])
 
@@ -40,6 +41,7 @@ export function useCompetitorCommissions(city) {
     const payload = {
       competitor_name: row.competitor_name,
       city:            row.city || null,
+      country,
       commission_pct:  Number(row.commission_pct),
       updated_at:      new Date().toISOString(),
     }
@@ -51,7 +53,7 @@ export function useCompetitorCommissions(city) {
     }
     if (!err) await load()
     return !err
-  }, [load])
+  }, [load, country])
 
   const deleteCommission = useCallback(async (id) => {
     if (String(id).startsWith('new_')) {

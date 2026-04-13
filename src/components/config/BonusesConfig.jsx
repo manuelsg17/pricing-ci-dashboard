@@ -13,7 +13,7 @@ export default function BonusesConfig({ country = 'Peru' }) {
   const config = getCountryConfig(country)
   const CITY_OPTIONS = [{ value: '', label: 'Todas' }, ...config.dbCities.map(c => ({ value: c, label: c }))]
 
-  const { allRows, loading, saveBonus, deleteBonus, addRow } = useCompetitorBonuses()
+  const { allRows, loading, saveBonus, deleteBonus, addRow } = useCompetitorBonuses(null, country)
   const [saving, setSaving] = useState(false)
   const [msg,    setMsg]    = useState(null)
   const [edits,  setEdits]  = useState({})

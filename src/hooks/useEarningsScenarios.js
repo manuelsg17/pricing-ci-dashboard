@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 
-export function useEarningsScenarios(city, category) {
+export function useEarningsScenarios(city, category, country = 'Peru') {
   const [scenarios, setScenarios] = useState([])
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState(null)
@@ -13,6 +13,7 @@ export function useEarningsScenarios(city, category) {
     const { data, error: e } = await sb
       .from('earnings_scenarios')
       .select('*')
+      .eq('country', country)
       .eq('city', city)
       .eq('category', category)
       .order('created_at', { ascending: false })
@@ -20,15 +21,15 @@ export function useEarningsScenarios(city, category) {
     if (e) setError(e.message)
     else setScenarios(data || [])
     setLoading(false)
-  }, [city, category])
+  }, [country, city, category])
 
   useEffect(() => { load() }, [load])
 
   const saveScenario = useCallback(async (payload) => {
-    const { error } = await sb.from('earnings_scenarios').insert(payload)
+    const { error } = await sb.from('earnings_scenarios').insert({ ...payload, country })
     if (!error) await load()
     return !error
-  }, [load])
+  }, [load, country])
 
   const deleteScenario = useCallback(async (id) => {
     const { error } = await sb.from('earnings_scenarios').delete().eq('id', id)

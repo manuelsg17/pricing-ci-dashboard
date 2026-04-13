@@ -449,6 +449,7 @@ export default function Upload({ country = 'Peru' }) {
     const finalRows = rowsToInsert.map(r => {
       let row = {
         ...r,
+        country,
         data_source:     'manual',
         upload_batch_id: batchId,
         rush_hour: r.observed_time
