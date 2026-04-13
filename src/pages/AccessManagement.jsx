@@ -3,12 +3,14 @@ import { sb }         from '../lib/supabase'
 import { useAuth }    from '../lib/auth'
 import { COUNTRIES }  from '../lib/constants'
 import { ALL_SECTIONS, SECTION_LABELS } from '../hooks/useAccessControl'
+import { useI18n }    from '../context/LanguageContext'
 import '../styles/access-management.css'
 
 // ── Users tab ──────────────────────────────────────────────────────────────
 function UsersTab({ roles }) {
   const { session } = useAuth()
   const currentEmail = session?.user?.email || ''
+  const { t } = useI18n()
 
   const [users,   setUsers]   = useState([])
   const [loading, setLoading] = useState(false)
@@ -100,7 +102,7 @@ function UsersTab({ roles }) {
   }
 
   async function handleDelete(id) {
-    if (!confirm('¿Eliminar este usuario?')) return
+    if (!confirm(t('access.confirm_delete_user'))) return
     await sb.from('user_profiles').delete().eq('id', id)
     load()
   }
@@ -109,45 +111,45 @@ function UsersTab({ roles }) {
     <div className="am-tab-content">
       <div className="am-toolbar">
         <button className="am-btn am-btn--primary" onClick={() => setShowForm(f => !f)}>
-          {showForm ? '✕ Cancelar' : '+ Registrar usuario'}
+          {showForm ? `✕ ${t('app.cancel')}` : t('access.register_user')}
         </button>
       </div>
 
       {showForm && (
         <form className="am-form" onSubmit={handleInvite}>
-          <h3 className="am-form__title">Nuevo usuario</h3>
+          <h3 className="am-form__title">{t('access.new_user')}</h3>
           <div className="am-form__row">
             <label>
-              <span>Nombre</span>
-              <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Nombre" />
+              <span>{t('access.first_name')}</span>
+              <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder={t('access.first_name')} />
             </label>
             <label>
-              <span>Apellido</span>
-              <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido" />
+              <span>{t('access.last_name')}</span>
+              <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder={t('access.last_name')} />
             </label>
           </div>
           <div className="am-form__row">
             <label>
-              <span>Email *</span>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="usuario@empresa.com" />
+              <span>{t('access.email')} *</span>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="user@company.com" />
             </label>
             <label>
-              <span>Contraseña inicial *</span>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Mínimo 6 caracteres" minLength={6} />
+              <span>{t('access.password')}</span>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Min 6 chars" minLength={6} />
             </label>
           </div>
           <div className="am-form__row">
             <label>
-              <span>Puesto / Rol</span>
+              <span>{t('access.role')}</span>
               <select value={roleId} onChange={e => setRoleId(e.target.value)}>
-                <option value="">— Sin rol —</option>
+                <option value="">{t('access.no_role')}</option>
                 {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>
             </label>
           </div>
           <div className="am-form__actions">
             <button type="submit" className="am-btn am-btn--primary" disabled={saving}>
-              {saving ? 'Guardando…' : '💾 Registrar'}
+              {saving ? t('app.loading') : t('access.register')}
             </button>
           </div>
         </form>
@@ -156,18 +158,18 @@ function UsersTab({ roles }) {
       {msg && <div className={`am-msg am-msg--${msg.type}`}>{msg.text}</div>}
 
       {loading ? (
-        <div className="am-empty">Cargando…</div>
+        <div className="am-empty">{t('app.loading')}</div>
       ) : users.length === 0 ? (
-        <div className="am-empty">Sin usuarios registrados.</div>
+        <div className="am-empty">{t('access.no_users')}</div>
       ) : (
         <table className="am-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Puesto</th>
-              <th>Estado</th>
-              <th>Acciones</th>
+              <th>{t('access.first_name')}</th>
+              <th>{t('access.email')}</th>
+              <th>{t('access.role')}</th>
+              <th>{t('access.status')}</th>
+              <th>{t('access.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -181,13 +183,13 @@ function UsersTab({ roles }) {
                     value={u.role_id || ''}
                     onChange={e => handleChangeRole(u.id, e.target.value)}
                   >
-                    <option value="">— Sin rol —</option>
+                    <option value="">{t('access.no_role')}</option>
                     {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
                   </select>
                 </td>
                 <td>
                   <span className={`am-badge am-badge--${u.is_active ? 'active' : 'inactive'}`}>
-                    {u.is_active ? 'Activo' : 'Inactivo'}
+                    {u.is_active ? t('access.active') : t('access.inactive')}
                   </span>
                 </td>
                 <td className="am-td-actions">
@@ -195,10 +197,10 @@ function UsersTab({ roles }) {
                     className={`am-btn am-btn--sm ${u.is_active ? 'am-btn--warn' : 'am-btn--ok'}`}
                     onClick={() => handleToggleActive(u)}
                   >
-                    {u.is_active ? 'Desactivar' : 'Activar'}
+                    {u.is_active ? t('access.deactivate') : t('access.activate')}
                   </button>
                   <button className="am-btn am-btn--sm am-btn--danger" onClick={() => handleDelete(u.id)}>
-                    Eliminar
+                    {t('app.delete')}
                   </button>
                 </td>
               </tr>
@@ -212,6 +214,7 @@ function UsersTab({ roles }) {
 
 // ── Roles tab ──────────────────────────────────────────────────────────────
 function RolesTab() {
+  const { t } = useI18n()
   const [roles,   setRoles]   = useState([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(null) // role id being edited
@@ -296,7 +299,7 @@ function RolesTab() {
   }
 
   async function deleteRole(id) {
-    if (!confirm('¿Eliminar este rol? Los usuarios asignados perderán su rol.')) return
+    if (!confirm(t('access.confirm_delete_role'))) return
     await sb.from('roles').delete().eq('id', id)
     load()
   }
@@ -305,23 +308,23 @@ function RolesTab() {
     <div className="am-tab-content">
       <div className="am-toolbar">
         <button className="am-btn am-btn--primary" onClick={() => setShowNew(f => !f)}>
-          {showNew ? '✕ Cancelar' : '+ Crear rol'}
+          {showNew ? `✕ ${t('app.cancel')}` : t('access.create_role')}
         </button>
       </div>
 
       {showNew && (
         <form className="am-form" onSubmit={createRole}>
-          <h3 className="am-form__title">Nuevo rol</h3>
+          <h3 className="am-form__title">{t('access.new_role')}</h3>
           <div className="am-form__row">
-            <label><span>Nombre interno</span>
+            <label><span>{t('access.internal_name')}</span>
               <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="analyst" required />
             </label>
-            <label><span>Etiqueta visible</span>
-              <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Analista" required />
+            <label><span>{t('access.visible_label')}</span>
+              <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Analyst" required />
             </label>
           </div>
           <div className="am-form__actions">
-            <button type="submit" className="am-btn am-btn--primary" disabled={saving}>Crear</button>
+            <button type="submit" className="am-btn am-btn--primary" disabled={saving}>{t('access.create')}</button>
           </div>
         </form>
       )}
@@ -329,7 +332,7 @@ function RolesTab() {
       {msg && <div className={`am-msg am-msg--${msg.type}`}>{msg.text}</div>}
 
       {loading ? (
-        <div className="am-empty">Cargando…</div>
+        <div className="am-empty">{t('app.loading')}</div>
       ) : (
         <div className="am-roles-list">
           {roles.map(role => (
@@ -343,14 +346,14 @@ function RolesTab() {
                   {editing === role.id ? (
                     <>
                       <button className="am-btn am-btn--sm am-btn--primary" onClick={() => saveRole(role.id)} disabled={saving}>
-                        {saving ? '…' : '💾 Guardar'}
+                        {saving ? '…' : t('app.save')}
                       </button>
-                      <button className="am-btn am-btn--sm" onClick={() => setEditing(null)}>Cancelar</button>
+                      <button className="am-btn am-btn--sm" onClick={() => setEditing(null)}>{t('app.cancel')}</button>
                     </>
                   ) : (
                     <>
-                      <button className="am-btn am-btn--sm" onClick={() => startEdit(role)}>✏️ Editar permisos</button>
-                      <button className="am-btn am-btn--sm am-btn--danger" onClick={() => deleteRole(role.id)}>Eliminar</button>
+                      <button className="am-btn am-btn--sm" onClick={() => startEdit(role)}>{t('access.edit_perms')}</button>
+                      <button className="am-btn am-btn--sm am-btn--danger" onClick={() => deleteRole(role.id)}>{t('app.delete')}</button>
                     </>
                   )}
                 </div>
@@ -360,9 +363,9 @@ function RolesTab() {
                 <div className="am-role-card__editor">
                   <div className="am-perm-group">
                     <div className="am-perm-group__title">
-                      Secciones
+                      {t('access.sections')}
                       <button className="am-btn am-btn--xs" onClick={() => toggleAll('sections')}>
-                        {draftPerms.sections.includes('all') ? 'Quitar Todo' : 'Seleccionar Todo'}
+                        {draftPerms.sections.includes('all') ? t('access.deselect_all') : t('access.select_all')}
                       </button>
                     </div>
                     <div className="am-perm-checks">
@@ -387,9 +390,9 @@ function RolesTab() {
 
                   <div className="am-perm-group">
                     <div className="am-perm-group__title">
-                      Países
+                      {t('access.countries')}
                       <button className="am-btn am-btn--xs" onClick={() => toggleAll('countries')}>
-                        {draftPerms.countries.includes('all') ? 'Quitar Todo' : 'Seleccionar Todo'}
+                        {draftPerms.countries.includes('all') ? t('access.deselect_all') : t('access.select_all')}
                       </button>
                     </div>
                     <div className="am-perm-checks">
@@ -414,16 +417,16 @@ function RolesTab() {
                 </div>
               ) : (
                 <div className="am-role-card__summary">
-                  <span className="am-role-card__perm-label">Secciones:</span>
+                  <span className="am-role-card__perm-label">{t('access.sections')}:</span>
                   <span className="am-role-card__perm-val">
                     {role.permissions?.sections?.includes('all')
-                      ? 'Todas'
+                      ? t('access.all')
                       : (role.permissions?.sections || []).map(s => SECTION_LABELS[s] || s).join(', ') || '—'}
                   </span>
-                  <span className="am-role-card__perm-label">Países:</span>
+                  <span className="am-role-card__perm-label">{t('access.countries')}:</span>
                   <span className="am-role-card__perm-val">
                     {role.permissions?.countries?.includes('all')
-                      ? 'Todos'
+                      ? t('access.all_m')
                       : (role.permissions?.countries || []).join(', ') || '—'}
                   </span>
                 </div>
@@ -440,6 +443,7 @@ function RolesTab() {
 export default function AccessManagement() {
   const [activeTab, setActiveTab] = useState('users')
   const [roles, setRoles] = useState([])
+  const { t } = useI18n()
 
   useEffect(() => {
     sb.from('roles').select('*').order('id').then(({ data }) => setRoles(data || []))
@@ -447,9 +451,9 @@ export default function AccessManagement() {
 
   return (
     <div className="am-page">
-      <h1 className="am-page__title">Gestión de Accesos</h1>
+      <h1 className="am-page__title">{t('access.title')}</h1>
       <p className="am-page__desc">
-        Administra los usuarios con acceso al sistema y define los permisos por sección y país para cada rol.
+        {t('access.desc')}
       </p>
 
       <div className="am-tabs">
@@ -457,13 +461,13 @@ export default function AccessManagement() {
           className={`am-tab-btn${activeTab === 'users' ? ' active' : ''}`}
           onClick={() => setActiveTab('users')}
         >
-          👥 Usuarios
+          {t('access.users')}
         </button>
         <button
           className={`am-tab-btn${activeTab === 'roles' ? ' active' : ''}`}
           onClick={() => setActiveTab('roles')}
         >
-          🎭 Puestos / Roles
+          {t('access.roles')}
         </button>
       </div>
 
