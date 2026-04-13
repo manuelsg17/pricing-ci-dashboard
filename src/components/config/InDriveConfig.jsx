@@ -86,31 +86,35 @@ export default function InDriveConfig({ country = 'Peru' }) {
   // summary y weekly ya vienen agregados del servidor (via RPC)
   // Solo calculamos pctDiff aquí ya que el RPC no lo incluye
   const summary = useMemo(() =>
-    summaryData.map(r => ({
-      ...r,
-      obsBids:     Number(r.obs_with_bids),
-      outlierRecs: Number(r.outlier_recs),
-      avgRec:  r.avg_rec  != null ? String(r.avg_rec)  : null,
-      minRec:  r.min_rec  != null ? String(r.min_rec)  : null,
-      maxRec:  r.max_rec  != null ? String(r.max_rec)  : null,
-      avgBid:  r.avg_bid  != null ? String(r.avg_bid)  : null,
-      pctDiff: (r.avg_rec && r.avg_bid)
-        ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
-        : null,
-    }))
-  , [summaryData])
+    summaryData
+      .filter(r => cfgCountry.dbCities.includes(r.city))
+      .map(r => ({
+        ...r,
+        obsBids:     Number(r.obs_with_bids),
+        outlierRecs: Number(r.outlier_recs),
+        avgRec:  r.avg_rec  != null ? String(r.avg_rec)  : null,
+        minRec:  r.min_rec  != null ? String(r.min_rec)  : null,
+        maxRec:  r.max_rec  != null ? String(r.max_rec)  : null,
+        avgBid:  r.avg_bid  != null ? String(r.avg_bid)  : null,
+        pctDiff: (r.avg_rec && r.avg_bid)
+          ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
+          : null,
+      }))
+  , [summaryData, cfgCountry.dbCities])
 
   const weekly = useMemo(() =>
-    weeklyData.map(r => ({
-      ...r,
-      obs:    Number(r.obs),
-      avgRec: r.avg_rec != null ? String(r.avg_rec) : null,
-      avgBid: r.avg_bid != null ? String(r.avg_bid) : null,
-      pctDiff: (r.avg_rec && r.avg_bid)
-        ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
-        : null,
-    }))
-  , [weeklyData])
+    weeklyData
+      .filter(r => cfgCountry.dbCities.includes(r.city))
+      .map(r => ({
+        ...r,
+        obs:    Number(r.obs),
+        avgRec: r.avg_rec != null ? String(r.avg_rec) : null,
+        avgBid: r.avg_bid != null ? String(r.avg_bid) : null,
+        pctDiff: (r.avg_rec && r.avg_bid)
+          ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
+          : null,
+      }))
+  , [weeklyData, cfgCountry.dbCities])
 
   // ── Helpers config ────────────────────────────────────────────
   function getCfg(city, category) {

@@ -168,7 +168,7 @@ export default function DistanceRefs({ country = 'Peru' }) {
       <div className="drefs-section">
         <div className="drefs-section__header">
           <span className="drefs-section__title">
-            {uiCity} — {uiCat} — {filteredRefs.length} rutas
+            {dbCity} — {uiCat} — {filteredRefs.length} rutas
             {pendingCount > 0 && (
               <span className="drefs-pending-badge">{pendingCount} pendiente{pendingCount > 1 ? 's' : ''}</span>
             )}

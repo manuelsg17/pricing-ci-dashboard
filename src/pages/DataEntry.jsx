@@ -216,6 +216,14 @@ export default function DataEntry({ country = 'Peru' }) {
     return map
   }, [countryConfig, uiCity])
 
+  // Cascada: reseteo cuando cambia el país
+  useEffect(() => {
+    const firstCity = countryConfig.cities[0]
+    setUiCity(firstCity)
+    const newCategories = countryConfig.categoriesByCity[firstCity] || []
+    // dbCity es reactivo a uiCity y categories, así no hay problema
+  }, [country, countryConfig])
+
   // ── Timer — only when session is active ───────────────
   useEffect(() => {
     if (!sessionActive) return

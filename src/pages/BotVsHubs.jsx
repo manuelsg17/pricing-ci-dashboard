@@ -120,7 +120,7 @@ export default function BotVsHubs({ country = 'Peru' }) {
 
       {/* City tabs */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid var(--color-border)', marginBottom: 16 }}>
-        {CITY_TABS.map(t => (
+        {cityTabs.map(t => (
           <button
             key={String(t.db)}
             onClick={() => { setCity(t.db); setCatFilter(''); setCompFilter('') }}

@@ -1,4 +1,4 @@
-import { CITIES, CATEGORIES_BY_CITY, AEROPUERTO_SUBCATEGORIES, getCompetitors } from '../../lib/constants'
+import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 
 export default function FilterBar({
@@ -6,11 +6,12 @@ export default function FilterBar({
   setCity, setCategory, setSubCategory, setZone, setSurge,
   setCompareVs, setViewMode, setWeekStart,
   setDailyStart,
-  setHistoricFrom, setHistoricTo,
+  setHistoricFrom, setHistoricTo, country = 'Peru'
 }) {
+  const config = getCountryConfig(country)
   const { city, category, subCategory, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
-  const categories  = CATEGORIES_BY_CITY[city] || []
-  const competitors = getCompetitors(city, category, subCategory)
+  const categories  = config.categoriesByCity[city] || []
+  const competitors = getCompetitors(city, category, subCategory, country)
   const showSubCategory = category === 'Aeropuerto'
   const { t } = useI18n()
 
@@ -30,7 +31,7 @@ export default function FilterBar({
       <div className="filter-bar__group">
         <span className="filter-bar__label">{t('filter.city')}</span>
         <select value={city} onChange={e => setCity(e.target.value)}>
-          {CITIES.map(c => <option key={c}>{c}</option>)}
+          {config.cities.map(c => <option key={c}>{c}</option>)}
         </select>
       </div>
 
@@ -51,7 +52,7 @@ export default function FilterBar({
           <div className="filter-bar__group">
             <span className="filter-bar__label">{t('filter.subcategory')}</span>
             <select value={subCategory || ''} onChange={e => setSubCategory(e.target.value)}>
-              {AEROPUERTO_SUBCATEGORIES.map(c => <option key={c}>{c}</option>)}
+              {config.aeropuertoSubcategories.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
         </>

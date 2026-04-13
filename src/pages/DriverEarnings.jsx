@@ -58,6 +58,14 @@ export default function DriverEarnings({ country = 'Peru' }) {
   const [loadingPrices, setLoadingPrices] = useState(false)
 
   const countryConfig = useMemo(() => getCountryConfig(country), [country])
+
+  // Cascada: reseteo cuando cambia el país
+  useEffect(() => {
+    const firstCity = countryConfig.cities[0]
+    setUiCity(firstCity)
+    const newCategories = countryConfig.categoriesByCity[firstCity] || []
+    setUiCat(newCategories[0] || 'Economy')
+  }, [country, countryConfig])
   const fmt = useMemo(() => makeFmt(countryConfig.currency), [countryConfig])
   const uiCities    = countryConfig.cities
   const { dbCity, dbCategory: dbCat } = useMemo(

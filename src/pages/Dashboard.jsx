@@ -91,7 +91,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
 
   return (
     <div className="dashboard" ref={dashRef}>
-      <FilterBar {...filterState} />
+      <FilterBar {...filterState} country={country} />
 
       {/* ── KPI Bar ── */}
       {!loading && kpis && (
@@ -99,7 +99,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
           <div className="kpi-card">
             <div className="kpi-card__label">{t('dashboard.kpi.yango_wa')}</div>
             <div className="kpi-card__value">
-              {kpis.yangoWA != null ? `S/ ${kpis.yangoWA.toFixed(2)}` : '—'}
+              {kpis.yangoWA != null ? `${currency} ${kpis.yangoWA.toFixed(2)}` : '—'}
             </div>
           </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
@@ -108,7 +108,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
               {kpis.leader ? kpis.leader.comp : '—'}
             </div>
             <div className="kpi-card__sub">
-              {kpis.leader ? `S/ ${kpis.leader.wa.toFixed(2)}` : ''}
+              {kpis.leader ? `${currency} ${kpis.leader.wa.toFixed(2)}` : ''}
             </div>
           </div>
           <div className="kpi-card">

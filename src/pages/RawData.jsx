@@ -217,7 +217,7 @@ export default function RawData({ country = 'Peru' }) {
 
       {/* City tabs */}
       <div className="raw-data__city-tabs">
-        {CITY_TABS.map(t => (
+        {cityTabs.map(t => (
           <button
             key={t.db}
             className={`raw-data__city-tab${dbCity === t.db ? ' raw-data__city-tab--active' : ''}`}
@@ -242,14 +242,14 @@ export default function RawData({ country = 'Peru' }) {
           <label>Categoría</label>
           <select value={dbCategory} onChange={e => setDbCategory(e.target.value)}>
             <option value="">Todos</option>
-            {(DB_CATEGORIES[dbCity] || []).map(c => <option key={c} value={c}>{c}</option>)}
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="raw-data__filter-group">
-          <label>Competidor</label>
+          <label>Competidor ({competitors.length})</label>
           <select value={competition} onChange={e => setCompetition(e.target.value)}>
             <option value="">Todos</option>
-            {(DB_COMPETITORS[dbCity] || []).map(c => <option key={c} value={c}>{c}</option>)}
+            {competitors.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="raw-data__filter-group">
