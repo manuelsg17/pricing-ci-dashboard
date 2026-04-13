@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb }               from '../lib/supabase'
 import { useAuth }          from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, COMPETITOR_COLORS, getCountryConfig, getCompetitors, resolveDbParams } from '../lib/constants'
+import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots }    from '../hooks/useCITimeslots'
 import { useI18n }           from '../context/LanguageContext'
@@ -23,15 +24,6 @@ const CAT_COLORS = {
 // ── Helpers ────────────────────────────────────────────────────────────────
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
-}
-
-function getISOYearWeek(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00')
-  const day = d.getDay() || 7
-  d.setDate(d.getDate() + 4 - day)
-  const jan1 = new Date(d.getFullYear(), 0, 1)
-  const week = Math.ceil(((d - jan1) / 86400000 + 1) / 7)
-  return { year: d.getFullYear(), week }
 }
 
 function fmtElapsed(ms) {

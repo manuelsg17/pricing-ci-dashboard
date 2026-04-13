@@ -4,18 +4,21 @@ import { sb } from '../lib/supabase'
 export function useEarningsScenarios(city, category) {
   const [scenarios, setScenarios] = useState([])
   const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState(null)
 
   const load = useCallback(async () => {
     if (!city || !category) return
     setLoading(true)
-    const { data } = await sb
+    setError(null)
+    const { data, error: e } = await sb
       .from('earnings_scenarios')
       .select('*')
       .eq('city', city)
       .eq('category', category)
       .order('created_at', { ascending: false })
       .limit(20)
-    setScenarios(data || [])
+    if (e) setError(e.message)
+    else setScenarios(data || [])
     setLoading(false)
   }, [city, category])
 
@@ -33,5 +36,5 @@ export function useEarningsScenarios(city, category) {
     return !error
   }, [load])
 
-  return { scenarios, loading, saveScenario, deleteScenario, reload: load }
+  return { scenarios, loading, error, saveScenario, deleteScenario, reload: load }
 }

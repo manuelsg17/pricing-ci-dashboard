@@ -7,10 +7,14 @@ import { sb } from '../lib/supabase'
  */
 export function useRushHourConfig() {
   const [windows, setWindows] = useState([])
+  const [error,   setError]   = useState(null)
 
   useEffect(() => {
     sb.from('rush_hour_windows').select('*').order('city').order('start_time')
-      .then(({ data }) => setWindows(data || []))
+      .then(({ data, error: e }) => {
+        if (e) { setError(e.message); return }
+        setWindows(data || [])
+      })
   }, [])
 
   /**
@@ -34,5 +38,5 @@ export function useRushHourConfig() {
     return toCheck.some(w => t >= w.start_time.slice(0, 5) && t <= w.end_time.slice(0, 5))
   }
 
-  return { windows, isRushHour }
+  return { windows, isRushHour, error }
 }

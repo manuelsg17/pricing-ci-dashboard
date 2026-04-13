@@ -1,33 +1,40 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 
 export function useCompetitorCommissions(city) {
   const [allRows, setAllRows] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const [error, setError] = useState(null)
+
   const load = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await sb
+    setError(null)
+    const { data, error: e } = await sb
       .from('competitor_commissions')
       .select('*')
       .order('competitor_name')
-    if (!error && data) setAllRows(data)
+    if (e) setError(e.message)
+    else if (data) setAllRows(data)
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
   // Returns commission_pct for a competitor, preferring city-specific over global (city=null)
-  const commissions = {}
-  for (const row of allRows) {
-    const name = row.competitor_name
-    if (row.city === null || row.city === undefined) {
-      if (commissions[name] === undefined) commissions[name] = row.commission_pct
+  const commissions = useMemo(() => {
+    const result = {}
+    for (const row of allRows) {
+      const name = row.competitor_name
+      if (row.city === null || row.city === undefined) {
+        if (result[name] === undefined) result[name] = row.commission_pct
+      }
     }
-  }
-  for (const row of allRows) {
-    if (row.city === city) commissions[row.competitor_name] = row.commission_pct
-  }
+    for (const row of allRows) {
+      if (row.city === city) result[row.competitor_name] = row.commission_pct
+    }
+    return result
+  }, [allRows, city])
 
   const saveCommission = useCallback(async (row) => {
     const payload = {
@@ -63,5 +70,5 @@ export function useCompetitorCommissions(city) {
     }])
   }, [])
 
-  return { allRows, commissions, loading, saveCommission, deleteCommission, addRow, reload: load }
+  return { allRows, commissions, loading, error, saveCommission, deleteCommission, addRow, reload: load }
 }

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { sb } from '../lib/supabase'
 import { useRawData } from '../hooks/useRawData'
+import { BRACKETS, BRACKET_LABELS, DB_CITIES } from '../lib/constants'
 import '../styles/raw-data.css'
 
 const DB_CATEGORIES = {
@@ -19,23 +20,14 @@ const DB_COMPETITORS = {
   Corp:     ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL', 'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
 }
 
-// DB-level city labels for tabs
-const CITY_TABS = [
-  { db: 'Lima',      label: 'Lima' },
-  { db: 'Trujillo',  label: 'Trujillo' },
-  { db: 'Arequipa',  label: 'Arequipa' },
-  { db: 'Airport',   label: 'Aeropuerto' },
-  { db: 'Corp',      label: 'Corp' },
-]
+// DB-level city labels for tabs — derived from DB_CITIES
+const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
+const CITY_TABS = DB_CITIES.map(db => ({ db, label: CITY_LABEL[db] || db }))
 
+// Bracket options for filter select — derived from BRACKETS + BRACKET_LABELS
 const BRACKET_OPTIONS = [
-  { value: '',           label: 'Todos' },
-  { value: 'very_short', label: 'Very Short' },
-  { value: 'short',      label: 'Short' },
-  { value: 'median',     label: 'Median' },
-  { value: 'average',    label: 'Average' },
-  { value: 'long',       label: 'Long' },
-  { value: 'very_long',  label: 'Very Long' },
+  { value: '', label: 'Todos' },
+  ...BRACKETS.map(b => ({ value: b, label: BRACKET_LABELS[b] })),
 ]
 
 const SURGE_OPTIONS = [
@@ -43,15 +35,6 @@ const SURGE_OPTIONS = [
   { value: 'true',  label: 'Sí (surge)' },
   { value: 'false', label: 'No surge' },
 ]
-
-const BRACKET_LABELS = {
-  very_short: 'Very Short',
-  short:      'Short',
-  median:     'Median',
-  average:    'Average',
-  long:       'Long',
-  very_long:  'Very Long',
-}
 
 function fmt(val, decimals = 2) {
   if (val === null || val === undefined || val === '') return '—'

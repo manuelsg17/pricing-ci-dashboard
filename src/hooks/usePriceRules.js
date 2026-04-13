@@ -7,10 +7,14 @@ import { sb } from '../lib/supabase'
  */
 export function usePriceRules() {
   const [rules, setRules] = useState([])
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     sb.from('price_validation_rules').select('*')
-      .then(({ data }) => setRules(data || []))
+      .then(({ data, error: e }) => {
+        if (e) { setError(e.message); return }
+        setRules(data || [])
+      })
   }, [])
 
   /**
@@ -40,7 +44,7 @@ export function usePriceRules() {
     return { ok, suspects }
   }
 
-  return { rules, checkOutliers }
+  return { rules, checkOutliers, error }
 }
 
 /**

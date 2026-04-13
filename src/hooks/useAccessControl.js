@@ -30,16 +30,19 @@ export function useAccessControl() {
   const [profile,  setProfile]  = useState(null)
   const [role,     setRole]     = useState(null)
   const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
 
   const loadProfile = useCallback(async () => {
     if (!email) { setLoading(false); return }
     setLoading(true)
-    const { data: prof } = await sb
+    setError(null)
+    const { data: prof, error: e } = await sb
       .from('user_profiles')
       .select('*, roles(*)')
       .eq('email', email)
       .maybeSingle()
 
+    if (e) setError(e.message)
     setProfile(prof || null)
     setRole(prof?.roles || null)
     setLoading(false)
@@ -63,5 +66,5 @@ export function useAccessControl() {
 
   const isAdmin = role?.name === 'admin'
 
-  return { profile, role, loading, canAccess, canAccessCountry, isAdmin, reload: loadProfile }
+  return { profile, role, loading, error, canAccess, canAccessCountry, isAdmin, reload: loadProfile }
 }

@@ -4,25 +4,18 @@ import autoTable from 'jspdf-autotable'
 import { sb }              from '../lib/supabase'
 import { useAuth }         from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
+import { getISOYearWeek } from '../lib/dateUtils'
 import { useI18n }       from '../context/LanguageContext'
 import '../styles/weekly-report.css'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+// Misma lógica que src/algorithms/semaforo.js — Verde 5-10%, Amarillo 1-5% ó 10-12%
 function getSemaforoClass(delta) {
   if (delta == null || isNaN(delta)) return 'none'
-  const abs = Math.abs(delta)
-  if (abs <= 5)  return 'green'
-  if (abs <= 15) return 'yellow'
+  const d = Number(delta)
+  if (d >= 5 && d <= 10)                         return 'green'
+  if ((d >= 1 && d < 5) || (d > 10 && d <= 12))  return 'yellow'
   return 'red'
-}
-
-function getISOYearWeek(date = new Date()) {
-  const d   = new Date(date)
-  const day = d.getDay() || 7
-  d.setDate(d.getDate() + 4 - day)
-  const jan1 = new Date(d.getFullYear(), 0, 1)
-  const week = Math.ceil(((d - jan1) / 86400000 + 1) / 7)
-  return { year: d.getFullYear(), week }
 }
 
 function makeFmt(currency) {

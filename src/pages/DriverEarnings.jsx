@@ -8,6 +8,7 @@ import autoTable from 'jspdf-autotable'
 import { sb }                      from '../lib/supabase'
 import { useAuth }                 from '../lib/auth'
 import { COMPETITOR_COLORS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
+import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses }     from '../hooks/useCompetitorBonuses'
 import { useEarningsScenarios }     from '../hooks/useEarningsScenarios'
@@ -18,16 +19,7 @@ import '../styles/driver-earnings.css'
 
 // (city/category constants are derived dynamically from COUNTRY_CONFIG via props)
 
-// ── ISO week helpers ────────────────────────────────────────────────────────
-function getISOYearWeek(date = new Date()) {
-  const d   = new Date(date)
-  const day = d.getDay() || 7
-  d.setDate(d.getDate() + 4 - day)
-  const jan1 = new Date(d.getFullYear(), 0, 1)
-  const week = Math.ceil(((d - jan1) / 86400000 + 1) / 7)
-  return { year: d.getFullYear(), week }
-}
-
+// ── Helpers ─────────────────────────────────────────────────────────────────
 function formatWeekLabel(year, week) {
   return `Sem ${week} / ${year}`
 }

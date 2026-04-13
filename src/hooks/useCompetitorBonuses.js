@@ -1,31 +1,38 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 
 export function useCompetitorBonuses(city) {
   const [allRows, setAllRows] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const [error, setError] = useState(null)
+
   const load = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await sb
+    setError(null)
+    const { data, error: e } = await sb
       .from('competitor_bonuses')
       .select('*')
       .order('competitor_name')
       .order('sort_order')
-    if (!error && data) setAllRows(data)
+    if (e) setError(e.message)
+    else if (data) setAllRows(data)
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
   // Returns active bonuses relevant to the city (global + city-specific), grouped by competitor
-  const bonuses = {}
-  for (const row of allRows) {
-    if (!row.is_active) continue
-    if (row.city !== null && row.city !== undefined && row.city !== city) continue
-    if (!bonuses[row.competitor_name]) bonuses[row.competitor_name] = []
-    bonuses[row.competitor_name].push(row)
-  }
+  const bonuses = useMemo(() => {
+    const result = {}
+    for (const row of allRows) {
+      if (!row.is_active) continue
+      if (row.city !== null && row.city !== undefined && row.city !== city) continue
+      if (!result[row.competitor_name]) result[row.competitor_name] = []
+      result[row.competitor_name].push(row)
+    }
+    return result
+  }, [allRows, city])
 
   const saveBonus = useCallback(async (row) => {
     const payload = {
@@ -68,5 +75,5 @@ export function useCompetitorBonuses(city) {
     }])
   }, [])
 
-  return { allRows, bonuses, loading, saveBonus, deleteBonus, addRow, reload: load }
+  return { allRows, bonuses, loading, error, saveBonus, deleteBonus, addRow, reload: load }
 }

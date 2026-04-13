@@ -5,21 +5,7 @@ import {
   getCompetitors,
 } from '../lib/constants'
 import { sb } from '../lib/supabase'
-
-// Devuelve el lunes de la semana N semanas atrás
-function getMondayWeeksAgo(n) {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  // Retroceder al lunes de la semana actual
-  const day = d.getDay() || 7           // dom=0 → 7
-  d.setDate(d.getDate() - (day - 1))    // lunes de esta semana
-  d.setDate(d.getDate() - n * 7)        // N semanas atrás
-  return d
-}
-
-function toISODate(d) {
-  return d.toISOString().slice(0, 10)
-}
+import { getMondayWeeksAgo, toISODate } from '../lib/dateUtils'
 
 export function useFilters(country = 'Peru') {
   const countryConfig = useMemo(() => getCountryConfig(country), [country])
