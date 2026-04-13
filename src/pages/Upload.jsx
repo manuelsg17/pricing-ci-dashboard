@@ -470,11 +470,9 @@ export default function Upload() {
             const curMin = parseFloat(row.minimal_bid)
             if (!curMin || curMin === 0) row.minimal_bid = Math.min(...bidVals)
             if (!row.price_without_discount || row.price_without_discount === 0) {
-              const allForAvg = [...bidVals]
-              const mn = parseFloat(row.minimal_bid)
-              if (!isNaN(mn) && mn > 0) allForAvg.push(mn)
+              // Precio efectivo = promedio de bids únicamente (minimal_bid es el piso permitido, no un bid)
               row.price_without_discount = parseFloat(
-                (allForAvg.reduce((a, b) => a + b, 0) / allForAvg.length).toFixed(2)
+                (bidVals.reduce((a, b) => a + b, 0) / bidVals.length).toFixed(2)
               )
             }
           }

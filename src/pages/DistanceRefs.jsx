@@ -14,7 +14,7 @@ const DB_CITY_MAP = {
 const CATEGORIES_BY_DB_CITY = {
   Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'TukTuk', 'XL'],
   Trujillo: ['Economy', 'Comfort/Comfort+'],
-  Arequipa: ['Economy', 'Comfort/Comfort+'],
+  Arequipa: ['Economy', 'Comfort/Comfort+', 'XL'],
   Airport:  ['Economy', 'Comfort', 'Comfort+/Premier'],
   Corp:     ['Corp'],
 }

@@ -6,7 +6,7 @@ import '../styles/raw-data.css'
 const DB_CATEGORIES = {
   Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'Premier', 'TukTuk', 'XL'],
   Trujillo: ['Economy', 'Comfort/Comfort+', 'Comfort'],
-  Arequipa: ['Economy', 'Comfort/Comfort+', 'Comfort'],
+  Arequipa: ['Economy', 'Comfort/Comfort+', 'Comfort', 'XL'],
   Airport:  ['Economy', 'Comfort', 'Comfort+/Premier', 'Premier'],
   Corp:     ['Corp']
 }

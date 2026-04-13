@@ -26,6 +26,7 @@ const CONFIG_ROWS = [
   { city: 'Trujillo', category: 'Comfort'  },
   { city: 'Arequipa', category: 'Economy'  },
   { city: 'Arequipa', category: 'Comfort'  },
+  { city: 'Arequipa', category: 'XL'       },
 ]
 
 

@@ -5,7 +5,7 @@ import { BRACKETS, BRACKET_LABELS, DB_CITIES } from '../../lib/constants'
 const DB_CATEGORIES_BY_CITY = {
   Lima:     ['Premier', 'Economy', 'Comfort', 'TukTuk', 'XL'],
   Trujillo: ['Economy', 'Comfort'],
-  Arequipa: ['Economy', 'Comfort'],
+  Arequipa: ['Economy', 'Comfort', 'XL'],
   Airport:  ['Comfort', 'Premier', 'Economy'],
   Corp:     ['Corp'],
 }
