@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 import { translate, LANGUAGES } from '../lib/i18n'
 
+const LOCALE_MAP = { es: 'es-PE', en: 'en-US', ru: 'ru-RU' }
+
 const LanguageContext = createContext(null)
 
 export function LanguageProvider({ children }) {
@@ -15,8 +17,10 @@ export function LanguageProvider({ children }) {
 
   const t = useCallback((key) => translate(lang, key), [lang])
 
+  const locale = LOCALE_MAP[lang] || 'es-PE'
+
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t, languages: LANGUAGES }}>
+    <LanguageContext.Provider value={{ lang, setLang, t, locale, languages: LANGUAGES }}>
       {children}
     </LanguageContext.Provider>
   )

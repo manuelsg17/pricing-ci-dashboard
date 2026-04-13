@@ -17,7 +17,7 @@ function getYearWeek(date) {
   return { year, week }
 }
 
-export function usePricingData(filters, dbWeights) {
+export function usePricingData(filters, dbWeights, locale = 'es-PE') {
   const [rawRows,  setRawRows]  = useState([])
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
@@ -88,13 +88,13 @@ export function usePricingData(filters, dbWeights) {
       if (filters.viewMode === 'weekly' || filters.viewMode === 'historic') {
         periods = filters.weekColumns.map(d => {
           const { year, week } = getYearWeek(d)
-          return { key: `${year}-W${String(week).padStart(2,'0')}`, label: formatWeekLabel(d), year, week }
+          return { key: `${year}-W${String(week).padStart(2,'0')}`, label: formatWeekLabel(d, locale), year, week }
         })
       } else {
         const dates = [...new Set(rawRows.map(r => r.observed_date))].sort()
         periods = dates.map(d => ({
           key:   d,
-          label: formatDayLabel(d),
+          label: formatDayLabel(d, locale),
           date:  d,
         }))
       }
@@ -208,18 +208,18 @@ export function usePricingData(filters, dbWeights) {
       }
 
       return { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
-    }, [rawRows, dbWeights, filters])
+    }, [rawRows, dbWeights, filters, locale])
 
   return { loading, error, priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
 }
 
 // ── Helpers de formato ──────────────────────────────────
-function formatWeekLabel(date) {
+function formatWeekLabel(date, locale = 'es-PE') {
   const d = new Date(date)
-  return d.toLocaleDateString('es-PE', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
 }
 
-function formatDayLabel(dateStr) {
+function formatDayLabel(dateStr, locale = 'es-PE') {
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric' })
+  return d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' })
 }

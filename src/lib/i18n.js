@@ -52,6 +52,24 @@ export const TRANSLATIONS = {
     'dashboard.table.competitor':   'Competidor',
     'dashboard.table.price':        'Precio',
     'dashboard.table.diff':         'Dif.',
+    'dashboard.table.delta_vs':     '% Delta vs',
+    'dashboard.chart.price':        'Precio S/.',
+    'dashboard.chart.delta':        '% Delta',
+    'dashboard.kpi.position_of':    'de',
+
+    // ── Brackets ──────────────────────────────────────────
+    'bracket.weighted_average':     'Promedio Ponderado',
+    'bracket.very_short':           'Muy Corto',
+    'bracket.short':                'Corto',
+    'bracket.median':               'Mediano',
+    'bracket.average':              'Promedio',
+    'bracket.long':                 'Largo',
+    'bracket.very_long':            'Muy Largo',
+
+    // ── Brand / Countries ─────────────────────────────────
+    'brand.title':                  'Pricing CI',
+    'country.Peru':                 'Perú 🇵🇪',
+    'country.Colombia':             'Colombia 🇨🇴',
 
     // ── FilterBar ──────────────────────────────────────
     'filter.city':       'Ciudad',
@@ -178,6 +196,22 @@ export const TRANSLATIONS = {
     'dashboard.table.competitor':   'Competitor',
     'dashboard.table.price':        'Price',
     'dashboard.table.diff':         'Diff',
+    'dashboard.table.delta_vs':     '% Delta vs',
+    'dashboard.chart.price':        'Price S/.',
+    'dashboard.chart.delta':        '% Delta',
+    'dashboard.kpi.position_of':    'of',
+
+    'bracket.weighted_average':     'Weighted Average',
+    'bracket.very_short':           'Very Short',
+    'bracket.short':                'Short',
+    'bracket.median':               'Median',
+    'bracket.average':              'Average',
+    'bracket.long':                 'Long',
+    'bracket.very_long':            'Very Long',
+
+    'brand.title':                  'Pricing CI',
+    'country.Peru':                 'Peru 🇵🇪',
+    'country.Colombia':             'Colombia 🇨🇴',
 
     'filter.city':       'City',
     'filter.category':   'Category',
@@ -298,6 +332,22 @@ export const TRANSLATIONS = {
     'dashboard.table.competitor':   'Конкурент',
     'dashboard.table.price':        'Цена',
     'dashboard.table.diff':         'Разница',
+    'dashboard.table.delta_vs':     '% Дельта от',
+    'dashboard.chart.price':        'Цена S/.',
+    'dashboard.chart.delta':        '% Дельта',
+    'dashboard.kpi.position_of':    'из',
+
+    'bracket.weighted_average':     'Средневзвешенное',
+    'bracket.very_short':           'Очень короткий',
+    'bracket.short':                'Короткий',
+    'bracket.median':               'Средний',
+    'bracket.average':              'Средний+',
+    'bracket.long':                 'Длинный',
+    'bracket.very_long':            'Очень длинный',
+
+    'brand.title':                  'Ценообразование CI',
+    'country.Peru':                 'Перу 🇵🇪',
+    'country.Colombia':             'Колумбия 🇨🇴',
 
     'filter.city':       'Город',
     'filter.category':   'Категория',

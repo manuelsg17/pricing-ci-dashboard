@@ -100,7 +100,7 @@ export default function BracketSection({
 
         {/* Tabla 2: % Delta */}
         <div className="bracket-section__table-wrap">
-          <div className="bracket-section__table-title">% Delta vs {compareVs}</div>
+          <div className="bracket-section__table-title">{t('dashboard.table.delta_vs')} {compareVs}</div>
           <div className="matrix-wrap">
             <table className="matrix-table">
               <thead>
@@ -177,8 +177,8 @@ export default function BracketSection({
 
       {/* Gráficos */}
       <div className="bracket-section__charts">
-        <MiniChart title="Precio S/." data={chartData} competitors={competitors} yFormatter={v => v.toFixed(1)} events={events} />
-        <MiniChart title="% Delta" data={deltaChartData} competitors={competitors} yFormatter={v => `${v.toFixed(0)}%`} isPercent events={events} />
+        <MiniChart title={t('dashboard.chart.price')} data={chartData} competitors={competitors} yFormatter={v => v.toFixed(1)} events={events} />
+        <MiniChart title={t('dashboard.chart.delta')} data={deltaChartData} competitors={competitors} yFormatter={v => `${v.toFixed(0)}%`} isPercent events={events} />
       </div>
     </div>
   )

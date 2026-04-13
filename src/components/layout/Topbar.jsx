@@ -94,8 +94,8 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
       <div className="topbar__brand">
         <div className="topbar__brand-icon">Y</div>
         <div className="topbar__brand-text">
-          <span className="topbar__brand-title">Pricing CI</span>
-          <span className="topbar__brand-sub">{COUNTRY_CONFIG[country]?.label || 'Yango'}</span>
+          <span className="topbar__brand-title">{t('brand.title')}</span>
+          <span className="topbar__brand-sub">{t(`country.${country}`) || country}</span>
         </div>
       </div>
 
@@ -133,11 +133,11 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
           className="topbar__country-select"
           value={country}
           onChange={e => onCountryChange?.(e.target.value)}
-          title="Seleccionar país"
+          title={t('filter.city')}
           disabled={allowedCountries.length <= 1}
         >
           {allowedCountries.map(c => (
-            <option key={c} value={c}>{COUNTRY_CONFIG[c].label}</option>
+            <option key={c} value={c}>{t(`country.${c}`)}</option>
           ))}
         </select>
 

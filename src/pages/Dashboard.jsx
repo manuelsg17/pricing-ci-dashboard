@@ -5,30 +5,30 @@ import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
 import { useI18n }         from '../context/LanguageContext'
-import { BRACKETS, BRACKET_LABELS } from '../lib/constants'
+import { BRACKETS } from '../lib/constants'
 import '../styles/dashboard.css'
-
-const SECTIONS = [
-  { bracket: '_wa',        label: 'Weighted Average' },
-  { bracket: 'very_short', label: BRACKET_LABELS.very_short },
-  { bracket: 'short',      label: BRACKET_LABELS.short },
-  { bracket: 'median',     label: BRACKET_LABELS.median },
-  { bracket: 'average',    label: BRACKET_LABELS.average },
-  { bracket: 'long',       label: BRACKET_LABELS.long },
-  { bracket: 'very_long',  label: BRACKET_LABELS.very_long },
-]
 
 export default function Dashboard({ dbWeights, country = 'Peru' }) {
   const filterState = useFilters(country)
   const { filters } = filterState
   const dashRef = useRef(null)
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+
+  const sections = useMemo(() => [
+    { bracket: '_wa',        label: t('bracket.weighted_average') },
+    { bracket: 'very_short', label: t('bracket.very_short') },
+    { bracket: 'short',      label: t('bracket.short') },
+    { bracket: 'median',     label: t('bracket.median') },
+    { bracket: 'average',    label: t('bracket.average') },
+    { bracket: 'long',       label: t('bracket.long') },
+    { bracket: 'very_long',  label: t('bracket.very_long') },
+  ], [t])
 
   const {
     loading, error,
     priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix,
     chartData, deltaChartData, periods,
-  } = usePricingData(filters, dbWeights)
+  } = usePricingData(filters, dbWeights, locale)
 
   // Load market events for daily view
   const [marketEvents, setMarketEvents] = useState([])
@@ -113,7 +113,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
           <div className="kpi-card">
             <div className="kpi-card__label">{t('dashboard.kpi.yango_position')}</div>
             <div className="kpi-card__value">
-              {kpis.yangoRank != null ? `${kpis.yangoRank}º de ${kpis.total}` : '—'}
+              {kpis.yangoRank != null ? `${kpis.yangoRank}º ${t('dashboard.kpi.position_of')} ${kpis.total}` : '—'}
             </div>
           </div>
           <div className="kpi-card">
@@ -140,7 +140,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
         </div>
       )}
 
-      {!loading && periods.length > 0 && SECTIONS.map(({ bracket, label }) => (
+      {!loading && periods.length > 0 && sections.map(({ bracket, label }) => (
         <BracketSection
           key={bracket}
           bracket={bracket}
