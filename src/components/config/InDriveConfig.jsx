@@ -184,10 +184,10 @@ export default function InDriveConfig({ country = 'Peru' }) {
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; {cfgCountry.currency} {OUTLIER_THRESHOLD} se excluyen del cálculo de promedio como outliers.
+          Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; {cfgCountry.currency} {(cfgCountry.outlierThreshold || 100)} se excluyen del cálculo de promedio como outliers.
           {' '}· Total en BD: <strong>{counts.total_rows}</strong> | Con bids: <strong>{counts.rows_with_bids}</strong> | Sin bids: <strong style={{ color: (counts.total_rows - counts.rows_with_bids) > 0 ? '#dc2626' : 'inherit' }}>{counts.total_rows - counts.rows_with_bids}</strong>
           {summary.some(r => r.outlierRecs > 0) && (
-            <> · <span style={{ color: '#dc2626' }}>⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt; {cfgCountry.currency} {OUTLIER_THRESHOLD}) excluidos del promedio.</span></>
+            <> · <span style={{ color: '#dc2626' }}>⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt; {cfgCountry.currency} {(cfgCountry.outlierThreshold || 100)}) excluidos del promedio.</span></>
           )}
         </p>
 
@@ -236,7 +236,7 @@ export default function InDriveConfig({ country = 'Peru' }) {
                       </td>
                       <td style={{ textAlign: 'right', color: r.outlierRecs > 0 ? '#dc2626' : '#9ca3af', fontSize: 11 }}>
                         {r.maxRec != null ? `${cfgCountry.currency} ${r.maxRec}` : '—'}
-                        {r.outlierRecs > 0 && <span title={`${r.outlierRecs} precios > ${cfgCountry.currency} ${OUTLIER_THRESHOLD} excluidos`}> ⚠</span>}
+                        {r.outlierRecs > 0 && <span title={`${r.outlierRecs} precios > ${cfgCountry.currency} ${(cfgCountry.outlierThreshold || 100)} excluidos`}> ⚠</span>}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         {r.avgBid != null ? `${cfgCountry.currency} ${r.avgBid}` : '—'}
