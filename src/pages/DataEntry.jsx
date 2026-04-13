@@ -4,6 +4,7 @@ import { useAuth }          from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, COMPETITOR_COLORS, getCountryConfig, getCompetitors, resolveDbParams } from '../lib/constants'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots }    from '../hooks/useCITimeslots'
+import { useI18n }           from '../context/LanguageContext'
 import '../styles/data-entry.css'
 
 // (city/category/competitor constants are derived dynamically from COUNTRY_CONFIG via props)
@@ -161,6 +162,7 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
 export default function DataEntry({ country = 'Peru' }) {
   const { session }    = useAuth()
   const userEmail      = session?.user?.email || ''
+  const { t, locale }  = useI18n()
 
   const [uiCity,   setUiCity]   = useState('Lima')
   const [date,     setDate]     = useState(todayStr())
@@ -489,7 +491,7 @@ export default function DataEntry({ country = 'Peru' }) {
   async function handleSaveProgress() {
     const { hasPartial } = validateAndCollectErrors(false)
     if (hasPartial) {
-      setMsg({ type: 'err', text: 'Hay filas incompletas (marcadas en rojo). Completa todas las casillas de esa fila o déjala completamente vacía.' })
+      setMsg({ type: 'err', text: t('dataentry.err_partial') })
       return
     }
     // Collect all full rows
@@ -504,7 +506,7 @@ export default function DataEntry({ country = 'Peru' }) {
       }
     }
     if (!rowsToInsert.length) {
-      setMsg({ type: 'err', text: 'No hay filas completamente llenas para guardar.' }); return
+      setMsg({ type: 'err', text: t('dataentry.err_no_full') }); return
     }
     await performSave(rowsToInsert, false)
   }
@@ -513,10 +515,7 @@ export default function DataEntry({ country = 'Peru' }) {
   async function handleFinishSession() {
     const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
     if (hasPartial || hasEmpty) {
-      const detail = []
-      if (hasPartial) detail.push('filas incompletas')
-      if (hasEmpty)   detail.push('filas completamente vacías')
-      setMsg({ type: 'err', text: `Para terminar la sesión, todas las filas deben estar llenas. Hay ${detail.join(' y ')}.` })
+      setMsg({ type: 'err', text: t('dataentry.err_finish') })
       return
     }
     const rowsToInsert = []
@@ -547,7 +546,7 @@ export default function DataEntry({ country = 'Peru' }) {
       {/* ── Header ── */}
       <div className="de-header">
         <div className="de-header__left">
-          <h1>Ingresar CI</h1>
+          <h1>{t('dataentry.title')}</h1>
           {sessionActive && (
             <div className="de-timer de-timer--active" title="Sesión en curso">
               ⏱ {elapsed}
@@ -561,7 +560,7 @@ export default function DataEntry({ country = 'Peru' }) {
               onClick={handleStartSession}
               disabled={saving}
             >
-              ▶ Iniciar Sesión
+              {t('dataentry.start_session')}
             </button>
           ) : (
             <>
@@ -570,14 +569,14 @@ export default function DataEntry({ country = 'Peru' }) {
                 onClick={handleSaveProgress}
                 disabled={saving || filledCount === 0}
               >
-                {saving ? 'Guardando…' : `💾 Guardar progreso${filledCount > 0 ? ` (${filledCount})` : ''}`}
+                {saving ? t('dataentry.saving') : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
               </button>
               <button
                 className="de-btn-finish"
                 onClick={handleFinishSession}
                 disabled={saving}
               >
-                ⏹ Terminar Sesión
+                {t('dataentry.end_session')}
               </button>
             </>
           )}
@@ -601,7 +600,7 @@ export default function DataEntry({ country = 'Peru' }) {
 
         <div className="de-session-controls">
           <label className="de-ctrl">
-            <span>Fecha</span>
+            <span>{t('dataentry.date')}</span>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} />
           </label>
 
@@ -626,7 +625,7 @@ export default function DataEntry({ country = 'Peru' }) {
             <span className="de-progress-filled">{filledCount}</span>
             <span className="de-progress-sep">/</span>
             <span className="de-progress-total">{totalExpected}</span>
-            <span className="de-progress-label">campos</span>
+            <span className="de-progress-label">{t('dataentry.fields')}</span>
           </div>
         </div>
       </div>
@@ -640,7 +639,7 @@ export default function DataEntry({ country = 'Peru' }) {
 
       {/* ── Grilla ── */}
       {refsLoading ? (
-        <div className="de-loading">Cargando rutas…</div>
+        <div className="de-loading">{t('dataentry.loading_routes')}</div>
       ) : (
         <>
           {categories.map(uiCat => {
@@ -660,27 +659,27 @@ export default function DataEntry({ country = 'Peru' }) {
                     {uiCat}
                   </span>
                   <span className="de-cat-meta">
-                    {catRefs.length} ruta{catRefs.length !== 1 ? 's' : ''} ×{' '}
+                    {catRefs.length} {t('dataentry.routes')} ×{' '}
                     {timeslots.length} timeslot{timeslots.length !== 1 ? 's' : ''} ={' '}
-                    {totalRows} filas
+                    {totalRows} {t('dataentry.rows')}
                   </span>
                 </div>
 
                 {catRefs.length === 0 ? (
                   <div className="de-cat-empty">
-                    No hay rutas para <strong>{uiCity} · {uiCat}</strong>.
-                    Ve a <strong>📍 Distancias Ref.</strong> para agregarlas.
+                    {t('dataentry.no_routes')} <strong>{uiCity} · {uiCat}</strong>.
+                    {t('dataentry.go_distances')}
                   </div>
                 ) : (
                   <div className="de-table-wrap">
                     <table className="de-table">
                       <thead>
                         <tr>
-                          <th className="de-th de-th-bracket">Bracket</th>
-                          <th className="de-th de-th-km">km</th>
-                          <th className="de-th de-th-route">Punto A</th>
-                          <th className="de-th de-th-route">Punto B</th>
-                          <th className="de-th de-th-ts">Timeslot</th>
+                          <th className="de-th de-th-bracket">{t('dataentry.col_bracket')}</th>
+                          <th className="de-th de-th-km">{t('dataentry.col_km')}</th>
+                          <th className="de-th de-th-route">{t('dataentry.col_point_a')}</th>
+                          <th className="de-th de-th-route">{t('dataentry.col_point_b')}</th>
+                          <th className="de-th de-th-ts">{t('dataentry.col_timeslot')}</th>
                           {comps.map(comp => (
                             <th key={comp} className="de-th de-th-price">
                               {compBadge(comp)}
@@ -780,19 +779,19 @@ export default function DataEntry({ country = 'Peru' }) {
                 onClick={handleSaveProgress}
                 disabled={saving || filledCount === 0}
               >
-                {saving ? 'Guardando…' : `💾 Guardar progreso${filledCount > 0 ? ` (${filledCount})` : ''}`}
+                {saving ? t('dataentry.saving') : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
               </button>
               <button
                 className="de-btn-finish"
                 onClick={handleFinishSession}
                 disabled={saving}
               >
-                ⏹ Terminar Sesión
+                {t('dataentry.end_session')}
               </button>
             </>
           ) : (
             <button className="de-btn-start" onClick={handleStartSession} disabled={saving}>
-              ▶ Iniciar Sesión
+              {t('dataentry.start_session')}
             </button>
           )}
           {msg && (
@@ -809,7 +808,7 @@ export default function DataEntry({ country = 'Peru' }) {
           className="de-history-toggle"
           onClick={() => setShowHistory(p => !p)}
         >
-          {showHistory ? '▲' : '▼'} 📋 Historial de Sesiones
+          {showHistory ? '▲' : '▼'} {t('dataentry.session_history')}
         </button>
 
         {showHistory && (
@@ -817,56 +816,56 @@ export default function DataEntry({ country = 'Peru' }) {
             {/* Filters */}
             <div className="de-history-filters">
               <label className="de-ctrl">
-                <span>Desde</span>
+                <span>{t('filter.from')}</span>
                 <input type="date" value={histFrom} onChange={e => setHistFrom(e.target.value)} />
               </label>
               <label className="de-ctrl">
-                <span>Hasta</span>
+                <span>{t('filter.to')}</span>
                 <input type="date" value={histTo} onChange={e => setHistTo(e.target.value)} />
               </label>
               <label className="de-ctrl">
-                <span>Ciudad</span>
+                <span>{t('dataentry.col_city')}</span>
                 <select value={histCity} onChange={e => setHistCity(e.target.value)}>
-                  <option value="">Todas</option>
+                  <option value="">{t('dataentry.all_cities')}</option>
                   {['Lima', 'Trujillo', 'Arequipa', 'Airport', 'Corp'].map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </label>
               <label className="de-ctrl">
-                <span>Usuario</span>
+                <span>{t('dataentry.col_user')}</span>
                 <input
                   type="text"
-                  placeholder="@correo"
+                  placeholder="@email"
                   value={histEmail}
                   onChange={e => setHistEmail(e.target.value)}
                   style={{ width: 160 }}
                 />
               </label>
               <button className="de-btn-filter" onClick={loadSessionHistory} disabled={histLoading}>
-                {histLoading ? 'Buscando…' : '🔍 Buscar'}
+                {histLoading ? t('dataentry.searching') : t('dataentry.search')}
               </button>
             </div>
 
             {/* Table */}
             {histLoading ? (
-              <div className="de-loading" style={{ padding: '12px 0' }}>Cargando historial…</div>
+              <div className="de-loading" style={{ padding: '12px 0' }}>{t('dataentry.loading_history')}</div>
             ) : sessionHistory.length === 0 ? (
               <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: '12px 0' }}>
-                No hay sesiones con los filtros seleccionados.
+                {t('dataentry.no_sessions')}
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table className="de-history-table">
                   <thead>
                     <tr>
-                      <th>Fecha</th>
-                      <th>Ciudad</th>
-                      <th>Usuario</th>
-                      <th>Inicio</th>
-                      <th>Fin</th>
-                      <th>Duración</th>
-                      <th>Obs. guardadas</th>
+                      <th>{t('dataentry.col_date')}</th>
+                      <th>{t('dataentry.col_city')}</th>
+                      <th>{t('dataentry.col_user')}</th>
+                      <th>{t('dataentry.col_start')}</th>
+                      <th>{t('dataentry.col_end')}</th>
+                      <th>{t('dataentry.col_duration')}</th>
+                      <th>{t('dataentry.col_obs')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -875,11 +874,11 @@ export default function DataEntry({ country = 'Peru' }) {
                       const end   = new Date(s.ended_at)
                       return (
                         <tr key={s.id}>
-                          <td>{start.toLocaleDateString('es-PE')}</td>
+                          <td>{start.toLocaleDateString(locale)}</td>
                           <td>{s.city}</td>
                           <td style={{ color: 'var(--color-muted)', fontSize: 11 }}>{s.user_email || '—'}</td>
-                          <td>{start.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</td>
-                          <td>{end.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td>{start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td>{end.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</td>
                           <td><strong>{s.duration_minutes} min</strong></td>
                           <td>{s.rows_saved}</td>
                         </tr>

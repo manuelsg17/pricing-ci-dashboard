@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useConfig }         from '../hooks/useConfig'
 import ThresholdsTable       from '../components/config/ThresholdsTable'
 import WeightsTable          from '../components/config/WeightsTable'
@@ -9,22 +9,25 @@ import CITimeslotsConfig     from '../components/config/CITimeslotsConfig'
 import CommissionsConfig     from '../components/config/CommissionsConfig'
 import BonusesConfig         from '../components/config/BonusesConfig'
 import InDriveConfig         from '../components/config/InDriveConfig'
+import { useI18n }           from '../context/LanguageContext'
 import '../styles/config.css'
-
-const TABS = [
-  { id: 'thresholds',  label: 'Distancias' },
-  { id: 'weights',     label: 'Pesos' },
-  { id: 'semaforo',    label: 'Semáforo' },
-  { id: 'pricerules',  label: 'Límites Precio' },
-  { id: 'rushhour',    label: 'Rush Hour' },
-  { id: 'timeslots',   label: 'Timeslots CI' },
-  { id: 'commissions', label: 'Comisiones' },
-  { id: 'bonuses',     label: 'Bonos' },
-  { id: 'indrive',     label: 'InDrive' },
-]
 
 export default function Config() {
   const [activeTab, setActiveTab] = useState('thresholds')
+  const { t } = useI18n()
+
+  const TABS = useMemo(() => [
+    { id: 'thresholds',  label: t('config.distances') },
+    { id: 'weights',     label: t('config.weights') },
+    { id: 'semaforo',    label: t('config.semaforo') },
+    { id: 'pricerules',  label: t('config.price_limits') },
+    { id: 'rushhour',    label: t('config.rush_hour') },
+    { id: 'timeslots',   label: t('config.timeslots') },
+    { id: 'commissions', label: t('config.commissions') },
+    { id: 'bonuses',     label: t('config.bonuses') },
+    { id: 'indrive',     label: t('config.indrive') },
+  ], [t])
+
   const {
     thresholds, weights, semaforo,
     loading, saving, error,
@@ -32,25 +35,25 @@ export default function Config() {
   } = useConfig()
 
   if (loading) {
-    return <div className="config-page"><div className="state-box">Cargando configuración…</div></div>
+    return <div className="config-page"><div className="state-box">{t('config.loading')}</div></div>
   }
 
   if (error) {
-    return <div className="config-page"><div className="state-box state-box--error">Error: {error}</div></div>
+    return <div className="config-page"><div className="state-box state-box--error">{t('app.error')}: {error}</div></div>
   }
 
   return (
     <div className="config-page">
-      <h1>Configuración</h1>
+      <h1>{t('config.title')}</h1>
 
       <div className="config-tabs">
-        {TABS.map(t => (
+        {TABS.map(tab => (
           <button
-            key={t.id}
-            className={`config-tab${activeTab === t.id ? ' active' : ''}`}
-            onClick={() => setActiveTab(t.id)}
+            key={tab.id}
+            className={`config-tab${activeTab === tab.id ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
       </div>
