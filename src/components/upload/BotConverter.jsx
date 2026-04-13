@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react'
 import * as XLSX from 'xlsx'
-import { convertBotToExcel, FILE_NAME } from '../../lib/botToExcel'
-
-const CITIES = ['Lima', 'Trujillo', 'Arequipa']
+import { convertBotToExcel } from '../../lib/botToExcel'
+import { useCountry } from '../../context/CountryContext'
 
 export default function BotConverter() {
   const [result,    setResult]    = useState(null)   // { files, summary, skipped }
@@ -25,7 +24,8 @@ export default function BotConverter() {
       const ws   = wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(ws, { defval: null })
 
-      const converted = convertBotToExcel(rows)
+      const { country } = useCountry()
+      const converted = convertBotToExcel(rows, country)
       setResult(converted)
     } catch (err) {
       setResult({ error: err.message })
@@ -39,6 +39,15 @@ export default function BotConverter() {
     if (file) processFile(file)
   }
 
+  const { country, countryConfig } = useCountry()
+  const uiCities = countryConfig.dbCities
+
+  function getDownloadName(city) {
+    if (city === 'Trujillo') return 'TRU_Pricing_CI_FINAL.xlsx'
+    if (city === 'Arequipa') return 'ARQ_Pricing_CI_FINAL.xlsx'
+    return `${city}_Pricing_CI_FINAL.xlsx`
+  }
+
   function downloadCity(city) {
     if (!result?.files?.[city]) return
     const blob = new Blob([result.files[city]], {
@@ -47,7 +56,7 @@ export default function BotConverter() {
     const url = URL.createObjectURL(blob)
     const a   = document.createElement('a')
     a.href     = url
-    a.download = FILE_NAME[city]
+    a.download = getDownloadName(city)
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -136,14 +145,14 @@ export default function BotConverter() {
                 </tr>
               </thead>
               <tbody>
-                {CITIES.map(city => (
+                {uiCities.map(city => (
                   <tr key={city}>
                     <td style={{ textAlign: 'left', fontWeight: 600 }}>{city}</td>
                     <td style={{ textAlign: 'right' }}>
-                      {result.summary[city].toLocaleString()}
+                      {(result.summary[city] || 0) .toLocaleString()}
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: 11, textAlign: 'left' }}>
-                      {FILE_NAME[city]}
+                      {getDownloadName(city)}
                     </td>
                     <td>
                       {result.files[city] ? (
