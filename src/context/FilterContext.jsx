@@ -1,5 +1,6 @@
+import { createContext, useContext, useMemo } from 'react'
 import { useCountry } from './CountryContext'
-
+import { useFilters } from '../hooks/useFilters'
 const FilterContext = createContext(null)
 
 export function FilterProvider({ children }) {
