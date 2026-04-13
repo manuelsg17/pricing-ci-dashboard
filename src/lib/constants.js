@@ -186,6 +186,21 @@ export const COUNTRY_CONFIG = {
   },
 }
 
+export const CITY_DISPLAY_NAMES = {
+  Lima:      'Lima',
+  Trujillo:  'Trujillo',
+  Arequipa:  'Arequipa',
+  Airport:   'Aeropuerto',
+  Corp:      'Corp',
+  'Bogotá':   'Bogotá',
+  'Medellín': 'Medellín',
+  'Cali':     'Cali',
+}
+
+export function getCityLabel(dbCity) {
+  return CITY_DISPLAY_NAMES[dbCity] || dbCity
+}
+
 export const COUNTRIES = Object.keys(COUNTRY_CONFIG)
 
 // ── Helper functions ──────────────────────────────────────
@@ -193,7 +208,7 @@ export function getCountryConfig(country) {
   return COUNTRY_CONFIG[country] || COUNTRY_CONFIG.Peru
 }
 
-export function resolveDbParams(uiCity, uiCategory, subCategory, country = 'Peru') {
+export function resolveDbParams(uiCity, uiCategory, subCategory, country) {
   const config = getCountryConfig(country)
   if (uiCategory === 'Aeropuerto' && subCategory) {
     const key = `${uiCity}|||${uiCategory}|||${subCategory}`
@@ -203,16 +218,10 @@ export function resolveDbParams(uiCity, uiCategory, subCategory, country = 'Peru
   return config.categoryDbMap[key] || { dbCity: uiCity, dbCategory: uiCategory }
 }
 
-export function getCompetitors(uiCity, uiCategory, subCategory, country = 'Peru') {
+export function getCompetitors(uiCity, uiCategory, subCategory, country) {
   const config = getCountryConfig(country)
   const { dbCity, dbCategory } = resolveDbParams(uiCity, uiCategory, subCategory, country)
   return config.competitorsByDbCityCategory[dbCity]?.[dbCategory] || []
 }
 
-// ── Re-exports for backward compatibility (Peru defaults) ─
-export const CITIES                = COUNTRY_CONFIG.Peru.cities
-export const DB_CITIES             = COUNTRY_CONFIG.Peru.dbCities
-export const CATEGORIES_BY_CITY    = COUNTRY_CONFIG.Peru.categoriesByCity
-export const AEROPUERTO_SUBCATEGORIES = COUNTRY_CONFIG.Peru.aeropuertoSubcategories
-export const YANGO_DISPLAY_NAME    = COUNTRY_CONFIG.Peru.yangoDisplayName
-export const WEIGHT_CITIES         = COUNTRY_CONFIG.Peru.weightCities
+// (End of file)

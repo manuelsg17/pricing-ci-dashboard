@@ -12,10 +12,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { useI18n } from '../context/LanguageContext'
-import { getCountryConfig } from '../lib/constants'
+import { getCountryConfig, getCityLabel } from '../lib/constants'
 
 // Etiquetas personalizadas por DB
-const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
 
 function fmt(val, currency = 'S/') {
   if (val === null || val === undefined) return '—'
@@ -34,7 +33,7 @@ export default function BotVsHubs() {
   const { country, countryConfig: config } = useCountry()
   const cityTabs = useMemo(() => {
     return [
-      ...config.dbCities.map(db => ({ db, label: CITY_LABEL[db] || db })),
+      ...config.dbCities.map(db => ({ db, label: getCityLabel(db) })),
       { db: null, label: 'Todas' }
     ]
   }, [config.dbCities])

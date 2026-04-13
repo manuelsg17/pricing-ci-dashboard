@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 
-export default function ThresholdsTable({ thresholds, onSave, saving, country = 'Peru' }) {
+export default function ThresholdsTable({ thresholds, onSave, saving, country }) {
   const config = getCountryConfig(country)
   
   // Combinar todas las city+category configuradas (incluye 'all')

@@ -4,7 +4,7 @@ import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
-export default function CommissionsConfig({ country = 'Peru' }) {
+export default function CommissionsConfig({ country }) {
   const config = getCountryConfig(country)
   const CITY_OPTIONS = [{ value: '', label: 'Todas las ciudades' }, ...config.dbCities.map(c => ({ value: c, label: c }))]
 

@@ -1,11 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { useRawData } from '../hooks/useRawData'
-import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getCountryConfig, getCityLabel } from '../lib/constants'
 import '../styles/raw-data.css'
 
 // DB-level city labels for tabs
-const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
 
 // Bracket options for filter select — derived from BRACKETS + BRACKET_LABELS
 const BRACKET_OPTIONS = [
@@ -29,7 +28,7 @@ import { useCountry } from '../context/CountryContext'
 
 export default function RawData() {
   const { country, countryConfig: config } = useCountry()
-  const cityTabs = useMemo(() => config.dbCities.map(db => ({ db, label: CITY_LABEL[db] || db })), [config.dbCities])
+  const cityTabs = useMemo(() => config.dbCities.map(db => ({ db, label: getCityLabel(db) })), [config.dbCities])
   
   const getInitialState = (key, defaultVal) => {
     const saved = sessionStorage.getItem(`rawData_${key}`)
@@ -104,7 +103,7 @@ export default function RawData() {
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState(null)   // { type: 'ok'|'err', text }
 
-  const OUTLIER_THRESHOLD = 100
+  const OUTLIER_THRESHOLD = countryConfig.outlierThreshold || 100
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar esta observación? Esta acción no se puede deshacer.')) return
@@ -303,7 +302,7 @@ export default function RawData() {
               checked={outlierOnly}
               onChange={e => setOutlierOnly(e.target.checked)}
             />
-            <span style={{ color: outlierOnly ? '#dc2626' : undefined }}>⚠ Outliers (&gt;{config.currency} 100)</span>
+            <span style={{ color: outlierOnly ? '#dc2626' : undefined }}>⚠ Outliers (&gt;{config.currency} {OUTLIER_THRESHOLD})</span>
           </label>
         </div>
         <button className="raw-data__filter-reset" onClick={resetFilters} title="Limpiar filtros">

@@ -36,9 +36,12 @@ export function useRawData(filters) {
       if (searchA)    q = q.ilike('point_a', `%${searchA}%`)
       if (searchB)    q = q.ilike('point_b', `%${searchB}%`)
       if (dataSource) q = q.eq('data_source', dataSource)
-      if (outlierOnly) q = q.or(
-        'price_without_discount.gt.100,price_with_discount.gt.100,recommended_price.gt.100,minimal_bid.gt.100'
-      )
+      if (outlierOnly) {
+        const threshold = getCountryConfig(country).outlierThreshold || 100
+        q = q.or(
+          `price_without_discount.gt.${threshold},price_with_discount.gt.${threshold},recommended_price.gt.${threshold},minimal_bid.gt.${threshold}`
+        )
+      }
 
       const { data, error: err, count } = await q
       if (err) throw err

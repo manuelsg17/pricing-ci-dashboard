@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 
-export default function RushHourConfig({ country = 'Peru' }) {
+export default function RushHourConfig({ country }) {
   const config = getCountryConfig(country)
   const allCities = ['all', ...config.dbCities]
 

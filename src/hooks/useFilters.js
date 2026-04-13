@@ -7,7 +7,7 @@ import {
 import { sb } from '../lib/supabase'
 import { getMondayWeeksAgo, toISODate } from '../lib/dateUtils'
 
-export function useFilters(country = 'Peru') {
+export function useFilters(country) {
   const countryConfig = useMemo(() => getCountryConfig(country), [country])
   const CITIES              = countryConfig.cities
   const CATEGORIES_BY_CITY  = countryConfig.categoriesByCity

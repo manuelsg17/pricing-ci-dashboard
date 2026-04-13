@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 
-export default function WeightsTable({ weights, onSave, saving, country = 'Peru' }) {
+export default function WeightsTable({ weights, onSave, saving, country }) {
   const config = getCountryConfig(country)
   const weightCities = useMemo(() => ['all', ...config.dbCities], [config.dbCities])
   

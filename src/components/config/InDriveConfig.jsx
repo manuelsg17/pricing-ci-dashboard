@@ -17,7 +17,7 @@ import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 
 
-export default function InDriveConfig({ country = 'Peru' }) {
+export default function InDriveConfig({ country }) {
   const cfgCountry = getCountryConfig(country)
   
   const CONFIG_ROWS = useMemo(() => {

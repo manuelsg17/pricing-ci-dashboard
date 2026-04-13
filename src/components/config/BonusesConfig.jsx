@@ -9,7 +9,7 @@ const TYPE_OPTIONS = [
   { value: 'zona',   label: 'Zona' },
 ]
 
-export default function BonusesConfig({ country = 'Peru' }) {
+export default function BonusesConfig({ country }) {
   const config = getCountryConfig(country)
   const CITY_OPTIONS = [{ value: '', label: 'Todas' }, ...config.dbCities.map(c => ({ value: c, label: c }))]
 

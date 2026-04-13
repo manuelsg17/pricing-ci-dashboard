@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useDistanceRefs } from '../hooks/useDistanceRefs'
-import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getCountryConfig, getCityLabel } from '../lib/constants'
 import '../styles/distance-refs.css'
 
 import { useCountry } from '../context/CountryContext'
@@ -9,7 +9,6 @@ export default function DistanceRefs() {
   const { country, countryConfig: config } = useCountry()
   
   // Reconstruimos la lista de "solapas" (UI Cities) basadas en la configuración del país
-  const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
   const uiCities = config.dbCities
 
   const [dbCity,    setDbCity]    = useState(config.dbCities[0] || 'Lima')
@@ -137,7 +136,7 @@ export default function DistanceRefs() {
       <div className="drefs-filters">
         <span className="drefs-filters__label">Ciudad</span>
         <select value={dbCity} onChange={e => handleCityChange(e.target.value)}>
-          {uiCities.map(c => <option key={c} value={c}>{CITY_LABEL[c] || c}</option>)}
+          {uiCities.map(c => <option key={c} value={c}>{getCityLabel(c)}</option>)}
         </select>
       </div>
 

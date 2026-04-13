@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 
-export function useCompetitorBonuses(city, country = 'Peru') {
+export function useCompetitorBonuses(city, country) {
   const [allRows, setAllRows] = useState([])
   const [loading, setLoading] = useState(true)
 

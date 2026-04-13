@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 
-export default function PriceRulesTable({ country = 'Peru' }) {
+export default function PriceRulesTable({ country }) {
   const config = getCountryConfig(country)
   const defaultCity = config.dbCities[0] || 'Lima'
 

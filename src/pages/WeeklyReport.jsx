@@ -114,7 +114,6 @@ export default function WeeklyReport() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiCity])
   const fmt           = useMemo(() => makeFmt(countryConfig.currency), [countryConfig])
-  const uiCities      = countryConfig.cities
   const { dbCity }    = useMemo(() => resolveDbParams(uiCity, uiCat, null, country), [uiCity, uiCat, country])
   const baseCats      = countryConfig.categoriesByCity[uiCity] || []
   const categories    = ['Todos', ...baseCats]

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 
-export function useEarningsScenarios(city, category, country = 'Peru') {
+export function useEarningsScenarios(city, category, country) {
   const [scenarios, setScenarios] = useState([])
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState(null)

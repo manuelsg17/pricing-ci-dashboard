@@ -2,32 +2,19 @@
  * botToExcel.js
  *
  * Convierte el xlsx de salida del bot → formato CI Final Claude.xlsx
- * Genera un archivo xlsx por ciudad (Lima, Trujillo, Arequipa).
+ * Genera un archivo xlsx por ciudad (Lima, Trujillo, Arequipa, Bogotá, etc.).
  *
  * Reutiliza mapBotRows() de botMapping.js para normalización y filtros de calidad.
  */
 
 import * as XLSX from 'xlsx'
 import { mapBotRows } from './botMapping'
+import { getCountryConfig } from './constants'
 
 // Competidores a incluir en la salida (Cabify excluido en esta etapa)
 const INCLUDE_COMPETITORS = new Set([
   'Yango', 'YangoPremier', 'YangoComfort+', 'Uber', 'Didi', 'InDrive',
 ])
-
-// Nombres de sheet por ciudad
-const SHEET_NAME = {
-  Lima:     'Lima_Pricing_CI_FINAL',
-  Trujillo: 'TRU_Pricing_CI_FINAL',
-  Arequipa: 'ARQ_Pricing_CI_FINAL',
-}
-
-// Nombre de archivo de descarga por ciudad
-export const FILE_NAME = {
-  Lima:     'Lima_Pricing_CI_FINAL.xlsx',
-  Trujillo: 'TRU_Pricing_CI_FINAL.xlsx',
-  Arequipa: 'ARQ_Pricing_CI_FINAL.xlsx',
-}
 
 // Reverse: formato DB bracket → display Excel
 const BRACKET_DISPLAY = {
@@ -37,25 +24,6 @@ const BRACKET_DISPLAY = {
   average:    'Average',
   long:       'Long',
   very_long:  'Very long',
-}
-
-// Reverse: formato DB category → display Excel por ciudad
-const CATEGORY_DISPLAY = {
-  Lima: {
-    Economy:  'Economy',
-    Comfort:  'Comfort',
-    Premier:  'Comfort+/Premier',
-    TukTuk:   'TukTuk',
-    XL:       'XL',
-  },
-  Trujillo: {
-    Economy: 'Economy',
-    Comfort: 'Comfort/Comfort+',
-  },
-  Arequipa: {
-    Economy: 'Economy',
-    Comfort: 'Comfort/Comfort+',
-  },
 }
 
 // ── Derivaciones desde fecha/hora ──────────────────────────────────────────
@@ -98,8 +66,9 @@ function deriveTimeslot(timeStr) {
  * Convierte una fila normalizada (salida de mapBotRows) al array de 29 valores
  * que corresponde a las columnas del formato CI Final Claude.xlsx.
  */
-function buildRow(row, city) {
-  const categoryDisplay = CATEGORY_DISPLAY[city]?.[row.category] ?? row.category
+function buildRow(row, city, countryConfig) {
+  // Use category label if available (though bot usually has raw names)
+  const categoryDisplay = row.category
   const bracketDisplay  = BRACKET_DISPLAY[row.distance_bracket] ?? row.distance_bracket ?? null
   const surgeDisplay    = row.surge === true ? 'yes' : row.surge === false ? 'no' : null
   const isInDrive       = row.competition_name === 'InDrive'
@@ -161,9 +130,13 @@ const COL_HEADERS = [
   'Discount offer', 'For pivot', 'Diff (manualy calc)', 'Minimal Bid Vs Recomm Price',
 ]
 
-function buildCityXlsx(rows, city) {
-  const sheetName = SHEET_NAME[city]
-  const dataRows  = rows.map(r => buildRow(r, city))
+function buildCityXlsx(rows, city, countryConfig) {
+  // Nombres de sheet: TRU_... ARQ_... para Peru, City_... para el resto
+  let sheetName = `${city}_Pricing_CI_FINAL`
+  if (city === 'Trujillo') sheetName = 'TRU_Pricing_CI_FINAL'
+  if (city === 'Arequipa') sheetName = 'ARQ_Pricing_CI_FINAL'
+
+  const dataRows  = rows.map(r => buildRow(r, city, countryConfig))
   const aoa       = [META_HEADERS, COL_HEADERS, ...dataRows]
 
   const ws = XLSX.utils.aoa_to_sheet(aoa)
@@ -179,15 +152,18 @@ function buildCityXlsx(rows, city) {
  * Convierte filas crudas del bot al formato CI Final Excel.
  *
  * @param {object[]} rawRows - filas tal como vienen del xlsx del bot (objeto plano)
+ * @param {string} country - "Peru" | "Colombia"
  * @returns {{
- *   files:   { Lima?: Uint8Array, Trujillo?: Uint8Array, Arequipa?: Uint8Array },
- *   summary: { Lima: number, Trujillo: number, Arequipa: number, total: number },
+ *   files:   { [cityName: string]: Uint8Array },
+ *   summary: { [cityName: string]: number, total: number },
  *   skipped: { row: object, reason: string }[]
  * }}
  */
-export function convertBotToExcel(rawRows) {
+export function convertBotToExcel(rawRows, country = 'Peru') {
+  const config = getCountryConfig(country)
+  
   // 1. Normalizar y filtrar calidad (mapBotRows ya hace todo el trabajo duro)
-  const { ok, skipped } = mapBotRows(rawRows)
+  const { ok, skipped } = mapBotRows(rawRows, country)
 
   // 2. Filtrar solo los competidores del scope actual
   const inScope           = ok.filter(r => INCLUDE_COMPETITORS.has(r.competition_name))
@@ -196,8 +172,6 @@ export function convertBotToExcel(rawRows) {
     .map(r => ({ row: r, reason: `Competidor fuera de scope: ${r.competition_name}` }))
 
   // 3. Filtrar filas sin precio en columna de salida
-  //    · No-InDrive: necesita price_without_discount (col S)
-  //    · InDrive:    necesita recommended_price (col P)
   const filtered        = inScope.filter(r =>
     r.competition_name === 'InDrive'
       ? r.recommended_price != null
@@ -213,23 +187,29 @@ export function convertBotToExcel(rawRows) {
 
   const allSkipped = [...skipped, ...skippedCompetitor, ...skippedNoPrice]
 
-  // 4. Agrupar por ciudad
-  const byCity = { Lima: [], Trujillo: [], Arequipa: [] }
+  // 4. Agrupar por ciudad definida en el país
+  const byCity = {}
+  const summary = { total: 0 }
+  
+  for (const dbCity of config.dbCities) {
+    byCity[dbCity] = []
+    summary[dbCity] = 0
+  }
+
   for (const row of filtered) {
-    if (byCity[row.city] !== undefined) {
+    if (byCity[row.city]) {
       byCity[row.city].push(row)
     }
   }
 
-  // 4. Generar xlsx por ciudad (solo si tiene filas)
+  // 5. Generar xlsx por ciudad (solo si tiene filas)
   const files   = {}
-  const summary = { Lima: 0, Trujillo: 0, Arequipa: 0, total: 0 }
 
-  for (const city of ['Lima', 'Trujillo', 'Arequipa']) {
+  for (const city of config.dbCities) {
     summary[city]  = byCity[city].length
     summary.total += byCity[city].length
     if (byCity[city].length > 0) {
-      files[city] = buildCityXlsx(byCity[city], city)
+      files[city] = buildCityXlsx(byCity[city], city, config)
     }
   }
 
