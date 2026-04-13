@@ -2,10 +2,12 @@ import { useState, useCallback } from 'react'
 import * as XLSX from 'xlsx'
 import { sb } from '../../lib/supabase'
 import { mapBotRows } from '../../lib/botMapping'
+import { useCountry } from '../../context/CountryContext'
 
 const BATCH_SIZE = 500
 
-export default function BotUpload({ country = 'Peru' }) {
+export default function BotUpload() {
+  const { country } = useCountry()
   const [rows,      setRows]      = useState([])  // mapped rows OK
   const [skipped,   setSkipped]   = useState([])  // skipped rows with reason
   const [fileName,  setFileName]  = useState('')
