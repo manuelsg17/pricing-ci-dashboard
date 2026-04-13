@@ -6,6 +6,20 @@ export default function PriceRulesTable({ country }) {
   const config = getCountryConfig(country)
   const defaultCity = config.dbCities[0] || 'Lima'
 
+  const allCategories = useMemo(() => {
+    const cats = new Set()
+    Object.values(config.categoriesByCity || {}).forEach(list => list.forEach(c => cats.add(c)))
+    return ['all', ...Array.from(cats).sort()]
+  }, [config])
+
+  const allCompetitors = useMemo(() => {
+    const comps = new Set()
+    Object.values(config.competitorsByDbCityCategory || {}).forEach(byCat =>
+      Object.values(byCat).forEach(list => list.forEach(c => comps.add(c)))
+    )
+    return ['all', ...Array.from(comps).sort()]
+  }, [config])
+
   const [rules,   setRules]   = useState([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
@@ -97,22 +111,14 @@ export default function PriceRulesTable({ country }) {
                 </select>
               </td>
               <td>
-                <input
-                  type="text"
-                  value={rule.category}
-                  onChange={e => updateRule(rule.id, 'category', e.target.value)}
-                  style={{ width: 90 }}
-                  placeholder="all"
-                />
+                <select value={rule.category || 'all'} onChange={e => updateRule(rule.id, 'category', e.target.value)}>
+                  {allCategories.map(c => <option key={c}>{c}</option>)}
+                </select>
               </td>
               <td>
-                <input
-                  type="text"
-                  value={rule.competition}
-                  onChange={e => updateRule(rule.id, 'competition', e.target.value)}
-                  style={{ width: 110 }}
-                  placeholder="all"
-                />
+                <select value={rule.competition || 'all'} onChange={e => updateRule(rule.id, 'competition', e.target.value)}>
+                  {allCompetitors.map(c => <option key={c}>{c}</option>)}
+                </select>
               </td>
               <td>
                 <input

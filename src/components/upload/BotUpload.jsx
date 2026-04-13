@@ -3,11 +3,14 @@ import * as XLSX from 'xlsx'
 import { sb } from '../../lib/supabase'
 import { mapBotRows } from '../../lib/botMapping'
 import { useCountry } from '../../context/CountryContext'
+import { usePriceRules } from '../../hooks/usePriceRules'
+import OutlierReview from './OutlierReview'
 
 const BATCH_SIZE = 500
 
 export default function BotUpload() {
   const { country } = useCountry()
+  const { checkOutliers } = usePriceRules()
   const [rows,      setRows]      = useState([])  // mapped rows OK
   const [skipped,   setSkipped]   = useState([])  // skipped rows with reason
   const [fileName,  setFileName]  = useState('')
@@ -15,6 +18,7 @@ export default function BotUpload() {
   const [progress,  setProgress]  = useState(null) // { done, total }
   const [message,   setMessage]   = useState(null) // { type: 'ok'|'err', text }
   const [dragOver,  setDragOver]  = useState(false)
+  const [suspects,  setSuspects]  = useState(null) // null | array de filas sospechosas
 
   const parseFile = useCallback(async (file) => {
     setLoading(true)
@@ -67,9 +71,33 @@ export default function BotUpload() {
     if (file) parseFile(file)
   }
 
-  const handleIngest = async () => {
-    if (!rows.length) return
-    setProgress({ done: 0, total: rows.length })
+  const handleIngestClick = () => {
+    const { suspects: found } = checkOutliers(rows)
+    if (found.length > 0) {
+      setSuspects(found)
+    } else {
+      handleIngest(rows)
+    }
+  }
+
+  const handleOutlierConfirm = (corrections) => {
+    const finalRows = rows.map((row, idx) => {
+      const corr = corrections[idx]
+      if (!corr) return row
+      if (corr.exclude) return null
+      const newPrice = parseFloat(corr.price)
+      if (!isNaN(newPrice) && newPrice !== row.price_without_discount) {
+        return { ...row, price_without_discount: newPrice }
+      }
+      return row
+    }).filter(Boolean)
+    setSuspects(null)
+    handleIngest(finalRows)
+  }
+
+  const handleIngest = async (rowsToInsert) => {
+    if (!rowsToInsert?.length) return
+    setProgress({ done: 0, total: rowsToInsert.length })
     setMessage(null)
     let inserted = 0
 
@@ -79,7 +107,7 @@ export default function BotUpload() {
       // Borrar solo filas previas del BOT para el mismo rango de fechas+ciudad
       // (las filas del Excel/hubs NO se tocan)
       const cityDateRanges = {}
-      for (const r of rows) {
+      for (const r of rowsToInsert) {
         if (!r.city || !r.observed_date) continue
         if (!cityDateRanges[r.city]) cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
         if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
@@ -97,8 +125,8 @@ export default function BotUpload() {
         if (delErr) throw delErr
       }
 
-      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-        const chunk = rows.slice(i, i + BATCH_SIZE).map(r => ({
+      for (let i = 0; i < rowsToInsert.length; i += BATCH_SIZE) {
+        const chunk = rowsToInsert.slice(i, i + BATCH_SIZE).map(r => ({
           ...r,
           country,
           data_source: 'bot',
@@ -246,10 +274,19 @@ export default function BotUpload() {
         </div>
       )}
 
+      {/* Outlier review panel */}
+      {suspects && (
+        <OutlierReview
+          suspects={suspects}
+          onConfirm={handleOutlierConfirm}
+          onCancel={() => setSuspects(null)}
+        />
+      )}
+
       {/* Actions */}
-      {rows.length > 0 && !loading && !progress && (
+      {rows.length > 0 && !loading && !progress && !suspects && (
         <div className="upload-actions">
-          <button className="btn-ingest" onClick={handleIngest}>
+          <button className="btn-ingest" onClick={handleIngestClick}>
             Insertar {rows.length} filas en la BD
           </button>
           <button className="btn-clear" onClick={() => { setRows([]); setSkipped([]); setFileName('') }}>

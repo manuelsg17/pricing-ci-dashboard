@@ -20,7 +20,7 @@ export function useFilters(country) {
   const [surge,       setSurge]       = useState(null)   // null=ambos, true/false
   const [compareVs,   setCompareVs]   = useState('Yango')
   const [viewMode,      setViewMode]      = useState('weekly') // 'weekly' | 'daily' | 'historic'
-  const [weekStart,     setWeekStart]     = useState(toISODate(getMondayWeeksAgo(7)))
+  const [weekStart,     setWeekStart]     = useState(toISODate(getMondayWeeksAgo(8)))
   const [dailyStart,    setDailyStart]    = useState(toISODate(new Date(Date.now() - 6 * 86400000))) // show last 7 days initially
   
   const dailyEnd = useMemo(() => {
@@ -32,6 +32,29 @@ export function useFilters(country) {
   const [historicFrom,  setHistoricFrom]  = useState(toISODate(getMondayWeeksAgo(24)))
   const [historicTo,    setHistoricTo]    = useState(toISODate(getMondayWeeksAgo(0)))
   const [zones,         setZones]         = useState(['All'])
+
+  // Ajustar weekStart dinámicamente al último lunes con datos disponibles
+  useEffect(() => {
+    sb.from('pricing_observations')
+      .select('observed_date')
+      .eq('country', country)
+      .order('observed_date', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (!data?.length) return
+        const latest = new Date(data[0].observed_date + 'T00:00:00')
+        // Retroceder al lunes de esa semana
+        const dayOfWeek = latest.getDay() // 0=dom, 1=lun, ...
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+        const latestMonday = new Date(latest)
+        latestMonday.setDate(latest.getDate() + diffToMonday)
+        // Mostrar 8 semanas con latestMonday como la última columna
+        const startMonday = new Date(latestMonday)
+        startMonday.setDate(latestMonday.getDate() - 7 * 7)
+        setWeekStart(toISODate(startMonday))
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country])
 
   // Cascada: cuando cambia país, resetear ciudad y categoría
   useEffect(() => {

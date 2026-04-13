@@ -103,7 +103,7 @@ export default function RawData() {
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState(null)   // { type: 'ok'|'err', text }
 
-  const OUTLIER_THRESHOLD = countryConfig.outlierThreshold || 100
+  const OUTLIER_THRESHOLD = config.outlierThreshold || 100
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar esta observación? Esta acción no se puede deshacer.')) return
