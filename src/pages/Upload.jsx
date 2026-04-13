@@ -62,11 +62,11 @@ const COL_MAP = {
   'Diff (manualy calc)':            'diff',
 }
 
-// Normalización de categorías (opcional, ahora desactivada por defecto para preservar inputs)
+// Normalización de categorías: nombre UI del Excel → nombre canónico en BD
 const CATEGORY_NORMALIZE = {
-  'Comfort/Comfort+': 'Comfort',
-  'Comfort+':         'Comfort',
-  'Premier':          'Comfort', // Mapeo para AIRPORT si es necesario, o mantener separado
+  'Comfort/Comfort+': 'Comfort',    // TRU/ARQ: nombre UI → nombre BD
+  'Comfort+':         'Comfort',    // TRU/ARQ: variante corta
+  'Comfort+/Premier': 'Premier',    // Lima/Airport: nombre UI → nombre BD
 }
 
 // Normalización de nombres de competidor
