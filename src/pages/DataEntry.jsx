@@ -150,13 +150,15 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
   )
 }
 
+import { useCountry } from '../context/CountryContext'
+
 // ── Componente principal ───────────────────────────────────────────────────
-export default function DataEntry({ country = 'Peru' }) {
+export default function DataEntry() {
   const { session }    = useAuth()
   const userEmail      = session?.user?.email || ''
   const { t, locale }  = useI18n()
+  const { country, countryConfig } = useCountry()
 
-  const countryConfig = useMemo(() => getCountryConfig(country), [country])
   const uiCities      = countryConfig.cities
 
   const [uiCity,   setUiCity]   = useState(uiCities[0] || 'Lima')

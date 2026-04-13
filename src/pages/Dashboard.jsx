@@ -6,13 +6,15 @@ import BracketSection      from '../components/dashboard/BracketSection'
 import { useI18n }         from '../context/LanguageContext'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { BRACKETS, getCountryConfig } from '../lib/constants'
+import { useCountry }      from '../context/CountryContext'
 import '../styles/dashboard.css'
 
-function DashboardContent({ dbWeights, country }) {
+function DashboardContent({ dbWeights }) {
+  const { country, countryConfig } = useCountry()
   const { filters } = useFilterContext()
   const dashRef = useRef(null)
   const { t, locale } = useI18n()
-  const { currency }  = getCountryConfig(country)
+  const { currency }  = countryConfig
 
   const sections = useMemo(() => [
     { bracket: '_wa',        label: t('bracket.weighted_average') },
@@ -162,10 +164,10 @@ function DashboardContent({ dbWeights, country }) {
   )
 }
 
-export default function Dashboard({ dbWeights, country = 'Peru' }) {
+export default function Dashboard({ dbWeights }) {
   return (
-    <FilterProvider country={country}>
-      <DashboardContent dbWeights={dbWeights} country={country} />
+    <FilterProvider>
+      <DashboardContent dbWeights={dbWeights} />
     </FilterProvider>
   )
 }

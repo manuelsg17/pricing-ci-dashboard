@@ -1,26 +1,27 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 
-export function useDistanceRefs(dbCity) {
+export function useDistanceRefs(dbCity, country) {
   const [refs,    setRefs]    = useState([])
   const [loading, setLoading] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState(null)
 
   const load = useCallback(async () => {
-    if (!dbCity) return
+    if (!dbCity || !country) return
     setLoading(true)
     setError(null)
     const { data, error: err } = await sb
       .from('distance_references')
       .select('*')
+      .eq('country', country)
       .eq('city', dbCity)
       .order('category')
       .order('bracket')
     if (err) setError(err.message)
     else     setRefs(data || [])
     setLoading(false)
-  }, [dbCity])
+  }, [dbCity, country])
 
   useEffect(() => { load() }, [load])
 
@@ -29,12 +30,12 @@ export function useDistanceRefs(dbCity) {
     setError(null)
     const { error: err } = await sb
       .from('distance_references')
-      .upsert({ ...row, city: dbCity, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+      .upsert({ ...row, city: dbCity, country, updated_at: new Date().toISOString() }, { onConflict: 'id' })
     if (err) { setError(err.message); setSaving(false); return false }
     await load()
     setSaving(false)
     return true
-  }, [dbCity, load])
+  }, [dbCity, country, load])
 
   const deleteRef = useCallback(async (id) => {
     setSaving(true)
@@ -48,21 +49,21 @@ export function useDistanceRefs(dbCity) {
   const addRow = useCallback(() => {
     const tempId = `new_${Date.now()}`
     setRefs(prev => [...prev, {
-      id: tempId, city: dbCity, category: '', bracket: '',
+      id: tempId, city: dbCity, country, category: '', bracket: '',
       point_a: '', coordinate_a: '', point_b: '', coordinate_b: '',
       waze_distance: '', _isNew: true,
     }])
-  }, [dbCity])
+  }, [dbCity, country])
 
   const addCategoryRows = useCallback((category, brackets) => {
     const newRows = brackets.map((b, i) => ({
       id: `new_${Date.now()}_${i}_${Math.random().toString(36).slice(2)}`,
-      city: dbCity, category, bracket: b,
+      city: dbCity, country, category, bracket: b,
       point_a: '', coordinate_a: '', point_b: '', coordinate_b: '',
       waze_distance: '', _isNew: true,
     }))
     setRefs(prev => [...prev, ...newRows])
-  }, [dbCity])
+  }, [dbCity, country])
 
   return { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows, reload: load }
 }

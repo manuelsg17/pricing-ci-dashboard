@@ -10,9 +10,11 @@ import CommissionsConfig     from '../components/config/CommissionsConfig'
 import BonusesConfig         from '../components/config/BonusesConfig'
 import InDriveConfig         from '../components/config/InDriveConfig'
 import { useI18n }           from '../context/LanguageContext'
+import { useCountry }         from '../context/CountryContext'
 import '../styles/config.css'
 
-export default function Config({ country = 'Peru' }) {
+export default function Config() {
+  const { country } = useCountry()
   const [activeTab, setActiveTab] = useState('thresholds')
   const { t } = useI18n()
 
@@ -32,7 +34,7 @@ export default function Config({ country = 'Peru' }) {
     thresholds, weights, semaforo,
     loading, saving, error,
     saveThresholds, saveWeights, saveSemaforo,
-  } = useConfig()
+  } = useConfig(country)
 
   if (loading) {
     return <div className="config-page"><div className="state-box">{t('config.loading')}</div></div>

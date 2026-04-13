@@ -71,15 +71,19 @@ function buildMatrices(catItem) {
   return { priceRows, deltaRows }
 }
 
+import { useCountry } from '../context/CountryContext'
+
 // ── Main component ──────────────────────────────────────────────────────────
-export default function WeeklyReport({ country = 'Peru' }) {
+export default function WeeklyReport() {
   const { session }  = useAuth()
   const userEmail    = session?.user?.email || ''
   const now          = getISOYearWeek()
   const { t, locale } = useI18n()
+  const { country, countryConfig } = useCountry()
+  const uiCities = countryConfig.cities
 
-  const [uiCity,   setUiCity]   = useState('Lima')
-  const [uiCat,    setUiCat]    = useState('Economy')
+  const [uiCity,   setUiCity]   = useState(uiCities[0] || 'Lima')
+  const [uiCat,    setUiCat]    = useState(countryConfig.categoriesByCity[uiCities[0] || 'Lima']?.[0] || 'Economy')
   const [refYear,  setRefYear]  = useState(now.year)
   const [refWeek,  setRefWeek]  = useState(now.week)
   const [compareYear, setCompareYear] = useState(now.week > 1 ? now.year : now.year - 1)
@@ -90,7 +94,7 @@ export default function WeeklyReport({ country = 'Peru' }) {
   const [loading,        setLoading]        = useState(false)
   const [generatingPdf,  setGeneratingPdf]  = useState(false)
 
-  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  const { currency } = countryConfig
 
   // Reset city+category when country changes
   useEffect(() => {

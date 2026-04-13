@@ -3,6 +3,7 @@ import { useAuth }           from './lib/auth'
 import { sb }                from './lib/supabase'
 import { useAccessControl }  from './hooks/useAccessControl'
 import { COUNTRIES }         from './lib/constants'
+import { useCountry }        from './context/CountryContext'
 import Topbar                from './components/layout/Topbar'
 import LoginScreen     from './components/layout/LoginScreen'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -19,15 +20,10 @@ const BotVsHubs = lazy(() => import('./pages/BotVsHubs'))
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
+  const { country, setCountry } = useCountry()
   const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [dbWeights, setDbWeights] = useState([])
-  const [country,   setCountry]   = useState(() => localStorage.getItem('country') || 'Peru')
-
-  function handleCountryChange(c) {
-    setCountry(c)
-    localStorage.setItem('country', c)
-  }
 
   // Pre-cargar pesos al iniciar sesión (para usePricingData)
   useEffect(() => {
@@ -43,7 +39,7 @@ export default function App() {
   useEffect(() => {
     if (acLoading || allowedCountries.length === 0) return
     if (!allowedCountries.includes(country)) {
-      handleCountryChange(allowedCountries[0])
+      setCountry(allowedCountries[0])
     }
   }, [acLoading])
 
@@ -91,8 +87,6 @@ export default function App() {
         onTabChange={setActiveTab}
         userEmail={session.user.email}
         onLogout={signOut}
-        country={country}
-        onCountryChange={handleCountryChange}
         canAccess={canAccess}
         allowedCountries={allowedCountries}
       />
@@ -104,17 +98,17 @@ export default function App() {
           Cargando vista…
         </div>
       }>
-        {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} country={country} />}
-        {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry country={country} />}
-        {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings country={country} />}
-        {activeTab === 'report'    && canAccess('report')    && <WeeklyReport country={country} />}
-        {activeTab === 'events'    && canAccess('events')    && <MarketEvents country={country} />}
-        {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData country={country} />}
-        {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs country={country} />}
-        {activeTab === 'config'    && canAccess('config')    && <Config country={country} />}
-        {activeTab === 'upload'    && canAccess('upload')    && <Upload country={country} />}
-        {activeTab === 'distances' && canAccess('distances') && <DistanceRefs country={country} />}
-        {activeTab === 'access'    && canAccess('access')    && <AccessManagement country={country} />}
+        {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} />}
+        {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
+        {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
+        {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}
+        {activeTab === 'events'    && canAccess('events')    && <MarketEvents />}
+        {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
+        {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
+        {activeTab === 'config'    && canAccess('config')    && <Config />}
+        {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
+        {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
+        {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
       </Suspense>
     </>
   )

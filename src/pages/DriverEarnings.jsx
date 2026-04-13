@@ -32,14 +32,18 @@ function makeFmt(currency) {
   }
 }
 
+import { useCountry } from '../context/CountryContext'
+
 // ── Main component ──────────────────────────────────────────────────────────
-export default function DriverEarnings({ country = 'Peru' }) {
+export default function DriverEarnings() {
   const { session } = useAuth()
   const userEmail   = session?.user?.email || ''
   const { t, locale } = useI18n()
+  const { country, countryConfig } = useCountry()
+  const uiCities = countryConfig.cities
 
-  const [uiCity,     setUiCity]     = useState('Lima')
-  const [uiCat,      setUiCat]      = useState('Economy')
+  const [uiCity,     setUiCity]     = useState(uiCities[0] || 'Lima')
+  const [uiCat,      setUiCat]      = useState(countryConfig.categoriesByCity[uiCities[0] || 'Lima']?.[0] || 'Economy')
   const [refYear,    setRefYear]    = useState(() => getISOYearWeek().year)
   const [refWeek,    setRefWeek]    = useState(() => getISOYearWeek().week)
   const [hoursPerWeek, setHoursPerWeek] = useState(40)
@@ -57,8 +61,6 @@ export default function DriverEarnings({ country = 'Peru' }) {
   const [priceEdits,   setPriceEdits]   = useState({}) // comp → overridden value
   const [loadingPrices, setLoadingPrices] = useState(false)
 
-  const countryConfig = useMemo(() => getCountryConfig(country), [country])
-
   // Cascada: reseteo cuando cambia el país
   useEffect(() => {
     const firstCity = countryConfig.cities[0]
@@ -66,19 +68,19 @@ export default function DriverEarnings({ country = 'Peru' }) {
     const newCategories = countryConfig.categoriesByCity[firstCity] || []
     setUiCat(newCategories[0] || 'Economy')
   }, [country, countryConfig])
+
   const fmt = useMemo(() => makeFmt(countryConfig.currency), [countryConfig])
   const { currency }  = countryConfig
-  const uiCities    = countryConfig.cities
   const { dbCity, dbCategory: dbCat } = useMemo(
     () => resolveDbParams(uiCity, uiCat, null, country),
     [uiCity, uiCat, country]
   )
   const categories  = countryConfig.categoriesByCity[uiCity] || []
 
-  const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity, country)
-  const { bonuses }                        = useCompetitorBonuses(dbCity, country)
+  const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity)
+  const { bonuses }                        = useCompetitorBonuses(dbCity)
   const { scenarios, loading: loadingHist, saveScenario, deleteScenario } =
-    useEarningsScenarios(dbCity, dbCat, country)
+    useEarningsScenarios(dbCity, dbCat)
 
   // ── Load avg prices ────────────────────────────────────────────────────
   const loadPrices = useCallback(async () => {

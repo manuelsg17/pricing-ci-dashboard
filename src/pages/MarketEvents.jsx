@@ -29,10 +29,12 @@ function thirtyDaysAgo() {
   return d.toISOString().slice(0, 10)
 }
 
-export default function MarketEvents({ country = 'Peru' }) {
+import { useCountry } from '../context/CountryContext'
+
+export default function MarketEvents() {
   const { session } = useAuth()
   const userEmail   = session?.user?.email || ''
-  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  const { country, countryConfig } = useCountry()
   const uiCities      = countryConfig.cities
   const dbCities      = countryConfig.dbCities
 

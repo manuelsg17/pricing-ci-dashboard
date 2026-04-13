@@ -87,6 +87,7 @@ export default function BotUpload({ country = 'Peru' }) {
         const { error: delErr } = await sb
           .from('pricing_observations')
           .delete()
+          .eq('country', country)
           .eq('city', city)
           .eq('data_source', 'bot')
           .gte('observed_date', min)
@@ -97,6 +98,7 @@ export default function BotUpload({ country = 'Peru' }) {
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const chunk = rows.slice(i, i + BATCH_SIZE).map(r => ({
           ...r,
+          country,
           data_source: 'bot',
           upload_batch_id: batchId,
           uploaded_at: new Date().toISOString(),

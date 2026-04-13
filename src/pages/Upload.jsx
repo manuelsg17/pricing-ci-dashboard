@@ -305,8 +305,10 @@ function detectCity(sheetName) {
   return null
 }
 
-export default function Upload({ country = 'Peru' }) {
-  const config = getCountryConfig(country)
+import { useCountry } from '../context/CountryContext'
+
+export default function Upload() {
+  const { country, countryConfig: config } = useCountry()
   const [sheets,    setSheets]    = useState([])
   const [preview,   setPreview]   = useState([])
   const [allRows,   setAllRows]   = useState([])
@@ -531,7 +533,7 @@ export default function Upload({ country = 'Peru' }) {
       </div>
 
       {/* Bot upload to DB */}
-      {uploadTab === 'bot' && <BotUpload country={country} />}
+      {uploadTab === 'bot' && <BotUpload />}
 
       {/* Bot → Excel converter */}
       {uploadTab === 'convert' && <BotConverter />}

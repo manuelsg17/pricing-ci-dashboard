@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { COUNTRIES, COUNTRY_CONFIG } from '../../lib/constants'
+import { COUNTRIES } from '../../lib/constants'
+import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import '../../styles/topbar.css'
 
@@ -84,8 +85,9 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
   )
 }
 
-export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, country = 'Peru', onCountryChange, canAccess = () => true, allowedCountries = COUNTRIES }) {
+export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, canAccess = () => true, allowedCountries = COUNTRIES }) {
   const { lang, setLang, languages, t } = useI18n()
+  const { country, setCountry } = useCountry()
 
   const navItems = getNav(t)
 
@@ -132,7 +134,7 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
         <select
           className="topbar__country-select"
           value={country}
-          onChange={e => onCountryChange?.(e.target.value)}
+          onChange={e => setCountry(e.target.value)}
           title={t('filter.city')}
           disabled={allowedCountries.length <= 1}
         >

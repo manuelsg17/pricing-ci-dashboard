@@ -3,8 +3,10 @@ import { useDistanceRefs } from '../hooks/useDistanceRefs'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../lib/constants'
 import '../styles/distance-refs.css'
 
-export default function DistanceRefs({ country = 'Peru' }) {
-  const config = getCountryConfig(country)
+import { useCountry } from '../context/CountryContext'
+
+export default function DistanceRefs() {
+  const { country, countryConfig: config } = useCountry()
   
   // Reconstruimos la lista de "solapas" (UI Cities) basadas en la configuración del país
   const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
@@ -34,7 +36,7 @@ export default function DistanceRefs({ country = 'Peru' }) {
 
   // dbCat usa lookup o el mismo si no está mapeado
   const dbCat = config.uiToDbCategory?.[uiCat] || uiCat
-  const { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows } = useDistanceRefs(dbCity)
+  const { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows } = useDistanceRefs(dbCity, country)
 
   // Local edits
   const [edits, setEdits] = useState({})

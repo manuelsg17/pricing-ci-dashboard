@@ -8,6 +8,7 @@ export function useCompetitorBonuses(city, country = 'Peru') {
   const [error, setError] = useState(null)
 
   const load = useCallback(async () => {
+    if (!country) return
     setLoading(true)
     setError(null)
     const { data, error: e } = await sb

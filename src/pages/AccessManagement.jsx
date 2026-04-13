@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb }         from '../lib/supabase'
 import { useAuth }    from '../lib/auth'
-import { COUNTRIES }  from '../lib/constants'
+import { useCountry } from '../context/CountryContext'
 import { ALL_SECTIONS, SECTION_LABELS } from '../hooks/useAccessControl'
 import { useI18n }    from '../context/LanguageContext'
 import '../styles/access-management.css'
@@ -396,7 +396,7 @@ function RolesTab() {
                       </button>
                     </div>
                     <div className="am-perm-checks">
-                      {COUNTRIES.map(c => (
+                      {availableCountries.map(c => (
                         <label key={c} className="am-check">
                           <input
                             type="checkbox"
@@ -444,6 +444,7 @@ export default function AccessManagement() {
   const [activeTab, setActiveTab] = useState('users')
   const [roles, setRoles] = useState([])
   const { t } = useI18n()
+  const { availableCountries } = useCountry()
 
   useEffect(() => {
     sb.from('roles').select('*').order('id').then(({ data }) => setRoles(data || []))

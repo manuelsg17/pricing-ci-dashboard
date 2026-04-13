@@ -25,8 +25,10 @@ function fmt(val, decimals = 2) {
   return isNaN(n) ? String(val) : n.toFixed(decimals)
 }
 
-export default function RawData({ country = 'Peru' }) {
-  const config = getCountryConfig(country)
+import { useCountry } from '../context/CountryContext'
+
+export default function RawData() {
+  const { country, countryConfig: config } = useCountry()
   const cityTabs = useMemo(() => config.dbCities.map(db => ({ db, label: CITY_LABEL[db] || db })), [config.dbCities])
   
   const getInitialState = (key, defaultVal) => {

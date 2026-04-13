@@ -27,9 +27,11 @@ function diffPct(hub, bot) {
   return ((parseFloat(bot) / parseFloat(hub)) - 1) * 100
 }
 
-export default function BotVsHubs({ country = 'Peru' }) {
+import { useCountry } from '../context/CountryContext'
+
+export default function BotVsHubs() {
   const { t } = useI18n()
-  const config = getCountryConfig(country)
+  const { country, countryConfig: config } = useCountry()
   const cityTabs = useMemo(() => {
     return [
       ...config.dbCities.map(db => ({ db, label: CITY_LABEL[db] || db })),
