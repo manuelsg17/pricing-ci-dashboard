@@ -44,13 +44,11 @@ export default function WeightsTable({ weights, onSave, saving }) {
     }
   }
 
-  const sumOk = Math.abs(totalPct - 100) < 0.1
-
   return (
     <div className="config-section">
       <h2>Pesos para Promedio Ponderado (%)</h2>
       <p style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
-        Cada ciudad puede tener pesos distintos. Los pesos deben sumar 100%.
+        Cada ciudad puede tener pesos distintos.
       </p>
 
       <div className="city-tabs">
@@ -91,9 +89,8 @@ export default function WeightsTable({ weights, onSave, saving }) {
           <tr style={{ background: '#f9fbe7' }}>
             <td style={{ fontWeight: 700 }}>Total</td>
             <td>
-              <span className={`weight-sum ${sumOk ? 'ok' : 'warn'}`}>
+              <span className="weight-sum ok">
                 {totalPct.toFixed(2)}%
-                {!sumOk && ' ⚠ debe ser 100%'}
               </span>
             </td>
           </tr>
@@ -101,7 +98,7 @@ export default function WeightsTable({ weights, onSave, saving }) {
       </table>
 
       <div className="config-footer">
-        <button className="btn-save" onClick={handleSave} disabled={saving || !sumOk}>
+        <button className="btn-save" onClick={handleSave} disabled={saving}>
           {saving ? 'Guardando...' : 'Guardar pesos'}
         </button>
         {saveMsg && (
