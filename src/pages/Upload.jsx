@@ -63,7 +63,11 @@ const COL_MAP = {
 }
 
 // Normalización de categorías (opcional, ahora desactivada por defecto para preservar inputs)
-const CATEGORY_NORMALIZE = {}
+const CATEGORY_NORMALIZE = {
+  'Comfort/Comfort+': 'Comfort',
+  'Comfort+':         'Comfort',
+  'Premier':          'Comfort', // Mapeo para AIRPORT si es necesario, o mantener separado
+}
 
 // Normalización de nombres de competidor
 const COMPETITOR_NORMALIZE = {

@@ -13,19 +13,19 @@ const key = env.match(/VITE_SUPABASE_ANON_KEY=(.*)/)[1].trim();
 const sb = createClient(url, key);
 
 async function check() {
-  const { data, error } = await sb.from('distance_thresholds')
-    .select('*')
-    .eq('city', 'Lima')
-    .eq('category', 'Economy')
-    .order('max_km', { ascending: true });
+  const { data, error } = await sb.from('pricing_observations')
+    .select('category, count()', { count: 'exact' })
+    .eq('city', 'Arequipa');
   
-  if (error) {
-    console.error(error);
-    return;
-  }
+  const { data: all } = await sb.from('pricing_observations').select('category').eq('city', 'Arequipa');
   
-  console.log('Thresholds for Lima Economy:');
-  console.log(data);
+  const cats = {};
+  all?.forEach(r => {
+    cats[r.category] = (cats[r.category] || 0) + 1;
+  });
+  
+  console.log('Actual Category strings in DB for Arequipa:');
+  console.log(cats);
 }
 
 check();
