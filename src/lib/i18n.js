@@ -49,6 +49,9 @@ export const TRANSLATIONS = {
     'dashboard.kpi.market_leader':  'Líder de mercado',
     'dashboard.kpi.yango_position': 'Posición Yango',
     'dashboard.kpi.data_as_of':     'Datos al',
+    'dashboard.table.competitor':   'Competidor',
+    'dashboard.table.price':        'Precio',
+    'dashboard.table.diff':         'Dif.',
 
     // ── FilterBar ──────────────────────────────────────
     'filter.city':       'Ciudad',
@@ -172,6 +175,9 @@ export const TRANSLATIONS = {
     'dashboard.kpi.market_leader':  'Market leader',
     'dashboard.kpi.yango_position': 'Yango position',
     'dashboard.kpi.data_as_of':     'Data as of',
+    'dashboard.table.competitor':   'Competitor',
+    'dashboard.table.price':        'Price',
+    'dashboard.table.diff':         'Diff',
 
     'filter.city':       'City',
     'filter.category':   'Category',
@@ -289,6 +295,9 @@ export const TRANSLATIONS = {
     'dashboard.kpi.market_leader':  'Лидер рынка',
     'dashboard.kpi.yango_position': 'Позиция Yango',
     'dashboard.kpi.data_as_of':     'Данные на',
+    'dashboard.table.competitor':   'Конкурент',
+    'dashboard.table.price':        'Цена',
+    'dashboard.table.diff':         'Разница',
 
     'filter.city':       'Город',
     'filter.category':   'Категория',

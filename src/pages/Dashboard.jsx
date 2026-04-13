@@ -4,6 +4,7 @@ import { usePricingData }  from '../hooks/usePricingData'
 import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
+import { useI18n }         from '../context/LanguageContext'
 import { BRACKETS, BRACKET_LABELS } from '../lib/constants'
 import '../styles/dashboard.css'
 
@@ -21,6 +22,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
   const filterState = useFilters(country)
   const { filters } = filterState
   const dashRef = useRef(null)
+  const { t } = useI18n()
 
   const {
     loading, error,
@@ -94,13 +96,13 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
       {!loading && kpis && (
         <div className="kpi-bar">
           <div className="kpi-card">
-            <div className="kpi-card__label">Avg Yango (WA)</div>
+            <div className="kpi-card__label">{t('dashboard.kpi.yango_wa')}</div>
             <div className="kpi-card__value">
               {kpis.yangoWA != null ? `S/ ${kpis.yangoWA.toFixed(2)}` : '—'}
             </div>
           </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
-            <div className="kpi-card__label">Líder de mercado</div>
+            <div className="kpi-card__label">{t('dashboard.kpi.market_leader')}</div>
             <div className="kpi-card__value">
               {kpis.leader ? kpis.leader.comp : '—'}
             </div>
@@ -109,32 +111,32 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
             </div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-card__label">Posición Yango</div>
+            <div className="kpi-card__label">{t('dashboard.kpi.yango_position')}</div>
             <div className="kpi-card__value">
               {kpis.yangoRank != null ? `${kpis.yangoRank}º de ${kpis.total}` : '—'}
             </div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-card__label">Datos al</div>
+            <div className="kpi-card__label">{t('dashboard.kpi.data_as_of')}</div>
             <div className="kpi-card__value kpi-card__value--sm">{kpis.lastPeriodLabel}</div>
           </div>
-          <button className="kpi-export-btn" onClick={handleExportPNG} title="Exportar como imagen PNG">
-            📷 Exportar
+          <button className="kpi-export-btn" onClick={handleExportPNG} title={t('dashboard.export_png')}>
+            {t('dashboard.export_png')}
           </button>
         </div>
       )}
 
       {loading && (
-        <div className="state-box">Cargando datos…</div>
+        <div className="state-box">{t('dashboard.loading')}</div>
       )}
 
       {error && (
-        <div className="state-box state-box--error">Error: {error}</div>
+        <div className="state-box state-box--error">{t('app.error')}: {error}</div>
       )}
 
       {!loading && !error && periods.length === 0 && (
         <div className="state-box">
-          Sin datos para los filtros seleccionados. Prueba con otra ciudad, categoría o rango de fechas.
+          {t('dashboard.no_data')}
         </div>
       )}
 

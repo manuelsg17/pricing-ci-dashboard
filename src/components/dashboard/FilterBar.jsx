@@ -1,4 +1,5 @@
 import { CITIES, CATEGORIES_BY_CITY, AEROPUERTO_SUBCATEGORIES, getCompetitors } from '../../lib/constants'
+import { useI18n } from '../../context/LanguageContext'
 
 export default function FilterBar({
   filters, zones,
@@ -11,6 +12,7 @@ export default function FilterBar({
   const categories  = CATEGORIES_BY_CITY[city] || []
   const competitors = getCompetitors(city, category, subCategory)
   const showSubCategory = category === 'Aeropuerto'
+  const { t } = useI18n()
 
   // Forzar que weekStart siempre sea lunes
   const handleWeekStart = (e) => {
@@ -26,7 +28,7 @@ export default function FilterBar({
     <div className="filter-bar">
       {/* Ciudad */}
       <div className="filter-bar__group">
-        <span className="filter-bar__label">Ciudad</span>
+        <span className="filter-bar__label">{t('filter.city')}</span>
         <select value={city} onChange={e => setCity(e.target.value)}>
           {CITIES.map(c => <option key={c}>{c}</option>)}
         </select>
@@ -36,7 +38,7 @@ export default function FilterBar({
 
       {/* Categoría */}
       <div className="filter-bar__group">
-        <span className="filter-bar__label">Categoría</span>
+        <span className="filter-bar__label">{t('filter.category')}</span>
         <select value={category} onChange={e => setCategory(e.target.value)}>
           {categories.map(c => <option key={c}>{c}</option>)}
         </select>
@@ -59,7 +61,7 @@ export default function FilterBar({
 
       {/* Zona */}
       <div className="filter-bar__group">
-        <span className="filter-bar__label">Zona</span>
+        <span className="filter-bar__label">{t('filter.zone')}</span>
         <select value={zone} onChange={e => setZone(e.target.value)}>
           {zones.map(z => <option key={z}>{z}</option>)}
         </select>
@@ -69,14 +71,14 @@ export default function FilterBar({
 
       {/* Surge */}
       <div className="filter-bar__group">
-        <span className="filter-bar__label">Surge</span>
+        <span className="filter-bar__label">{t('filter.surge')}</span>
         <select
           value={surge === null ? 'all' : String(surge)}
           onChange={e => setSurge(e.target.value === 'all' ? null : e.target.value === 'true')}
         >
-          <option value="all">Todos</option>
-          <option value="true">Sí</option>
-          <option value="false">No</option>
+          <option value="all">{t('filter.both_surge')}</option>
+          <option value="true">{t('filter.yes')}</option>
+          <option value="false">{t('filter.no')}</option>
         </select>
       </div>
 
@@ -84,7 +86,7 @@ export default function FilterBar({
 
       {/* Comparar vs */}
       <div className="filter-bar__group">
-        <span className="filter-bar__label">vs.</span>
+        <span className="filter-bar__label">{t('filter.compare_vs')}</span>
         <select value={compareVs} onChange={e => setCompareVs(e.target.value)}>
           {competitors.map(c => <option key={c}>{c}</option>)}
         </select>
@@ -94,20 +96,20 @@ export default function FilterBar({
 
       {/* Modo de vista */}
       <div className="filter-bar__group">
-        <span className="filter-bar__label">Vista</span>
+        <span className="filter-bar__label">{t('filter.view_mode')}</span>
         <div className="filter-bar__view-toggle">
           <button
             className={viewMode === 'weekly' ? 'active' : ''}
             onClick={() => setViewMode('weekly')}
-          >Semanal</button>
+          >{t('filter.weekly')}</button>
           <button
             className={viewMode === 'daily' ? 'active' : ''}
             onClick={() => setViewMode('daily')}
-          >Diario</button>
+          >{t('filter.daily')}</button>
           <button
             className={viewMode === 'historic' ? 'active' : ''}
             onClick={() => setViewMode('historic')}
-          >Histórico</button>
+          >{t('filter.historic')}</button>
         </div>
       </div>
 
@@ -116,7 +118,7 @@ export default function FilterBar({
       {/* Selector de fechas según modo */}
       {viewMode === 'weekly' && (
         <div className="filter-bar__group">
-          <span className="filter-bar__label">Inicio (lunes)</span>
+          <span className="filter-bar__label">{t('filter.from')} (L)</span>
           <input
             type="date"
             value={weekStart}
@@ -126,18 +128,18 @@ export default function FilterBar({
       )}
       {viewMode === 'daily' && (
         <div className="filter-bar__group">
-          <span className="filter-bar__label">Desde</span>
+          <span className="filter-bar__label">{t('filter.from')}</span>
           <input type="date" value={dailyStart} onChange={e => setDailyStart(e.target.value)} />
         </div>
       )}
       {viewMode === 'historic' && (
         <>
           <div className="filter-bar__group">
-            <span className="filter-bar__label">Desde (lunes)</span>
+            <span className="filter-bar__label">{t('filter.from')} (L)</span>
             <input type="date" value={historicFrom} onChange={e => setHistoricFrom(e.target.value)} />
           </div>
           <div className="filter-bar__group">
-            <span className="filter-bar__label">Hasta (lunes)</span>
+            <span className="filter-bar__label">{t('filter.to')} (L)</span>
             <input type="date" value={historicTo} onChange={e => setHistoricTo(e.target.value)} />
           </div>
         </>

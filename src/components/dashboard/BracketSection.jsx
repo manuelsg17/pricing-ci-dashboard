@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import { COMPETITOR_COLORS } from '../../lib/constants'
+import { useI18n } from '../../context/LanguageContext'
 
 const IMPACT_COLORS = { alto: '#dc2626', medio: '#d97706', bajo: '#94a3b8' }
 
@@ -25,7 +26,9 @@ export default function BracketSection({
   deltaChartData,
   events = [],
 }) {
+}) {
   const key = bracket  // '_wa' o 'very_short' etc.
+  const { t } = useI18n()
 
   function getPrice(comp, periodKey) {
     return priceMatrix[comp]?.[periodKey]?.[key] ?? null
@@ -68,12 +71,12 @@ export default function BracketSection({
       <div className="bracket-section__tables">
         {/* Tabla 1: Precios absolutos */}
         <div className="bracket-section__table-wrap">
-          <div className="bracket-section__table-title">Precio S/.</div>
+          <div className="bracket-section__table-title">{t('dashboard.table.price')} S/.</div>
           <div className="matrix-wrap">
             <table className="matrix-table">
               <thead>
                 <tr>
-                  <th className="col-label">Competidor</th>
+                  <th className="col-label">{t('dashboard.table.competitor')}</th>
                   {periods.map(p => <th key={p.key}>{p.label}</th>)}
                 </tr>
               </thead>
@@ -103,7 +106,7 @@ export default function BracketSection({
             <table className="matrix-table">
               <thead>
                 <tr>
-                  <th className="col-label">Competidor</th>
+                  <th className="col-label">{t('dashboard.table.competitor')}</th>
                   {periods.map(p => <th key={p.key}>{p.label}</th>)}
                 </tr>
               </thead>
@@ -136,12 +139,12 @@ export default function BracketSection({
 
         {/* Tabla 3: Diferencia S/ */}
         <div className="bracket-section__table-wrap">
-          <div className="bracket-section__table-title">Dif. S/</div>
+          <div className="bracket-section__table-title">{t('dashboard.table.diff')} S/</div>
           <div className="matrix-wrap">
             <table className="matrix-table">
               <thead>
                 <tr>
-                  <th className="col-label">Competidor</th>
+                  <th className="col-label">{t('dashboard.table.competitor')}</th>
                   {periods.map(p => <th key={p.key}>{p.label}</th>)}
                 </tr>
               </thead>
@@ -183,6 +186,7 @@ export default function BracketSection({
 }
 
 function MiniChart({ title, data, competitors, yFormatter, isPercent = false, events = [] }) {
+  const { t } = useI18n()
   const hasData = data && data.length > 0 && competitors.some(c => data.some(d => d[c] != null))
   const periodKeys = new Set((data || []).map(d => d.period))
 
@@ -190,7 +194,7 @@ function MiniChart({ title, data, competitors, yFormatter, isPercent = false, ev
     <div className="chart-card">
       <div className="chart-card__title">{title}</div>
       {!hasData ? (
-        <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', padding: '16px 0' }}>Sin datos</div>
+        <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', padding: '16px 0' }}>{t('app.no_data')}</div>
       ) : (
         <ResponsiveContainer width="100%" height={150}>
           <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
