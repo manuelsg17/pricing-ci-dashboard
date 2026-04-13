@@ -9,8 +9,14 @@
 
 -- ── 1. Vistas ───────────────────────────────────────────────
 
+-- Nota: Postgres no permite cambiar nombres/orden de columnas en OR REPLACE.
+-- Eliminamos cascada para recrearlas con la nueva estructura.
+DROP VIEW IF EXISTS v_bracket_weekly_avg CASCADE;
+DROP VIEW IF EXISTS v_bracket_daily_avg CASCADE;
+DROP VIEW IF EXISTS v_effective_price CASCADE;
+
 -- Vista base: precio efectivo por observación (agrega country)
-CREATE OR REPLACE VIEW v_effective_price AS
+CREATE VIEW v_effective_price AS
 SELECT
   id,
   country,
