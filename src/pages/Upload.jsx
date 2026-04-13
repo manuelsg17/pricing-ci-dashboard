@@ -305,8 +305,6 @@ function detectCity(sheetName) {
   return null
 }
 
-const BATCH_SIZE = 500
-
 export default function Upload({ country = 'Peru' }) {
   const config = getCountryConfig(country)
   const [sheets,    setSheets]    = useState([])

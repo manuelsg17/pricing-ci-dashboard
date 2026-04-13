@@ -1,16 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useFilters }      from '../hooks/useFilters'
 import { usePricingData }  from '../hooks/usePricingData'
 import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
 import { useI18n }         from '../context/LanguageContext'
+import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { BRACKETS, getCountryConfig } from '../lib/constants'
 import '../styles/dashboard.css'
 
-export default function Dashboard({ dbWeights, country = 'Peru' }) {
-  const filterState = useFilters(country)
-  const { filters } = filterState
+function DashboardContent({ dbWeights, country }) {
+  const { filters } = useFilterContext()
   const dashRef = useRef(null)
   const { t, locale } = useI18n()
   const { currency }  = getCountryConfig(country)
@@ -91,7 +90,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
 
   return (
     <div className="dashboard" ref={dashRef}>
-      <FilterBar {...filterState} country={country} />
+      <FilterBar />
 
       {/* ── KPI Bar ── */}
       {!loading && kpis && (
@@ -160,5 +159,13 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
         />
       ))}
     </div>
+  )
+}
+
+export default function Dashboard({ dbWeights, country = 'Peru' }) {
+  return (
+    <FilterProvider country={country}>
+      <DashboardContent dbWeights={dbWeights} country={country} />
+    </FilterProvider>
   )
 }

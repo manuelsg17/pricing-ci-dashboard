@@ -1,13 +1,16 @@
 import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import { useFilterContext } from '../../context/FilterContext'
 
-export default function FilterBar({
-  filters, zones,
-  setCity, setCategory, setSubCategory, setZone, setSurge,
-  setCompareVs, setViewMode, setWeekStart,
-  setDailyStart,
-  setHistoricFrom, setHistoricTo, country = 'Peru'
-}) {
+export default function FilterBar() {
+  const {
+    filters, zones, country,
+    setCity, setCategory, setSubCategory, setZone, setSurge,
+    setCompareVs, setViewMode, setWeekStart,
+    setDailyStart,
+    setHistoricFrom, setHistoricTo,
+  } = useFilterContext()
+
   const config = getCountryConfig(country)
   const { city, category, subCategory, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
   const categories  = config.categoriesByCity[city] || []

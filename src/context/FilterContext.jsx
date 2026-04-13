@@ -1,12 +1,13 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { useFilters } from '../hooks/useFilters'
 
 const FilterContext = createContext(null)
 
-export function FilterProvider({ country, children }) {
+export function FilterProvider({ country = 'Peru', children }) {
   const filterState = useFilters(country)
+  const value = useMemo(() => ({ ...filterState, country }), [filterState, country])
   return (
-    <FilterContext.Provider value={filterState}>
+    <FilterContext.Provider value={value}>
       {children}
     </FilterContext.Provider>
   )
