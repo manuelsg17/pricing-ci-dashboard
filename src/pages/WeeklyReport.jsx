@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable'
 import { sb }              from '../lib/supabase'
 import { useAuth }         from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
+import { useI18n }       from '../context/LanguageContext'
 import '../styles/weekly-report.css'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -82,6 +83,7 @@ export default function WeeklyReport({ country = 'Peru' }) {
   const { session }  = useAuth()
   const userEmail    = session?.user?.email || ''
   const now          = getISOYearWeek()
+  const { t, locale } = useI18n()
 
   const [uiCity,   setUiCity]   = useState('Lima')
   const [uiCat,    setUiCat]    = useState('Economy')
@@ -248,15 +250,12 @@ export default function WeeklyReport({ country = 'Peru' }) {
 
   return (
     <div className="report-page">
-      <h1>Reporte Gerencial</h1>
-      <p className="report-page__desc">
-        Genera un PDF con la matriz de precios por bracket y la variación respecto a la semana anterior.
-      </p>
+      <h1>{t('report.title')}</h1>
 
       {/* ── Filters ── */}
       <div className="report-filters">
         <label className="report-ctrl">
-          <span className="report-ctrl__label">Ciudad</span>
+          <span className="report-ctrl__label">{t('filter.city')}</span>
           <select value={uiCity} onChange={e => {
             setUiCity(e.target.value)
             setUiCat('Todos')
@@ -267,33 +266,33 @@ export default function WeeklyReport({ country = 'Peru' }) {
         </label>
 
         <label className="report-ctrl">
-          <span className="report-ctrl__label">Categoría</span>
+          <span className="report-ctrl__label">{t('filter.category')}</span>
           <select value={uiCat} onChange={e => { setUiCat(e.target.value); setReportDataList(null) }}>
             {categories.map(c => <option key={c}>{c}</option>)}
           </select>
         </label>
 
         <label className="report-ctrl">
-          <span className="report-ctrl__label">Semana ref.</span>
+          <span className="report-ctrl__label">{t('report.week_current')}</span>
           <input type="number" value={refWeek} min="1" max="53" style={{ width: 54 }} onChange={e => setRefWeek(Number(e.target.value))} />
           <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>/</span>
           <input type="number" value={refYear} min="2020" max="2030" style={{ width: 70 }} onChange={e => setRefYear(Number(e.target.value))} />
         </label>
 
         <label className="report-ctrl">
-          <span className="report-ctrl__label">Comparar con</span>
+          <span className="report-ctrl__label">{t('report.week_compare')}</span>
           <input type="number" value={compareWeek} min="1" max="53" style={{ width: 54 }} onChange={e => setCompareWeek(Number(e.target.value))} />
           <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>/</span>
           <input type="number" value={compareYear} min="2020" max="2030" style={{ width: 70 }} onChange={e => setCompareYear(Number(e.target.value))} />
         </label>
 
         <button className="report-btn-generate" onClick={loadReportData} disabled={loading}>
-          {loading ? 'Cargando…' : '🔍 Generar preview'}
+          {loading ? t('app.loading') : t('report.load')}
         </button>
       </div>
 
       {/* ── Preview ── */}
-      {loading && <div className="report-loading">Cargando datos{uiCat === 'Todos' ? ' de todas las categorías' : ''}…</div>}
+      {loading && <div className="report-loading">{t('app.loading')}</div>}
 
       {!loading && catMatrices.length > 0 && !hasData && (
         <div className="report-empty">
@@ -309,7 +308,7 @@ export default function WeeklyReport({ country = 'Peru' }) {
               {uiCity} · {uiCat} · Sem {refWeek}/{refYear}
             </span>
             <button className="report-btn-pdf" onClick={generatePDF} disabled={generatingPdf}>
-              {generatingPdf ? 'Generando…' : '⬇️ Descargar PDF'}
+              {generatingPdf ? t('report.generating') : t('report.download_pdf')}
             </button>
           </div>
 
@@ -408,7 +407,7 @@ export default function WeeklyReport({ country = 'Peru' }) {
             ))}
 
             <div className="report-footer">
-              Generado por {userEmail || 'usuario'} · {new Date().toLocaleString('es-PE')}
+              {userEmail || 'user'} · {new Date().toLocaleString(locale)}
             </div>
           </div>
         </div>

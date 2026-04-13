@@ -13,6 +13,7 @@ import { useCompetitorBonuses }     from '../hooks/useCompetitorBonuses'
 import { useEarningsScenarios }     from '../hooks/useEarningsScenarios'
 import CommissionsConfig from '../components/config/CommissionsConfig'
 import BonusesConfig     from '../components/config/BonusesConfig'
+import { useI18n }       from '../context/LanguageContext'
 import '../styles/driver-earnings.css'
 
 // (city/category constants are derived dynamically from COUNTRY_CONFIG via props)
@@ -43,6 +44,7 @@ function makeFmt(currency) {
 export default function DriverEarnings({ country = 'Peru' }) {
   const { session } = useAuth()
   const userEmail   = session?.user?.email || ''
+  const { t, locale } = useI18n()
 
   const [uiCity,     setUiCity]     = useState('Lima')
   const [uiCat,      setUiCat]      = useState('Economy')
@@ -361,9 +363,9 @@ export default function DriverEarnings({ country = 'Peru' }) {
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="earn-page">
-      <h1>Comparador de Ganancias</h1>
+      <h1>{t('earnings.title')}</h1>
       <p className="earn-page__desc">
-        Estima la ganancia semanal neta del conductor en cada app según los precios del CI.
+        {t('earnings.title')}
       </p>
 
       {/* ── Params ── */}
@@ -388,7 +390,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
           <div className="earn-controls">
             {/* Category */}
             <label className="earn-ctrl">
-              <span className="earn-ctrl__label">Categoría</span>
+              <span className="earn-ctrl__label">{t('filter.category')}</span>
               <select value={uiCat} onChange={e => setUiCat(e.target.value)}>
                 {categories.map(c => <option key={c}>{c}</option>)}
               </select>
@@ -396,7 +398,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
 
             {/* Week reference */}
             <label className="earn-ctrl">
-              <span className="earn-ctrl__label">Año</span>
+              <span className="earn-ctrl__label">{t('earnings.year')}</span>
               <input
                 type="number"
                 value={refYear}
@@ -407,7 +409,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
             </label>
 
             <label className="earn-ctrl">
-              <span className="earn-ctrl__label">Semana ISO</span>
+              <span className="earn-ctrl__label">{t('earnings.week')}</span>
               <input
                 type="number"
                 value={refWeek}
@@ -419,7 +421,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
 
             {/* Hours/week */}
             <label className="earn-ctrl">
-              <span className="earn-ctrl__label">Horas/semana</span>
+              <span className="earn-ctrl__label">{t('earnings.hours_per_week')}</span>
               <input
                 type="number"
                 value={hoursPerWeek}
@@ -433,7 +435,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
           {/* Scale chips */}
           <div style={{ marginTop: 12 }}>
             <div className="earn-scale">
-              <span className="earn-scale__label">Escala de viajes/semana</span>
+              <span className="earn-scale__label">{t('earnings.trip_scale')}</span>
               {tripScale.map((n, i) => (
                 <div key={i} className="earn-chip">
                   <input
@@ -452,7 +454,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
                 onClick={addScalePoint}
                 disabled={tripScale.length >= 8}
               >
-                + Agregar
+                {t('earnings.add')}
               </button>
             </div>
           </div>
@@ -463,12 +465,12 @@ export default function DriverEarnings({ country = 'Peru' }) {
       <div className="earn-panel">
         <div className="earn-panel__header">
           <span className="earn-panel__title">
-            Precios de referencia — {uiCity} · {uiCat} · {formatWeekLabel(refYear, refWeek)}
+            {t('earnings.ref_prices')} — {uiCity} · {uiCat} · {formatWeekLabel(refYear, refWeek)}
           </span>
         </div>
         <div style={{ overflowX: 'auto' }}>
           {loadingPrices ? (
-            <div className="earn-no-data">Cargando precios…</div>
+            <div className="earn-no-data">{t('earnings.loading')}</div>
           ) : (
             <>
               {Object.keys(avgPrices).length === 0 && (
@@ -526,7 +528,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
       {competitors.length > 0 && (
         <div className="earn-panel">
           <div className="earn-panel__header">
-            <span className="earn-panel__title">Ganancia semanal neta (S/)</span>
+            <span className="earn-panel__title">{t('earnings.weekly_earnings')} ({countryConfig.currency})</span>
           </div>
           <div className="earn-panel__body">
             {/* Matrix */}
@@ -673,10 +675,10 @@ export default function DriverEarnings({ country = 'Peru' }) {
                 onChange={e => setNotes(e.target.value)}
               />
               <button className="earn-btn-pdf" onClick={generateEarningsPDF}>
-                📄 Descargar PDF
+                {t('earnings.download_pdf')}
               </button>
               <button className="earn-btn-save" onClick={handleSave} disabled={saving}>
-                {saving ? 'Guardando…' : '💾 Guardar escenario'}
+                {saving ? t('app.loading') : t('earnings.save_scenario')}
               </button>
               {saveMsg && (
                 <span className={saveMsg.type === 'ok' ? 'earn-msg--ok' : 'earn-msg--err'}>
@@ -694,7 +696,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
           className="earn-config-panel__toggle"
           onClick={() => setShowConfigPanel(p => !p)}
         >
-          {showConfigPanel ? '▲' : '▼'} ⚙️ Configurar Comisiones y Bonos
+          {showConfigPanel ? '▲' : '▼'} {t('earnings.config_panel')}
         </button>
         {showConfigPanel && (
           <div className="earn-config-panel__body">
@@ -703,13 +705,13 @@ export default function DriverEarnings({ country = 'Peru' }) {
                 className={`earn-config-tab${configTab === 'commissions' ? ' active' : ''}`}
                 onClick={() => setConfigTab('commissions')}
               >
-                Comisiones
+                {t('earnings.commissions')}
               </button>
               <button
                 className={`earn-config-tab${configTab === 'bonuses' ? ' active' : ''}`}
                 onClick={() => setConfigTab('bonuses')}
               >
-                Bonos
+                {t('earnings.bonuses')}
               </button>
             </div>
             {configTab === 'commissions' && <CommissionsConfig />}
@@ -730,7 +732,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
         {showHistory && (
           loadingHist ? (
             <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: '10px 0' }}>
-              Cargando…
+              {t('app.loading')}
             </div>
           ) : scenarios.length === 0 ? (
             <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: '10px 0' }}>
@@ -752,7 +754,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
                 <tbody>
                   {scenarios.map(s => (
                     <tr key={s.id}>
-                      <td>{new Date(s.created_at).toLocaleDateString('es-PE')}</td>
+                      <td>{new Date(s.created_at).toLocaleDateString(locale)}</td>
                       <td>{formatWeekLabel(s.ref_year, s.ref_week)}</td>
                       <td>{(s.trip_scale || []).join(', ')}</td>
                       <td>{s.notes || '—'}</td>

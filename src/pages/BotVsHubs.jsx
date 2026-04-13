@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
+import { useI18n } from '../context/LanguageContext'
 
 const CITY_TABS = [
   { db: 'Lima',     label: 'Lima' },
@@ -32,6 +33,7 @@ function diffPct(hub, bot) {
 }
 
 export default function BotVsHubs() {
+  const { t } = useI18n()
   const [data,    setData]    = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
@@ -127,10 +129,10 @@ export default function BotVsHubs() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Categoría</label>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>{t('filter.category')}</label>
           <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
             style={{ padding: '5px 8px', border: '1.5px solid var(--color-border)', borderRadius: 4, fontSize: 12 }}>
-            <option value="">Todas</option>
+            <option value="">{t('access.all')}</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
@@ -161,7 +163,7 @@ export default function BotVsHubs() {
         </div>
       )}
 
-      {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)' }}>Cargando datos…</div>}
+      {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)' }}>{t('app.loading')}</div>}
 
       {!loading && !error && (
         <>
