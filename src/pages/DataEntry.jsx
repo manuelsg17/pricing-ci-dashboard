@@ -156,7 +156,10 @@ export default function DataEntry({ country = 'Peru' }) {
   const userEmail      = session?.user?.email || ''
   const { t, locale }  = useI18n()
 
-  const [uiCity,   setUiCity]   = useState('Lima')
+  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  const uiCities      = countryConfig.cities
+
+  const [uiCity,   setUiCity]   = useState(uiCities[0] || 'Lima')
   const [date,     setDate]     = useState(todayStr())
   const [surge,    setSurge]    = useState(false)
   const [refs,     setRefs]     = useState([])
@@ -191,8 +194,6 @@ export default function DataEntry({ country = 'Peru' }) {
   const { isRushHour }  = useRushHourConfig()
   const { timeslots }   = useCITimeslots()
 
-  const countryConfig = useMemo(() => getCountryConfig(country), [country])
-  const uiCities      = countryConfig.cities
   const categories    = countryConfig.categoriesByCity[uiCity] || []
 
   // dbCity: the DB city for the current UI city (use first non-special category)
@@ -261,11 +262,13 @@ export default function DataEntry({ country = 'Peru' }) {
 
   // ── Reset city when country changes ───────────────────
   useEffect(() => {
-    setUiCity(countryConfig.cities[0])
+    const firstCity = countryConfig.cities[0]
+    setUiCity(firstCity)
+    setRefs([]) // Limpiar rutas antiguas inmediatamente
     setEntries({})
     setIndriveExtra({})
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country])
+  }, [country, countryConfig])
 
   // ── Load refs ──────────────────────────────────────────
   useEffect(() => {
@@ -827,7 +830,7 @@ export default function DataEntry({ country = 'Peru' }) {
                 <span>{t('dataentry.col_city')}</span>
                 <select value={histCity} onChange={e => setHistCity(e.target.value)}>
                   <option value="">{t('dataentry.all_cities')}</option>
-                  {['Lima', 'Trujillo', 'Arequipa', 'Airport', 'Corp'].map(c => (
+                  {countryConfig.dbCities.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

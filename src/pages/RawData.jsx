@@ -301,7 +301,7 @@ export default function RawData({ country = 'Peru' }) {
               checked={outlierOnly}
               onChange={e => setOutlierOnly(e.target.checked)}
             />
-            <span style={{ color: outlierOnly ? '#dc2626' : undefined }}>⚠ Outliers (&gt;S/100)</span>
+            <span style={{ color: outlierOnly ? '#dc2626' : undefined }}>⚠ Outliers (&gt;{config.currency} 100)</span>
           </label>
         </div>
         <button className="raw-data__filter-reset" onClick={resetFilters} title="Limpiar filtros">
@@ -384,7 +384,7 @@ export default function RawData({ country = 'Peru' }) {
               <th className="col-source">Fuente</th>
               <th colSpan={3} className="col-bracket">Ruta</th>
               <th colSpan={2} className="col-point">Puntos</th>
-              <th colSpan={4} className="col-price">Precios (S/.)</th>
+              <th colSpan={4} className="col-price">Precios ({config.currency})</th>
               <th colSpan={5} className="col-bid">Bids InDrive</th>
               <th className="col-eta">ETA</th>
               <th className="col-actions"></th>

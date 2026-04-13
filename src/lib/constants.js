@@ -118,6 +118,13 @@ export const COUNTRY_CONFIG = {
     },
 
     weightCities: ['all', 'Lima', 'Trujillo', 'Arequipa', 'Airport', 'Corp'],
+    outlierThreshold: 100,
+    maxPrice: 300,
+    botCityMap: {
+      'lima': 'Lima',
+      'trujillo': 'Trujillo',
+      'arequipa': 'Arequipa'
+    }
   },
 
   Colombia: {
@@ -167,6 +174,15 @@ export const COUNTRY_CONFIG = {
     },
 
     weightCities: ['all', 'Bogotá', 'Medellín', 'Cali'],
+    outlierThreshold: 300000,
+    maxPrice: 1000000,
+    botCityMap: {
+      'bogota': 'Bogotá',
+      'bogotá': 'Bogotá',
+      'medellin': 'Medellín',
+      'medellín': 'Medellín',
+      'cali': 'Cali'
+    }
   },
 }
 

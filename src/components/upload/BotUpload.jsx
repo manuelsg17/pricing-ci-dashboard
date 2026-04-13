@@ -5,7 +5,7 @@ import { mapBotRows } from '../../lib/botMapping'
 
 const BATCH_SIZE = 500
 
-export default function BotUpload() {
+export default function BotUpload({ country = 'Peru' }) {
   const [rows,      setRows]      = useState([])  // mapped rows OK
   const [skipped,   setSkipped]   = useState([])  // skipped rows with reason
   const [fileName,  setFileName]  = useState('')
@@ -27,7 +27,7 @@ export default function BotUpload() {
       const ws     = wb.Sheets[wb.SheetNames[0]]
       const raw    = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
-      const { ok, skipped: skip } = mapBotRows(raw)
+      const { ok, skipped: skip } = mapBotRows(raw, country)
 
       // Filtrar filas sin precio en columna de salida:
       // · No-InDrive: necesita price_without_discount
@@ -168,7 +168,7 @@ export default function BotUpload() {
                   <th>Fecha</th>
                   <th>Hora</th>
                   <th>Bracket</th>
-                  <th>Precio S/.</th>
+                  <th>Precio</th>
                   <th>Con desc.</th>
                   <th>Recom.</th>
                   <th>Mín. bid</th>

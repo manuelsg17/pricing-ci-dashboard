@@ -12,7 +12,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 // useMemo kept for summary/weekly client-side mapping
 
-const OUTLIER_THRESHOLD = 100  // PEN — precios por encima se excluyen del análisis estadístico
+// Outlier threshold is now dynamic based on country configuration (cfgCountry.outlierThreshold)
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 
@@ -46,10 +46,11 @@ export default function InDriveConfig({ country = 'Peru' }) {
   const loadAnalysis = useCallback(async () => {
     setAnalysisLoading(true)
     setAnalysisError(null)
+    const threshold = cfgCountry.outlierThreshold || 100
     try {
       const [summaryRes, weeklyRes, countsRes] = await Promise.all([
-        sb.rpc('get_indrive_summary', { outlier_threshold: OUTLIER_THRESHOLD }),
-        sb.rpc('get_indrive_weekly',  { outlier_threshold: OUTLIER_THRESHOLD }),
+        sb.rpc('get_indrive_summary', { outlier_threshold: threshold }),
+        sb.rpc('get_indrive_weekly',  { outlier_threshold: threshold }),
         sb.rpc('get_indrive_counts'),
       ])
       if (summaryRes.error) throw summaryRes.error
@@ -361,7 +362,7 @@ export default function InDriveConfig({ country = 'Peru' }) {
                       </td>
                       <td style={{ textAlign: 'center', color: '#888', fontSize: 12 }}>
                         {hist?.pctDiff != null
-                          ? <span title={`${hist.obsBids} obs. con bids (avg rec S/${hist.avgRec})`}>
+                          ? <span title={`${hist.obsBids} obs. con bids (avg rec ${cfgCountry.currency}${hist.avgRec})`}>
                               {parseFloat(hist.pctDiff) > 0 ? '+' : ''}{hist.pctDiff}%
                             </span>
                           : <span title="Sin datos históricos">—</span>

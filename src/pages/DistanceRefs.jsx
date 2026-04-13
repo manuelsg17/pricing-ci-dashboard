@@ -204,7 +204,7 @@ export default function DistanceRefs({ country = 'Peru' }) {
           <div className="drefs-empty">Cargando…</div>
         ) : filteredRefs.length === 0 ? (
           <div className="drefs-empty">
-            No hay rutas para <strong>{uiCity} · {uiCat}</strong>.
+            No hay rutas para <strong>{dbCity} · {uiCat}</strong>.
             Haz clic en <strong>"+ Agregar {uiCat} completa"</strong> para crear los 6 brackets de una vez.
           </div>
         ) : (

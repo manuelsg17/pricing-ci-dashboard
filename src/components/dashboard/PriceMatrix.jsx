@@ -1,14 +1,14 @@
 import { BRACKETS, BRACKET_LABELS, YANGO_DISPLAY_NAME } from '../../lib/constants'
 import MatrixCell from './MatrixCell'
 
-export default function PriceMatrix({ filters, priceMatrix, periods }) {
+export default function PriceMatrix({ filters, priceMatrix, periods, currency = 'S/' }) {
   const { competitors, city, category, compareVs } = filters
 
   if (!periods.length) return null
 
   return (
     <div className="matrix-section">
-      <div className="matrix-section__title">Precios absolutos (S/.)</div>
+      <div className="matrix-section__title">Precios absolutos ({currency})</div>
       <div className="matrix-wrap">
         <table className="matrix-table">
           <thead>

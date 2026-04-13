@@ -1,3 +1,5 @@
+import { getCountryConfig } from './constants'
+
 /**
  * Mapeo de columnas del bot → pricing_observations
  *
@@ -20,32 +22,18 @@ const APP_MAP = {
 
 // Normalización vehicle_category + city → category DB
 // vehicle_category del bot: economy, comfort, premium, tuktuk, xl, moto, taxi, courier, etc.
-// Lima: premium → 'Premier'  |  TRU/ARQ: premium → 'Comfort'
 const VEHICLE_CATEGORY_MAP = {
-  // Genérico (se aplica para Lima y airports)
-  lima: {
-    economy:  'Economy',
-    comfort:  'Comfort',
-    premium:  'Premier',
-    tuktuk:   'TukTuk',
-    xl:       'XL',
-  },
-  trujillo: {
-    economy:  'Economy',
-    comfort:  'Comfort',
-    premium:  'Comfort',  // En TRU, premium = Comfort/Comfort+
-  },
-  arequipa: {
-    economy:  'Economy',
-    comfort:  'Comfort',
-    premium:  'Comfort',  // En ARQ, premium = Comfort/Comfort+
-    xl:       'XL',
-  },
-  airport: {
-    economy:  'Economy',
-    comfort:  'Comfort',
-    premium:  'Premier',
-  },
+  economy:  'Economy',
+  comfort:  'Comfort',
+  premium:  'Comfort', // Default safe fallback
+  tuktuk:   'TukTuk',
+  xl:       'XL',
+}
+
+// Overrides específicos (ej: premium → Premier en Lima)
+const CATEGORY_OVERRIDES = {
+  Lima: { premium: 'Premier' },
+  Airport: { premium: 'Premier' },
 }
 
 // Categorías válidas en la BD (solo estas se insertan)
@@ -63,19 +51,15 @@ const BRACKET_MAP = {
   'very_long':  'very_long',
 }
 
-const MAX_PRICE = 200  // S/. — precios > este valor son errores del bot
-
 /**
  * Parsea precio del bot. Maneja puntos como separador decimal.
- * Descarta precios > MAX_PRICE.
- * @param {string|number} val
- * @returns {number|null}
+ * Descarta precios > maxPrice.
  */
-function parsePrice(val) {
+function parsePrice(val, maxPrice) {
   if (val === null || val === undefined || val === '') return null
   const s = String(val).trim().replace(/,/g, '')  // quitar comas (Colombia)
   const n = parseFloat(s)
-  if (isNaN(n) || n <= 0 || n > MAX_PRICE) return null
+  if (isNaN(n) || n <= 0 || n > maxPrice) return null
   return n
 }
 
@@ -93,20 +77,33 @@ function parseTimestamp(ts) {
  * Transforma rows del CSV del bot → formato pricing_observations.
  *
  * @param {object[]} rows - filas parseadas del CSV del bot
+ * @param {string} activeCountry - "Peru" | "Colombia"
  * @returns {{ ok: object[], skipped: { row: object, reason: string }[] }}
  */
-export function mapBotRows(rows) {
+export function mapBotRows(rows, activeCountry = 'Peru') {
   const ok      = []
   const skipped = []
+  const config = getCountryConfig(activeCountry)
+  const maxPrice = config.maxPrice || 300
+  const botCityMap = config.botCityMap || {}
+  const targetCountry = activeCountry.toLowerCase()
 
   for (const row of rows) {
-    // 1. Filtrar solo Peru y status ok
-    const country = String(row.country || '').trim().toLowerCase()
-    const status  = String(row.status  || '').trim().toLowerCase()
-    if (country !== 'peru') {
-      skipped.push({ row, reason: `País: ${row.country}` })
-      continue
+    // 1. Filtrar solo el país activo y status ok
+    const rowCountry = String(row.country || '').trim().toLowerCase()
+    const status     = String(row.status  || '').trim().toLowerCase()
+    
+    // El bot a veces registra "Peru", a veces "Columbia" (typo común)
+    if (rowCountry !== targetCountry && rowCountry !== 'peru' && targetCountry === 'peru') {
+       skipped.push({ row, reason: `País: ${row.country} (se esperaba ${activeCountry})` })
+       continue
     }
+    // Para Colombia, el bot suele decir "colombia"
+    if (targetCountry === 'colombia' && rowCountry !== 'colombia') {
+       skipped.push({ row, reason: `País: ${row.country} (se esperaba Colombia)` })
+       continue
+    }
+
     if (status !== 'ok') {
       skipped.push({ row, reason: `Status: ${row.status}` })
       continue
@@ -122,17 +119,16 @@ export function mapBotRows(rows) {
 
     // 3. City → dbCity
     const cityRaw = String(row.city || '').trim().toLowerCase()
-    const cityMap = { lima: 'Lima', trujillo: 'Trujillo', arequipa: 'Arequipa' }
-    const dbCity  = cityMap[cityRaw]
+    const dbCity  = botCityMap[cityRaw]
     if (!dbCity) {
-      skipped.push({ row, reason: `Ciudad desconocida: ${row.city}` })
+      skipped.push({ row, reason: `Ciudad desconocida o no mapeada: ${row.city}` })
       continue
     }
 
     // 4. vehicle_category → category
     const vcRaw    = String(row.vehicle_category || '').trim().toLowerCase()
-    const catMap   = VEHICLE_CATEGORY_MAP[cityRaw] || VEHICLE_CATEGORY_MAP.lima
-    const category = catMap[vcRaw]
+    const category = CATEGORY_OVERRIDES[dbCity]?.[vcRaw] || VEHICLE_CATEGORY_MAP[vcRaw]
+    
     if (!category || !VALID_CATEGORIES.has(category)) {
       skipped.push({ row, reason: `Categoría omitida: ${row.vehicle_category}` })
       continue
@@ -140,7 +136,7 @@ export function mapBotRows(rows) {
 
     // 5. competition_name ajuste: para Yango + premium en Lima → YangoPremier
     let competition_name = compName
-    if (compName === 'Yango' && category === 'Premier' && dbCity === 'Lima') {
+    if (compName === 'Yango' && category === 'Premier' && (dbCity === 'Lima' || dbCity === 'Airport')) {
       competition_name = 'YangoPremier'
     }
     // Para Yango + Comfort en TRU/ARQ premium → YangoComfort+
@@ -151,11 +147,10 @@ export function mapBotRows(rows) {
     // 6. distance_bracket
     const bracketRaw = String(row.distance_bracket || '').trim().toLowerCase()
     const bracket    = BRACKET_MAP[bracketRaw]
-    // bracket puede ser null si viene vacío; el trigger de la BD lo re-asignará
 
     // 7. Precios
-    const priceRegular    = parsePrice(row.price_regular_value)
-    const priceDiscounted = parsePrice(row.price_discounted_value)
+    const priceRegular    = parsePrice(row.price_regular_value, maxPrice)
+    const priceDiscounted = parsePrice(row.price_discounted_value, maxPrice)
 
     // Para InDrive: regular = recommended, discounted = minimal_bid
     // Para otros:   regular = price_without_discount, discounted = price_with_discount
@@ -200,7 +195,7 @@ export function mapBotRows(rows) {
       observed_time:          time,
       point_a:                String(row.start_address || '').trim().slice(0, 200) || null,
       point_b:                String(row.end_address   || '').trim().slice(0, 200) || null,
-      distance_km:            null,   // el bot no entrega km, solo bracket
+      distance_km:            null,
       distance_bracket:       bracket || null,
       surge,
       recommended_price,
@@ -209,6 +204,7 @@ export function mapBotRows(rows) {
       minimal_bid,
       eta_min,
       zone: null,
+      country: activeCountry,
     })
   }
 

@@ -182,7 +182,7 @@ export default function WeeklyReport({ country = 'Peru' }) {
 
       // Price matrix
       doc.setFontSize(10); doc.setFont('helvetica', 'bold')
-      doc.text('Precios Promedio por Bracket (S/)', 14, startY + 6)
+      doc.text(`Precios Promedio por Bracket (${config.currency})`, 14, startY + 6)
       autoTable(doc, {
         startY: startY + 10,
         head:   [['Bracket', ...competitors]],
@@ -342,7 +342,7 @@ export default function WeeklyReport({ country = 'Peru' }) {
 
                     {/* Price matrix */}
                     <div className="report-section">
-                      <div className="report-section__title">Precios Promedio (S/)</div>
+                      <div className="report-section__title">Precios Promedio ({config.currency})</div>
                       <div className="report-table-wrap">
                         <table className="report-table">
                           <thead>

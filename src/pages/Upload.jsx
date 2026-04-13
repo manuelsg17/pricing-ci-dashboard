@@ -531,7 +531,7 @@ export default function Upload({ country = 'Peru' }) {
       </div>
 
       {/* Bot upload to DB */}
-      {uploadTab === 'bot' && <BotUpload />}
+      {uploadTab === 'bot' && <BotUpload country={country} />}
 
       {/* Bot → Excel converter */}
       {uploadTab === 'convert' && <BotConverter />}

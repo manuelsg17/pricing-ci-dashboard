@@ -67,6 +67,7 @@ export default function DriverEarnings({ country = 'Peru' }) {
     setUiCat(newCategories[0] || 'Economy')
   }, [country, countryConfig])
   const fmt = useMemo(() => makeFmt(countryConfig.currency), [countryConfig])
+  const { currency }  = countryConfig
   const uiCities    = countryConfig.cities
   const { dbCity, dbCategory: dbCat } = useMemo(
     () => resolveDbParams(uiCity, uiCat, null, country),
@@ -603,9 +604,9 @@ export default function DriverEarnings({ country = 'Peru' }) {
                     tickFormatter={v => `${v} viajes`}
                     tick={{ fontSize: 10 }}
                   />
-                  <YAxis tickFormatter={v => `S/${v}`} tick={{ fontSize: 10 }} width={60} />
+                  <YAxis tickFormatter={v => `${currency} ${v}`} tick={{ fontSize: 10 }} width={60} />
                   <RechartTooltip
-                    formatter={(val, name) => [`S/ ${val?.toFixed(2) ?? '—'}`, name]}
+                    formatter={(val, name) => [`${currency} ${val?.toFixed(2) ?? '—'}`, name]}
                     labelFormatter={v => `${v} viajes/semana`}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -646,9 +647,9 @@ export default function DriverEarnings({ country = 'Peru' }) {
                               key={i}
                               className={`earn-bonus-chip earn-bonus-chip--${b.bonus_type}`}
                             >
-                              {b.bonus_type === 'viajes' && `≥ ${b.threshold} viajes → +S/ ${b.bonus_amount}`}
-                              {b.bonus_type === 'horas'  && `≥ ${b.threshold} h/sem → +S/ ${b.bonus_amount}`}
-                              {b.bonus_type === 'zona'   && `Zona: +S/ ${b.bonus_amount} (informativo)`}
+                              {b.bonus_type === 'viajes' && `≥ ${b.threshold} viajes → +${currency} ${b.bonus_amount}`}
+                              {b.bonus_type === 'horas'  && `≥ ${b.threshold} h/sem → +${currency} ${b.bonus_amount}`}
+                              {b.bonus_type === 'zona'   && `Zona: +${currency} ${b.bonus_amount} (informativo)`}
                               {b.description && ` · ${b.description}`}
                             </span>
                           ))}
