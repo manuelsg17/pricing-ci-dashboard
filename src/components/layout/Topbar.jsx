@@ -3,44 +3,35 @@ import { COUNTRIES, COUNTRY_CONFIG } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import '../../styles/topbar.css'
 
-// Estructura de navegación agrupada
-const NAV = [
-  { id: 'dashboard', label: '📊 Dashboard', direct: true },
+const getNav = (t) => [
+  { id: 'dashboard', label: t('nav.dashboard'), direct: true },
   {
-    id: 'analisis', label: 'Análisis', icon: '📈',
+    id: 'analisis', label: t('nav.analisis'), icon: '📈',
     children: [
-      { id: 'earnings', label: '💰 Ganancias' },
-      { id: 'report',   label: '📄 Reporte'   },
+      { id: 'earnings', label: t('nav.earnings') },
+      { id: 'report',   label: t('nav.report')   },
     ],
   },
   {
-    id: 'datos', label: 'Gestión de Datos', icon: '🗄️',
+    id: 'datos', label: t('nav.datos'), icon: '🗄️',
     children: [
-      { id: 'dataentry',  label: '✏️ Ingresar CI'  },
-      { id: 'upload',     label: '📤 Cargar Data'  },
-      { id: 'rawdata',    label: '🗃 Data Raw'      },
-      { id: 'botvshubs',  label: '📊 Bot vs Hubs'  },
+      { id: 'dataentry',  label: t('nav.dataentry')  },
+      { id: 'upload',     label: t('nav.upload')  },
+      { id: 'rawdata',    label: t('nav.rawdata')      },
+      { id: 'botvshubs',  label: t('nav.botvshubs')  },
     ],
   },
   {
-    id: 'config-group', label: '⚙️ Config.', icon: '⚙️',
+    id: 'config-group', label: t('nav.config_group'), icon: '⚙️',
     children: [
-      { id: 'events',    label: '📌 Eventos'         },
-      { id: 'distances', label: '📍 Distancias Ref.' },
-      { id: 'config',    label: '⚙️ Configuración'  },
-      { id: 'access',    label: '🔐 Accesos'         },
+      { id: 'events',    label: t('nav.events')         },
+      { id: 'distances', label: t('nav.distances') },
+      { id: 'config',    label: t('nav.config')  },
+      { id: 'access',    label: t('nav.access')         },
     ],
   },
 ]
 
-// Returns the group label for a given tab id (or null if direct)
-function getGroupOf(tabId) {
-  for (const item of NAV) {
-    if (item.direct) continue
-    if (item.children?.some(c => c.id === tabId)) return item.id
-  }
-  return null
-}
 
 function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
   const [open, setOpen] = useState(false)
@@ -94,7 +85,9 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
 }
 
 export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, country = 'Peru', onCountryChange, canAccess = () => true, allowedCountries = COUNTRIES }) {
-  const { lang, setLang, languages } = useI18n()
+  const { lang, setLang, languages, t } = useI18n()
+
+  const navItems = getNav(t)
 
   return (
     <nav className="topbar">
@@ -107,7 +100,7 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
       </div>
 
       <div className="topbar__tabs">
-        {NAV.map(item => {
+        {navItems.map(item => {
           if (item.direct) {
             if (!canAccess(item.id)) return null
             return (
@@ -161,7 +154,7 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, co
         </select>
 
         <span className="topbar__user" title={userEmail}>{userEmail}</span>
-        <button className="topbar__logout" onClick={onLogout}>Salir</button>
+        <button className="topbar__logout" onClick={onLogout}>{t('app.logout')}</button>
       </div>
     </nav>
   )

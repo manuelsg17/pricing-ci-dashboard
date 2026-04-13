@@ -1,21 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { useAuth }           from './lib/auth'
 import { sb }                from './lib/supabase'
 import { useAccessControl }  from './hooks/useAccessControl'
 import { COUNTRIES }         from './lib/constants'
 import Topbar                from './components/layout/Topbar'
 import LoginScreen     from './components/layout/LoginScreen'
-import Dashboard       from './pages/Dashboard'
-import Config          from './pages/Config'
-import Upload          from './pages/Upload'
-import DistanceRefs    from './pages/DistanceRefs'
-import RawData         from './pages/RawData'
-import DataEntry       from './pages/DataEntry'
-import DriverEarnings  from './pages/DriverEarnings'
-import WeeklyReport    from './pages/WeeklyReport'
-import MarketEvents      from './pages/MarketEvents'
-import AccessManagement  from './pages/AccessManagement'
-import BotVsHubs        from './pages/BotVsHubs'
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Config = lazy(() => import('./pages/Config'))
+const Upload = lazy(() => import('./pages/Upload'))
+const DistanceRefs = lazy(() => import('./pages/DistanceRefs'))
+const RawData = lazy(() => import('./pages/RawData'))
+const DataEntry = lazy(() => import('./pages/DataEntry'))
+const DriverEarnings = lazy(() => import('./pages/DriverEarnings'))
+const WeeklyReport = lazy(() => import('./pages/WeeklyReport'))
+const MarketEvents = lazy(() => import('./pages/MarketEvents'))
+const AccessManagement = lazy(() => import('./pages/AccessManagement'))
+const BotVsHubs = lazy(() => import('./pages/BotVsHubs'))
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -97,17 +97,25 @@ export default function App() {
         allowedCountries={allowedCountries}
       />
 
-      {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} country={country} />}
-      {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry country={country} />}
-      {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings country={country} />}
-      {activeTab === 'report'    && canAccess('report')    && <WeeklyReport country={country} />}
-      {activeTab === 'events'    && canAccess('events')    && <MarketEvents country={country} />}
-      {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
-      {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
-      {activeTab === 'config'    && canAccess('config')    && <Config />}
-      {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
-      {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
-      {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
+      <Suspense fallback={
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 50px)', fontSize: 13, color: '#888'
+        }}>
+          Cargando vista…
+        </div>
+      }>
+        {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} country={country} />}
+        {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry country={country} />}
+        {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings country={country} />}
+        {activeTab === 'report'    && canAccess('report')    && <WeeklyReport country={country} />}
+        {activeTab === 'events'    && canAccess('events')    && <MarketEvents country={country} />}
+        {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
+        {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
+        {activeTab === 'config'    && canAccess('config')    && <Config />}
+        {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
+        {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
+        {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
+      </Suspense>
     </>
   )
 }
