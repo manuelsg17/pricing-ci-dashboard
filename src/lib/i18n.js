@@ -53,9 +53,13 @@ export const TRANSLATIONS = {
     'dashboard.table.price':        'Precio',
     'dashboard.table.diff':         'Dif.',
     'dashboard.table.delta_vs':     '% Delta vs',
-    'dashboard.chart.price':        'Precio S/.',
+    'dashboard.chart.price':        'Precio',
     'dashboard.chart.delta':        '% Delta',
     'dashboard.kpi.position_of':    'de',
+    'dashboard.chart.impact':       'Impacto',
+    'dashboard.chart.impact_high':  'Alto',
+    'dashboard.chart.impact_med':   'Medio',
+    'dashboard.chart.impact_low':   'Bajo',
 
     // ── Brackets ──────────────────────────────────────────
     'bracket.weighted_average':     'Promedio Ponderado',
@@ -74,6 +78,7 @@ export const TRANSLATIONS = {
     // ── FilterBar ──────────────────────────────────────
     'filter.city':       'Ciudad',
     'filter.category':   'Categoría',
+    'filter.subcategory':'Sub-cat.',
     'filter.zone':       'Zona',
     'filter.surge':      'Surge',
     'filter.compare_vs': 'Comparar vs',
@@ -239,9 +244,13 @@ export const TRANSLATIONS = {
     'dashboard.table.price':        'Price',
     'dashboard.table.diff':         'Diff',
     'dashboard.table.delta_vs':     '% Delta vs',
-    'dashboard.chart.price':        'Price S/.',
+    'dashboard.chart.price':        'Price',
     'dashboard.chart.delta':        '% Delta',
     'dashboard.kpi.position_of':    'of',
+    'dashboard.chart.impact':       'Impact',
+    'dashboard.chart.impact_high':  'High',
+    'dashboard.chart.impact_med':   'Medium',
+    'dashboard.chart.impact_low':   'Low',
 
     'bracket.weighted_average':     'Weighted Average',
     'bracket.very_short':           'Very Short',
@@ -257,6 +266,7 @@ export const TRANSLATIONS = {
 
     'filter.city':       'City',
     'filter.category':   'Category',
+    'filter.subcategory':'Sub-cat.',
     'filter.zone':       'Zone',
     'filter.surge':      'Surge',
     'filter.compare_vs': 'Compare vs',
@@ -417,9 +427,13 @@ export const TRANSLATIONS = {
     'dashboard.table.price':        'Цена',
     'dashboard.table.diff':         'Разница',
     'dashboard.table.delta_vs':     '% Дельта от',
-    'dashboard.chart.price':        'Цена S/.',
+    'dashboard.chart.price':        'Цена',
     'dashboard.chart.delta':        '% Дельта',
     'dashboard.kpi.position_of':    'из',
+    'dashboard.chart.impact':       'Влияние',
+    'dashboard.chart.impact_high':  'Высокое',
+    'dashboard.chart.impact_med':   'Среднее',
+    'dashboard.chart.impact_low':   'Низкое',
 
     'bracket.weighted_average':     'Средневзвешенное',
     'bracket.very_short':           'Очень короткий',
@@ -435,6 +449,7 @@ export const TRANSLATIONS = {
 
     'filter.city':       'Город',
     'filter.category':   'Категория',
+    'filter.subcategory':'Подкатегория',
     'filter.zone':       'Зона',
     'filter.surge':      'Surge',
     'filter.compare_vs': 'Сравнить с',

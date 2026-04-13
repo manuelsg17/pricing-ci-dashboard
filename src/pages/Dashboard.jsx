@@ -5,7 +5,7 @@ import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
 import { useI18n }         from '../context/LanguageContext'
-import { BRACKETS } from '../lib/constants'
+import { BRACKETS, getCountryConfig } from '../lib/constants'
 import '../styles/dashboard.css'
 
 export default function Dashboard({ dbWeights, country = 'Peru' }) {
@@ -13,6 +13,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
   const { filters } = filterState
   const dashRef = useRef(null)
   const { t, locale } = useI18n()
+  const { currency }  = getCountryConfig(country)
 
   const sections = useMemo(() => [
     { bracket: '_wa',        label: t('bracket.weighted_average') },
@@ -145,6 +146,7 @@ export default function Dashboard({ dbWeights, country = 'Peru' }) {
           key={bracket}
           bracket={bracket}
           label={label}
+          currency={currency}
           competitors={filters.competitors}
           periods={periods}
           priceMatrix={priceMatrix}

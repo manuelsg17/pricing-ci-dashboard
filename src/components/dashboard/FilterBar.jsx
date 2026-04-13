@@ -49,7 +49,7 @@ export default function FilterBar({
         <>
           <div className="filter-bar__divider" />
           <div className="filter-bar__group">
-            <span className="filter-bar__label">Sub-cat.</span>
+            <span className="filter-bar__label">{t('filter.subcategory')}</span>
             <select value={subCategory || ''} onChange={e => setSubCategory(e.target.value)}>
               {AEROPUERTO_SUBCATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>

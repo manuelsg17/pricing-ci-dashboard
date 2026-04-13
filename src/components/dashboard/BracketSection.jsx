@@ -25,6 +25,7 @@ export default function BracketSection({
   chartData,
   deltaChartData,
   events = [],
+  currency = 'S/',
 }) {
   const key = bracket  // '_wa' o 'very_short' etc.
   const { t } = useI18n()
@@ -70,7 +71,7 @@ export default function BracketSection({
       <div className="bracket-section__tables">
         {/* Tabla 1: Precios absolutos */}
         <div className="bracket-section__table-wrap">
-          <div className="bracket-section__table-title">{t('dashboard.table.price')} S/.</div>
+          <div className="bracket-section__table-title">{t('dashboard.table.price')} {currency}</div>
           <div className="matrix-wrap">
             <table className="matrix-table">
               <thead>
@@ -138,7 +139,7 @@ export default function BracketSection({
 
         {/* Tabla 3: Diferencia S/ */}
         <div className="bracket-section__table-wrap">
-          <div className="bracket-section__table-title">{t('dashboard.table.diff')} S/</div>
+          <div className="bracket-section__table-title">{t('dashboard.table.diff')} {currency}</div>
           <div className="matrix-wrap">
             <table className="matrix-table">
               <thead>
@@ -177,7 +178,7 @@ export default function BracketSection({
 
       {/* Gráficos */}
       <div className="bracket-section__charts">
-        <MiniChart title={t('dashboard.chart.price')} data={chartData} competitors={competitors} yFormatter={v => v.toFixed(1)} events={events} />
+        <MiniChart title={`${t('dashboard.chart.price')} ${currency}`} data={chartData} competitors={competitors} yFormatter={v => v.toFixed(1)} events={events} />
         <MiniChart title={t('dashboard.chart.delta')} data={deltaChartData} competitors={competitors} yFormatter={v => `${v.toFixed(0)}%`} isPercent events={events} />
       </div>
     </div>
@@ -205,7 +206,12 @@ function MiniChart({ title, data, competitors, yFormatter, isPercent = false, ev
             />
             <Tooltip
               contentStyle={{ fontSize: 11 }}
-              formatter={(v) => v != null ? yFormatter(v) : 'N/A'}
+              formatter={(v, name) => {
+                if (v == null) return 'N/A'
+                const displayValue = isPercent ? `${v.toFixed(0)}%` : v.toFixed(2)
+                return [displayValue, name]
+              }}
+              labelFormatter={(label) => `${t('dataentry.col_date')}: ${label}`}
             />
             {events.map(evt => {
               if (!periodKeys.has(evt.event_date)) return null
