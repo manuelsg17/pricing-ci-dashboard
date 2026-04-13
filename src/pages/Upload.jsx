@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
 import { sb }              from '../lib/supabase'
-import { DB_CITIES as CITIES } from '../lib/constants'
+import { getCountryConfig } from '../lib/constants'
 import { computeEffectivePrice } from '../algorithms/indrive'
 import { assignBracket }         from '../algorithms/brackets'
 import DropZone            from '../components/upload/DropZone'
@@ -293,17 +293,22 @@ function detectCity(sheetName) {
     if (key.includes(pattern.replace(/_/g, '')) || key === pattern) return city
   }
   // Fallback por palabras clave (corp antes de lima para evitar falso match)
-  if (key.includes('corp'))      return 'Corp'
-  if (key.includes('lima'))      return 'Lima'
-  if (key.includes('tru') || key.includes('trujillo')) return 'Trujillo'
-  if (key.includes('arq') || key.includes('arequipa')) return 'Arequipa'
-  if (key.includes('airport') || key.includes('aero')) return 'Airport'
+  const lowerPattern = key.toLowerCase()
+  if (lowerPattern.includes('corp'))      return 'Corp'
+  if (lowerPattern.includes('lima'))      return 'Lima'
+  if (lowerPattern.includes('tru') || lowerPattern.includes('trujillo')) return 'Trujillo'
+  if (lowerPattern.includes('arq') || lowerPattern.includes('arequipa')) return 'Arequipa'
+  if (lowerPattern.includes('airport') || lowerPattern.includes('aero')) return 'Airport'
+  if (lowerPattern.includes('bog'))       return 'Bogota'
+  if (lowerPattern.includes('med'))       return 'Medellin'
+  if (lowerPattern.includes('cali'))      return 'Cali'
   return null
 }
 
 const BATCH_SIZE = 500
 
-export default function Upload() {
+export default function Upload({ country = 'Peru' }) {
+  const config = getCountryConfig(country)
   const [sheets,    setSheets]    = useState([])
   const [preview,   setPreview]   = useState([])
   const [allRows,   setAllRows]   = useState([])
@@ -335,8 +340,12 @@ export default function Upload() {
     const parsed = []
     for (const sheetName of dataSheets) {
       // Ciudad: primero intenta por nombre de pestaña, luego por nombre de archivo
-      const city = detectCity(sheetName) ?? fileCity
-      if (!city) continue
+      let city = detectCity(sheetName) ?? fileCity
+      // Forzar que la ciudad detectada pertenezca al país activo
+      if (city && !config.dbCities.includes(city)) {
+          city = config.dbCities[0] 
+      }
+      if (!city) city = config.dbCities[0]
 
       const sheet = wb.Sheets[sheetName]
       const raw   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
@@ -425,9 +434,8 @@ export default function Upload() {
     setProgress({ current: 0, total: rowsToInsert.length, done: false, error: null })
 
     const batchId = crypto.randomUUID()
-    let inserted  = 0
 
-    // ── Paso 1: Borrar filas existentes del mismo rango de fechas+ciudad ──
+    // ── Paso 1: Calcular rangos fecha+ciudad para el DELETE ────────────────
     const cityDateRanges = {}
     for (const r of rowsToInsert) {
       if (!r.city || !r.observed_date) continue
@@ -435,67 +443,56 @@ export default function Upload() {
       if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
       if (r.observed_date > cityDateRanges[r.city].max) cityDateRanges[r.city].max = r.observed_date
     }
+    const cityRanges = Object.entries(cityDateRanges).map(([city, { min, max }]) =>
+      ({ city, min_date: min, max_date: max })
+    )
 
-    for (const [city, { min, max }] of Object.entries(cityDateRanges)) {
-      const { error: delErr } = await sb
-        .from('pricing_observations')
-        .delete()
-        .eq('city', city)
-        .eq('data_source', 'manual')
-        .gte('observed_date', min)
-        .lte('observed_date', max)
-      if (delErr) {
-        setProgress(p => ({ ...p, error: `Error al limpiar datos previos: ${delErr.message}`, done: false }))
-        return
+    // ── Paso 2: Pre-computar campos calculados en cada fila ────────────────
+    const finalRows = rowsToInsert.map(r => {
+      let row = {
+        ...r,
+        data_source:     'manual',
+        upload_batch_id: batchId,
+        rush_hour: r.observed_time
+          ? (isRushHour(r.observed_time, r.city) ?? r.rush_hour)
+          : r.rush_hour,
       }
-    }
-
-    // ── Paso 2: Insertar las filas nuevas ──────────────────────────────────
-    for (let i = 0; i < rowsToInsert.length; i += BATCH_SIZE) {
-      const batch = rowsToInsert.slice(i, i + BATCH_SIZE).map(r => {
-        let row = {
-          ...r,
-          data_source:    'manual',
-          upload_batch_id: batchId,
-          rush_hour: r.observed_time
-            ? (isRushHour(r.observed_time, r.city) ?? r.rush_hour)
-            : r.rush_hour,
-        }
-        // Para InDrive: calcular minimal_bid y price_without_discount desde bids
-        // si las fórmulas de Excel no fueron evaluadas (llegan como 0 o null)
-        if (row.competition_name === 'InDrive') {
-          const bidVals = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
-            .map(b => parseFloat(b)).filter(n => !isNaN(n) && n > 0)
-          if (bidVals.length) {
-            const curMin = parseFloat(row.minimal_bid)
-            if (!curMin || curMin === 0) row.minimal_bid = Math.min(...bidVals)
-            if (!row.price_without_discount || row.price_without_discount === 0) {
-              // Precio efectivo = promedio de bids únicamente (minimal_bid es el piso permitido, no un bid)
-              row.price_without_discount = parseFloat(
-                (bidVals.reduce((a, b) => a + b, 0) / bidVals.length).toFixed(2)
-              )
-            }
+      // Para InDrive: calcular minimal_bid y price_without_discount desde bids
+      // si las fórmulas de Excel no fueron evaluadas (llegan como 0 o null)
+      if (row.competition_name === 'InDrive') {
+        const bidVals = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
+          .map(b => parseFloat(b)).filter(n => !isNaN(n) && n > 0)
+        if (bidVals.length) {
+          const curMin = parseFloat(row.minimal_bid)
+          if (!curMin || curMin === 0) row.minimal_bid = Math.min(...bidVals)
+          if (!row.price_without_discount || row.price_without_discount === 0) {
+            // Precio efectivo = promedio de bids únicamente (minimal_bid es el piso permitido, no un bid)
+            row.price_without_discount = parseFloat(
+              (bidVals.reduce((a, b) => a + b, 0) / bidVals.length).toFixed(2)
+            )
           }
         }
-        return row
-      })
-      const { error } = await sb.from('pricing_observations').insert(batch)
-      if (error) {
-        setProgress(p => ({ ...p, error: error.message, done: false }))
-        return
       }
-      inserted += batch.length
-      setProgress({ current: inserted, total: rowsToInsert.length, done: false, error: null })
-    }
-
-    await sb.from('upload_batches').insert({
-      id:        batchId,
-      filename:  sheets.map(s => s.name).join(', '),
-      row_count: rowsToInsert.length,
-      city:      'multi',
+      return row
     })
 
-    setProgress({ current: allRows.length, total: allRows.length, done: true, error: null })
+    // ── Paso 3: DELETE + INSERT atómico vía RPC ────────────────────────────
+    // La función PL/pgSQL corre en una sola transacción: si el INSERT falla,
+    // el DELETE se revierte y los datos originales quedan intactos.
+    const { error } = await sb.rpc('upsert_pricing_batch', {
+      p_rows:       finalRows,
+      p_city_ranges: cityRanges,
+      p_batch_id:   batchId,
+      p_filename:   sheets.map(s => s.name).join(', '),
+      p_row_count:  finalRows.length,
+    })
+
+    if (error) {
+      setProgress(p => ({ ...p, error: error.message, done: false }))
+      return
+    }
+
+    setProgress({ current: finalRows.length, total: finalRows.length, done: true, error: null })
   }
 
   const handleClear = () => {
@@ -576,7 +573,7 @@ export default function Upload() {
                         onChange={e => updateSheetCity(i, e.target.value)}
                         style={{ fontSize: 12, padding: '2px 4px' }}
                       >
-                        {CITIES.map(c => <option key={c}>{c}</option>)}
+                        {config.dbCities.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </td>
                     <td style={{ textAlign: 'right' }}>{s.rowCount.toLocaleString()}</td>

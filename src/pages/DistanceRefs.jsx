@@ -1,45 +1,39 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useDistanceRefs } from '../hooks/useDistanceRefs'
-import { BRACKETS, BRACKET_LABELS } from '../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../lib/constants'
 import '../styles/distance-refs.css'
 
-const UI_CITIES = ['Lima', 'Trujillo', 'Arequipa', 'Aeropuerto', 'Corp']
+export default function DistanceRefs({ country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  
+  // Reconstruimos la lista de "solapas" (UI Cities) basadas en la configuración del país
+  const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
+  const uiCities = config.dbCities
 
-const DB_CITY_MAP = {
-  Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa',
-  Aeropuerto: 'Airport', Corp: 'Corp',
-}
+  const [dbCity,    setDbCity]    = useState(config.dbCities[0] || 'Lima')
+  const [uiCat,     setUiCat]     = useState('')
+  
+  // Refuerzo: si cambiamos de país, re-centramos a la ciudad 0 de ese país
+  useEffect(() => {
+    if (!config.dbCities.includes(dbCity)) {
+       setDbCity(config.dbCities[0])
+    }
+  }, [country, config.dbCities, dbCity])
 
-// Categorías UI por ciudad DB (lo que ve el usuario)
-const CATEGORIES_BY_DB_CITY = {
-  Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'TukTuk', 'XL'],
-  Trujillo: ['Economy', 'Comfort/Comfort+'],
-  Arequipa: ['Economy', 'Comfort/Comfort+', 'XL'],
-  Airport:  ['Economy', 'Comfort', 'Comfort+/Premier'],
-  Corp:     ['Corp'],
-}
+  const categories = config.categoriesByCity?.[dbCity] || []
 
-// Mapeo nombre UI de categoría → nombre BD
-const UI_CAT_TO_DB = {
-  'Economy':          'Economy',
-  'Comfort':          'Comfort',
-  'Comfort+/Premier': 'Premier',
-  'Comfort/Comfort+': 'Comfort',
-  'TukTuk':           'TukTuk',
-  'XL':               'XL',
-  'Corp':             'Corp',
-}
+  // Inicializar uiCat al cambiar ciudad/país
+  useEffect(() => {
+    if (categories.length > 0 && !categories.includes(uiCat)) {
+      setUiCat(categories[0])
+    }
+  }, [categories, uiCat])
 
-export default function DistanceRefs() {
-  const [uiCity,    setUiCity]    = useState('Lima')
-  const [uiCat,     setUiCat]     = useState('Economy')
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkMsg,    setBulkMsg]    = useState(null)
 
-  const dbCity     = DB_CITY_MAP[uiCity]
-  const categories = CATEGORIES_BY_DB_CITY[dbCity] || []
-  const dbCat      = UI_CAT_TO_DB[uiCat] || uiCat
-
+  // dbCat usa lookup o el mismo si no está mapeado
+  const dbCat = config.uiToDbCategory?.[uiCat] || uiCat
   const { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows } = useDistanceRefs(dbCity)
 
   // Local edits
@@ -58,9 +52,8 @@ export default function DistanceRefs() {
   const pendingCount = pendingRefs.length
 
   function handleCityChange(city) {
-    setUiCity(city)
-    const cats = CATEGORIES_BY_DB_CITY[DB_CITY_MAP[city]] || []
-    setUiCat(cats[0] || 'Economy')
+    setDbCity(city)
+    // El setUiCat se manejará por el useEffect cuando cambie `categories`
     setEdits({})
     setBulkMsg(null)
   }
@@ -141,8 +134,8 @@ export default function DistanceRefs() {
       {/* City selector */}
       <div className="drefs-filters">
         <span className="drefs-filters__label">Ciudad</span>
-        <select value={uiCity} onChange={e => handleCityChange(e.target.value)}>
-          {UI_CITIES.map(c => <option key={c}>{c}</option>)}
+        <select value={dbCity} onChange={e => handleCityChange(e.target.value)}>
+          {uiCities.map(c => <option key={c} value={c}>{CITY_LABEL[c] || c}</option>)}
         </select>
       </div>
 
@@ -159,7 +152,7 @@ export default function DistanceRefs() {
             {cat}
             {/* badge de cuántas rutas tiene */}
             <span className="drefs-cat-count">
-              {refs.filter(r => r.category === UI_CAT_TO_DB[cat]).length}
+              {refs.filter(r => r.category === (config.uiToDbCategory?.[cat] || cat)).length}
             </span>
           </button>
         ))}

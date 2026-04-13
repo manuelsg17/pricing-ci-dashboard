@@ -109,12 +109,12 @@ export default function App() {
         {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings country={country} />}
         {activeTab === 'report'    && canAccess('report')    && <WeeklyReport country={country} />}
         {activeTab === 'events'    && canAccess('events')    && <MarketEvents country={country} />}
-        {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
-        {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
-        {activeTab === 'config'    && canAccess('config')    && <Config />}
-        {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
-        {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
-        {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
+        {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData country={country} />}
+        {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs country={country} />}
+        {activeTab === 'config'    && canAccess('config')    && <Config country={country} />}
+        {activeTab === 'upload'    && canAccess('upload')    && <Upload country={country} />}
+        {activeTab === 'distances' && canAccess('distances') && <DistanceRefs country={country} />}
+        {activeTab === 'access'    && canAccess('access')    && <AccessManagement country={country} />}
       </Suspense>
     </>
   )

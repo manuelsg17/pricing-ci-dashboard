@@ -12,7 +12,7 @@ import InDriveConfig         from '../components/config/InDriveConfig'
 import { useI18n }           from '../context/LanguageContext'
 import '../styles/config.css'
 
-export default function Config() {
+export default function Config({ country = 'Peru' }) {
   const [activeTab, setActiveTab] = useState('thresholds')
   const { t } = useI18n()
 
@@ -63,6 +63,7 @@ export default function Config() {
           thresholds={thresholds}
           onSave={saveThresholds}
           saving={saving}
+          country={country}
         />
       )}
 
@@ -71,6 +72,7 @@ export default function Config() {
           weights={weights}
           onSave={saveWeights}
           saving={saving}
+          country={country}
         />
       )}
 
@@ -79,15 +81,16 @@ export default function Config() {
           semaforo={semaforo}
           onSave={saveSemaforo}
           saving={saving}
+          country={country}
         />
       )}
 
-      {activeTab === 'pricerules' && <PriceRulesTable />}
-      {activeTab === 'rushhour'    && <RushHourConfig />}
-      {activeTab === 'timeslots'   && <CITimeslotsConfig />}
-      {activeTab === 'commissions' && <CommissionsConfig />}
-      {activeTab === 'bonuses'     && <BonusesConfig />}
-      {activeTab === 'indrive'     && <InDriveConfig />}
+      {activeTab === 'pricerules' && <PriceRulesTable country={country} />}
+      {activeTab === 'rushhour'    && <RushHourConfig country={country} />}
+      {activeTab === 'timeslots'   && <CITimeslotsConfig country={country} />}
+      {activeTab === 'commissions' && <CommissionsConfig country={country} />}
+      {activeTab === 'bonuses'     && <BonusesConfig country={country} />}
+      {activeTab === 'indrive'     && <InDriveConfig country={country} />}
     </div>
   )
 }

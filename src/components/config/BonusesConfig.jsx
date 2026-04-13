@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useCompetitorBonuses } from '../../hooks/useCompetitorBonuses'
-import { DB_CITIES, COMPETITOR_COLORS } from '../../lib/constants'
+import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 
-const CITY_OPTIONS = [{ value: '', label: 'Todas' }, ...DB_CITIES.map(c => ({ value: c, label: c }))]
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 const TYPE_OPTIONS = [
   { value: 'viajes', label: 'Viajes' },
@@ -10,7 +9,10 @@ const TYPE_OPTIONS = [
   { value: 'zona',   label: 'Zona' },
 ]
 
-export default function BonusesConfig() {
+export default function BonusesConfig({ country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  const CITY_OPTIONS = [{ value: '', label: 'Todas' }, ...config.dbCities.map(c => ({ value: c, label: c }))]
+
   const { allRows, loading, saveBonus, deleteBonus, addRow } = useCompetitorBonuses()
   const [saving, setSaving] = useState(false)
   const [msg,    setMsg]    = useState(null)
@@ -67,7 +69,7 @@ export default function BonusesConfig() {
               <th>Ciudad</th>
               <th>Tipo</th>
               <th>Umbral</th>
-              <th>Monto S/</th>
+              <th>Monto {config.currency}</th>
               <th>Descripción</th>
               <th>Activo</th>
               <th>Orden</th>

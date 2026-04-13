@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
-import { DB_CITIES } from '../../lib/constants'
+import { getCountryConfig } from '../../lib/constants'
 
-const ALL_CITIES = ['all', ...DB_CITIES]
+export default function RushHourConfig({ country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  const allCities = ['all', ...config.dbCities]
 
-export default function RushHourConfig() {
   const [windows, setWindows] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [msg,     setMsg]     = useState(null)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [country])
 
   async function load() {
     setLoading(true)
-    const { data } = await sb.from('rush_hour_windows').select('*').order('city').order('start_time')
+    const { data } = await sb.from('rush_hour_windows').select('*').in('city', allCities).order('city').order('start_time')
     setWindows(data || [])
     setLoading(false)
   }
@@ -87,7 +88,7 @@ export default function RushHourConfig() {
             <tr key={w.id}>
               <td>
                 <select value={w.city} onChange={e => update(w.id, 'city', e.target.value)}>
-                  {ALL_CITIES.map(c => <option key={c} value={c}>{c === 'all' ? 'Todas las ciudades' : c}</option>)}
+                  {allCities.map(c => <option key={c} value={c}>{c === 'all' ? 'Todas las ciudades' : c}</option>)}
                 </select>
               </td>
               <td>

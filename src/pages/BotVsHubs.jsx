@@ -12,19 +12,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { useI18n } from '../context/LanguageContext'
+import { getCountryConfig } from '../lib/constants'
 
-const CITY_TABS = [
-  { db: 'Lima',     label: 'Lima' },
-  { db: 'Trujillo', label: 'Trujillo' },
-  { db: 'Arequipa', label: 'Arequipa' },
-  { db: 'Airport',  label: 'Aeropuerto' },
-  { db: 'Corp',     label: 'Corp' },
-  { db: null,       label: 'Todas' },
-]
+// Etiquetas personalizadas por DB
+const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
 
-function fmt(val) {
+function fmt(val, currency = 'S/') {
   if (val === null || val === undefined) return '—'
-  return `S/ ${parseFloat(val).toFixed(2)}`
+  return `${currency} ${parseFloat(val).toFixed(2)}`
 }
 
 function diffPct(hub, bot) {
@@ -32,12 +27,28 @@ function diffPct(hub, bot) {
   return ((parseFloat(bot) / parseFloat(hub)) - 1) * 100
 }
 
-export default function BotVsHubs() {
+export default function BotVsHubs({ country = 'Peru' }) {
   const { t } = useI18n()
+  const config = getCountryConfig(country)
+  const cityTabs = useMemo(() => {
+    return [
+      ...config.dbCities.map(db => ({ db, label: CITY_LABEL[db] || db })),
+      { db: null, label: 'Todas' }
+    ]
+  }, [config.dbCities])
+
   const [data,    setData]    = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
-  const [city,    setCity]    = useState('Lima')
+  
+  // Resetea city al cambiar de país si la seleccionada ya no es válida
+  const [city, setCity] = useState(config.dbCities[0])
+  useEffect(() => {
+    if (city !== null && !config.dbCities.includes(city)) {
+      setCity(config.dbCities[0])
+    }
+  }, [country, config.dbCities, city])
+
   const [catFilter,  setCatFilter]  = useState('')
   const [compFilter, setCompFilter] = useState('')
 
@@ -47,7 +58,7 @@ export default function BotVsHubs() {
       setError(null)
       try {
         const { data: rows, error: e } = await sb.rpc('get_bot_vs_hubs_summary', {
-          p_country: 'Peru',
+          p_country: country,
         })
         if (e) throw e
         setData(rows || [])
@@ -58,7 +69,7 @@ export default function BotVsHubs() {
       }
     }
     load()
-  }, [])
+  }, [country])
 
   // Filtrar por ciudad activa
   const cityData = useMemo(() =>
@@ -222,13 +233,13 @@ export default function BotVsHubs() {
                           {r.hub ? r.hub.obs_count.toLocaleString() : '—'}
                         </td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', background: '#f0fdf4', fontWeight: r.hub ? 600 : 400 }}>
-                          {r.hub ? fmt(r.hub.avg_effective) : '—'}
+                          {r.hub ? fmt(r.hub.avg_effective, config.currency) : '—'}
                         </td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', background: '#eff6ff', color: '#374151' }}>
                           {r.bot ? r.bot.obs_count.toLocaleString() : '—'}
                         </td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', background: '#eff6ff', fontWeight: r.bot ? 600 : 400 }}>
-                          {r.bot ? fmt(r.bot.avg_effective) : '—'}
+                          {r.bot ? fmt(r.bot.avg_effective, config.currency) : '—'}
                         </td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700, color: pctColor }}>
                           {pct === null ? '—' : `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`}

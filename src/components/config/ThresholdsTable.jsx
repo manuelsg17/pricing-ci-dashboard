@@ -1,32 +1,40 @@
-import { useState, useMemo } from 'react'
-import { BRACKETS, BRACKET_LABELS, DB_CITIES } from '../../lib/constants'
+import { useState, useEffect, useMemo } from 'react'
+import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 
-// Categorías a nivel DB (para configuración de umbrales)
-const DB_CATEGORIES_BY_CITY = {
-  Lima:     ['Premier', 'Economy', 'Comfort', 'TukTuk', 'XL'],
-  Trujillo: ['Economy', 'Comfort'],
-  Arequipa: ['Economy', 'Comfort', 'XL'],
-  Airport:  ['Comfort', 'Premier', 'Economy'],
-  Corp:     ['Corp'],
-}
-
-export default function ThresholdsTable({ thresholds, onSave, saving }) {
+export default function ThresholdsTable({ thresholds, onSave, saving, country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  
   // Combinar todas las city+category configuradas (incluye 'all')
   const cityCategories = useMemo(() => {
     const pairs = new Set()
-    DB_CITIES.forEach(city => {
-      DB_CATEGORIES_BY_CITY[city].forEach(cat => pairs.add(`${city}|||${cat}`))
+    config.dbCities.forEach(city => {
+      const cats = config.categoriesByCity?.[city] || []
+      cats.forEach(cat => pairs.add(`${city}|||${cat}`))
     })
-    // Agregar las que ya existen en DB
-    thresholds.forEach(t => pairs.add(`${t.city}|||${t.category}`))
+    // Agregar las que ya existen en DB y pertenezcan al país
+    thresholds.forEach(t => {
+      if (config.dbCities.includes(t.city)) {
+        pairs.add(`${t.city}|||${t.category}`)
+      }
+    })
     return [...pairs].sort().map(p => {
       const [city, category] = p.split('|||')
       return { city, category }
     })
-  }, [thresholds])
+  }, [thresholds, config.dbCities, config.categoriesByCity])
 
-  const [selectedCity, setSelectedCity] = useState(DB_CITIES[0])
-  const [selectedCat,  setSelectedCat]  = useState(DB_CATEGORIES_BY_CITY[DB_CITIES[0]][0])
+  const [selectedCity, setSelectedCity] = useState(config.dbCities[0])
+  const [selectedCat,  setSelectedCat]  = useState(config.categoriesByCity?.[config.dbCities[0]]?.[0] || '')
+  
+  // Reseteo si cambia país
+  useEffect(() => {
+    if (!config.dbCities.includes(selectedCity)) {
+       const newCity = config.dbCities[0]
+       setSelectedCity(newCity)
+       setSelectedCat(config.categoriesByCity?.[newCity]?.[0] || '')
+    }
+  }, [country, config.dbCities, config.categoriesByCity, selectedCity])
+
   const [local,        setLocal]        = useState({})
   const [saveMsg,      setSaveMsg]      = useState('')
 
@@ -73,15 +81,15 @@ export default function ThresholdsTable({ thresholds, onSave, saving }) {
           value={selectedCity}
           onChange={e => {
             setSelectedCity(e.target.value)
-            setSelectedCat(DB_CATEGORIES_BY_CITY[e.target.value]?.[0] || '')
+            setSelectedCat(config.categoriesByCity?.[e.target.value]?.[0] || '')
           }}
         >
-          {DB_CITIES.map(c => <option key={c}>{c}</option>)}
+          {config.dbCities.map(c => <option key={c}>{c}</option>)}
         </select>
 
         <label>Categoría</label>
         <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)}>
-          {(DB_CATEGORIES_BY_CITY[selectedCity] || []).map(c => <option key={c}>{c}</option>)}
+          {(config.categoriesByCity?.[selectedCity] || []).map(c => <option key={c}>{c}</option>)}
         </select>
       </div>
 

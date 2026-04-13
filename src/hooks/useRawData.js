@@ -10,7 +10,7 @@ export function useRawData(filters) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
-  const { dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource, outlierOnly } = filters
+  const { dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource, outlierOnly, country } = filters
 
   const fetch = useCallback(async (p = 0) => {
     if (!dbCity) return
@@ -26,6 +26,7 @@ export function useRawData(filters) {
         .order('observed_time', { ascending: false })
         .range(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE - 1)
 
+      if (country)       q = q.eq('country', country)
       if (dbCategory)    q = q.eq('category', dbCategory)
       if (competition)   q = q.eq('competition_name', competition)
       if (surge !== '')  q = q.eq('surge', surge === 'true')
@@ -45,11 +46,11 @@ export function useRawData(filters) {
       setTotal(count || 0)
       setPage(p)
     } catch (e) {
-      setError(e.message)
+       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource, outlierOnly])
+  }, [dbCity, dbCategory, competition, surge, bracket, dateFrom, dateTo, searchA, searchB, dataSource, outlierOnly, country])
 
   useEffect(() => { fetch(0) }, [fetch])
 

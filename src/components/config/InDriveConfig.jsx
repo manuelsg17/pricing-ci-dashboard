@@ -14,23 +14,19 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 
 const OUTLIER_THRESHOLD = 100  // PEN — precios por encima se excluyen del análisis estadístico
 import { sb } from '../../lib/supabase'
-
-// Combinaciones para la sección de config (editable por el usuario)
-const CONFIG_ROWS = [
-  { city: 'Lima',     category: 'Economy'  },
-  { city: 'Lima',     category: 'Comfort'  },
-  { city: 'Lima',     category: 'Premier'  },
-  { city: 'Lima',     category: 'XL'       },
-  { city: 'Lima',     category: 'TukTuk'   },
-  { city: 'Trujillo', category: 'Economy'  },
-  { city: 'Trujillo', category: 'Comfort'  },
-  { city: 'Arequipa', category: 'Economy'  },
-  { city: 'Arequipa', category: 'Comfort'  },
-  { city: 'Arequipa', category: 'XL'       },
-]
+import { getCountryConfig } from '../../lib/constants'
 
 
-export default function InDriveConfig() {
+export default function InDriveConfig({ country = 'Peru' }) {
+  const cfgCountry = getCountryConfig(country)
+  
+  const CONFIG_ROWS = useMemo(() => {
+    return cfgCountry.dbCities.flatMap(city => {
+      const cats = cfgCountry.categoriesByCity?.[city] || []
+      return cats.map(category => ({ city, category }))
+    })
+  }, [cfgCountry])
+
   const [analysisView, setAnalysisView] = useState('summary')  // 'summary' | 'weekly'
 
   // ── Estado de análisis histórico ─────────────────────────────
@@ -182,10 +178,10 @@ export default function InDriveConfig() {
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; S/{OUTLIER_THRESHOLD} se excluyen del cálculo de promedio como outliers.
+          Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; {cfgCountry.currency} {OUTLIER_THRESHOLD} se excluyen del cálculo de promedio como outliers.
           {' '}· Total en BD: <strong>{counts.total_rows}</strong> | Con bids: <strong>{counts.rows_with_bids}</strong> | Sin bids: <strong style={{ color: (counts.total_rows - counts.rows_with_bids) > 0 ? '#dc2626' : 'inherit' }}>{counts.total_rows - counts.rows_with_bids}</strong>
           {summary.some(r => r.outlierRecs > 0) && (
-            <> · <span style={{ color: '#dc2626' }}>⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt; S/{OUTLIER_THRESHOLD}) excluidos del promedio.</span></>
+            <> · <span style={{ color: '#dc2626' }}>⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt; {cfgCountry.currency} {OUTLIER_THRESHOLD}) excluidos del promedio.</span></>
           )}
         </p>
 
@@ -227,17 +223,17 @@ export default function InDriveConfig() {
                       <td style={{ textAlign: 'left' }}>{r.category}</td>
                       <td style={{ textAlign: 'right' }}>{r.obsBids.toLocaleString()}</td>
                       <td style={{ textAlign: 'right' }}>
-                        {r.avgRec != null ? `S/ ${r.avgRec}` : '—'}
+                        {r.avgRec != null ? `${cfgCountry.currency} ${r.avgRec}` : '—'}
                       </td>
                       <td style={{ textAlign: 'right', color: '#9ca3af', fontSize: 11 }}>
-                        {r.minRec != null ? `S/ ${r.minRec}` : '—'}
+                        {r.minRec != null ? `${cfgCountry.currency} ${r.minRec}` : '—'}
                       </td>
                       <td style={{ textAlign: 'right', color: r.outlierRecs > 0 ? '#dc2626' : '#9ca3af', fontSize: 11 }}>
-                        {r.maxRec != null ? `S/ ${r.maxRec}` : '—'}
-                        {r.outlierRecs > 0 && <span title={`${r.outlierRecs} precios > S/${OUTLIER_THRESHOLD} excluidos`}> ⚠</span>}
+                        {r.maxRec != null ? `${cfgCountry.currency} ${r.maxRec}` : '—'}
+                        {r.outlierRecs > 0 && <span title={`${r.outlierRecs} precios > ${cfgCountry.currency} ${OUTLIER_THRESHOLD} excluidos`}> ⚠</span>}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        {r.avgBid != null ? `S/ ${r.avgBid}` : '—'}
+                        {r.avgBid != null ? `${cfgCountry.currency} ${r.avgBid}` : '—'}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>
                         {r.pctDiff != null ? (
@@ -276,8 +272,8 @@ export default function InDriveConfig() {
                         <td style={{ textAlign: 'left' }}>{r.category}</td>
                         <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>{r.week}</td>
                         <td style={{ textAlign: 'right' }}>{r.obs}</td>
-                        <td style={{ textAlign: 'right' }}>{r.avgRec != null ? `S/ ${r.avgRec}` : '—'}</td>
-                        <td style={{ textAlign: 'right' }}>{r.avgBid != null ? `S/ ${r.avgBid}` : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{r.avgRec != null ? `${cfgCountry.currency} ${r.avgRec}` : '—'}</td>
+                        <td style={{ textAlign: 'right' }}>{r.avgBid != null ? `${cfgCountry.currency} ${r.avgBid}` : '—'}</td>
                         <td style={{ textAlign: 'right', fontWeight: 700 }}>
                           {r.pctDiff != null ? (
                             <span style={{ color: Math.abs(parseFloat(r.pctDiff)) > 80 ? '#dc2626' : parseFloat(r.pctDiff) > 0 ? '#166534' : '#991b1b' }}>

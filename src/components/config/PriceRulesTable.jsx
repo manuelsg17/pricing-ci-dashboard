@@ -1,20 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
-import { DB_CITIES } from '../../lib/constants'
+import { getCountryConfig } from '../../lib/constants'
 
-const DEFAULT_CITY = DB_CITIES[0]
+export default function PriceRulesTable({ country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  const defaultCity = config.dbCities[0] || 'Lima'
 
-export default function PriceRulesTable() {
   const [rules,   setRules]   = useState([])
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [msg,     setMsg]     = useState(null)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [country])
 
   async function load() {
     setLoading(true)
-    const { data } = await sb.from('price_validation_rules').select('*').order('city').order('category').order('competition')
+    const { data } = await sb.from('price_validation_rules').select('*').in('city', config.dbCities).order('city').order('category').order('competition')
     setRules(data || [])
     setLoading(false)
   }
@@ -26,7 +27,7 @@ export default function PriceRulesTable() {
   function addRule() {
     const tempId = `new_${Date.now()}`
     setRules(prev => [...prev, {
-      id: tempId, city: DEFAULT_CITY, category: 'all',
+      id: tempId, city: defaultCity, category: 'all',
       competition: 'all', max_price: 120, _new: true,
     }])
   }
@@ -83,7 +84,7 @@ export default function PriceRulesTable() {
             <th>Ciudad</th>
             <th>Categoría</th>
             <th>Competidor</th>
-            <th>Precio máx (S/.)</th>
+            <th>Precio máx ({config.currency})</th>
             <th></th>
           </tr>
         </thead>
@@ -92,7 +93,7 @@ export default function PriceRulesTable() {
             <tr key={rule.id}>
               <td>
                 <select value={rule.city} onChange={e => updateRule(rule.id, 'city', e.target.value)}>
-                  {DB_CITIES.map(c => <option key={c}>{c}</option>)}
+                  {config.dbCities.map(c => <option key={c}>{c}</option>)}
                 </select>
               </td>
               <td>

@@ -1,8 +1,19 @@
-import { useState, useMemo } from 'react'
-import { BRACKETS, BRACKET_LABELS, WEIGHT_CITIES } from '../../lib/constants'
+import { useState, useEffect, useMemo } from 'react'
+import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 
-export default function WeightsTable({ weights, onSave, saving }) {
-  const [activeCity, setActiveCity] = useState(WEIGHT_CITIES[1]) // 'Lima' por defecto
+export default function WeightsTable({ weights, onSave, saving, country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  const weightCities = useMemo(() => ['all', ...config.dbCities], [config.dbCities])
+  
+  const [activeCity, setActiveCity] = useState(weightCities[1] || 'all') // 'Primera ciudad' por defecto
+  
+  // Reseteo si cambia país
+  useEffect(() => {
+    if (!weightCities.includes(activeCity)) {
+       setActiveCity(weightCities[1] || 'all')
+    }
+  }, [country, weightCities, activeCity])
+  
   const [local,      setLocal]      = useState({})
   const [saveMsg,    setSaveMsg]    = useState('')
 
@@ -52,7 +63,7 @@ export default function WeightsTable({ weights, onSave, saving }) {
       </p>
 
       <div className="city-tabs">
-        {WEIGHT_CITIES.map(c => (
+        {weightCities.map(c => (
           <button
             key={c}
             className={`city-tab${activeCity === c ? ' active' : ''}`}

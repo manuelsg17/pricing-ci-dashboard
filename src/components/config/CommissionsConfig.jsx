@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
-import { DB_CITIES, COMPETITOR_COLORS } from '../../lib/constants'
+import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 
-const CITY_OPTIONS = [{ value: '', label: 'Todas las ciudades' }, ...DB_CITIES.map(c => ({ value: c, label: c }))]
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
-export default function CommissionsConfig() {
+export default function CommissionsConfig({ country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  const CITY_OPTIONS = [{ value: '', label: 'Todas las ciudades' }, ...config.dbCities.map(c => ({ value: c, label: c }))]
+
   const { allRows, loading, saveCommission, deleteCommission, addRow } = useCompetitorCommissions()
   const [saving, setSaving] = useState(false)
   const [msg,    setMsg]    = useState(null)

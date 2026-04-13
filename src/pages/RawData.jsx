@@ -1,28 +1,11 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { useRawData } from '../hooks/useRawData'
-import { BRACKETS, BRACKET_LABELS, DB_CITIES } from '../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../lib/constants'
 import '../styles/raw-data.css'
 
-const DB_CATEGORIES = {
-  Lima:     ['Economy', 'Comfort', 'Comfort+/Premier', 'Premier', 'TukTuk', 'XL'],
-  Trujillo: ['Economy', 'Comfort/Comfort+', 'Comfort'],
-  Arequipa: ['Economy', 'Comfort/Comfort+', 'Comfort', 'XL'],
-  Airport:  ['Economy', 'Comfort', 'Comfort+/Premier', 'Premier'],
-  Corp:     ['Corp']
-}
-
-const DB_COMPETITORS = {
-  Lima:     ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-  Trujillo: ['Yango', 'YangoComfort+', 'Uber', 'InDrive', 'Cabify'],
-  Arequipa: ['Yango', 'YangoComfort+', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-  Airport:  ['Yango', 'YangoPremier', 'Uber', 'Didi', 'InDrive', 'Cabify'],
-  Corp:     ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL', 'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
-}
-
-// DB-level city labels for tabs — derived from DB_CITIES
+// DB-level city labels for tabs
 const CITY_LABEL = { Lima: 'Lima', Trujillo: 'Trujillo', Arequipa: 'Arequipa', Airport: 'Aeropuerto', Corp: 'Corp' }
-const CITY_TABS = DB_CITIES.map(db => ({ db, label: CITY_LABEL[db] || db }))
 
 // Bracket options for filter select — derived from BRACKETS + BRACKET_LABELS
 const BRACKET_OPTIONS = [
@@ -42,13 +25,20 @@ function fmt(val, decimals = 2) {
   return isNaN(n) ? String(val) : n.toFixed(decimals)
 }
 
-export default function RawData() {
+export default function RawData({ country = 'Peru' }) {
+  const config = getCountryConfig(country)
+  const cityTabs = useMemo(() => config.dbCities.map(db => ({ db, label: CITY_LABEL[db] || db })), [config.dbCities])
+  
   const getInitialState = (key, defaultVal) => {
     const saved = sessionStorage.getItem(`rawData_${key}`)
     return saved !== null ? saved : defaultVal
   }
 
-  const [dbCity, setDbCity] = useState(getInitialState('dbCity', 'Lima'))
+  // Si dbCity inicial no está en config.dbCities, forzar a la primera ciudad de este país
+  const defaultCity = getInitialState('dbCity', config.dbCities[0])
+  const safeCity = config.dbCities.includes(defaultCity) ? defaultCity : config.dbCities[0]
+
+  const [dbCity, setDbCity] = useState(safeCity)
   const [dbCategory,  setDbCategory]  = useState(getInitialState('dbCategory', ''))
   const [competition, setCompetition] = useState(getInitialState('competition', ''))
   const [surge,       setSurge]       = useState(getInitialState('surge', ''))
@@ -71,6 +61,22 @@ export default function RawData() {
   useEffect(() => { sessionStorage.setItem('rawData_searchB', searchB) }, [searchB])
   useEffect(() => { sessionStorage.setItem('rawData_dataSource', dataSource) }, [dataSource])
   useEffect(() => { sessionStorage.setItem('rawData_outlierOnly', outlierOnly) }, [outlierOnly])
+  
+  // Asegurar que state.dbCity cambia si cambia el país y no es válido
+  useEffect(() => {
+    if (!config.dbCities.includes(dbCity)) {
+      setDbCity(config.dbCities[0])
+    }
+  }, [country, config.dbCities, dbCity])
+
+  const categories = useMemo(() => {
+    // Si la config del país tiene categoriesByCity, usar esa, sino fallback
+    return config.categoriesByCity?.[dbCity] || []
+  }, [config, dbCity])
+
+  const competitors = useMemo(() => {
+    return config.competitorsByDbCityCategory?.[dbCity]?.[dbCategory] || []
+  }, [config, dbCity, dbCategory])
 
   const filters = {
     dbCity,
@@ -84,6 +90,7 @@ export default function RawData() {
     searchB,
     dataSource,
     outlierOnly,
+    country,
   }
 
   const { rows, setRows, total, setTotal, page, loading, error, fetch, pageSize } = useRawData(filters)
