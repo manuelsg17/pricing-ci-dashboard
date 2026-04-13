@@ -26,7 +26,6 @@ export default function BracketSection({
   deltaChartData,
   events = [],
 }) {
-}) {
   const key = bracket  // '_wa' o 'very_short' etc.
   const { t } = useI18n()
 
