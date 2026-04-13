@@ -33,18 +33,28 @@ export function useFilters(country) {
   const [historicTo,    setHistoricTo]    = useState(toISODate(getMondayWeeksAgo(0)))
   const [zones,         setZones]         = useState(['All'])
 
-  // Ajustar weekStart dinámicamente al último lunes con datos disponibles
+  // Ajustar weekStart dinámicamente al último lunes COMPLETO con datos disponibles
   useEffect(() => {
+    // Calcular el lunes de la semana actual para excluirla (puede estar incompleta)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayDow = today.getDay()
+    const diffToThisMonday = todayDow === 0 ? -6 : 1 - todayDow
+    const thisMonday = new Date(today)
+    thisMonday.setDate(today.getDate() + diffToThisMonday)
+    const thisMondayStr = toISODate(thisMonday)
+
     sb.from('pricing_observations')
       .select('observed_date')
       .eq('country', country)
+      .lt('observed_date', thisMondayStr)   // excluir semana actual (puede estar incompleta)
       .order('observed_date', { ascending: false })
       .limit(1)
       .then(({ data }) => {
         if (!data?.length) return
         const latest = new Date(data[0].observed_date + 'T00:00:00')
         // Retroceder al lunes de esa semana
-        const dayOfWeek = latest.getDay() // 0=dom, 1=lun, ...
+        const dayOfWeek = latest.getDay()
         const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
         const latestMonday = new Date(latest)
         latestMonday.setDate(latest.getDate() + diffToMonday)
