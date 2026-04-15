@@ -127,6 +127,150 @@ export const COUNTRY_CONFIG = {
     }
   },
 
+  Nepal: {
+    label:    'Nepal 🇳🇵',
+    currency: 'NPR',
+    locale:   'ne-NP',
+
+    cities:   ['Kathmandu'],
+    dbCities: ['Kathmandu'],
+
+    categoriesByCity: {
+      Kathmandu: ['Economy'],
+    },
+
+    aeropuertoSubcategories: [],
+
+    categoryDbMap: {
+      'Kathmandu|||Economy': { dbCity: 'Kathmandu', dbCategory: 'Economy' },
+    },
+
+    competitorsByDbCityCategory: {
+      Kathmandu: {
+        Economy: ['Yango', 'InDrive'],
+      },
+    },
+
+    yangoDisplayName: {
+      Kathmandu: { Economy: 'Yango' },
+    },
+
+    weightCities: ['all', 'Kathmandu'],
+    outlierThreshold: 1000,
+    maxPrice: 5000,
+    botCityMap: {
+      'kathmandu': 'Kathmandu',
+    },
+  },
+
+  Bolivia: {
+    label:    'Bolivia 🇧🇴',
+    currency: 'BOB',
+    locale:   'es-BO',
+
+    cities:   ['Santa Cruz'],
+    dbCities: ['Santa Cruz'],
+
+    categoriesByCity: {
+      'Santa Cruz': ['Economy'],
+    },
+
+    aeropuertoSubcategories: [],
+
+    categoryDbMap: {
+      'Santa Cruz|||Economy': { dbCity: 'Santa Cruz', dbCategory: 'Economy' },
+    },
+
+    competitorsByDbCityCategory: {
+      'Santa Cruz': {
+        Economy: ['Yango', 'InDrive'],
+      },
+    },
+
+    yangoDisplayName: {
+      'Santa Cruz': { Economy: 'Yango' },
+    },
+
+    weightCities: ['all', 'Santa Cruz'],
+    outlierThreshold: 100,
+    maxPrice: 500,
+    botCityMap: {
+      'santa cruz': 'Santa Cruz',
+    },
+  },
+
+  Venezuela: {
+    label:    'Venezuela 🇻🇪',
+    currency: 'USD',
+    locale:   'es-VE',
+
+    cities:   ['Caracas'],
+    dbCities: ['Caracas'],
+
+    categoriesByCity: {
+      Caracas: ['Economy'],
+    },
+
+    aeropuertoSubcategories: [],
+
+    categoryDbMap: {
+      'Caracas|||Economy': { dbCity: 'Caracas', dbCategory: 'Economy' },
+    },
+
+    competitorsByDbCityCategory: {
+      Caracas: {
+        Economy: ['Yango', 'InDrive'],
+      },
+    },
+
+    yangoDisplayName: {
+      Caracas: { Economy: 'Yango' },
+    },
+
+    weightCities: ['all', 'Caracas'],
+    outlierThreshold: 10,
+    maxPrice: 100,
+    botCityMap: {
+      'caracas': 'Caracas',
+    },
+  },
+
+  Zambia: {
+    label:    'Zambia 🇿🇲',
+    currency: 'ZMW',
+    locale:   'en-ZM',
+
+    cities:   ['Lusaka'],
+    dbCities: ['Lusaka'],
+
+    categoriesByCity: {
+      Lusaka: ['Economy'],
+    },
+
+    aeropuertoSubcategories: [],
+
+    categoryDbMap: {
+      'Lusaka|||Economy': { dbCity: 'Lusaka', dbCategory: 'Economy' },
+    },
+
+    competitorsByDbCityCategory: {
+      Lusaka: {
+        Economy: ['Yango', 'InDrive'],
+      },
+    },
+
+    yangoDisplayName: {
+      Lusaka: { Economy: 'Yango' },
+    },
+
+    weightCities: ['all', 'Lusaka'],
+    outlierThreshold: 100,
+    maxPrice: 1000,
+    botCityMap: {
+      'lusaka': 'Lusaka',
+    },
+  },
+
   Colombia: {
     label:    'Colombia 🇨🇴',
     currency: 'COP',
@@ -187,14 +331,18 @@ export const COUNTRY_CONFIG = {
 }
 
 export const CITY_DISPLAY_NAMES = {
-  Lima:      'Lima',
-  Trujillo:  'Trujillo',
-  Arequipa:  'Arequipa',
-  Airport:   'Aeropuerto',
-  Corp:      'Corp',
-  'Bogotá':   'Bogotá',
-  'Medellín': 'Medellín',
-  'Cali':     'Cali',
+  Lima:         'Lima',
+  Trujillo:     'Trujillo',
+  Arequipa:     'Arequipa',
+  Airport:      'Aeropuerto',
+  Corp:         'Corp',
+  'Bogotá':     'Bogotá',
+  'Medellín':   'Medellín',
+  'Cali':       'Cali',
+  Kathmandu:    'Kathmandu',
+  'Santa Cruz': 'Santa Cruz',
+  Caracas:      'Caracas',
+  Lusaka:       'Lusaka',
 }
 
 export function getCityLabel(dbCity) {
