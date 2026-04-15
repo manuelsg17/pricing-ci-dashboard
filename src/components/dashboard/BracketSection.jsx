@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -29,6 +30,16 @@ export default function BracketSection({
 }) {
   const key = bracket  // '_wa' o 'very_short' etc.
   const { t } = useI18n()
+
+  const priceWrapRef = useRef(null)
+  const deltaWrapRef = useRef(null)
+  const diffWrapRef  = useRef(null)
+
+  useEffect(() => {
+    [priceWrapRef, deltaWrapRef, diffWrapRef].forEach(ref => {
+      if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth
+    })
+  }, [periods])
 
   function getPrice(comp, periodKey) {
     return priceMatrix[comp]?.[periodKey]?.[key] ?? null
@@ -72,7 +83,7 @@ export default function BracketSection({
         {/* Tabla 1: Precios absolutos */}
         <div className="bracket-section__table-wrap">
           <div className="bracket-section__table-title">{t('dashboard.table.price')} {currency}</div>
-          <div className="matrix-wrap">
+          <div className="matrix-wrap" ref={priceWrapRef}>
             <table className="matrix-table">
               <thead>
                 <tr>
@@ -102,7 +113,7 @@ export default function BracketSection({
         {/* Tabla 2: % Delta */}
         <div className="bracket-section__table-wrap">
           <div className="bracket-section__table-title">{t('dashboard.table.delta_vs')} {compareVs}</div>
-          <div className="matrix-wrap">
+          <div className="matrix-wrap" ref={deltaWrapRef}>
             <table className="matrix-table">
               <thead>
                 <tr>
@@ -140,7 +151,7 @@ export default function BracketSection({
         {/* Tabla 3: Diferencia S/ */}
         <div className="bracket-section__table-wrap">
           <div className="bracket-section__table-title">{t('dashboard.table.diff')} {currency}</div>
-          <div className="matrix-wrap">
+          <div className="matrix-wrap" ref={diffWrapRef}>
             <table className="matrix-table">
               <thead>
                 <tr>
