@@ -168,6 +168,7 @@ export const TRANSLATIONS = {
     'config.price_limits':      'Límites Precio',
     'config.rush_hour':         'Rush Hour',
     'config.indrive':           'InDrive',
+    'config.countries':         'Países',
 
     // ── Access Management ─────────────────────────────
     'access.title':             'Gestión de Accesos',
@@ -352,6 +353,7 @@ export const TRANSLATIONS = {
     'config.price_limits':      'Price Limits',
     'config.rush_hour':         'Rush Hour',
     'config.indrive':           'InDrive',
+    'config.countries':         'Countries',
 
     'access.title':             'Access Management',
     'access.users':             '👥 Users',
@@ -535,6 +537,7 @@ export const TRANSLATIONS = {
     'config.price_limits':      'Лимиты цен',
     'config.rush_hour':         'Час пик',
     'config.indrive':           'InDrive',
+    'config.countries':         'Страны',
 
     'access.title':             'Управление доступом',
     'access.users':             '👥 Пользователи',

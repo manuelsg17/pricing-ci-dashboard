@@ -356,6 +356,71 @@ export function getCountryConfig(country) {
   return COUNTRY_CONFIG[country] || COUNTRY_CONFIG.Peru
 }
 
+/**
+ * Converts a country_config DB row (from Supabase) into the same shape
+ * as a COUNTRY_CONFIG entry. Called synchronously from CountryContext.
+ */
+export function dbConfigToInternal(row) {
+  const cities = row.cities || []
+
+  const uiCities = cities.filter(c => !c.isVirtual).map(c => c.uiName)
+  const dbCities = cities.map(c => c.dbName)
+
+  const categoriesByCity = {}
+  cities.filter(c => !c.isVirtual).forEach(c => {
+    categoriesByCity[c.uiName] = (c.categories || []).map(cat => cat.name)
+  })
+
+  const categoryDbMap = {}
+  cities.filter(c => !c.isVirtual).forEach(city => {
+    ;(city.categories || []).forEach(cat => {
+      categoryDbMap[`${city.uiName}|||${cat.name}`] = {
+        dbCity: city.dbName,
+        dbCategory: cat.dbName,
+      }
+    })
+  })
+
+  const competitorsByDbCityCategory = {}
+  cities.forEach(city => {
+    competitorsByDbCityCategory[city.dbName] = {}
+    ;(city.categories || []).forEach(cat => {
+      competitorsByDbCityCategory[city.dbName][cat.dbName] = cat.competitors || []
+    })
+  })
+
+  const yangoDisplayName = {}
+  cities.forEach(city => {
+    yangoDisplayName[city.dbName] = {}
+    ;(city.categories || []).forEach(cat => {
+      yangoDisplayName[city.dbName][cat.dbName] = cat.yangoDisplayName || 'Yango'
+    })
+  })
+
+  const botCityMap = {}
+  cities.forEach(city => {
+    const key = city.botKey || city.dbName.toLowerCase()
+    botCityMap[key] = city.dbName
+  })
+
+  return {
+    label:                        row.label,
+    currency:                     row.currency  || 'USD',
+    locale:                       row.locale    || 'en-US',
+    cities:                       uiCities,
+    dbCities,
+    categoriesByCity,
+    aeropuertoSubcategories:      [],
+    categoryDbMap,
+    competitorsByDbCityCategory,
+    yangoDisplayName,
+    weightCities:                 ['all', ...dbCities],
+    outlierThreshold:             Number(row.outlier_threshold ?? 100),
+    maxPrice:                     Number(row.max_price ?? 1000),
+    botCityMap,
+  }
+}
+
 export function resolveDbParams(uiCity, uiCategory, subCategory, country) {
   const config = getCountryConfig(country)
   if (uiCategory === 'Aeropuerto' && subCategory) {
