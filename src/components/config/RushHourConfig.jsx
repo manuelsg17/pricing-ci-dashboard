@@ -15,7 +15,7 @@ export default function RushHourConfig({ country }) {
 
   async function load() {
     setLoading(true)
-    const { data } = await sb.from('rush_hour_windows').select('*').in('city', allCities).order('city').order('start_time')
+    const { data } = await sb.from('rush_hour_windows').select('*').eq('country', country).in('city', allCities).order('city').order('start_time')
     setWindows(data || [])
     setLoading(false)
   }
@@ -33,6 +33,7 @@ export default function RushHourConfig({ country }) {
     setSaving(true)
     setMsg(null)
     const payload = {
+      country,
       city:       w.city,
       label:      w.label || null,
       start_time: w.start_time,

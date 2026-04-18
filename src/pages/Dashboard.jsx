@@ -36,14 +36,21 @@ function DashboardContent({ dbWeights }) {
   const [marketEvents, setMarketEvents] = useState([])
   useEffect(() => {
     if (filters.viewMode !== 'daily') { setMarketEvents([]); return }
+    let cancelled = false
     sb.from('market_events')
       .select('id, city, event_date, event_type, impact, description')
+      .eq('country', filters.country)
       .eq('city', filters.dbCity)
       .gte('event_date', filters.dailyStart)
       .lte('event_date', filters.dailyEnd)
       .order('event_date')
-      .then(({ data }) => setMarketEvents(data || []))
-  }, [filters.viewMode, filters.dbCity, filters.dailyStart, filters.dailyEnd])
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) { setMarketEvents([]); return }
+        setMarketEvents(data || [])
+      })
+    return () => { cancelled = true }
+  }, [filters.country, filters.viewMode, filters.dbCity, filters.dailyStart, filters.dailyEnd])
 
   // ── KPI computations ────────────────────────────────────────────────
   const kpis = useMemo(() => {

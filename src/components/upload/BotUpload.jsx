@@ -10,7 +10,7 @@ const BATCH_SIZE = 500
 
 export default function BotUpload() {
   const { country } = useCountry()
-  const { checkOutliers } = usePriceRules()
+  const { checkOutliers } = usePriceRules(country)
   const [rows,      setRows]      = useState([])  // mapped rows OK
   const [skipped,   setSkipped]   = useState([])  // skipped rows with reason
   const [fileName,  setFileName]  = useState('')

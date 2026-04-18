@@ -5,17 +5,20 @@ import { sb } from '../lib/supabase'
  * Carga las ventanas de rush hour desde la BD y expone
  * una función para determinar si una hora/ciudad es rush.
  */
-export function useRushHourConfig() {
+export function useRushHourConfig(country = 'Peru') {
   const [windows, setWindows] = useState([])
   const [error,   setError]   = useState(null)
 
   useEffect(() => {
-    sb.from('rush_hour_windows').select('*').order('city').order('start_time')
+    let cancelled = false
+    sb.from('rush_hour_windows').select('*').eq('country', country).order('city').order('start_time')
       .then(({ data, error: e }) => {
+        if (cancelled) return
         if (e) { setError(e.message); return }
         setWindows(data || [])
       })
-  }, [])
+    return () => { cancelled = true }
+  }, [country])
 
   /**
    * ¿Es rush hour?

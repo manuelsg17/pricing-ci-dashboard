@@ -317,8 +317,8 @@ export default function Upload() {
   const [uploadTab, setUploadTab] = useState('manual')
   const [suspects,  setSuspects]  = useState(null)  // null | array de filas sospechosas
 
-  const { checkOutliers }    = usePriceRules()
-  const { isRushHour }       = useRushHourConfig()
+  const { checkOutliers }    = usePriceRules(country)
+  const { isRushHour }       = useRushHourConfig(country)
 
   // Procesa un único archivo (File) y devuelve array de sheets
   const parseSingleFile = async (file) => {

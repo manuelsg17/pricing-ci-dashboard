@@ -117,12 +117,15 @@ export function useFilters(country) {
   // Cargar zonas disponibles para city+category (usando DB params)
   useEffect(() => {
     if (!dbCity || !dbCategory) return
+    let cancelled = false
     sb.rpc('get_available_zones', { p_city: dbCity, p_category: dbCategory, p_country: country })
       .then(({ data }) => {
+        if (cancelled) return
         const list = ['All', ...(data || []).map(r => r.zone).filter(z => z && z !== 'All')]
         setZones(list)
       })
-  }, [dbCity, dbCategory])
+    return () => { cancelled = true }
+  }, [country, dbCity, dbCategory])
 
   // Calcular rango de semanas según el modo
   const weekColumns = useMemo(() => {

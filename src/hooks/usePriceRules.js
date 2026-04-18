@@ -5,17 +5,20 @@ import { sb } from '../lib/supabase'
  * Carga las reglas de validación de precios desde la BD.
  * Retorna una función checkOutliers(rows) que devuelve las filas sospechosas.
  */
-export function usePriceRules() {
+export function usePriceRules(country = 'Peru') {
   const [rules, setRules] = useState([])
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    sb.from('price_validation_rules').select('*')
+    let cancelled = false
+    sb.from('price_validation_rules').select('*').eq('country', country)
       .then(({ data, error: e }) => {
+        if (cancelled) return
         if (e) { setError(e.message); return }
         setRules(data || [])
       })
-  }, [])
+    return () => { cancelled = true }
+  }, [country])
 
   /**
    * Evalúa cada fila y retorna las sospechosas.

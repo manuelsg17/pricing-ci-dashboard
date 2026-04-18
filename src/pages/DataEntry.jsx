@@ -193,7 +193,7 @@ export default function DataEntry() {
   const [histCity,         setHistCity]         = useState('')
   const [histEmail,        setHistEmail]        = useState('')
 
-  const { isRushHour }  = useRushHourConfig()
+  const { isRushHour }  = useRushHourConfig(country)
   const { timeslots }   = useCITimeslots()
 
   const categories    = countryConfig.categoriesByCity[uiCity] || []

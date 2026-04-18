@@ -29,7 +29,7 @@ export default function PriceRulesTable({ country }) {
 
   async function load() {
     setLoading(true)
-    const { data } = await sb.from('price_validation_rules').select('*').in('city', config.dbCities).order('city').order('category').order('competition')
+    const { data } = await sb.from('price_validation_rules').select('*').eq('country', country).in('city', config.dbCities).order('city').order('category').order('competition')
     setRules(data || [])
     setLoading(false)
   }
@@ -50,6 +50,7 @@ export default function PriceRulesTable({ country }) {
     setSaving(true)
     setMsg(null)
     const payload = {
+      country,
       city: rule.city,
       category: rule.category || 'all',
       competition: rule.competition || 'all',

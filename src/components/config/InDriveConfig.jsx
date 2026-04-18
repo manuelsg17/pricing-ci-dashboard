@@ -70,9 +70,11 @@ export default function InDriveConfig({ country }) {
 
   // ── Cargar config guardada ────────────────────────────────────
   useEffect(() => {
+    let cancelled = false
     async function loadCfg() {
       const { data } = await sb.from('indrive_config').select('city, category, adjustment_pct, note')
         .eq('country', country)
+      if (cancelled) return
       if (data) {
         const map = {}
         data.forEach(r => {
@@ -83,6 +85,7 @@ export default function InDriveConfig({ country }) {
       setCfgLoaded(true)
     }
     loadCfg()
+    return () => { cancelled = true }
   }, [country])
 
   // summary y weekly ya vienen agregados del servidor (via RPC)
@@ -98,9 +101,12 @@ export default function InDriveConfig({ country }) {
         minRec:  r.min_rec  != null ? String(r.min_rec)  : null,
         maxRec:  r.max_rec  != null ? String(r.max_rec)  : null,
         avgBid:  r.avg_bid  != null ? String(r.avg_bid)  : null,
-        pctDiff: (r.avg_rec && r.avg_bid)
-          ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
-          : null,
+        pctDiff: (() => {
+          const rec = Number(r.avg_rec)
+          const bid = Number(r.avg_bid)
+          if (!Number.isFinite(rec) || !Number.isFinite(bid) || rec === 0) return null
+          return (((bid / rec) - 1) * 100).toFixed(1)
+        })(),
       }))
   , [summaryData, cfgCountry.dbCities])
 
@@ -112,9 +118,12 @@ export default function InDriveConfig({ country }) {
         obs:    Number(r.obs),
         avgRec: r.avg_rec != null ? String(r.avg_rec) : null,
         avgBid: r.avg_bid != null ? String(r.avg_bid) : null,
-        pctDiff: (r.avg_rec && r.avg_bid)
-          ? (((Number(r.avg_bid) / Number(r.avg_rec)) - 1) * 100).toFixed(1)
-          : null,
+        pctDiff: (() => {
+          const rec = Number(r.avg_rec)
+          const bid = Number(r.avg_bid)
+          if (!Number.isFinite(rec) || !Number.isFinite(bid) || rec === 0) return null
+          return (((bid / rec) - 1) * 100).toFixed(1)
+        })(),
       }))
   , [weeklyData, cfgCountry.dbCities])
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../lib/supabase'
+import { getCountryConfig } from '../lib/constants'
 
 const PAGE_SIZE = 100
 
@@ -20,7 +21,10 @@ export function useRawData(filters) {
     try {
       let q = sb
         .from('pricing_observations')
-        .select('*', { count: 'exact' })
+        .select(
+          'id, country, city, year, week, observed_date, observed_time, rush_hour, surge, category, competition_name, data_source, distance_bracket, zone, distance_km, point_a, point_b, price_without_discount, price_with_discount, recommended_price, minimal_bid, eta_min',
+          { count: 'exact' }
+        )
         .eq('city', dbCity)
         .order('observed_date', { ascending: false })
         .order('observed_time', { ascending: false })
