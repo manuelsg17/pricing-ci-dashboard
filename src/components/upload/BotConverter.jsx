@@ -2,30 +2,41 @@ import { useState, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import { convertBotToExcel } from '../../lib/botToExcel'
 import { useCountry } from '../../context/CountryContext'
+import { usePriceRules } from '../../hooks/usePriceRules'
 
 export default function BotConverter() {
-  const [result,    setResult]    = useState(null)   // { files, summary, skipped }
+  const [result,    setResult]    = useState(null)   // { files, summary, skipped, ok }
+  const [outliers,  setOutliers]  = useState([])     // filas con precio sobre el límite
   const [loading,   setLoading]   = useState(false)
   const [fileName,  setFileName]  = useState(null)
   const [dragOver,  setDragOver]  = useState(false)
   const [showSkip,  setShowSkip]  = useState(false)
   const inputRef = useRef()
 
+  const { country, countryConfig } = useCountry()
+  const { checkOutliers } = usePriceRules(country)
+
   async function processFile(file) {
     setLoading(true)
     setResult(null)
+    setOutliers([])
     setFileName(file.name)
     setShowSkip(false)
 
     try {
       const buf  = await file.arrayBuffer()
       const wb   = XLSX.read(buf, { type: 'array', cellDates: false })
-      // El bot genera un único sheet con todos los datos
       const ws   = wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(ws, { defval: null })
 
       const converted = convertBotToExcel(rows, country)
       setResult(converted)
+
+      // Chequear precios contra límites configurados
+      if (converted.ok?.length) {
+        const { suspects } = checkOutliers(converted.ok)
+        setOutliers(suspects)
+      }
     } catch (err) {
       setResult({ error: err.message })
     } finally {
@@ -38,7 +49,6 @@ export default function BotConverter() {
     if (file) processFile(file)
   }
 
-  const { country, countryConfig } = useCountry()
   const uiCities = countryConfig.dbCities
 
   function getDownloadName(city) {
@@ -177,6 +187,52 @@ export default function BotConverter() {
               </tbody>
             </table>
           </div>
+
+          {/* Precios sobre el límite configurado */}
+          {outliers.length > 0 && (
+            <div className="config-section" style={{ marginBottom: 16, borderLeft: '3px solid #f59e0b', paddingLeft: 12 }}>
+              <h2 style={{ color: '#92400e', margin: '0 0 6px' }}>
+                ⚠ {outliers.length} precio{outliers.length > 1 ? 's' : ''} sobre el límite configurado
+              </h2>
+              <p style={{ fontSize: 12, color: '#78350f', marginBottom: 10 }}>
+                Estas filas se incluyen en los archivos Excel pero superan los límites de Config → Límites Precio.
+                Revísalas antes de hacer el upload manual.
+              </p>
+              <table className="config-table" style={{ fontSize: 11 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Ciudad</th>
+                    <th style={{ textAlign: 'left' }}>Categoría</th>
+                    <th style={{ textAlign: 'left' }}>Competidor</th>
+                    <th style={{ textAlign: 'left' }}>Fecha</th>
+                    <th style={{ textAlign: 'left' }}>Bracket</th>
+                    <th>Precio</th>
+                    <th>Límite</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outliers.slice(0, 100).map((s, i) => (
+                    <tr key={i}>
+                      <td style={{ textAlign: 'left' }}>{s.row.city}</td>
+                      <td style={{ textAlign: 'left' }}>{s.row.category}</td>
+                      <td style={{ textAlign: 'left' }}>{s.row.competition_name}</td>
+                      <td style={{ textAlign: 'left' }}>{s.row.observed_date}</td>
+                      <td style={{ textAlign: 'left' }}>{s.row.distance_bracket || '—'}</td>
+                      <td style={{ color: '#dc2626', fontWeight: 600 }}>{s.value}</td>
+                      <td style={{ color: '#555' }}>≤ {s.threshold}</td>
+                    </tr>
+                  ))}
+                  {outliers.length > 100 && (
+                    <tr>
+                      <td colSpan={7} style={{ color: '#888', fontStyle: 'italic' }}>
+                        … y {outliers.length - 100} filas más
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Filas omitidas */}
           {result.skipped.length > 0 && (

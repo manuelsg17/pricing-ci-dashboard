@@ -1,44 +1,42 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
 
-/**
- * Carga las reglas de validación de precios desde la BD.
- * Retorna una función checkOutliers(rows) que devuelve las filas sospechosas.
- */
 export function usePriceRules(country = 'Peru') {
-  const [rules, setRules] = useState([])
-  const [error, setError] = useState(null)
+  const [rules,       setRules]       = useState([])
+  const [error,       setError]       = useState(null)
+  const [rulesLoaded, setRulesLoaded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    setRulesLoaded(false)
     sb.from('price_validation_rules').select('*').eq('country', country)
       .then(({ data, error: e }) => {
         if (cancelled) return
-        if (e) { setError(e.message); return }
-        setRules(data || [])
+        if (e) {
+          console.error('[usePriceRules] Error al cargar reglas:', e.message)
+          setError(e.message)
+        } else {
+          if (!data?.length) console.warn('[usePriceRules] Sin reglas para país:', country)
+          setRules(data || [])
+          setError(null)
+        }
+        setRulesLoaded(true)
       })
     return () => { cancelled = true }
   }, [country])
 
-  /**
-   * Evalúa cada fila y retorna las sospechosas.
-   * @param {Array} rows - filas a validar (con city, category, competition_name, price_without_discount, etc.)
-   * @returns {{ ok: Array, suspects: Array }}
-   *   suspects[i] = { idx, row, field, value, threshold }
-   */
   function checkOutliers(rows) {
     const ok = []
     const suspects = []
 
     rows.forEach((row, idx) => {
-      const priceField = row.price_without_discount ?? row.recommended_price ?? row.price_with_discount
+      const { field, value: priceField } = getPriceField(row)
       if (priceField == null) { ok.push(row); return }
 
-      // Buscar la regla más específica que aplique a esta fila
       const threshold = getThreshold(rules, row.city, row.category, row.competition_name)
 
       if (priceField > threshold) {
-        suspects.push({ idx, row, field: 'price_without_discount', value: priceField, threshold })
+        suspects.push({ idx, row, field, value: priceField, threshold })
       } else {
         ok.push(row)
       }
@@ -47,7 +45,18 @@ export function usePriceRules(country = 'Peru') {
     return { ok, suspects }
   }
 
-  return { rules, checkOutliers, error }
+  return { rules, rulesLoaded, checkOutliers, error }
+}
+
+function getPriceField(row) {
+  if (row.competition_name === 'InDrive') {
+    if (row.recommended_price != null) return { field: 'recommended_price', value: row.recommended_price }
+    if (row.price_without_discount != null) return { field: 'price_without_discount', value: row.price_without_discount }
+    return { field: 'price_with_discount', value: row.price_with_discount }
+  }
+  if (row.price_without_discount != null) return { field: 'price_without_discount', value: row.price_without_discount }
+  if (row.price_with_discount != null) return { field: 'price_with_discount', value: row.price_with_discount }
+  return { field: 'recommended_price', value: row.recommended_price }
 }
 
 /**

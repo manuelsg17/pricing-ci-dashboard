@@ -317,7 +317,7 @@ export default function Upload() {
   const [uploadTab, setUploadTab] = useState('manual')
   const [suspects,  setSuspects]  = useState(null)  // null | array de filas sospechosas
 
-  const { checkOutliers }    = usePriceRules(country)
+  const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
   const { isRushHour }       = useRushHourConfig(country)
 
   // Procesa un único archivo (File) y devuelve array de sheets
@@ -415,13 +415,16 @@ export default function Upload() {
 
   // Llamado desde OutlierReview cuando el usuario confirma
   const handleOutlierConfirm = (corrections) => {
+    const currentSuspects = suspects
     const finalRows = allRows.map((row, idx) => {
       const corr = corrections[idx]
       if (!corr) return row
       if (corr.exclude) return null
       const newPrice = parseFloat(corr.price)
-      if (!isNaN(newPrice) && newPrice !== row.price_without_discount) {
-        return { ...row, price_without_discount: newPrice }
+      if (!isNaN(newPrice)) {
+        const suspect = currentSuspects?.find(s => s.idx === idx)
+        const field = suspect?.field ?? 'price_without_discount'
+        if (newPrice !== row[field]) return { ...row, [field]: newPrice }
       }
       return row
     }).filter(Boolean)
@@ -616,6 +619,13 @@ export default function Upload() {
           done={progress.done}
           error={progress.error}
         />
+      )}
+
+      {rulesLoaded && rules.length === 0 && allRows.length > 0 && (
+        <div className="upload-error" style={{ marginBottom: 10 }}>
+          ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se aplicará.
+          Ve a Config → Límites Precio para agregar reglas.
+        </div>
       )}
 
       {allRows.length > 0 && (

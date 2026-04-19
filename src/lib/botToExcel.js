@@ -156,7 +156,8 @@ function buildCityXlsx(rows, city, countryConfig) {
  * @returns {{
  *   files:   { [cityName: string]: Uint8Array },
  *   summary: { [cityName: string]: number, total: number },
- *   skipped: { row: object, reason: string }[]
+ *   skipped: { row: object, reason: string }[],
+ *   ok:      object[]  — filas válidas (para chequeo de outliers en el caller)
  * }}
  */
 export function convertBotToExcel(rawRows, country = 'Peru') {
@@ -213,5 +214,5 @@ export function convertBotToExcel(rawRows, country = 'Peru') {
     }
   }
 
-  return { files, summary, skipped: allSkipped }
+  return { files, summary, skipped: allSkipped, ok: filtered }
 }

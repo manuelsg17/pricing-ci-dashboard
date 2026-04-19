@@ -10,7 +10,7 @@ const BATCH_SIZE = 500
 
 export default function BotUpload() {
   const { country } = useCountry()
-  const { checkOutliers } = usePriceRules(country)
+  const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
   const [rows,      setRows]      = useState([])  // mapped rows OK
   const [skipped,   setSkipped]   = useState([])  // skipped rows with reason
   const [fileName,  setFileName]  = useState('')
@@ -81,13 +81,16 @@ export default function BotUpload() {
   }
 
   const handleOutlierConfirm = (corrections) => {
+    const currentSuspects = suspects
     const finalRows = rows.map((row, idx) => {
       const corr = corrections[idx]
       if (!corr) return row
       if (corr.exclude) return null
       const newPrice = parseFloat(corr.price)
-      if (!isNaN(newPrice) && newPrice !== row.price_without_discount) {
-        return { ...row, price_without_discount: newPrice }
+      if (!isNaN(newPrice)) {
+        const suspect = currentSuspects?.find(s => s.idx === idx)
+        const field = suspect?.field ?? 'price_without_discount'
+        if (newPrice !== row[field]) return { ...row, [field]: newPrice }
       }
       return row
     }).filter(Boolean)
@@ -281,6 +284,14 @@ export default function BotUpload() {
           onConfirm={handleOutlierConfirm}
           onCancel={() => setSuspects(null)}
         />
+      )}
+
+      {/* Warning: sin reglas de precio cargadas */}
+      {rulesLoaded && rules.length === 0 && rows.length > 0 && !loading && (
+        <div className="upload-error" style={{ marginBottom: 10 }}>
+          ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se aplicará.
+          Ve a Config → Límites Precio para agregar reglas.
+        </div>
       )}
 
       {/* Actions */}
