@@ -13,7 +13,7 @@ import { getCountryConfig } from './constants'
 
 // Competidores a incluir en la salida (Cabify excluido en esta etapa)
 const INCLUDE_COMPETITORS = new Set([
-  'Yango', 'YangoPremier', 'YangoComfort+', 'Uber', 'Didi', 'InDrive',
+  'Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive',
 ])
 
 // Reverse: formato DB bracket → display Excel

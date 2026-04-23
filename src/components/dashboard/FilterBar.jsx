@@ -55,7 +55,7 @@ export default function FilterBar() {
           <div className="filter-bar__group">
             <span className="filter-bar__label">{t('filter.subcategory')}</span>
             <select value={subCategory || ''} onChange={e => setSubCategory(e.target.value)}>
-              {config.aeropuertoSubcategories.map(c => <option key={c}>{c}</option>)}
+              {(config.aeropuertoSubcategoriesByCity?.[city] || config.aeropuertoSubcategories || []).map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
         </>

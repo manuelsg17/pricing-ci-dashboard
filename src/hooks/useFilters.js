@@ -11,7 +11,8 @@ export function useFilters(country) {
   const countryConfig = useMemo(() => getCountryConfig(country), [country])
   const CITIES              = countryConfig.cities
   const CATEGORIES_BY_CITY  = countryConfig.categoriesByCity
-  const AEROPUERTO_SUBCATEGORIES = countryConfig.aeropuertoSubcategories || []
+  const AEROPUERTO_BY_CITY  = countryConfig.aeropuertoSubcategoriesByCity || {}
+  const aeropuertoSubs = (c) => AEROPUERTO_BY_CITY[c] || countryConfig.aeropuertoSubcategories || []
 
   const [city,        setCity]        = useState(CITIES[0])
   const [category,    setCategory]    = useState(CATEGORIES_BY_CITY[CITIES[0]]?.[0] || '')
@@ -89,12 +90,13 @@ export function useFilters(country) {
   // Cascada: cuando cambia categoría, resetear zona, compareVs y subCategory
   useEffect(() => {
     setZone('All')
+    const subs = aeropuertoSubs(city)
     if (category === 'Aeropuerto') {
-      setSubCategory(prev => prev || AEROPUERTO_SUBCATEGORIES[0])
+      setSubCategory(prev => (prev && subs.includes(prev)) ? prev : subs[0])
     } else {
       setSubCategory(null)
     }
-    const comps = getCompetitors(city, category, category === 'Aeropuerto' ? AEROPUERTO_SUBCATEGORIES[0] : null, country)
+    const comps = getCompetitors(city, category, category === 'Aeropuerto' ? subs[0] : null, country)
     setCompareVs(comps[0] || 'Yango')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city, category, country])

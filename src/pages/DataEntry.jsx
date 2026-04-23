@@ -12,13 +12,15 @@ import '../styles/data-entry.css'
 
 // Colores de sección por categoría
 const CAT_COLORS = {
-  'Economy':          { bg:'#eff6ff', border:'#93c5fd', text:'#1d4ed8', accent:'#3b82f6' },
-  'Comfort':          { bg:'#f0fdf4', border:'#86efac', text:'#15803d', accent:'#22c55e' },
-  'Comfort/Comfort+': { bg:'#f0fdf4', border:'#86efac', text:'#15803d', accent:'#22c55e' },
-  'Comfort+/Premier': { bg:'#fffbeb', border:'#fcd34d', text:'#b45309', accent:'#f59e0b' },
+  'Economy/Comfort':  { bg:'#eff6ff', border:'#93c5fd', text:'#1d4ed8', accent:'#3b82f6' },
+  'Comfort+':         { bg:'#f0fdf4', border:'#86efac', text:'#15803d', accent:'#22c55e' },
+  'Premier':          { bg:'#fffbeb', border:'#fcd34d', text:'#b45309', accent:'#f59e0b' },
   'TukTuk':           { bg:'#fdf4ff', border:'#e879f9', text:'#86198f', accent:'#d946ef' },
   'XL':               { bg:'#fff7ed', border:'#fdba74', text:'#c2410c', accent:'#f97316' },
   'Corp':             { bg:'#f8fafc', border:'#cbd5e1', text:'#334155', accent:'#64748b' },
+  // Legacy (por si queda data vieja en el form)
+  'Economy':          { bg:'#eff6ff', border:'#93c5fd', text:'#1d4ed8', accent:'#3b82f6' },
+  'Comfort':          { bg:'#f0fdf4', border:'#86efac', text:'#15803d', accent:'#22c55e' },
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

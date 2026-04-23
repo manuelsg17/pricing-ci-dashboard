@@ -10,7 +10,18 @@ import { getCountryConfig } from './constants'
  * price_regular_value, price_discounted_value, currency, surge, status, error
  */
 
-// Normalización de nombres de app → competition_name de la BD
+// App del CSV → clave de regla (botRules.app). Se mantiene 'Yango' como
+// competition_name por defecto si la regla no lo sobrescribe.
+const APP_KEY_MAP = {
+  uber:      'uber',
+  yango:     'yango',
+  yango_api: 'yango',
+  didi:      'didi',
+  indrive:   'indrive',
+  cabify:    'cabify',
+}
+
+// competition_name por defecto cuando no se usan reglas (fallback legacy)
 const APP_MAP = {
   uber:      'Uber',
   yango:     'Yango',
@@ -20,24 +31,17 @@ const APP_MAP = {
   cabify:    'Cabify',
 }
 
-// Normalización vehicle_category + city → category DB
+// ── Legacy path (países sin botRules) ─────────────────────
 // vehicle_category del bot: economy, comfort, premium, tuktuk, xl, moto, taxi, courier, etc.
 const VEHICLE_CATEGORY_MAP = {
   economy:  'Economy',
   comfort:  'Comfort',
-  premium:  'Comfort', // Default safe fallback
+  premium:  'Comfort',
   tuktuk:   'TukTuk',
   xl:       'XL',
 }
 
-// Overrides específicos (ej: premium → Premier en Lima)
-const CATEGORY_OVERRIDES = {
-  Lima: { premium: 'Premier' },
-  Airport: { premium: 'Premier' },
-}
-
-// Categorías válidas en la BD (solo estas se insertan)
-const VALID_CATEGORIES = new Set(['Economy', 'Comfort', 'Premier', 'TukTuk', 'XL', 'Corp'])
+const LEGACY_VALID_CATEGORIES = new Set(['Economy', 'Comfort', 'Premier', 'TukTuk', 'XL', 'Corp'])
 
 // Normalización de distance_bracket del bot → bracket de la BD
 const BRACKET_MAP = {
@@ -74,6 +78,21 @@ function parseTimestamp(ts) {
 }
 
 /**
+ * Resuelve (competition_name, category) usando botRules del país activo.
+ * Devuelve null si ninguna regla calza (fila omitida).
+ */
+function resolveByRules(rules, { appKey, vcRaw, ovcRaw, dbCity }) {
+  for (const r of rules) {
+    if (r.app !== appKey) continue
+    if (r.vc  !== vcRaw)  continue
+    if (r.ovc !== '*' && r.ovc !== ovcRaw) continue
+    if (r.cities && !r.cities.includes(dbCity)) continue
+    return { competition_name: r.name, category: r.category }
+  }
+  return null
+}
+
+/**
  * Transforma rows del CSV del bot → formato pricing_observations.
  *
  * @param {object[]} rows - filas parseadas del CSV del bot
@@ -86,13 +105,15 @@ export function mapBotRows(rows, activeCountry = 'Peru') {
   const config = getCountryConfig(activeCountry)
   const maxPrice = config.maxPrice || 300
   const botCityMap = config.botCityMap || {}
+  const botRules = Array.isArray(config.botRules) ? config.botRules : null
+  const competitorsByDbCC = config.competitorsByDbCityCategory || {}
   const targetCountry = activeCountry.toLowerCase()
 
   for (const row of rows) {
     // 1. Filtrar solo el país activo y status ok
     const rowCountry = String(row.country || '').trim().toLowerCase()
     const status     = String(row.status  || '').trim().toLowerCase()
-    
+
     // El bot a veces registra "Peru", a veces "Columbia" (typo común)
     if (rowCountry !== targetCountry && rowCountry !== 'peru' && targetCountry === 'peru') {
        skipped.push({ row, reason: `País: ${row.country} (se esperaba ${activeCountry})` })
@@ -109,10 +130,10 @@ export function mapBotRows(rows, activeCountry = 'Peru') {
       continue
     }
 
-    // 2. App → competition_name
-    const appKey  = String(row.app || '').trim().toLowerCase()
-    const compName = APP_MAP[appKey]
-    if (!compName) {
+    // 2. App → clave de regla (y fallback competition_name)
+    const appRaw = String(row.app || '').trim().toLowerCase()
+    const appKey = APP_KEY_MAP[appRaw]
+    if (!appKey) {
       skipped.push({ row, reason: `App desconocida: ${row.app}` })
       continue
     }
@@ -125,23 +146,36 @@ export function mapBotRows(rows, activeCountry = 'Peru') {
       continue
     }
 
-    // 4. vehicle_category → category
-    const vcRaw    = String(row.vehicle_category || '').trim().toLowerCase()
-    const category = CATEGORY_OVERRIDES[dbCity]?.[vcRaw] || VEHICLE_CATEGORY_MAP[vcRaw]
-    
-    if (!category || !VALID_CATEGORIES.has(category)) {
-      skipped.push({ row, reason: `Categoría omitida: ${row.vehicle_category}` })
-      continue
-    }
+    // 4. Resolver (competition_name, category)
+    const vcRaw  = String(row.vehicle_category || '').trim().toLowerCase()
+    const ovcRaw = String(row.observed_vehicle_category || '').trim().toLowerCase()
 
-    // 5. competition_name ajuste: para Yango + premium en Lima → YangoPremier
-    let competition_name = compName
-    if (compName === 'Yango' && category === 'Premier' && (dbCity === 'Lima' || dbCity === 'Airport')) {
-      competition_name = 'YangoPremier'
-    }
-    // Para Yango + Comfort en TRU/ARQ premium → YangoComfort+
-    if (compName === 'Yango' && vcRaw === 'premium' && (dbCity === 'Trujillo' || dbCity === 'Arequipa')) {
-      competition_name = 'YangoComfort+'
+    let competition_name = null
+    let category = null
+
+    if (botRules) {
+      const match = resolveByRules(botRules, { appKey, vcRaw, ovcRaw, dbCity })
+      if (!match) {
+        skipped.push({ row, reason: `Sin regla: ${appRaw}/${vcRaw}/${ovcRaw} en ${dbCity}` })
+        continue
+      }
+      competition_name = match.competition_name
+      category = match.category
+
+      // Validar contra competitorsByDbCityCategory (si existe)
+      const allowed = competitorsByDbCC?.[dbCity]?.[category]
+      if (!allowed) {
+        skipped.push({ row, reason: `Categoría ${category} no existe en ${dbCity}` })
+        continue
+      }
+    } else {
+      // Legacy path: vehicle_category → category (sin observed)
+      category = VEHICLE_CATEGORY_MAP[vcRaw]
+      if (!category || !LEGACY_VALID_CATEGORIES.has(category)) {
+        skipped.push({ row, reason: `Categoría omitida: ${row.vehicle_category}` })
+        continue
+      }
+      competition_name = APP_MAP[appRaw]
     }
 
     // 6. distance_bracket

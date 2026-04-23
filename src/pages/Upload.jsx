@@ -62,19 +62,40 @@ const COL_MAP = {
   'Diff (manualy calc)':            'diff',
 }
 
-// Normalización de categorías: nombre UI del Excel → nombre canónico en BD
+// Normalización de categorías del Excel legacy → nombre canónico en BD nuevo.
+// Los Excel históricos usan nombres viejos; aquí los traducimos al esquema nuevo.
 const CATEGORY_NORMALIZE = {
-  'Comfort/Comfort+': 'Comfort',    // TRU/ARQ: nombre UI → nombre BD
-  'Comfort+':         'Comfort',    // TRU/ARQ: variante corta
-  'Comfort+/Premier': 'Premier',    // Lima/Airport: nombre UI → nombre BD
+  // Esquema nuevo (Perú 2026): categorías tal cual
+  'Economy/Comfort':  'Economy/Comfort',
+  'Comfort+':         'Comfort+',
+  // Esquema legacy (Excel anteriores)
+  'Comfort/Comfort+': 'Comfort+',   // TRU/ARQ legacy: antes "Comfort" agrupaba todo → ahora Comfort+
+  'Comfort+/Premier': 'Premier',    // Lima legacy: "Comfort+/Premier" → Premier
+  'Economy':          'Economy/Comfort', // Legacy: Economy se fusionó con Comfort
+  'Comfort':          'Comfort+',   // Legacy: Comfort (de Uber/InDrive) ahora es Comfort+
+}
+
+// Normalización de distance_bracket: display → formato BD (snake_case)
+const BRACKET_NORMALIZE = {
+  'Very short': 'very_short',
+  'Very Short': 'very_short',
+  'Short':      'short',
+  'Median':     'median',
+  'Average':    'average',
+  'Long':       'long',
+  'Very long':  'very_long',
+  'Very Long':  'very_long',
 }
 
 // Normalización de nombres de competidor
 const COMPETITOR_NORMALIZE = {
-  'Indrive':        'InDrive',
-  'Yango premier':  'YangoPremier',
-  'Yango  premier': 'YangoPremier',
-  'DiDi':           'Didi',
+  'Indrive':         'InDrive',
+  'DiDi':            'Didi',
+  // Legacy: YangoPremier y YangoComfort+ ya no existen — colapsan a Yango
+  'Yango premier':   'Yango',
+  'Yango  premier':  'Yango',
+  'YangoPremier':    'Yango',
+  'YangoComfort+':   'Yango',
 }
 
 // ── Helpers de parseo ──────────────────────────────────────
@@ -228,9 +249,10 @@ function parseRows(sheetData, city) {
     obj.category         = cleanStr(obj.category)
     obj.distance_bracket = cleanStr(obj.distance_bracket)
 
-    // Normalizar categorías y competidores a nombres canónicos en BD
-    if (obj.category)         obj.category         = CATEGORY_NORMALIZE[obj.category]         ?? obj.category
-    if (obj.competition_name) obj.competition_name = COMPETITOR_NORMALIZE[obj.competition_name] ?? obj.competition_name
+    // Normalizar categorías, competidores y bracket a nombres canónicos en BD
+    if (obj.category)          obj.category          = CATEGORY_NORMALIZE[obj.category]          ?? obj.category
+    if (obj.competition_name)  obj.competition_name  = COMPETITOR_NORMALIZE[obj.competition_name] ?? obj.competition_name
+    if (obj.distance_bracket)  obj.distance_bracket  = BRACKET_NORMALIZE[obj.distance_bracket]   ?? obj.distance_bracket.toLowerCase().replace(/\s+/g, '_')
 
     return obj
   })
@@ -283,8 +305,15 @@ const SHEET_CITY_MAP = {
   trujillo:                     'Trujillo',
   arq_pricing_ci_final:         'Arequipa',
   arequipa:                     'Arequipa',
-  airport_ci_final:             'Airport',
-  airport:                      'Airport',
+  lima_airport_ci_final:        'Lima_Airport',
+  lima_airport:                 'Lima_Airport',
+  tru_airport_ci_final:         'Trujillo_Airport',
+  trujillo_airport:             'Trujillo_Airport',
+  arq_airport_ci_final:         'Arequipa_Airport',
+  arequipa_airport:             'Arequipa_Airport',
+  // Legacy (Excel viejos donde "airport" = Lima)
+  airport_ci_final:             'Lima_Airport',
+  airport:                      'Lima_Airport',
 }
 
 function detectCity(sheetName) {
@@ -292,13 +321,17 @@ function detectCity(sheetName) {
   for (const [pattern, city] of Object.entries(SHEET_CITY_MAP)) {
     if (key.includes(pattern.replace(/_/g, '')) || key === pattern) return city
   }
-  // Fallback por palabras clave (corp antes de lima para evitar falso match)
+  // Fallback por palabras clave (corp antes de lima; airport combinado con ciudad antes que plano)
   const lowerPattern = key.toLowerCase()
+  const hasAirport = lowerPattern.includes('airport') || lowerPattern.includes('aero')
   if (lowerPattern.includes('corp'))      return 'Corp'
+  if (hasAirport && (lowerPattern.includes('tru') || lowerPattern.includes('trujillo'))) return 'Trujillo_Airport'
+  if (hasAirport && (lowerPattern.includes('arq') || lowerPattern.includes('arequipa'))) return 'Arequipa_Airport'
+  if (hasAirport && lowerPattern.includes('lima')) return 'Lima_Airport'
   if (lowerPattern.includes('lima'))      return 'Lima'
   if (lowerPattern.includes('tru') || lowerPattern.includes('trujillo')) return 'Trujillo'
   if (lowerPattern.includes('arq') || lowerPattern.includes('arequipa')) return 'Arequipa'
-  if (lowerPattern.includes('airport') || lowerPattern.includes('aero')) return 'Airport'
+  if (hasAirport)                         return 'Lima_Airport' // legacy default
   if (lowerPattern.includes('bog'))       return 'Bogota'
   if (lowerPattern.includes('med'))       return 'Medellin'
   if (lowerPattern.includes('cali'))      return 'Cali'
@@ -480,21 +513,39 @@ export default function Upload() {
       return row
     })
 
-    // ── Paso 3: DELETE + INSERT atómico vía RPC ────────────────────────────
-    // La función PL/pgSQL corre en una sola transacción: si el INSERT falla,
-    // el DELETE se revierte y los datos originales quedan intactos.
-    const { error } = await sb.rpc('upsert_pricing_batch', {
-      p_rows:        finalRows,
-      p_city_ranges: cityRanges,
-      p_batch_id:    batchId,
-      p_filename:    sheets.map(s => s.name).join(', '),
-      p_row_count:   finalRows.length,
-      p_country:     country,
-    })
+    // ── Paso 3: INSERT en lotes para evitar timeout de Supabase ───────────
+    // El DELETE ocurre solo en el primer lote (p_city_ranges), los demás
+    // solo insertan. Cada lote es ~2000 filas (~2-4 s por RPC call).
+    const BATCH_SIZE = 2000
+    const filename   = sheets.map(s => s.name).join(', ')
 
-    if (error) {
-      setProgress(p => ({ ...p, error: error.message, done: false }))
-      return
+    for (let i = 0; i < finalRows.length; i += BATCH_SIZE) {
+      const chunk   = finalRows.slice(i, i + BATCH_SIZE)
+      const isFirst = i === 0
+
+      const { error } = await sb.rpc('upsert_pricing_batch', {
+        p_rows:        chunk,
+        p_city_ranges: isFirst ? cityRanges : [],
+        p_batch_id:    batchId,
+        p_filename:    filename,
+        p_row_count:   finalRows.length,
+        p_country:     country,
+      })
+
+      if (error) {
+        setProgress(p => ({ ...p, error: error.message, done: false }))
+        return
+      }
+
+      setProgress(p => ({
+        ...p,
+        current: Math.min(i + BATCH_SIZE, finalRows.length),
+      }))
+
+      // Pequeña pausa entre lotes para no saturar la conexión
+      if (i + BATCH_SIZE < finalRows.length) {
+        await new Promise(r => setTimeout(r, 200))
+      }
     }
 
     setProgress({ current: finalRows.length, total: finalRows.length, done: true, error: null })
