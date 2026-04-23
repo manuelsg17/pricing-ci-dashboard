@@ -487,7 +487,6 @@ export default function Upload() {
     const finalRows = rowsToInsert.map(r => {
       let row = {
         ...r,
-        id:              crypto.randomUUID(),
         country,
         data_source:     'manual',
         upload_batch_id: batchId,
@@ -514,24 +513,29 @@ export default function Upload() {
       return row
     })
 
-    // ── Paso 3: INSERT en lotes para evitar timeout de Supabase ───────────
-    // El DELETE ocurre solo en el primer lote (p_city_ranges), los demás
-    // solo insertan. Cada lote es ~2000 filas (~2-4 s por RPC call).
+    // ── Paso 3: DELETE por ciudad+rango de fechas ─────────────────────────
+    for (const [city, { min, max }] of Object.entries(cityDateRanges)) {
+      const { error: delErr } = await sb
+        .from('pricing_observations')
+        .delete()
+        .eq('country', country)
+        .eq('city', city)
+        .eq('data_source', 'manual')
+        .gte('observed_date', min)
+        .lte('observed_date', max)
+      if (delErr) {
+        setProgress(p => ({ ...p, error: delErr.message, done: false }))
+        return
+      }
+    }
+
+    // ── Paso 4: INSERT en lotes (Supabase aplica DEFAULT del id en la BD) ─
     const BATCH_SIZE = 2000
-    const filename   = sheets.map(s => s.name).join(', ')
 
     for (let i = 0; i < finalRows.length; i += BATCH_SIZE) {
-      const chunk   = finalRows.slice(i, i + BATCH_SIZE)
-      const isFirst = i === 0
+      const chunk = finalRows.slice(i, i + BATCH_SIZE)
 
-      const { error } = await sb.rpc('upsert_pricing_batch', {
-        p_rows:        chunk,
-        p_city_ranges: isFirst ? cityRanges : [],
-        p_batch_id:    batchId,
-        p_filename:    filename,
-        p_row_count:   finalRows.length,
-        p_country:     country,
-      })
+      const { error } = await sb.from('pricing_observations').insert(chunk)
 
       if (error) {
         setProgress(p => ({ ...p, error: error.message, done: false }))
@@ -543,9 +547,8 @@ export default function Upload() {
         current: Math.min(i + BATCH_SIZE, finalRows.length),
       }))
 
-      // Pequeña pausa entre lotes para no saturar la conexión
       if (i + BATCH_SIZE < finalRows.length) {
-        await new Promise(r => setTimeout(r, 200))
+        await new Promise(r => setTimeout(r, 150))
       }
     }
 
