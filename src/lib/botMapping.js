@@ -148,7 +148,10 @@ export function mapBotRows(rows, activeCountry = 'Peru') {
 
     // 4. Resolver (competition_name, category)
     const vcRaw  = String(row.vehicle_category || '').trim().toLowerCase()
-    const ovcRaw = String(row.observed_vehicle_category || '').trim().toLowerCase()
+    // Null/empty ovc se trata como '*' para que matchee reglas wildcard (ej: TukTuk)
+    const ovcRaw = row.observed_vehicle_category
+      ? String(row.observed_vehicle_category).trim().toLowerCase()
+      : '*'
 
     let competition_name = null
     let category = null
@@ -193,7 +196,7 @@ export function mapBotRows(rows, activeCountry = 'Peru') {
     let price_with_discount    = null
     let minimal_bid            = null
 
-    if (compName === 'InDrive') {
+    if (appKey === 'indrive') {
       recommended_price = priceRegular
       minimal_bid       = priceDiscounted
     } else {
