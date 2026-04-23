@@ -487,6 +487,7 @@ export default function Upload() {
     const finalRows = rowsToInsert.map(r => {
       let row = {
         ...r,
+        id:              crypto.randomUUID(),
         country,
         data_source:     'manual',
         upload_batch_id: batchId,
