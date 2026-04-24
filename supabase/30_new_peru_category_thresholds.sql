@@ -13,7 +13,29 @@
 -- 1. Agrega umbrales para Economy/Comfort, Comfort+ en Lima/Trujillo/Arequipa
 -- 2. Agrega umbrales para las nuevas ciudades *_Airport (antes solo había 'Airport')
 -- 3. Hace backfill de filas ya insertadas con los umbrales correctos
+--
+-- NOTA: Usamos DELETE + INSERT en vez de ON CONFLICT porque la UNIQUE
+-- constraint original (city, category, bracket) no está activa en esta BD.
 -- ============================================================
+
+BEGIN;
+
+-- ── 0. Limpiar filas que vamos a (re)insertar ───────────────
+-- Esto permite ejecutar el script varias veces sin duplicados.
+
+DELETE FROM distance_thresholds
+WHERE (city, category) IN (
+  ('Lima',              'Economy/Comfort'),
+  ('Lima',              'Comfort+'),
+  ('Trujillo',          'Economy/Comfort'),
+  ('Trujillo',          'Comfort+'),
+  ('Trujillo',          'XL'),
+  ('Arequipa',          'Economy/Comfort'),
+  ('Arequipa',          'Comfort+'),
+  ('Lima_Airport',      'all'),
+  ('Trujillo_Airport',  'all'),
+  ('Arequipa_Airport',  'all')
+);
 
 
 -- ── 1. Lima ─────────────────────────────────────────────────
@@ -31,9 +53,7 @@ INSERT INTO distance_thresholds (city, category, bracket, max_km) VALUES
   ('Lima', 'Comfort+',        'median',       7.00),
   ('Lima', 'Comfort+',        'average',     10.98),
   ('Lima', 'Comfort+',        'long',        15.00),
-  ('Lima', 'Comfort+',        'very_long',   NULL)
-
-ON CONFLICT (city, category, bracket) DO NOTHING;
+  ('Lima', 'Comfort+',        'very_long',   NULL);
 
 
 -- ── 2. Trujillo ─────────────────────────────────────────────
@@ -58,9 +78,7 @@ INSERT INTO distance_thresholds (city, category, bracket, max_km) VALUES
   ('Trujillo', 'XL',              'median',       2.68),
   ('Trujillo', 'XL',              'average',      4.06),
   ('Trujillo', 'XL',              'long',          7.66),
-  ('Trujillo', 'XL',              'very_long',    NULL)
-
-ON CONFLICT (city, category, bracket) DO NOTHING;
+  ('Trujillo', 'XL',              'very_long',    NULL);
 
 
 -- ── 3. Arequipa ─────────────────────────────────────────────
@@ -78,9 +96,7 @@ INSERT INTO distance_thresholds (city, category, bracket, max_km) VALUES
   ('Arequipa', 'Comfort+',        'median',       4.11),
   ('Arequipa', 'Comfort+',        'average',      5.60),
   ('Arequipa', 'Comfort+',        'long',          8.76),
-  ('Arequipa', 'Comfort+',        'very_long',    NULL)
-
-ON CONFLICT (city, category, bracket) DO NOTHING;
+  ('Arequipa', 'Comfort+',        'very_long',    NULL);
 
 
 -- ── 4. Lima_Airport ─────────────────────────────────────────
@@ -94,9 +110,7 @@ INSERT INTO distance_thresholds (city, category, bracket, max_km) VALUES
   ('Lima_Airport', 'all', 'median',      20.00),
   ('Lima_Airport', 'all', 'average',     30.00),
   ('Lima_Airport', 'all', 'long',        40.00),
-  ('Lima_Airport', 'all', 'very_long',   NULL)
-
-ON CONFLICT (city, category, bracket) DO NOTHING;
+  ('Lima_Airport', 'all', 'very_long',   NULL);
 
 
 -- ── 5. Trujillo_Airport ─────────────────────────────────────
@@ -107,9 +121,7 @@ INSERT INTO distance_thresholds (city, category, bracket, max_km) VALUES
   ('Trujillo_Airport', 'all', 'median',      20.00),
   ('Trujillo_Airport', 'all', 'average',     30.00),
   ('Trujillo_Airport', 'all', 'long',        40.00),
-  ('Trujillo_Airport', 'all', 'very_long',   NULL)
-
-ON CONFLICT (city, category, bracket) DO NOTHING;
+  ('Trujillo_Airport', 'all', 'very_long',   NULL);
 
 
 -- ── 6. Arequipa_Airport ─────────────────────────────────────
@@ -120,14 +132,11 @@ INSERT INTO distance_thresholds (city, category, bracket, max_km) VALUES
   ('Arequipa_Airport', 'all', 'median',      20.00),
   ('Arequipa_Airport', 'all', 'average',     30.00),
   ('Arequipa_Airport', 'all', 'long',        40.00),
-  ('Arequipa_Airport', 'all', 'very_long',   NULL)
-
-ON CONFLICT (city, category, bracket) DO NOTHING;
+  ('Arequipa_Airport', 'all', 'very_long',   NULL);
 
 
 -- ── 7. Backfill: recalcular brackets de filas existentes ────
 -- Solo actualiza filas con distance_km (el trigger ya lo hará en inserciones futuras).
--- Excluye Corp (no tiene umbrales de distancia).
 
 -- 7a. Ciudades regulares: nuevas categorías Economy/Comfort y Comfort+
 UPDATE pricing_observations
@@ -144,7 +153,18 @@ WHERE country = 'Peru'
   AND city IN ('Lima_Airport', 'Trujillo_Airport', 'Arequipa_Airport')
   AND distance_km IS NOT NULL;
 
--- Verificar resultado:
+-- 7c. Trujillo XL (categoría que antes no tenía umbrales)
+UPDATE pricing_observations
+SET distance_bracket = get_distance_bracket(city, category, distance_km)
+WHERE country = 'Peru'
+  AND city = 'Trujillo'
+  AND category = 'XL'
+  AND distance_km IS NOT NULL;
+
+COMMIT;
+
+
+-- ── Verificación (ejecutar por separado tras el COMMIT) ─────
 SELECT
   city,
   category,
