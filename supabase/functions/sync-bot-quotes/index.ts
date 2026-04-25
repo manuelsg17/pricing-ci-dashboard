@@ -32,7 +32,10 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Client as PgClient } from 'https://deno.land/x/postgres@v0.19.3/mod.ts'
+// postgres.js — soporta certs autofirmados vía ssl:{ rejectUnauthorized:false }
+// (deno-postgres no lo soporta; helioho.st usa cert autofirmado).
+// @ts-ignore esm.sh provides types at runtime
+import postgres from 'https://esm.sh/postgres@3.4.4?target=deno'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -115,18 +118,26 @@ function normalizeCity(c: string | null | undefined): string | null {
 }
 
 // ── Conexión PG externa ─────────────────────────────────────────────────
-async function connectBotDb(): Promise<PgClient> {
-  const tlsMode = (Deno.env.get('BOT_PG_SSLMODE') || 'prefer').toLowerCase()
-  const client = new PgClient({
-    hostname: Deno.env.get('BOT_PG_HOST')!,
-    port:     Number(Deno.env.get('BOT_PG_PORT') || '5432'),
-    database: Deno.env.get('BOT_PG_DATABASE')!,
-    user:     Deno.env.get('BOT_PG_USER')!,
-    password: Deno.env.get('BOT_PG_PASSWORD')!,
-    tls: { enabled: tlsMode !== 'disable', enforce: tlsMode === 'require' },
+// Devuelve una instancia de postgres.js (sql tagged-template).
+// Para helioho.st (cert autofirmado) usamos rejectUnauthorized:false.
+function connectBotDb(): any {
+  const tlsMode = (Deno.env.get('BOT_PG_SSLMODE') || 'require').toLowerCase()
+  const ssl =
+    tlsMode === 'disable'      ? false :
+    tlsMode === 'verify-full'  ? 'verify-full' :
+    { rejectUnauthorized: false }   // 'prefer' | 'require' → confiamos pero saltamos validación
+
+  return postgres({
+    host:            Deno.env.get('BOT_PG_HOST')!,
+    port:            Number(Deno.env.get('BOT_PG_PORT') || '5432'),
+    database:        Deno.env.get('BOT_PG_DATABASE')!,
+    username:        Deno.env.get('BOT_PG_USER')!,
+    password:        Deno.env.get('BOT_PG_PASSWORD')!,
+    ssl,
+    max:             1,
+    idle_timeout:    5,
+    connect_timeout: 15,
   })
-  await client.connect()
-  return client
 }
 
 // ── Handler principal ───────────────────────────────────────────────────
@@ -156,27 +167,26 @@ Deno.serve(async (req) => {
 
   // ── Modo PROBE ─────────────────────────────────────────────────────
   if (action === 'probe') {
-    let bot: PgClient | null = null
+    let bot: any = null
     try {
-      bot = await connectBotDb()
-      const cols = await bot.queryObject<{ column_name: string; data_type: string }>(
-        `SELECT column_name, data_type
-           FROM information_schema.columns
-          WHERE table_schema = $1 AND table_name = $2
-          ORDER BY ordinal_position`,
-        [schema, table]
-      )
-      const sample = await bot.queryObject(`SELECT * FROM ${fqTable} ORDER BY 1 DESC LIMIT 5`)
+      bot = connectBotDb()
+      const cols = await bot`
+        SELECT column_name, data_type
+          FROM information_schema.columns
+         WHERE table_schema = ${schema} AND table_name = ${table}
+         ORDER BY ordinal_position
+      `
+      const sample = await bot.unsafe(`SELECT * FROM ${fqTable} ORDER BY 1 DESC LIMIT 5`)
       return json(200, {
         ok: true, action: 'probe',
         schema, table,
-        columns: cols.rows,
-        sample: sample.rows,
+        columns: cols,
+        sample,
       })
     } catch (e) {
       return json(500, { ok: false, error: String((e as Error).message), stack: (e as Error).stack })
     } finally {
-      try { await bot?.end() } catch { /* ignore */ }
+      try { await bot?.end({ timeout: 2 }) } catch { /* ignore */ }
     }
   }
 
@@ -194,11 +204,11 @@ Deno.serve(async (req) => {
   }).select().single()
   const logId = logRow?.id
 
-  let bot: PgClient | null = null
+  let bot: any = null
   let stats = { read: 0, accepted: 0, dropped: 0, outliers: 0, inserted: 0 }
 
   try {
-    bot = await connectBotDb()
+    bot = connectBotDb()
 
     // Si es backfill (from/to dado) ignoramos watermark.
     // Si no, usamos el watermark del país.
@@ -225,14 +235,14 @@ Deno.serve(async (req) => {
     //   distance_km, eta_min, surge, rush_hour
     // Si el bot usa nombres distintos, primero corre `action: "probe"`
     // y ajusta el SELECT debajo (o crea una vista en fudobi que renombre).
-    const sql = `
+    const queryText = `
       SELECT * FROM ${fqTable}
       ${whereClause}
       ORDER BY created_at ASC
       LIMIT ${limit}
     `
-    const result = await bot.queryObject<Record<string, unknown>>(sql, params)
-    stats.read = result.rows.length
+    const rows: Record<string, unknown>[] = await bot.unsafe(queryText, params)
+    stats.read = rows.length
 
     // Pre-cargar reglas de validación de precios (para outliers)
     const { data: priceRules } = await admin
@@ -244,8 +254,11 @@ Deno.serve(async (req) => {
     const accepted: Record<string, unknown>[] = []
     let maxCreatedAt = '1970-01-01T00:00:00Z'
 
-    for (const raw of result.rows) {
-      const created = String(raw.created_at ?? '')
+    for (const raw of rows) {
+      const createdAtVal = raw.created_at
+      const created = createdAtVal instanceof Date
+        ? createdAtVal.toISOString()
+        : String(createdAtVal ?? '')
       if (created > maxCreatedAt) maxCreatedAt = created
 
       const dbCity = normalizeCity(raw.city as string)
@@ -339,7 +352,7 @@ Deno.serve(async (req) => {
     }
     return json(500, { ok: false, error: msg })
   } finally {
-    try { await bot?.end() } catch { /* ignore */ }
+    try { await bot?.end({ timeout: 2 }) } catch { /* ignore */ }
   }
 })
 
