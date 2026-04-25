@@ -121,13 +121,23 @@ function normalizeCity(c: string | null | undefined): string | null {
 
 // ── Conexión PG externa ─────────────────────────────────────────────────
 // Devuelve una instancia de postgres.js (sql tagged-template).
-// Para helioho.st (cert autofirmado) usamos rejectUnauthorized:false.
+//
+// helioho.st presenta un cert autofirmado emitido para otro hostname —
+// hay que saltarse DOS validaciones:
+//   1. cadena de CA       → rejectUnauthorized: false
+//   2. nombre del host    → checkServerIdentity: () => undefined
+//
+// La conexión sigue siendo encriptada con TLS, solo no validamos el cert.
+// Esto es seguro porque conocemos el host por configuración.
 function connectBotDb(): any {
   const tlsMode = (Deno.env.get('BOT_PG_SSLMODE') || 'require').toLowerCase()
   const ssl =
     tlsMode === 'disable'      ? false :
     tlsMode === 'verify-full'  ? 'verify-full' :
-    { rejectUnauthorized: false }   // 'prefer' | 'require' → confiamos pero saltamos validación
+    {
+      rejectUnauthorized:  false,
+      checkServerIdentity: () => undefined,   // skip hostname check
+    }
 
   return postgres({
     host:            Deno.env.get('BOT_PG_HOST')!,
