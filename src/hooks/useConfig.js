@@ -56,20 +56,35 @@ export function useConfig(country) {
       if (error) throw error
 
       // Backfill automático: re-clasifica filas existentes con los nuevos umbrales.
-      // Si el RPC no existe (migración 33 no aplicada), seguimos sin romper el save.
+      // Si el RPC no existe (migración 33 no aplicada), seguimos sin romper el save
+      // pero devolvemos el error para que la UI lo muestre al usuario.
       let recomputedCount = 0
+      let rpcError = null
       if (rows.length > 0) {
         const { city, category } = rows[0]
+        // eslint-disable-next-line no-console
+        console.log('[useConfig] llamando recompute_brackets_for', { country, city, category })
         const { data: cnt, error: rpcErr } = await sb.rpc('recompute_brackets_for', {
           p_country:  country,
           p_city:     city,
           p_category: category,
         })
-        if (!rpcErr && typeof cnt === 'number') recomputedCount = cnt
+        // eslint-disable-next-line no-console
+        console.log('[useConfig] respuesta recompute_brackets_for', { cnt, rpcErr })
+        if (rpcErr) {
+          rpcError = rpcErr.message || String(rpcErr)
+        } else if (cnt == null) {
+          rpcError = 'RPC devolvió null'
+        } else {
+          // Supabase puede devolver el int como number o como string
+          const parsed = typeof cnt === 'number' ? cnt : Number(cnt)
+          if (Number.isFinite(parsed)) recomputedCount = parsed
+          else rpcError = `RPC devolvió valor no numérico: ${JSON.stringify(cnt)}`
+        }
       }
 
       await load()
-      return { recomputedCount }
+      return { recomputedCount, rpcError }
     } finally {
       setSaving(false)
     }
