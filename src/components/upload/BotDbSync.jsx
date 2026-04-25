@@ -62,6 +62,20 @@ export default function BotDbSync() {
     }
   }
 
+  async function handlePing() {
+    setProbing(true)
+    try {
+      const out = await callFn({ action: 'ping' })
+      const env = out.env || {}
+      const msg = `Función OK · secrets: ${Object.entries(env).filter(([k]) => k.endsWith('_set')).map(([k,v]) => `${k.replace('_set','')}:${v?'✓':'✗'}`).join(' · ')} · SSL=${env.BOT_PG_SSLMODE}`
+      toast.ok(msg, { duration: 8000 })
+    } catch (e) {
+      toast.err(`Función no responde: ${e.message}. Verifica que esté deployada y revisa los Logs en Supabase Dashboard.`, { duration: 10000 })
+    } finally {
+      setProbing(false)
+    }
+  }
+
   async function handleSync(opts = {}) {
     setRunning(true)
     try {
@@ -129,6 +143,18 @@ export default function BotDbSync() {
             }}
           >
             {probing ? 'Sondeando…' : '🔍 Sondear esquema (probe)'}
+          </button>
+          <button
+            onClick={handlePing}
+            disabled={probing}
+            style={{
+              padding: '6px 12px', borderRadius: 6,
+              border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer',
+              fontSize: 12,
+            }}
+            title="Test de conectividad — verifica que la función responde y los secrets están seteados, sin tocar la BD del bot"
+          >
+            📡 Ping
           </button>
         </div>
 

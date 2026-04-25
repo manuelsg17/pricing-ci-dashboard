@@ -34,8 +34,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // postgres.js — soporta certs autofirmados vía ssl:{ rejectUnauthorized:false }
 // (deno-postgres no lo soporta; helioho.st usa cert autofirmado).
-// @ts-ignore esm.sh provides types at runtime
-import postgres from 'https://esm.sh/postgres@3.4.4?target=deno'
+// Usamos npm: specifier (soportado por Supabase Edge Functions) en lugar de
+// esm.sh para máxima estabilidad en el runtime de Deno.
+// @ts-ignore npm specifier resolved at runtime
+import postgres from 'npm:postgres@3.4.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -160,6 +162,21 @@ Deno.serve(async (req) => {
   let body: any = {}
   try { body = await req.json() } catch { body = {} }
   const action = body.action || 'sync'
+
+  // ── Modo PING — sanity check sin tocar la BD del bot ──────────────
+  if (action === 'ping') {
+    return json(200, {
+      ok: true, action: 'ping',
+      caller: caller.email,
+      env: {
+        BOT_PG_HOST_set:     !!Deno.env.get('BOT_PG_HOST'),
+        BOT_PG_USER_set:     !!Deno.env.get('BOT_PG_USER'),
+        BOT_PG_PASSWORD_set: !!Deno.env.get('BOT_PG_PASSWORD'),
+        BOT_PG_TABLE_set:    !!Deno.env.get('BOT_PG_TABLE'),
+        BOT_PG_SSLMODE:      Deno.env.get('BOT_PG_SSLMODE') || '(unset)',
+      },
+    })
+  }
 
   const schema = Deno.env.get('BOT_PG_SCHEMA') || 'public'
   const table  = Deno.env.get('BOT_PG_TABLE')  || 'quotes_output'
