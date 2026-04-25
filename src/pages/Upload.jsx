@@ -9,6 +9,7 @@ import PreviewTable        from '../components/upload/PreviewTable'
 import IngestProgress      from '../components/upload/IngestProgress'
 import BotUpload           from '../components/upload/BotUpload'
 import BotConverter        from '../components/upload/BotConverter'
+import BotDbSync           from '../components/upload/BotDbSync'
 import OutlierReview          from '../components/upload/OutlierReview'
 import { usePriceRules }      from '../hooks/usePriceRules'
 import { useRushHourConfig }  from '../hooks/useRushHourConfig'
@@ -603,6 +604,12 @@ export default function Upload() {
         >
           🔄 Bot → Excel
         </button>
+        <button
+          className={`upload-tab${uploadTab === 'dbsync' ? ' active' : ''}`}
+          onClick={() => setUploadTab('dbsync')}
+        >
+          🔌 Bot DB Sync
+        </button>
       </div>
 
       {/* Bot upload to DB */}
@@ -610,6 +617,9 @@ export default function Upload() {
 
       {/* Bot → Excel converter */}
       {uploadTab === 'convert' && <BotConverter />}
+
+      {/* Bot DB direct sync */}
+      {uploadTab === 'dbsync' && <BotDbSync />}
 
       {/* Manual upload */}
       {uploadTab === 'manual' && <>
