@@ -102,17 +102,45 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
       }
 
       // Agrupar: competitor → period → bracket → { avgPrice, count }
+      // El RPC agrupa por surge (true/false/null son 3 grupos), por lo que puede
+      // devolver múltiples filas por (comp, período, bracket). Combinamos con
+      // promedio ponderado para que el filtro "Todos" incluya todas las surges.
+      // Además normalizamos distance_bracket a snake_case lowercase como defensa
+      // ante datos legados con formato inconsistente ('Short' vs 'short').
       const nested = {}
+      const normalizeBracket = (b) => {
+        if (b == null) return null
+        return String(b).toLowerCase().replace(/\s+/g, '_')
+      }
       for (const row of rawRows) {
         const periodKey = (filters.viewMode === 'weekly' || filters.viewMode === 'historic')
           ? `${row.year}-W${String(row.week).padStart(2,'0')}`
           : row.observed_date
 
+        const bracketKey = normalizeBracket(row.distance_bracket)
+        if (!bracketKey) continue
+
         if (!nested[row.competition_name]) nested[row.competition_name] = {}
         if (!nested[row.competition_name][periodKey]) nested[row.competition_name][periodKey] = {}
-        nested[row.competition_name][periodKey][row.distance_bracket] = {
-          avgPrice: Number(row.avg_price),
-          count:    Number(row.observation_count),
+
+        const existing = nested[row.competition_name][periodKey][bracketKey]
+        const newPrice = Number(row.avg_price)
+        const newCount = Number(row.observation_count)
+
+        if (!existing) {
+          nested[row.competition_name][periodKey][bracketKey] = {
+            avgPrice: newPrice,
+            count:    newCount,
+          }
+        } else {
+          const totalCount = existing.count + newCount
+          const mergedAvg = totalCount > 0
+            ? (existing.avgPrice * existing.count + newPrice * newCount) / totalCount
+            : existing.avgPrice
+          nested[row.competition_name][periodKey][bracketKey] = {
+            avgPrice: mergedAvg,
+            count:    totalCount,
+          }
         }
       }
 
