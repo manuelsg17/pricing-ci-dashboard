@@ -102,10 +102,20 @@ export default function BotDbSync() {
         <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
           Lee filas nuevas desde <code>quotes_output</code> en la BD del bot y las
           inserta en <code>pricing_observations</code> aplicando los mismos filtros
-          (filas vacías, montos fuera de rango) que el upload manual. La conexión
-          se hace vía Edge Function — las credenciales viven solo como secrets en
-          Supabase, nunca en el código.
+          (filas vacías, montos fuera de rango) que el upload manual.
         </p>
+
+        <div style={{
+          marginBottom: 14, padding: 12, borderRadius: 8,
+          background: '#fffbeb', border: '1px solid #fcd34d', fontSize: 12, color: '#78350f',
+        }}>
+          <strong>⚠ Pull-mode (este botón) puede no funcionar con helioho.st</strong> por
+          temas de validación TLS del cert autofirmado. Si "Sondear esquema" falla con
+          <code> NotValidForName</code>, usar el modo <strong>push</strong>:
+          ejecuta <code>scripts/bot-sync/bot_sync_push.py</code> en la máquina del bot
+          (cron cada 30 min). Las "Últimas corridas" abajo aparecerán igual sin importar
+          qué método uses.
+        </div>
 
         <div style={{
           display: 'flex', gap: 12, alignItems: 'center',
