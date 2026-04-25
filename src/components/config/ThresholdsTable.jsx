@@ -61,8 +61,18 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       max_km:   getValue(b) === '' ? null : Number(getValue(b)),
     }))
     try {
-      await onSave(rows)
-      setSaveMsg('Guardado correctamente')
+      const result = await onSave(rows)
+      const recomputed = result?.recomputedCount ?? 0
+      setSaveMsg(
+        recomputed > 0
+          ? `Guardado ✓ ${recomputed.toLocaleString()} filas reclasificadas`
+          : 'Guardado ✓'
+      )
+      setLocal(prev => {
+        const next = { ...prev }
+        BRACKETS.forEach(b => delete next[getKey(selectedCity, selectedCat, b)])
+        return next
+      })
     } catch (e) {
       setSaveMsg('Error: ' + e.message)
     }
