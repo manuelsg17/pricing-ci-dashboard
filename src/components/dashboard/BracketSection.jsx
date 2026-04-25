@@ -35,10 +35,25 @@ export default function BracketSection({
   const deltaWrapRef = useRef(null)
   const diffWrapRef  = useRef(null)
 
+  // Auto-scroll de las 3 tablas al extremo derecho cada vez que cambian
+  // los períodos o el tamaño del contenedor. Doble rAF porque el primer
+  // frame puede correr antes de que el navegador calcule scrollWidth.
   useEffect(() => {
-    [priceWrapRef, deltaWrapRef, diffWrapRef].forEach(ref => {
-      if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth
+    const scrollToEnd = () => {
+      [priceWrapRef, deltaWrapRef, diffWrapRef].forEach(ref => {
+        if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth
+      })
+    }
+
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollToEnd)
     })
+
+    window.addEventListener('resize', scrollToEnd)
+    return () => {
+      cancelAnimationFrame(raf1)
+      window.removeEventListener('resize', scrollToEnd)
+    }
   }, [periods])
 
   function getPrice(comp, periodKey) {
