@@ -89,6 +89,7 @@ export default function DriverEarnings() {
     const { data } = await sb
       .from('pricing_observations')
       .select('competition_name, price_without_discount')
+      .eq('country', country)
       .eq('city', dbCity)
       .eq('category', dbCat)
       .eq('year',  refYear)
@@ -107,7 +108,7 @@ export default function DriverEarnings() {
     }
     setAvgPrices(result)
     setLoadingPrices(false)
-  }, [dbCity, dbCat, refYear, refWeek])
+  }, [country, dbCity, dbCat, refYear, refWeek])
 
   useEffect(() => { loadPrices() }, [loadPrices])
 

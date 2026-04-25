@@ -124,11 +124,13 @@ export default function WeeklyReport() {
     const [{ data: curr }, { data: prev }] = await Promise.all([
       sb.from('pricing_observations')
         .select('competition_name, distance_bracket, price_without_discount')
+        .eq('country', country)
         .eq('city', dbCity).eq('category', dbCat)
         .eq('year', refYear).eq('week', refWeek)
         .not('price_without_discount', 'is', null),
       sb.from('pricing_observations')
         .select('competition_name, distance_bracket, price_without_discount')
+        .eq('country', country)
         .eq('city', dbCity).eq('category', dbCat)
         .eq('year', compareYear).eq('week', compareWeek)
         .not('price_without_discount', 'is', null),

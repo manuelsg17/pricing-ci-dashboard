@@ -249,7 +249,10 @@ export default function DataEntry() {
   // ── Load session history ───────────────────────────────
   async function loadSessionHistory() {
     setHistLoading(true)
-    let q = sb.from('ci_sessions').select('*').order('started_at', { ascending: false }).limit(200)
+    let q = sb.from('ci_sessions').select('*')
+      .eq('country', country)
+      .order('started_at', { ascending: false })
+      .limit(200)
     if (histFrom) q = q.gte('observed_date', histFrom)
     if (histTo)   q = q.lte('observed_date', histTo)
     if (histCity) q = q.eq('city', histCity)
@@ -284,13 +287,14 @@ export default function DataEntry() {
     setMsg(null)
     sb.from('distance_references')
       .select('*')
+      .eq('country', country)
       .eq('city', dbCity)
       .order('category').order('bracket').order('point_a')
       .then(({ data }) => {
         setRefs(data || [])
         setRefsLoading(false)
       })
-  }, [dbCity])
+  }, [dbCity, country])
 
   // ── Reset on date change ───────────────────────────────
   useEffect(() => {
@@ -449,6 +453,7 @@ export default function DataEntry() {
       const [cat, time] = combo.split('|')
       const { error: delErr } = await sb.from('pricing_observations')
         .delete()
+        .eq('country',       country)
         .eq('city',         dbCity)
         .eq('category',     cat)
         .eq('observed_date', date)
@@ -475,6 +480,7 @@ export default function DataEntry() {
       const start  = sessionStartRef.current || Date.now()
       const dur    = Math.round((now - new Date(start)) / 60000 * 10) / 10
       await sb.from('ci_sessions').insert({
+        country,
         city:             dbCity,
         observed_date:    date,
         user_email:       userEmail,
