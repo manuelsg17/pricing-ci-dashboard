@@ -1,15 +1,17 @@
 import { useRef, useState } from 'react'
+import { useToast } from '../ui/Toast'
 
 export default function DropZone({ onFile }) {
   const inputRef = useRef()
   const [dragging, setDragging] = useState(false)
+  const toast = useToast()
 
   const handleFiles = (files) => {
     if (!files || files.length === 0) return
     const arr = Array.from(files)
     const invalid = arr.filter(f => !['xlsx', 'xls', 'csv'].includes(f.name.split('.').pop().toLowerCase()))
     if (invalid.length) {
-      alert('Solo se aceptan archivos .xlsx, .xls o .csv')
+      toast.warn('Solo se aceptan archivos .xlsx, .xls o .csv')
       return
     }
     onFile(arr)

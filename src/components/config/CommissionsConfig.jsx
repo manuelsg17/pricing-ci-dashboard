@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
@@ -14,6 +15,7 @@ const DIRTY_STYLE = {
 
 export default function CommissionsConfig({ country }) {
   const config = getCountryConfig(country)
+  const confirm = useConfirm()
   const CITY_OPTIONS = [{ value: '', label: 'Todas las ciudades' }, ...config.dbCities.map(c => ({ value: c, label: c }))]
 
   const { allRows, loading, saveCommission, deleteCommission, addRow } = useCompetitorCommissions(null, country)
@@ -46,7 +48,10 @@ export default function CommissionsConfig({ country }) {
   }
 
   async function handleDelete(row) {
-    if (!String(row.id).startsWith('new_') && !confirm('¿Eliminar esta comisión?')) return
+    if (!String(row.id).startsWith('new_')) {
+      const confirmed = await confirm({ title: 'Eliminar comisión', message: '¿Eliminar esta comisión?', danger: true, confirmText: 'Eliminar' })
+      if (!confirmed) return
+    }
     const ok = await deleteCommission(row.id)
     if (!ok) setMsg({ type: 'err', text: 'No se pudo eliminar.' })
     else if (!String(row.id).startsWith('new_')) setMsg({ type: 'ok', text: 'Comisión eliminada.' })

@@ -12,6 +12,8 @@ import BotConverter        from '../components/upload/BotConverter'
 import OutlierReview          from '../components/upload/OutlierReview'
 import { usePriceRules }      from '../hooks/usePriceRules'
 import { useRushHourConfig }  from '../hooks/useRushHourConfig'
+import { sanitizeBatch }      from '../algorithms/ingestionFilters'
+import { useToast }           from '../components/ui/Toast'
 import '../styles/upload.css'
 
 // Mapa: nombre de columna en Excel/CSV → nombre en BD
@@ -342,6 +344,7 @@ import { useCountry } from '../context/CountryContext'
 
 export default function Upload() {
   const { country, countryConfig: config } = useCountry()
+  const toast = useToast()
   const [sheets,    setSheets]    = useState([])
   const [preview,   setPreview]   = useState([])
   const [allRows,   setAllRows]   = useState([])
@@ -349,6 +352,7 @@ export default function Upload() {
   const [parsing,   setParsing]   = useState(null)
   const [uploadTab, setUploadTab] = useState('manual')
   const [suspects,  setSuspects]  = useState(null)  // null | array de filas sospechosas
+  const [sanitizationStats, setSanitizationStats] = useState(null)
 
   const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
   const { isRushHour }       = useRushHourConfig(country)
@@ -436,13 +440,24 @@ export default function Upload() {
   }
 
   // Llamado cuando el usuario hace click en "Insertar N filas"
-  // Primero valida outliers; si los hay muestra OutlierReview
+  // Primero pasa el saneamiento compartido (filas incompletas / sin precio),
+  // luego revisa outliers contra price_validation_rules.
   const handleIngestClick = () => {
-    const { ok, suspects: found } = checkOutliers(allRows)
+    // Paso 1: saneamiento compartido (mismo código que usaremos para la BD del bot).
+    // NO descartamos outliers aquí — el usuario los revisa en el panel.
+    const { accepted, dropped, stats } = sanitizeBatch(allRows, rules, { dropOutliers: false })
+    setSanitizationStats(stats)
+    if (stats.missingFields > 0 || stats.missingPrice > 0) {
+      const total = stats.missingFields + stats.missingPrice
+      toast.warn(`${total} fila${total === 1 ? '' : 's'} descartada${total === 1 ? '' : 's'} por incompletas (${stats.missingFields} sin campos clave, ${stats.missingPrice} sin precio).`, { duration: 6000 })
+    }
+
+    // Paso 2: outliers (mismo flujo que ya existía).
+    const { ok, suspects: found } = checkOutliers(accepted)
     if (found.length > 0) {
       setSuspects(found)  // muestra el panel de revisión
     } else {
-      handleIngest(allRows)
+      handleIngest(accepted)
     }
   }
 

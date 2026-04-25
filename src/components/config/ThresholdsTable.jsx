@@ -64,6 +64,33 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
   // Hay al menos un input modificado en la ciudad+categoría actual
   const hasUnsavedChanges = BRACKETS.some(b => isDirty(b))
 
+  // Validación monotónica: cada bracket debe ser estrictamente mayor al anterior.
+  // El último bracket puede ser vacío (∞).
+  const validationErrors = useMemo(() => {
+    const errs = []
+    let prev = null
+    BRACKETS.forEach((b, i) => {
+      const raw = getValue(b)
+      const isLast = i === BRACKETS.length - 1
+      if (raw === '' || raw === null || raw === undefined) {
+        if (!isLast) errs.push({ bracket: b, msg: 'Falta umbral (solo el último bracket puede quedar vacío)' })
+        return
+      }
+      const num = Number(raw)
+      if (!isFinite(num) || num <= 0) {
+        errs.push({ bracket: b, msg: 'Debe ser un número positivo' })
+        return
+      }
+      if (prev != null && num <= prev) {
+        errs.push({ bracket: b, msg: `Debe ser mayor que el anterior (${prev})` })
+      }
+      prev = num
+    })
+    return errs
+  }, [local, thresholds, selectedCity, selectedCat])
+
+  const hasErrors = validationErrors.length > 0
+
   const handleChange = (bracket, val) => {
     setSaveMsg(null)
     setLocal(prev => ({ ...prev, [getKey(selectedCity, selectedCat, bracket)]: val }))
@@ -80,6 +107,13 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
 
   const handleSave = async () => {
     setSaveMsg(null)
+    if (hasErrors) {
+      setSaveMsg({
+        type: 'err',
+        text: `No se puede guardar: ${validationErrors.length} validación${validationErrors.length === 1 ? '' : 'es'} pendiente${validationErrors.length === 1 ? '' : 's'}. Los umbrales deben ser estrictamente crecientes.`,
+      })
+      return
+    }
     const rows = BRACKETS.map(b => ({
       city:     selectedCity,
       category: selectedCat,
@@ -183,6 +217,18 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         <tbody>
           {BRACKETS.map((b, i) => {
             const dirty = isDirty(b)
+            const err = validationErrors.find(e => e.bracket === b)
+            const inputStyle = err ? {
+              background: '#fef2f2',
+              borderColor: '#ef4444',
+              fontWeight: 600,
+              boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.2)',
+            } : dirty ? {
+              background:   '#fef3c7',
+              borderColor:  '#f59e0b',
+              fontWeight:   600,
+              boxShadow:    '0 0 0 2px rgba(245, 158, 11, 0.2)',
+            } : undefined
             return (
               <tr key={b}>
                 <td>{BRACKET_LABELS[b]}</td>
@@ -194,14 +240,12 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
                     placeholder={i === BRACKETS.length - 1 ? '∞' : '0.00'}
                     value={getValue(b)}
                     onChange={e => handleChange(b, e.target.value)}
-                    style={dirty ? {
-                      background:   '#fef3c7',
-                      borderColor:  '#f59e0b',
-                      fontWeight:   600,
-                      boxShadow:    '0 0 0 2px rgba(245, 158, 11, 0.2)',
-                    } : undefined}
-                    title={dirty ? `Valor en BD: ${getDbValue(b) || 'sin límite'} — sin guardar` : undefined}
+                    style={inputStyle}
+                    title={err ? err.msg : (dirty ? `Valor en BD: ${getDbValue(b) || 'sin límite'} — sin guardar` : undefined)}
                   />
+                  {err && (
+                    <div style={{ fontSize: 10, color: '#b91c1c', marginTop: 2 }}>{err.msg}</div>
+                  )}
                 </td>
                 <td style={{ textAlign: 'left', fontSize: 10, color: '#888', paddingLeft: 8 }}>
                   {i === 0 && `Viajes ≤ ${getValue(b) || '?'} km`}
@@ -218,8 +262,8 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         <button
           className="btn-save"
           onClick={handleSave}
-          disabled={saving || !hasUnsavedChanges}
-          title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
+          disabled={saving || !hasUnsavedChanges || hasErrors}
+          title={hasErrors ? 'Corrige los errores de validación antes de guardar' : (!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined)}
         >
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>

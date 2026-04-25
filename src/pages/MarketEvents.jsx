@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb }      from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { getCountryConfig } from '../lib/constants'
+import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import '../styles/market-events.css'
 
 const EVENT_TYPES = [
@@ -37,6 +41,8 @@ export default function MarketEvents() {
   const { country, countryConfig } = useCountry()
   const uiCities      = countryConfig.cities
   const dbCities      = countryConfig.dbCities
+  const toast   = useToast()
+  const confirm = useConfirm()
 
   const [filterCity,  setFilterCity]  = useState('Todas')
   const [filterFrom,  setFilterFrom]  = useState(thirtyDaysAgo())
@@ -45,7 +51,6 @@ export default function MarketEvents() {
   const [events,  setEvents]  = useState([])
   const [loading, setLoading] = useState(false)
   const [saving,  setSaving]  = useState(false)
-  const [msg,     setMsg]     = useState(null)
 
   // Local edits (for both existing and new rows)
   const [edits, setEdits] = useState({})
@@ -90,8 +95,13 @@ export default function MarketEvents() {
   }
 
   async function handleSave(row) {
-    setSaving(true); setMsg(null)
+    setSaving(true)
     const merged = { ...row, ...edits[row.id] }
+    if (!merged.description?.trim()) {
+      toast.warn('La descripción no puede estar vacía.')
+      setSaving(false)
+      return
+    }
     const payload = {
       city:        merged.city,
       country,
@@ -108,10 +118,10 @@ export default function MarketEvents() {
       ;({ error: err } = await sb.from('market_events').update(payload).eq('id', row.id))
     }
     if (!err) {
-      setMsg({ type: 'ok', text: '✓ Evento guardado.' })
+      toast.ok('Evento guardado.')
       await load()
     } else {
-      setMsg({ type: 'err', text: `Error: ${err.message}` })
+      toast.err(`Error al guardar: ${err.message}`)
     }
     setSaving(false)
   }
@@ -121,8 +131,16 @@ export default function MarketEvents() {
       setEvents(prev => prev.filter(e => e.id !== id))
       return
     }
+    const ok = await confirm({
+      title:   'Eliminar evento',
+      message: '¿Eliminar este evento de mercado? Esta acción no se puede deshacer.',
+      danger:  true,
+      confirmText: 'Eliminar',
+    })
+    if (!ok) return
     const { error } = await sb.from('market_events').delete().eq('id', id)
-    if (!error) await load()
+    if (error) toast.err(`Error al eliminar: ${error.message}`)
+    else { toast.ok('Evento eliminado.'); await load() }
   }
 
   return (
@@ -158,11 +176,6 @@ export default function MarketEvents() {
         </button>
       </div>
 
-      {/* ── Messages ── */}
-      {msg && (
-        <div className={`mevt-msg mevt-msg--${msg.type}`}>{msg.text}</div>
-      )}
-
       {/* ── Table ── */}
       <div className="mevt-section">
         <div className="mevt-section__header">
@@ -172,11 +185,13 @@ export default function MarketEvents() {
         </div>
 
         {loading ? (
-          <div className="mevt-empty">Cargando…</div>
+          <SkeletonTable rows={5} cols={7} />
         ) : events.length === 0 ? (
-          <div className="mevt-empty">
-            No hay eventos en este período. Haz clic en <strong>"+ Nuevo evento"</strong> para agregar uno.
-          </div>
+          <EmptyState
+            icon="📅"
+            title="Sin eventos en este período"
+            message='Haz clic en "+ Nuevo evento" para agregar uno. Los eventos aparecen sobre los gráficos del Dashboard en vista diaria.'
+          />
         ) : (
           <div className="mevt-table-wrap">
             <table className="mevt-table">

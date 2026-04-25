@@ -7,6 +7,8 @@ import { useI18n }         from '../context/LanguageContext'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { BRACKETS, getCountryConfig } from '../lib/constants'
 import { useCountry }      from '../context/CountryContext'
+import { SkeletonDashboard } from '../components/ui/Skeleton'
+import EmptyState           from '../components/ui/EmptyState'
 import '../styles/dashboard.css'
 
 function DashboardContent({ dbWeights }) {
@@ -97,6 +99,40 @@ function DashboardContent({ dbWeights }) {
     link.click()
   }
 
+  // ── Export CSV ────────────────────────────────────────────────────────
+  function handleExportCSV() {
+    if (!periods.length || !priceMatrix) return
+    const periodLabels = periods.map(p => p.label || p.key)
+    const csvRows = [
+      ['city', 'category', 'bracket', 'competitor', ...periodLabels].join(','),
+    ]
+    const allBrackets = ['_wa', ...BRACKETS]
+    const escape = v => {
+      if (v == null) return ''
+      const s = String(v)
+      return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    for (const comp of filters.competitors) {
+      for (const b of allBrackets) {
+        const row = [filters.dbCity, filters.dbCategory, b, comp]
+        for (const p of periods) {
+          const cell = priceMatrix[comp]?.[p.key]?.[b]
+          const val = typeof cell === 'object' ? cell?.price : cell
+          row.push(val != null ? Number(val).toFixed(2) : '')
+        }
+        csvRows.push(row.map(escape).join(','))
+      }
+    }
+    const csv = csvRows.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `dashboard-ci-${filters.dbCity}-${filters.dbCategory}-${new Date().toISOString().slice(0,10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="dashboard" ref={dashRef}>
       <FilterBar />
@@ -132,21 +168,24 @@ function DashboardContent({ dbWeights }) {
           <button className="kpi-export-btn" onClick={handleExportPNG} title={t('dashboard.export_png')}>
             {t('dashboard.export_png')}
           </button>
+          <button className="kpi-export-btn" onClick={handleExportCSV} title="Exportar tabla a CSV" style={{ marginLeft: 6 }}>
+            ⬇ CSV
+          </button>
         </div>
       )}
 
-      {loading && (
-        <div className="state-box">{t('dashboard.loading')}</div>
-      )}
+      {loading && <SkeletonDashboard />}
 
       {error && (
         <div className="state-box state-box--error">{t('app.error')}: {error}</div>
       )}
 
       {!loading && !error && periods.length === 0 && (
-        <div className="state-box">
-          {t('dashboard.no_data')}
-        </div>
+        <EmptyState
+          icon="📊"
+          title={t('dashboard.no_data')}
+          message="No hay observaciones para los filtros seleccionados. Prueba ampliar el rango de fechas, cambiar de ciudad/categoría o sube data desde 'Cargar Data'."
+        />
       )}
 
       {!loading && periods.length > 0 && sections.map(({ bracket, label }) => (

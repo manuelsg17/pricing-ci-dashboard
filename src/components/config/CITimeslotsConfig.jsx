@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 const DIRTY_STYLE = {
   background:  '#fef3c7',
@@ -10,6 +11,7 @@ const DIRTY_STYLE = {
 }
 
 export default function CITimeslotsConfig() {
+  const confirm = useConfirm()
   const [rows,     setRows]     = useState([])
   const [original, setOriginal] = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -81,7 +83,12 @@ export default function CITimeslotsConfig() {
 
   async function deleteRow(id) {
     if (String(id).startsWith('new_')) { setRows(prev => prev.filter(r => r.id !== id)); return }
-    if (!confirm('¿Eliminar este timeslot? Podría afectar sesiones existentes.')) return
+    const ok = await confirm({
+      title: 'Eliminar timeslot',
+      message: '¿Eliminar este timeslot? Podría afectar sesiones existentes.',
+      danger: true, confirmText: 'Eliminar',
+    })
+    if (!ok) return
     const { error } = await sb.from('ci_timeslots').delete().eq('id', id)
     if (error) setMsg({ type: 'err', text: 'Error al eliminar: ' + error.message })
     else { setMsg({ type: 'ok', text: 'Timeslot eliminado.' }); await load() }

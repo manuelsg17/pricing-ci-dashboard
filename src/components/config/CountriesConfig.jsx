@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../../lib/supabase'
 import { COUNTRY_CONFIG, COMPETITOR_COLORS } from '../../lib/constants'
 import { useCountry } from '../../context/CountryContext'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 const CONST_KEYS    = Object.keys(COUNTRY_CONFIG)
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
@@ -69,6 +70,7 @@ function CompetitorAdder({ existing, onAdd }) {
 
 export default function CountriesConfig() {
   const { dbConfigs, refreshConfigs } = useCountry()
+  const confirm = useConfirm()
 
   const [dbRows, setDbRows]                   = useState([])
   const [loading, setLoading]                 = useState(true)
@@ -209,7 +211,12 @@ export default function CountriesConfig() {
   }
 
   async function handleDeleteCountry(key) {
-    if (!window.confirm(`¿Eliminar la configuración de "${key}" de la base de datos?`)) return
+    const ok = await confirm({
+      title: 'Eliminar configuración de país',
+      message: `¿Eliminar la configuración de "${key}" de la base de datos? Esta acción no se puede deshacer.`,
+      danger: true, confirmText: 'Eliminar',
+    })
+    if (!ok) return
     await sb.from('country_config').delete().eq('country_key', key)
     setDbRows(prev => prev.filter(r => r.country_key !== key))
     setDraft(prev => { const n = { ...prev }; delete n[key]; return n })

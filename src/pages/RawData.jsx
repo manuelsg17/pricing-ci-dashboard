@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { useRawData } from '../hooks/useRawData'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig, getCityLabel } from '../lib/constants'
+import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import '../styles/raw-data.css'
 
 // DB-level city labels for tabs
@@ -28,6 +30,8 @@ import { useCountry } from '../context/CountryContext'
 
 export default function RawData() {
   const { country, countryConfig: config } = useCountry()
+  const toast   = useToast()
+  const confirm = useConfirm()
   const cityTabs = useMemo(() => config.dbCities.map(db => ({ db, label: getCityLabel(db) })), [config.dbCities])
   
   const getInitialState = (key, defaultVal) => {
@@ -106,13 +110,19 @@ export default function RawData() {
   const OUTLIER_THRESHOLD = config.outlierThreshold || 100
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar esta observación? Esta acción no se puede deshacer.')) return
+    const ok = await confirm({
+      title: 'Eliminar observación',
+      message: '¿Eliminar esta observación? Esta acción no se puede deshacer.',
+      danger: true, confirmText: 'Eliminar',
+    })
+    if (!ok) return
     const { error: delErr } = await sb.from('pricing_observations').delete().eq('id', id)
     if (!delErr) {
       setRows(prev => prev.filter(r => r.id !== id))
       setTotal(prev => prev - 1)
+      toast.ok('Observación eliminada.')
     } else {
-      alert('Error al eliminar: ' + delErr.message)
+      toast.err('Error al eliminar: ' + delErr.message)
     }
   }
 
@@ -141,8 +151,9 @@ export default function RawData() {
       
       if (!updErr) {
         rows.find(r => r.id === id)[field] = finalVal
+        toast.ok('Valor actualizado.')
       } else {
-        alert("Error actualizando: " + updErr.message)
+        toast.err('Error actualizando: ' + updErr.message)
       }
       setEditingId(null)
     }

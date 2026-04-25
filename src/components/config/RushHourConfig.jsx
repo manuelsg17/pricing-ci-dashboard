@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 export default function RushHourConfig({ country }) {
   const config = getCountryConfig(country)
+  const confirm = useConfirm()
   const allCities = ['all', ...config.dbCities]
 
   const [windows, setWindows] = useState([])
@@ -83,7 +85,8 @@ export default function RushHourConfig({ country }) {
       setWindows(prev => prev.filter(w => w.id !== id))
       return
     }
-    if (!confirm('¿Eliminar esta franja rush hour?')) return
+    const ok = await confirm({ title: 'Eliminar franja', message: '¿Eliminar esta franja rush hour?', danger: true, confirmText: 'Eliminar' })
+    if (!ok) return
     const { error } = await sb.from('rush_hour_windows').delete().eq('id', id)
     if (!error) {
       setMsg({ type: 'ok', text: 'Franja eliminada.' })

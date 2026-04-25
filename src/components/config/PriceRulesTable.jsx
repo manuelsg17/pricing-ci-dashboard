@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 export default function PriceRulesTable({ country }) {
   const config = getCountryConfig(country)
+  const confirm = useConfirm()
   const defaultCity = config.dbCities[0] || 'Lima'
 
   const allCategories = useMemo(() => {
@@ -100,7 +102,8 @@ export default function PriceRulesTable({ country }) {
       setRules(prev => prev.filter(r => r.id !== id))
       return
     }
-    if (!confirm('¿Eliminar esta regla de límite de precio?')) return
+    const ok = await confirm({ title: 'Eliminar regla', message: '¿Eliminar esta regla de límite de precio?', danger: true, confirmText: 'Eliminar' })
+    if (!ok) return
     const { error } = await sb.from('price_validation_rules').delete().eq('id', id)
     if (!error) {
       setMsg({ type: 'ok', text: 'Regla eliminada.' })

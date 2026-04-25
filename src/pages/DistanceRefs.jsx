@@ -1,13 +1,19 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useDistanceRefs } from '../hooks/useDistanceRefs'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig, getCityLabel } from '../lib/constants'
+import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
+import EmptyState from '../components/ui/EmptyState'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import '../styles/distance-refs.css'
 
 import { useCountry } from '../context/CountryContext'
 
 export default function DistanceRefs() {
   const { country, countryConfig: config } = useCountry()
-  
+  const toast   = useToast()
+  const confirm = useConfirm()
+
   // Reconstruimos la lista de "solapas" (UI Cities) basadas en la configuración del país
   const uiCities = config.dbCities
 
@@ -31,7 +37,6 @@ export default function DistanceRefs() {
   }, [categories, uiCat])
 
   const [bulkSaving, setBulkSaving] = useState(false)
-  const [bulkMsg,    setBulkMsg]    = useState(null)
 
   // dbCat usa lookup o el mismo si no está mapeado
   const dbCat = config.uiToDbCategory?.[uiCat] || uiCat
@@ -56,12 +61,10 @@ export default function DistanceRefs() {
     setDbCity(city)
     // El setUiCat se manejará por el useEffect cuando cambie `categories`
     setEdits({})
-    setBulkMsg(null)
   }
 
   function handleCatChange(cat) {
     setUiCat(cat)
-    setBulkMsg(null)
   }
 
   const handleSave = async (row) => {
@@ -79,7 +82,12 @@ export default function DistanceRefs() {
                      ? Number(merged.waze_distance) : null,
     }
     const ok = await saveRef(payload)
-    if (ok) setEdits(prev => { const n = { ...prev }; delete n[row.id]; return n })
+    if (ok) {
+      setEdits(prev => { const n = { ...prev }; delete n[row.id]; return n })
+      toast.ok('Ruta guardada.')
+    } else {
+      toast.err('Error al guardar la ruta.')
+    }
   }
 
   const handleDelete = async (id) => {
@@ -87,20 +95,26 @@ export default function DistanceRefs() {
       setEdits(prev => { const n = { ...prev }; delete n[id]; return n })
       return
     }
-    await deleteRef(id)
+    const ok = await confirm({
+      title: 'Eliminar ruta de referencia',
+      message: '¿Eliminar esta ruta? Si está usada en sesiones de CI activas, la sesión perderá esa referencia.',
+      danger: true, confirmText: 'Eliminar',
+    })
+    if (!ok) return
+    const success = await deleteRef(id)
+    if (success !== false) toast.ok('Ruta eliminada.')
   }
 
   // Agregar todos los brackets para la categoría seleccionada
   const handleAddCategory = () => {
     addCategoryRows(dbCat, BRACKETS)
-    setBulkMsg(null)
   }
 
   // Guardar todas las filas pendientes de la vista actual
   const handleSaveAll = async () => {
     const toSave = filteredRefs.filter(r => r._isNew || edits[r.id])
-    if (!toSave.length) { setBulkMsg({ type: 'ok', text: 'No hay cambios pendientes.' }); return }
-    setBulkSaving(true); setBulkMsg(null)
+    if (!toSave.length) { toast.info('No hay cambios pendientes.'); return }
+    setBulkSaving(true)
     let saved = 0, failed = 0
     for (const row of toSave) {
       const merged = { ...row, ...edits[row.id] }
@@ -121,8 +135,8 @@ export default function DistanceRefs() {
       else failed++
     }
     setBulkSaving(false)
-    if (failed === 0) setBulkMsg({ type: 'ok', text: `✓ ${saved} filas guardadas correctamente.` })
-    else setBulkMsg({ type: 'err', text: `${saved} guardadas, ${failed} con error.` })
+    if (failed === 0) toast.ok(`${saved} ruta${saved === 1 ? '' : 's'} guardada${saved === 1 ? '' : 's'}.`)
+    else toast.warn(`${saved} guardadas, ${failed} con error. Revisa los campos faltantes.`)
   }
 
   return (
@@ -159,13 +173,6 @@ export default function DistanceRefs() {
         ))}
       </div>
 
-      {/* Bulk messages */}
-      {bulkMsg && (
-        <div className={`drefs-bulk-msg${bulkMsg.type === 'ok' ? ' drefs-bulk-msg--ok' : ' drefs-bulk-msg--err'}`}>
-          {bulkMsg.text}
-        </div>
-      )}
-
       <div className="drefs-section">
         <div className="drefs-section__header">
           <span className="drefs-section__title">
@@ -193,7 +200,7 @@ export default function DistanceRefs() {
             </button>
             <button
               className="btn-add-row"
-              onClick={() => { addRow(); setBulkMsg(null) }}
+              onClick={() => { addRow() }}
               disabled={saving}
             >
               + Fila individual
@@ -202,12 +209,13 @@ export default function DistanceRefs() {
         </div>
 
         {loading ? (
-          <div className="drefs-empty">Cargando…</div>
+          <SkeletonTable rows={6} cols={7} />
         ) : filteredRefs.length === 0 ? (
-          <div className="drefs-empty">
-            No hay rutas para <strong>{dbCity} · {uiCat}</strong>.
-            Haz clic en <strong>"+ Agregar {uiCat} completa"</strong> para crear los 6 brackets de una vez.
-          </div>
+          <EmptyState
+            icon="🛣️"
+            title={`Sin rutas para ${dbCity} · ${uiCat}`}
+            message={`Crea las rutas de referencia para este bucket. Haz clic en "+ Agregar ${uiCat} completa" para generar los 6 brackets de una vez.`}
+          />
         ) : (
           <div className="drefs-table-wrap">
             <table className="drefs-table">

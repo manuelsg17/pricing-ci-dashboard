@@ -4,6 +4,11 @@ import { useAuth }    from '../lib/auth'
 import { useCountry } from '../context/CountryContext'
 import { ALL_SECTIONS, SECTION_LABELS } from '../hooks/useAccessControl'
 import { useI18n }    from '../context/LanguageContext'
+import { COUNTRIES }  from '../lib/constants'
+import { useToast }   from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
+import EmptyState     from '../components/ui/EmptyState'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import '../styles/access-management.css'
 
 // ── Users tab ──────────────────────────────────────────────────────────────
@@ -11,10 +16,11 @@ function UsersTab({ roles }) {
   const { session } = useAuth()
   const currentEmail = session?.user?.email || ''
   const { t } = useI18n()
+  const toast   = useToast()
+  const confirm = useConfirm()
 
   const [users,   setUsers]   = useState([])
   const [loading, setLoading] = useState(false)
-  const [msg,     setMsg]     = useState(null)
 
   // New user form
   const [showForm,   setShowForm]   = useState(false)
@@ -46,19 +52,15 @@ function UsersTab({ roles }) {
     const { error } = await sb.from('user_profiles')
       .update({ role_id: newRoleId ? parseInt(newRoleId) : null })
       .eq('id', userId)
-    if (error) {
-      setMsg({ type: 'err', text: `Error al actualizar rol: ${error.message}` })
-    } else {
-      setMsg({ type: 'ok', text: '✓ Rol actualizado.' })
-      setTimeout(() => setMsg(null), 3000)
-    }
+    if (error) toast.err(`Error al actualizar rol: ${error.message}`)
+    else       toast.ok('Rol actualizado.')
     load()
   }
 
   async function handleInvite(e) {
     e.preventDefault()
     if (!email.trim() || !password.trim()) return
-    setSaving(true); setMsg(null)
+    setSaving(true)
 
     try {
       const { data: { session: currentSession } } = await sb.auth.getSession()
@@ -88,23 +90,29 @@ function UsersTab({ roles }) {
       setSaving(false)
 
       if (!res.ok) {
-        setMsg({ type: 'err', text: `Error ${res.status}: ${json?.error || JSON.stringify(json)}` })
+        toast.err(`Error ${res.status}: ${json?.error || JSON.stringify(json)}`)
       } else {
-        setMsg({ type: 'ok', text: `✓ Usuario ${email} creado con acceso al sistema.` })
+        toast.ok(`Usuario ${email} creado con acceso al sistema.`)
         setFirstName(''); setLastName(''); setEmail(''); setPassword(''); setRoleId('')
         setShowForm(false)
         load()
       }
     } catch (err) {
       setSaving(false)
-      setMsg({ type: 'err', text: `Error de red: ${err.message}` })
+      toast.err(`Error de red: ${err.message}`)
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm(t('access.confirm_delete_user'))) return
-    await sb.from('user_profiles').delete().eq('id', id)
-    load()
+    const ok = await confirm({
+      title: 'Eliminar usuario',
+      message: t('access.confirm_delete_user'),
+      danger: true, confirmText: 'Eliminar',
+    })
+    if (!ok) return
+    const { error } = await sb.from('user_profiles').delete().eq('id', id)
+    if (error) toast.err(`Error al eliminar: ${error.message}`)
+    else { toast.ok('Usuario eliminado.'); load() }
   }
 
   return (
@@ -155,12 +163,10 @@ function UsersTab({ roles }) {
         </form>
       )}
 
-      {msg && <div className={`am-msg am-msg--${msg.type}`}>{msg.text}</div>}
-
       {loading ? (
-        <div className="am-empty">{t('app.loading')}</div>
+        <SkeletonTable rows={5} cols={5} />
       ) : users.length === 0 ? (
-        <div className="am-empty">{t('access.no_users')}</div>
+        <EmptyState icon="👥" title={t('access.no_users')} compact />
       ) : (
         <table className="am-table">
           <thead>
@@ -213,14 +219,15 @@ function UsersTab({ roles }) {
 }
 
 // ── Roles tab ──────────────────────────────────────────────────────────────
-function RolesTab() {
+function RolesTab({ availableCountries }) {
   const { t } = useI18n()
+  const toast   = useToast()
+  const confirm = useConfirm()
   const [roles,   setRoles]   = useState([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(null) // role id being edited
   const [draftPerms, setDraftPerms] = useState({ sections: [], countries: [] })
   const [saving,  setSaving]  = useState(false)
-  const [msg,     setMsg]     = useState(null)
 
   // New role form
   const [showNew,    setShowNew]    = useState(false)
@@ -268,15 +275,15 @@ function RolesTab() {
   }
 
   async function saveRole(id) {
-    setSaving(true); setMsg(null)
+    setSaving(true)
     const { error } = await sb.from('roles')
       .update({ permissions: draftPerms })
       .eq('id', id)
     setSaving(false)
     if (error) {
-      setMsg({ type: 'err', text: `Error: ${error.message}` })
+      toast.err(`Error al guardar rol: ${error.message}`)
     } else {
-      setMsg({ type: 'ok', text: '✓ Rol actualizado.' })
+      toast.ok('Rol actualizado.')
       setEditing(null)
       load()
     }
@@ -292,16 +299,25 @@ function RolesTab() {
       permissions: { sections: ['dashboard'], countries: ['all'] },
     })
     setSaving(false)
-    if (!error) {
+    if (error) {
+      toast.err(`Error al crear rol: ${error.message}`)
+    } else {
+      toast.ok(`Rol "${newLabel}" creado.`)
       setShowNew(false); setNewName(''); setNewLabel('')
       load()
     }
   }
 
   async function deleteRole(id) {
-    if (!confirm(t('access.confirm_delete_role'))) return
-    await sb.from('roles').delete().eq('id', id)
-    load()
+    const ok = await confirm({
+      title: 'Eliminar rol',
+      message: t('access.confirm_delete_role'),
+      danger: true, confirmText: 'Eliminar',
+    })
+    if (!ok) return
+    const { error } = await sb.from('roles').delete().eq('id', id)
+    if (error) toast.err(`Error al eliminar rol: ${error.message}`)
+    else { toast.ok('Rol eliminado.'); load() }
   }
 
   return (
@@ -329,10 +345,8 @@ function RolesTab() {
         </form>
       )}
 
-      {msg && <div className={`am-msg am-msg--${msg.type}`}>{msg.text}</div>}
-
       {loading ? (
-        <div className="am-empty">{t('app.loading')}</div>
+        <SkeletonTable rows={4} cols={3} />
       ) : (
         <div className="am-roles-list">
           {roles.map(role => (
@@ -396,14 +410,14 @@ function RolesTab() {
                       </button>
                     </div>
                     <div className="am-perm-checks">
-                      {availableCountries.map(c => (
+                      {(availableCountries || COUNTRIES).map(c => (
                         <label key={c} className="am-check">
                           <input
                             type="checkbox"
                             checked={draftPerms.countries.includes('all') || draftPerms.countries.includes(c)}
                             onChange={() => {
                               if (draftPerms.countries.includes('all')) {
-                                setDraftPerms(p => ({ ...p, countries: COUNTRIES.filter(x => x !== c) }))
+                                setDraftPerms(p => ({ ...p, countries: (availableCountries || COUNTRIES).filter(x => x !== c) }))
                               } else {
                                 toggleCountry(c)
                               }
@@ -473,7 +487,7 @@ export default function AccessManagement() {
       </div>
 
       {activeTab === 'users' && <UsersTab roles={roles} />}
-      {activeTab === 'roles' && <RolesTab />}
+      {activeTab === 'roles' && <RolesTab availableCountries={availableCountries} />}
     </div>
   )
 }
