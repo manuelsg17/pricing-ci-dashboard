@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { COUNTRIES } from '../../lib/constants'
+import { COUNTRIES, getCountryIso } from '../../lib/constants'
 import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
+import CountrySelector from './CountrySelector'
 import '../../styles/topbar.css'
 
 const getNav = (t) => [
@@ -97,7 +98,14 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
         <div className="topbar__brand-icon">Y</div>
         <div className="topbar__brand-text">
           <span className="topbar__brand-title">{t('brand.title')}</span>
-          <span className="topbar__brand-sub">{t(`country.${country}`) || country}</span>
+          <span className="topbar__brand-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <img
+              src={`https://flagcdn.com/w20/${getCountryIso(country)}.png`}
+              alt=""
+              style={{ width: 14, height: 'auto', borderRadius: 1 }}
+            />
+            {t(`country.${country}`) || country}
+          </span>
         </div>
       </div>
 
@@ -130,18 +138,13 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
       </div>
 
       <div className="topbar__right">
-        {/* Country selector */}
-        <select
-          className="topbar__country-select"
-          value={country}
-          onChange={e => setCountry(e.target.value)}
-          title={t('filter.city')}
+        {/* Country selector — custom dropdown con banderas SVG */}
+        <CountrySelector
+          country={country}
+          setCountry={setCountry}
+          allowedCountries={allowedCountries}
           disabled={allowedCountries.length <= 1}
-        >
-          {allowedCountries.map(c => (
-            <option key={c} value={c}>{t(`country.${c}`)}</option>
-          ))}
-        </select>
+        />
 
         {/* Language selector */}
         <select

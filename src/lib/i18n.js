@@ -72,8 +72,12 @@ export const TRANSLATIONS = {
 
     // ── Brand / Countries ─────────────────────────────────
     'brand.title':                  'Pricing CI',
-    'country.Peru':                 'Perú 🇵🇪',
-    'country.Colombia':             'Colombia 🇨🇴',
+    'country.Peru':                 'Perú',
+    'country.Colombia':             'Colombia',
+    'country.Nepal':                'Nepal',
+    'country.Bolivia':              'Bolivia',
+    'country.Venezuela':            'Venezuela',
+    'country.Zambia':               'Zambia',
 
     // ── FilterBar ──────────────────────────────────────
     'filter.city':       'Ciudad',
@@ -262,8 +266,12 @@ export const TRANSLATIONS = {
     'bracket.very_long':            'Very Long',
 
     'brand.title':                  'Pricing CI',
-    'country.Peru':                 'Peru 🇵🇪',
-    'country.Colombia':             'Colombia 🇨🇴',
+    'country.Peru':                 'Peru',
+    'country.Colombia':             'Colombia',
+    'country.Nepal':                'Nepal',
+    'country.Bolivia':              'Bolivia',
+    'country.Venezuela':            'Venezuela',
+    'country.Zambia':               'Zambia',
 
     'filter.city':       'City',
     'filter.category':   'Category',
@@ -446,8 +454,12 @@ export const TRANSLATIONS = {
     'bracket.very_long':            'Очень длинный',
 
     'brand.title':                  'Ценообразование CI',
-    'country.Peru':                 'Перу 🇵🇪',
-    'country.Colombia':             'Колумбия 🇨🇴',
+    'country.Peru':                 'Перу',
+    'country.Colombia':             'Колумбия',
+    'country.Nepal':                'Непал',
+    'country.Bolivia':              'Боливия',
+    'country.Venezuela':            'Венесуэла',
+    'country.Zambia':               'Замбия',
 
     'filter.city':       'Город',
     'filter.category':   'Категория',

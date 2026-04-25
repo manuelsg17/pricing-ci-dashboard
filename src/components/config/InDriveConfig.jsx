@@ -15,6 +15,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 // Outlier threshold is now dynamic based on country configuration (cfgCountry.outlierThreshold)
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
+import SaveStatusBanner from './SaveStatusBanner'
 
 
 export default function InDriveConfig({ country }) {
@@ -38,6 +39,7 @@ export default function InDriveConfig({ country }) {
 
   // ── Estado de config (ajustes) ───────────────────────────────
   const [config,    setConfig]    = useState({})
+  const [original,  setOriginal]  = useState({})
   const [saving,    setSaving]    = useState(false)
   const [saveMsg,   setSaveMsg]   = useState(null)
   const [cfgLoaded, setCfgLoaded] = useState(false)
@@ -81,6 +83,7 @@ export default function InDriveConfig({ country }) {
           map[`${r.city}|${r.category}`] = { pct: r.adjustment_pct ?? 0, note: r.note ?? '' }
         })
         setConfig(map)
+        setOriginal(JSON.parse(JSON.stringify(map)))
       }
       setCfgLoaded(true)
     }
@@ -132,17 +135,31 @@ export default function InDriveConfig({ country }) {
     return config[`${city}|${category}`] ?? { pct: 0, note: '' }
   }
   function setCfgField(city, category, field, value) {
+    setSaveMsg(null)
     const key = `${city}|${category}`
     setConfig(prev => ({ ...prev, [key]: { ...getCfg(city, category), [field]: value } }))
   }
+
+  function isCellDirty(city, category) {
+    const key = `${city}|${category}`
+    const cur  = config[key] ?? { pct: 0, note: '' }
+    const orig = original[key] ?? { pct: 0, note: '' }
+    return String(cur.pct ?? '') !== String(orig.pct ?? '')
+        || String(cur.note ?? '') !== String(orig.note ?? '')
+  }
+
+  const hasUnsavedChanges = CONFIG_ROWS.some(({ city, category }) => isCellDirty(city, category))
 
   async function handleSave() {
     setSaving(true)
     setSaveMsg(null)
     try {
-      const upserts = CONFIG_ROWS.map(({ city, category }) => {
+      // Solo guardar las filas que cambiaron
+      const changed = CONFIG_ROWS.filter(({ city, category }) => isCellDirty(city, category))
+      const upserts = changed.map(({ city, category }) => {
         const cfg = getCfg(city, category)
         return {
+          country,
           city,
           category,
           adjustment_pct: parseFloat(cfg.pct) || 0,
@@ -150,16 +167,42 @@ export default function InDriveConfig({ country }) {
           updated_at:     new Date().toISOString(),
         }
       })
+      if (upserts.length === 0) {
+        setSaveMsg({ type: 'warn', text: 'No hay cambios para guardar.' })
+        setSaving(false)
+        return
+      }
       const { error } = await sb
         .from('indrive_config')
-        .upsert(upserts, { onConflict: 'city,category' })
+        .upsert(upserts, { onConflict: 'country,city,category' })
       if (error) throw error
-      setSaveMsg({ type: 'ok', text: '✓ Configuración guardada' })
+
+      // Sincronizar "original" con el estado actual y recargar análisis
+      setOriginal(JSON.parse(JSON.stringify(config)))
+      setSaveMsg({
+        type: 'ok',
+        text: `Configuración guardada (${upserts.length} ${upserts.length === 1 ? 'ajuste' : 'ajustes'}). Aplicando al bot…`,
+      })
+      // El trigger DB recalcula automáticamente los precios del bot para esas city+category.
+      // Recargamos el análisis para reflejar el impacto.
+      await loadAnalysis()
     } catch (e) {
       setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleDiscardAll() {
+    setSaveMsg(null)
+    setConfig(JSON.parse(JSON.stringify(original)))
+  }
+
+  const DIRTY_STYLE = {
+    background:  '#fef3c7',
+    borderColor: '#f59e0b',
+    fontWeight:  600,
+    boxShadow:   '0 0 0 2px rgba(245, 158, 11, 0.2)',
   }
 
   // ── Render ────────────────────────────────────────────────────
@@ -321,6 +364,24 @@ export default function InDriveConfig({ country }) {
 
         {cfgLoaded && (
           <>
+            {hasUnsavedChanges && (
+              <div style={{
+                marginTop: 8, marginBottom: 12,
+                padding: '10px 14px', borderRadius: 6,
+                background: '#fef3c7', border: '1px solid #f59e0b',
+                color: '#78350f', fontSize: 13, fontWeight: 500,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+              }}>
+                <span>⚠ Hay cambios sin guardar en los ajustes de InDrive</span>
+                <button type="button" onClick={handleDiscardAll} style={{
+                  background: 'transparent', border: '1px solid #b45309', color: '#78350f',
+                  padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer',
+                }}>
+                  Descartar cambios
+                </button>
+              </div>
+            )}
+
             <table className="config-table">
               <thead>
                 <tr>
@@ -335,8 +396,9 @@ export default function InDriveConfig({ country }) {
                 {CONFIG_ROWS.map(({ city, category }) => {
                   const cfg  = getCfg(city, category)
                   const hist = summary.find(a => a.city === city && a.category === category)
+                  const dirty = isCellDirty(city, category)
                   return (
-                    <tr key={`${city}|${category}`}>
+                    <tr key={`${city}|${category}`} style={dirty ? { background: '#fffbeb' } : undefined}>
                       <td style={{ textAlign: 'left', fontWeight: 600 }}>{city}</td>
                       <td style={{ textAlign: 'left' }}>{category}</td>
                       <td>
@@ -352,6 +414,7 @@ export default function InDriveConfig({ country }) {
                               width: 70, textAlign: 'right',
                               padding: '4px 6px', border: '1.5px solid #d1d5db',
                               borderRadius: 4, fontSize: 13,
+                              ...(dirty ? DIRTY_STYLE : {}),
                             }}
                           />
                           <span style={{ color: '#666', fontSize: 12 }}>%</span>
@@ -367,6 +430,7 @@ export default function InDriveConfig({ country }) {
                             width: '100%', padding: '4px 6px',
                             border: '1.5px solid #d1d5db',
                             borderRadius: 4, fontSize: 12,
+                            ...(dirty ? DIRTY_STYLE : {}),
                           }}
                         />
                       </td>
@@ -384,23 +448,16 @@ export default function InDriveConfig({ country }) {
               </tbody>
             </table>
 
-            <div style={{ marginTop: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div style={{ marginTop: 14 }}>
               <button
                 className="btn-save"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || !hasUnsavedChanges}
+                title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
               >
                 {saving ? 'Guardando…' : '💾 Guardar ajustes'}
               </button>
-              {saveMsg && (
-                <span style={{
-                  fontSize: 13,
-                  color: saveMsg.type === 'ok' ? '#166534' : '#991b1b',
-                  fontWeight: 600,
-                }}>
-                  {saveMsg.text}
-                </span>
-              )}
+              <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
             </div>
           </>
         )}

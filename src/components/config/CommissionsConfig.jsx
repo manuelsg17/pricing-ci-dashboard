@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
+import SaveStatusBanner from './SaveStatusBanner'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
+
+const DIRTY_STYLE = {
+  background:  '#fef3c7',
+  borderColor: '#f59e0b',
+  fontWeight:  600,
+  boxShadow:   '0 0 0 2px rgba(245, 158, 11, 0.2)',
+}
 
 export default function CommissionsConfig({ country }) {
   const config = getCountryConfig(country)
@@ -17,8 +25,11 @@ export default function CommissionsConfig({ country }) {
     return edits[row.id]?.[field] ?? row[field] ?? ''
   }
   function setField(id, field, val) {
+    setMsg(null)
     setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }))
   }
+  const isDirty = (id) => !!edits[id] && Object.keys(edits[id]).length > 0
+  const isNew   = (row) => String(row.id).startsWith('new_')
 
   async function handleSave(row) {
     setSaving(true); setMsg(null)
@@ -26,15 +37,19 @@ export default function CommissionsConfig({ country }) {
     const ok = await saveCommission(merged)
     if (ok) {
       setEdits(prev => { const n = { ...prev }; delete n[row.id]; return n })
-      setMsg({ type: 'ok', text: 'Guardado ✓' })
+      const cityLabel = merged.city || 'Todas las ciudades'
+      setMsg({ type: 'ok', text: `Guardado: ${merged.competitor_name} (${cityLabel}) — ${merged.commission_pct}%` })
     } else {
-      setMsg({ type: 'err', text: 'Error al guardar.' })
+      setMsg({ type: 'err', text: 'Error al guardar. Verifica que el competidor no esté duplicado en la misma ciudad.' })
     }
     setSaving(false)
   }
 
-  async function handleDelete(id) {
-    await deleteCommission(id)
+  async function handleDelete(row) {
+    if (!String(row.id).startsWith('new_') && !confirm('¿Eliminar esta comisión?')) return
+    const ok = await deleteCommission(row.id)
+    if (!ok) setMsg({ type: 'err', text: 'No se pudo eliminar.' })
+    else if (!String(row.id).startsWith('new_')) setMsg({ type: 'ok', text: 'Comisión eliminada.' })
   }
 
   if (loading) return <div className="config-loading">Cargando comisiones…</div>
@@ -47,13 +62,9 @@ export default function CommissionsConfig({ country }) {
         Puedes tener un valor global (Todas las ciudades) o sobrescribirlo por ciudad.
       </p>
 
-      {msg && (
-        <div className={msg.type === 'ok' ? 'save-msg save-msg--ok' : 'save-msg save-msg--err'}>
-          {msg.text}
-        </div>
-      )}
+      <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
-      <table className="config-table">
+      <table className="config-table" style={{ marginTop: 10 }}>
         <thead>
           <tr>
             <th>Competidor</th>
@@ -63,49 +74,56 @@ export default function CommissionsConfig({ country }) {
           </tr>
         </thead>
         <tbody>
-          {allRows.map(row => (
-            <tr key={row.id}>
-              <td>
-                <select
-                  value={getField(row, 'competitor_name') || ''}
-                  onChange={e => setField(row.id, 'competitor_name', e.target.value)}
-                  style={{ width: 155 }}
-                >
-                  <option value="">— Seleccionar —</option>
-                  {ALL_COMPETITORS.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <select
-                  value={getField(row, 'city') || ''}
-                  onChange={e => setField(row.id, 'city', e.target.value || null)}
-                >
-                  {CITY_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={getField(row, 'commission_pct')}
-                  onChange={e => setField(row.id, 'commission_pct', e.target.value)}
-                  style={{ width: 80, textAlign: 'right' }}
-                />
-              </td>
-              <td style={{ display: 'flex', gap: 6 }}>
-                <button className="btn-save-sm" onClick={() => handleSave(row)} disabled={saving}>
-                  Guardar
-                </button>
-                <button className="btn-delete-sm" onClick={() => handleDelete(row.id)}>✕</button>
-              </td>
-            </tr>
-          ))}
+          {allRows.map(row => {
+            const dirty = isDirty(row.id) || isNew(row)
+            const cellStyle = dirty ? DIRTY_STYLE : undefined
+            return (
+              <tr key={row.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+                <td>
+                  <select
+                    value={getField(row, 'competitor_name') || ''}
+                    onChange={e => setField(row.id, 'competitor_name', e.target.value)}
+                    style={{ width: 155, ...(cellStyle || {}) }}
+                  >
+                    <option value="">— Seleccionar —</option>
+                    {ALL_COMPETITORS.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <select
+                    value={getField(row, 'city') || ''}
+                    onChange={e => setField(row.id, 'city', e.target.value || null)}
+                    style={cellStyle}
+                  >
+                    {CITY_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <input
+                    type="number" min="0" max="100" step="0.5"
+                    value={getField(row, 'commission_pct')}
+                    onChange={e => setField(row.id, 'commission_pct', e.target.value)}
+                    style={{ width: 80, textAlign: 'right', ...(cellStyle || {}) }}
+                  />
+                </td>
+                <td style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    className="btn-save-sm"
+                    onClick={() => handleSave(row)}
+                    disabled={saving || !dirty}
+                    title={!dirty ? 'Sin cambios' : undefined}
+                  >
+                    {isNew(row) ? 'Crear' : 'Guardar'}
+                  </button>
+                  <button className="btn-delete-sm" onClick={() => handleDelete(row)}>✕</button>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
 

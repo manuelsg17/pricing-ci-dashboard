@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
+import SaveStatusBanner from './SaveStatusBanner'
 
 export default function ThresholdsTable({ thresholds, onSave, saving, country }) {
   const config = getCountryConfig(country)
@@ -36,14 +37,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
   }, [country, config.dbCities, config.categoriesByCity, selectedCity])
 
   const [local,   setLocal]   = useState({})
-  const [saveMsg, setSaveMsg] = useState(null)   // { type: 'ok'|'err', text } | null
-
-  // Auto-ocultar mensaje OK tras 4s
-  useEffect(() => {
-    if (saveMsg?.type !== 'ok') return
-    const id = setTimeout(() => setSaveMsg(null), 4000)
-    return () => clearTimeout(id)
-  }, [saveMsg])
+  const [saveMsg, setSaveMsg] = useState(null)   // { type: 'ok'|'warn'|'err', text } | null
 
   const getKey = (city, cat, bracket) => `${city}|||${cat}|||${bracket}`
 
@@ -230,29 +224,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>
 
-        {saveMsg && (
-          <div
-            role="status"
-            style={{
-              marginTop: 10,
-              padding: '10px 14px', borderRadius: 6,
-              fontSize: 13, fontWeight: 500,
-              background: saveMsg.type === 'ok'   ? '#d1fae5'
-                       : saveMsg.type === 'warn' ? '#fef3c7'
-                       :                           '#fee2e2',
-              color:      saveMsg.type === 'ok'   ? '#065f46'
-                       : saveMsg.type === 'warn' ? '#78350f'
-                       :                           '#991b1b',
-              border: `1px solid ${
-                saveMsg.type === 'ok'   ? '#10b981'
-              : saveMsg.type === 'warn' ? '#f59e0b'
-              :                           '#ef4444'
-              }`,
-            }}
-          >
-            {saveMsg.type === 'ok' ? '✓ ' : saveMsg.type === 'warn' ? '⚠ ' : '✕ '}{saveMsg.text}
-          </div>
-        )}
+        <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
       </div>
     </div>
   )

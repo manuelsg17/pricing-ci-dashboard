@@ -410,6 +410,35 @@ export function getCityLabel(dbCity) {
 
 export const COUNTRIES = Object.keys(COUNTRY_CONFIG)
 
+// ISO-3166 alpha-2 codes — usado para banderas SVG (flagcdn.com)
+export const COUNTRY_ISO = {
+  Peru:      'pe',
+  Colombia:  'co',
+  Nepal:     'np',
+  Bolivia:   'bo',
+  Venezuela: 'vg',  // flagcdn usa 've' pero reasignamos abajo
+  Zambia:    'zm',
+}
+// Fix: Venezuela = 've' (el 'vg' de arriba es British Virgin Islands — error)
+COUNTRY_ISO.Venezuela = 've'
+
+export const COUNTRY_NATIVE_LABEL = {
+  Peru:      'Perú',
+  Colombia:  'Colombia',
+  Nepal:     'Nepal',
+  Bolivia:   'Bolivia',
+  Venezuela: 'Venezuela',
+  Zambia:    'Zambia',
+}
+
+export function getCountryIso(country) {
+  return COUNTRY_ISO[country] || 'pe'
+}
+
+export function getCountryNativeLabel(country) {
+  return COUNTRY_NATIVE_LABEL[country] || country
+}
+
 // ── Helper functions ──────────────────────────────────────
 export function getCountryConfig(country) {
   return COUNTRY_CONFIG[country] || COUNTRY_CONFIG.Peru
