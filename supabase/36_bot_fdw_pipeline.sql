@@ -36,6 +36,11 @@ CREATE SERVER bot_db_server
   FOREIGN DATA WRAPPER postgres_fdw
   OPTIONS (
     host          'fudobi.helioho.st',
+    -- hostaddr fuerza IPv4: helioho.st tiene reglas pg_hba.conf solo para
+    -- IPv4. Si no se setea, libpq resuelve DNS y prefiere IPv6 → 'no
+    -- pg_hba.conf entry'. La IP la sacas con: nslookup fudobi.helioho.st
+    -- (a 2026-04-25 era 65.19.154.90; verifica si cambia).
+    hostaddr      '65.19.154.90',
     port          '5432',
     dbname        'fudobi_boheme',
     sslmode       'require',           -- encripta sin validar cert (clave para evitar NotValidForName)
