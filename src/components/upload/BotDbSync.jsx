@@ -31,67 +31,45 @@ export default function BotDbSync() {
 
   useEffect(() => { reload() }, [reload])
 
-  async function callFn(payload) {
-    const { data: { session } } = await sb.auth.getSession()
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const anonKey     = import.meta.env.VITE_SUPABASE_ANON_KEY
-    const res = await fetch(`${supabaseUrl}/functions/v1/sync-bot-quotes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'apikey':        anonKey,
-        'Authorization': session?.access_token ? `Bearer ${session.access_token}` : `Bearer ${anonKey}`,
-      },
-      body: JSON.stringify(payload),
-    })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
-    return json
-  }
-
-  async function handleProbe() {
-    setProbing(true); setProbeData(null)
-    try {
-      const out = await callFn({ action: 'probe' })
-      setProbeData({ columns: out.columns || [], sample: out.sample || [] })
-      toast.ok(`Esquema descubierto: ${out.columns?.length || 0} columnas, ${out.sample?.length || 0} filas de muestra.`)
-    } catch (e) {
-      toast.err(`Error al sondear: ${e.message}`)
-    } finally {
-      setProbing(false)
-    }
-  }
-
-  async function handlePing() {
-    setProbing(true)
-    try {
-      const out = await callFn({ action: 'ping' })
-      const env = out.env || {}
-      const msg = `Función OK · secrets: ${Object.entries(env).filter(([k]) => k.endsWith('_set')).map(([k,v]) => `${k.replace('_set','')}:${v?'✓':'✗'}`).join(' · ')} · SSL=${env.BOT_PG_SSLMODE}`
-      toast.ok(msg, { duration: 8000 })
-    } catch (e) {
-      toast.err(`Función no responde: ${e.message}. Verifica que esté deployada y revisa los Logs en Supabase Dashboard.`, { duration: 10000 })
-    } finally {
-      setProbing(false)
-    }
-  }
-
-  async function handleSync(opts = {}) {
+  // Sync vía RPC (postgres_fdw) — lee bot_quotes_remote desde Supabase PG
+  async function handleSync() {
     setRunning(true)
     try {
-      const payload = { action: 'sync', country, limit: Number(limit) || 5000, ...opts }
-      const out = await callFn(payload)
-      const s = out.stats || {}
+      const { data, error } = await sb.rpc('sync_bot_quotes', {
+        p_country: country,
+        p_limit:   Number(limit) || 50000,
+      })
+      if (error) throw error
+      if (data?.ok === false) throw new Error(data?.error || 'sync_bot_quotes returned ok:false')
+      const s = data?.stats || {}
       toast.ok(
-        `Sync OK · ${s.read} leídas · ${s.inserted} insertadas · ${s.dropped} descartadas · ${s.outliers} outliers`,
+        `Sync OK · ${s.read ?? 0} leídas · ${s.inserted ?? 0} insertadas · ${s.dropped ?? 0} descartadas · ${s.outliers ?? 0} outliers`,
         { duration: 7000 }
       )
       reload()
     } catch (e) {
-      toast.err(`Error de sync: ${e.message}`, { duration: 8000 })
+      toast.err(`Error de sync: ${e.message}`, { duration: 10000 })
       reload()
     } finally {
       setRunning(false)
+    }
+  }
+
+  // Probe de la tabla foránea — confirma que postgres_fdw está conectado
+  async function handleProbe() {
+    setProbing(true); setProbeData(null)
+    try {
+      const { data, error } = await sb.from('bot_quotes_remote').select('*').limit(3)
+      if (error) throw error
+      setProbeData({
+        columns: data?.[0] ? Object.keys(data[0]).map(k => ({ column_name: k, data_type: typeof data[0][k] })) : [],
+        sample:  data || [],
+      })
+      toast.ok(`Conexión FDW OK · ${data?.length || 0} filas de muestra leídas desde fudobi.`)
+    } catch (e) {
+      toast.err(`No se pudo leer bot_quotes_remote: ${e.message}. Verifica que la migración 36 corrió completa (incluyendo el password en USER MAPPING).`, { duration: 12000 })
+    } finally {
+      setProbing(false)
     }
   }
 
@@ -107,14 +85,14 @@ export default function BotDbSync() {
 
         <div style={{
           marginBottom: 14, padding: 12, borderRadius: 8,
-          background: '#fffbeb', border: '1px solid #fcd34d', fontSize: 12, color: '#78350f',
+          background: '#ecfdf5', border: '1px solid #10b981', fontSize: 12, color: '#065f46',
         }}>
-          <strong>⚠ Pull-mode (este botón) puede no funcionar con helioho.st</strong> por
-          temas de validación TLS del cert autofirmado. Si "Sondear esquema" falla con
-          <code> NotValidForName</code>, usar el modo <strong>push</strong>:
-          ejecuta <code>scripts/bot-sync/bot_sync_push.py</code> en la máquina del bot
-          (cron cada 30 min). Las "Últimas corridas" abajo aparecerán igual sin importar
-          qué método uses.
+          <strong>✓ Modo FDW (postgres_fdw) activado</strong> — Supabase se conecta directo
+          a <code>fudobi.helioho.st/quotes_output</code> via libpq. Cada "Sync incremental"
+          lee filas nuevas, aplica los <em>botRules</em> y los <em>price_validation_rules</em>
+          configurados en este dashboard, e inserta solo las que pasan los filtros en
+          <code> pricing_observations</code>. Si tienes pg_cron activado (migración 39),
+          esto corre automáticamente cada 5 min.
         </div>
 
         <div style={{
