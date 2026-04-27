@@ -237,7 +237,7 @@ RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path       = public
-SET statement_timeout = '60s'
+SET statement_timeout = '180s'   -- 3 min — helioho cold connections pueden ser muy lentas
 AS $$
 DECLARE
   v_count int;
