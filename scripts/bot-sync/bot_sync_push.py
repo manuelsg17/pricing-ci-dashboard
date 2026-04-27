@@ -252,7 +252,8 @@ def main():
         dbname=os.environ['LOCAL_PG_DATABASE'],
         user=os.environ['LOCAL_PG_USER'],
         password=os.environ['LOCAL_PG_PASSWORD'],
-        connect_timeout=10,
+        sslmode=os.environ.get('LOCAL_PG_SSLMODE', 'require'),  # helioho exige SSL
+        connect_timeout=15,
     )
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 

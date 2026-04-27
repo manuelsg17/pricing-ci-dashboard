@@ -1,0 +1,101 @@
+# GitHub Actions — Plan B para sincronizar quotes_output → pricing_observations
+#
+# Cuándo activar este workflow:
+#   - Si Supabase no puede conectarse a fudobi.helioho.st (helioho bloquea
+#     las IPs de Supabase) Y tampoco tienes acceso a la máquina del bot
+#     para correr el script Python local.
+#
+# Cómo funciona:
+#   - GitHub Actions tiene IPs propias (genéricas, probablemente NO
+#     bloqueadas por helioho).
+#   - El workflow corre cada 30 min, conecta a fudobi via psycopg2
+#     (libpq tolera certs autofirmados con sslmode=require), aplica
+#     filtros, y empuja a Supabase via REST API.
+#   - Mismo script que scripts/bot-sync/bot_sync_push.py — sin cambios.
+#
+# Setup (una sola vez):
+#   1. GitHub repo → Settings → Secrets and variables → Actions → New
+#      repository secret. Crear:
+#         LOCAL_PG_HOST              = fudobi.helioho.st
+#         LOCAL_PG_PORT              = 5432
+#         LOCAL_PG_DATABASE          = fudobi_boheme
+#         LOCAL_PG_USER              = fudobi_admin_boheme
+#         LOCAL_PG_PASSWORD          = <password real>
+#         LOCAL_PG_TABLE             = quotes_output
+#         LOCAL_PG_SCHEMA            = public
+#         SUPABASE_URL               = https://boewlfpbkegthrpcksbv.supabase.co
+#         SUPABASE_SERVICE_ROLE_KEY  = <service_role JWT desde Project Settings → API>
+#         BOT_SYNC_COUNTRY           = Peru
+#
+#   2. Hacer git push de este archivo (ya viene incluido).
+#
+#   3. GitHub repo → Actions → Bot Sync → habilitar workflow si está
+#      deshabilitado por default.
+#
+#   4. Primer test manual: GitHub repo → Actions → Bot Sync → Run
+#      workflow → main → Run.
+#
+# Costo: workflow corre 1-2 min cada 30 min = ~96 min/día = ~3000 min/mes.
+# Cuenta personal de GitHub incluye 2000 min/mes gratis. Si excedes,
+# baja a cron cada 60 min (cambia '*/30' a '0' abajo).
+
+name: Bot Sync
+on:
+  schedule:
+    # Cada 30 min UTC
+    - cron: '*/30 * * * *'
+  # Permite disparo manual desde GitHub UI para testing
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Filas máximas a procesar en esta corrida'
+        required: false
+        default: '5000'
+      probe_only:
+        description: '¿Solo sondear esquema (sin sync)?'
+        required: false
+        default: 'false'
+
+# No correr múltiples al mismo tiempo
+concurrency:
+  group: bot-sync-prod
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --quiet psycopg2-binary requests
+
+      - name: Run sync (or probe)
+        env:
+          LOCAL_PG_HOST:             ${{ secrets.LOCAL_PG_HOST }}
+          LOCAL_PG_PORT:             ${{ secrets.LOCAL_PG_PORT }}
+          LOCAL_PG_DATABASE:         ${{ secrets.LOCAL_PG_DATABASE }}
+          LOCAL_PG_USER:             ${{ secrets.LOCAL_PG_USER }}
+          LOCAL_PG_PASSWORD:         ${{ secrets.LOCAL_PG_PASSWORD }}
+          LOCAL_PG_TABLE:            ${{ secrets.LOCAL_PG_TABLE }}
+          LOCAL_PG_SCHEMA:           ${{ secrets.LOCAL_PG_SCHEMA }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BOT_SYNC_COUNTRY:          ${{ secrets.BOT_SYNC_COUNTRY }}
+        run: |
+          cd scripts/bot-sync
+          if [ "${{ inputs.probe_only }}" = "true" ]; then
+            python bot_sync_push.py --probe
+          else
+            python bot_sync_push.py --limit ${{ inputs.limit || '5000' }}
+          fi
