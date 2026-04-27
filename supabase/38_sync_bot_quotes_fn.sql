@@ -24,7 +24,8 @@ CREATE OR REPLACE FUNCTION sync_bot_quotes(
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path     = public
+SET statement_timeout = '180s'   -- helioho responde lento, override role timeout
 AS $$
 DECLARE
   v_started_at timestamptz := now();
@@ -230,3 +231,38 @@ GRANT EXECUTE ON FUNCTION sync_bot_quotes(text, int) TO authenticated;
 
 COMMENT ON FUNCTION sync_bot_quotes IS
   'Sync incremental desde la BD del bot (via FDW) hacia pricing_observations. Aplica botRules + price_validation_rules. Devuelve stats en JSONB. Usa watermark para no re-leer filas.';
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- probe_bot_quotes() — para el botón "Probar conexión FDW" en la UI.
+-- Igual que un SELECT * LIMIT 3 pero con statement_timeout extendido.
+-- ════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION probe_bot_quotes()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path       = public
+SET statement_timeout = '60s'
+AS $$
+DECLARE
+  v_count int;
+  v_sample jsonb;
+BEGIN
+  SELECT count(*) INTO v_count FROM bot_quotes_remote;
+  SELECT jsonb_agg(row_to_json(t)) INTO v_sample
+    FROM (SELECT * FROM bot_quotes_remote LIMIT 3) t;
+  RETURN jsonb_build_object(
+    'ok',         true,
+    'total_rows', v_count,
+    'sample',     COALESCE(v_sample, '[]'::jsonb)
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION probe_bot_quotes() TO authenticated;
+
+COMMENT ON FUNCTION probe_bot_quotes IS
+  'Smoke test del FDW. Devuelve count(*) + 3 filas de muestra. statement_timeout extendido a 60s para tolerar la lentitud de helioho.st.';

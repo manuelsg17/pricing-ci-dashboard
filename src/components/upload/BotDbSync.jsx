@@ -53,19 +53,23 @@ export default function BotDbSync() {
     }
   }
 
-  // Probe de la tabla foránea — confirma que postgres_fdw está conectado
+  // Probe de la tabla foránea — llama probe_bot_quotes() que tiene
+  // statement_timeout extendido para tolerar la lentitud de helioho.
   async function handleProbe() {
     setProbing(true); setProbeData(null)
     try {
-      const { data, error } = await sb.from('bot_quotes_remote').select('*').limit(3)
+      const { data, error } = await sb.rpc('probe_bot_quotes')
       if (error) throw error
+      if (data?.ok === false) throw new Error(data?.error || 'probe_bot_quotes returned ok:false')
+      const sample = data?.sample || []
+      const total  = data?.total_rows ?? 0
       setProbeData({
-        columns: data?.[0] ? Object.keys(data[0]).map(k => ({ column_name: k, data_type: typeof data[0][k] })) : [],
-        sample:  data || [],
+        columns: sample[0] ? Object.keys(sample[0]).map(k => ({ column_name: k, data_type: typeof sample[0][k] })) : [],
+        sample,
       })
-      toast.ok(`Conexión FDW OK · ${data?.length || 0} filas de muestra leídas desde fudobi.`)
+      toast.ok(`Conexión FDW OK · ${total.toLocaleString()} filas en quotes_output · 3 de muestra leídas.`, { duration: 7000 })
     } catch (e) {
-      toast.err(`No se pudo leer bot_quotes_remote: ${e.message}. Verifica que la migración 36 corrió completa (incluyendo el password en USER MAPPING).`, { duration: 12000 })
+      toast.err(`No se pudo leer bot_quotes_remote: ${e.message}. Verifica que las migraciones 36 y 38 corrieron completas (incluyendo password en USER MAPPING).`, { duration: 12000 })
     } finally {
       setProbing(false)
     }
