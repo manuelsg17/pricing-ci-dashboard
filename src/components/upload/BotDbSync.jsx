@@ -10,11 +10,10 @@ export default function BotDbSync() {
   const toast = useToast()
   const [running, setRunning]     = useState(false)
   const [probing, setProbing]     = useState(false)
-  const [probeData, setProbeData] = useState(null)   // { columns, sample }
   const [watermark, setWatermark] = useState(null)
   const [logRows, setLogRows]     = useState([])
   const [loadingLog, setLoadingLog] = useState(true)
-  const [limit, setLimit] = useState(50000)
+  const [limit, setLimit] = useState(5000)
 
   const reload = useCallback(async () => {
     setLoadingLog(true)
@@ -29,50 +28,70 @@ export default function BotDbSync() {
 
   useEffect(() => { reload() }, [reload])
 
-  // Sync vía RPC (postgres_fdw) — lee bot_quotes_remote desde Supabase PG
+  // Sync via GitHub Actions — dispara el workflow Bot Sync.
+  // El sync corre en infraestructura de GitHub (no en Supabase) porque
+  // helioho.st es muy lento para queries en vivo desde Supabase.
   async function handleSync() {
     setRunning(true)
     try {
-      const { data, error } = await sb.rpc('sync_bot_quotes', {
-        p_country: country,
-        p_limit:   Number(limit) || 50000,
+      const { data: { session } } = await sb.auth.getSession()
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const anonKey     = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${supabaseUrl}/functions/v1/trigger-bot-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'apikey':        anonKey,
+          'Authorization': session?.access_token ? `Bearer ${session.access_token}` : `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({
+          limit:      Number(limit) || 5000,
+          probe_only: false,
+        }),
       })
-      if (error) throw error
-      if (data?.ok === false) throw new Error(data?.error || 'sync_bot_quotes returned ok:false')
-      const s = data?.stats || {}
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || json?.ok === false) {
+        const hint = json?.hint ? ` (${json.hint})` : ''
+        throw new Error((json?.error || `HTTP ${res.status}`) + hint)
+      }
       toast.ok(
-        `Sync OK · ${s.read ?? 0} leídas · ${s.inserted ?? 0} insertadas · ${s.dropped ?? 0} descartadas · ${s.outliers ?? 0} outliers`,
-        { duration: 7000 }
+        '⚡ Workflow disparado. La corrida tarda ~30-60s en aparecer en "Últimas corridas". Auto-refresh en 60s.',
+        { duration: 8000 }
       )
-      reload()
+      // Auto-refresh la tabla de corridas en 60s
+      setTimeout(() => reload(), 60_000)
     } catch (e) {
-      toast.err(`Error de sync: ${e.message}`, { duration: 10000 })
-      reload()
+      toast.err(`No se pudo disparar el sync: ${e.message}`, { duration: 12000 })
     } finally {
       setRunning(false)
     }
   }
 
-  // Probe de la tabla foránea — llama probe_bot_quotes() que tiene
-  // statement_timeout extendido para tolerar la lentitud de helioho.
+  // Dispara el workflow en modo probe (lista columnas, no inserta nada).
+  // Útil para confirmar que el job de GitHub Actions sigue funcionando
+  // sin meter data nueva.
   async function handleProbe() {
-    setProbing(true); setProbeData(null)
+    setProbing(true)
     try {
-      const { data, error } = await sb.rpc('probe_bot_quotes')
-      if (error) throw error
-      if (data?.ok === false) throw new Error(data?.error || 'probe_bot_quotes returned ok:false')
-      const sample = data?.sample || []
-      const total  = data?.total_rows ?? 0
-      setProbeData({
-        columns: sample[0] ? Object.keys(sample[0]).map(k => ({ column_name: k, data_type: typeof sample[0][k] })) : [],
-        sample,
+      const { data: { session } } = await sb.auth.getSession()
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const anonKey     = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${supabaseUrl}/functions/v1/trigger-bot-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'apikey':        anonKey,
+          'Authorization': session?.access_token ? `Bearer ${session.access_token}` : `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ limit: 100, probe_only: true }),
       })
-      const countMsg = total < 0
-        ? `${sample.length} filas de muestra leídas (count(*) timeout, helioho lento)`
-        : `${total.toLocaleString()} filas en quotes_output · ${sample.length} de muestra`
-      toast.ok(`Conexión FDW OK · ${countMsg}.`, { duration: 7000 })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || json?.ok === false) {
+        throw new Error(json?.error || `HTTP ${res.status}`)
+      }
+      toast.ok('🔍 Probe disparado. Revisa el log del run en GitHub Actions en ~30s.', { duration: 7000 })
     } catch (e) {
-      toast.err(`No se pudo leer bot_quotes_remote: ${e.message}. Verifica que las migraciones 36 y 38 corrieron completas (incluyendo password en USER MAPPING).`, { duration: 12000 })
+      toast.err(`No se pudo disparar el probe: ${e.message}`, { duration: 10000 })
     } finally {
       setProbing(false)
     }
@@ -92,12 +111,13 @@ export default function BotDbSync() {
           marginBottom: 14, padding: 12, borderRadius: 8,
           background: '#ecfdf5', border: '1px solid #10b981', fontSize: 12, color: '#065f46',
         }}>
-          <strong>✓ Modo FDW (postgres_fdw) activado</strong> — Supabase se conecta directo
-          a <code>fudobi.helioho.st/quotes_output</code> via libpq. Cada "Sync incremental"
-          lee filas nuevas, aplica los <em>botRules</em> y los <em>price_validation_rules</em>
-          configurados en este dashboard, e inserta solo las que pasan los filtros en
-          <code> pricing_observations</code>. Si tienes pg_cron activado (migración 39),
-          esto corre automáticamente cada 5 min.
+          <strong>✓ Modo GitHub Actions activado</strong> — el workflow{' '}
+          <code>bot-sync</code> lee filas nuevas desde <code>fudobi.helioho.st</code>,
+          aplica los <em>botRules</em> y los <em>price_validation_rules</em>
+          configurados en este dashboard, e inserta solo las que pasan los filtros
+          en <code>pricing_observations</code>. Corre automáticamente cada{' '}
+          <strong>30 minutos</strong>. Click en <strong>⚡ Disparar sync ahora</strong>{' '}
+          para forzar una corrida sin esperar.
         </div>
 
         <div style={{
@@ -122,9 +142,9 @@ export default function BotDbSync() {
             className="btn-save"
             onClick={() => handleSync()}
             disabled={running}
-            title="Lee desde el último watermark hasta ahora"
+            title="Dispara el workflow de GitHub Actions Bot Sync con el límite indicado"
           >
-            {running ? 'Sincronizando…' : '⟳ Sync incremental'}
+            {running ? 'Disparando…' : '⚡ Disparar sync ahora'}
           </button>
           <button
             onClick={handleProbe}
@@ -134,9 +154,9 @@ export default function BotDbSync() {
               border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer',
               fontSize: 12,
             }}
-            title="Lee 3 filas de bot_quotes_remote — confirma que postgres_fdw está bien configurado"
+            title="Dispara el workflow en modo probe (lista columnas, no inserta nada). Útil para test."
           >
-            {probing ? 'Sondeando…' : '🔍 Probar conexión FDW'}
+            {probing ? 'Disparando…' : '🔍 Probe'}
           </button>
           <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
             Límite por corrida
@@ -147,37 +167,6 @@ export default function BotDbSync() {
             />
           </label>
         </div>
-
-        {/* Probe results */}
-        {probeData && (
-          <div style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, marginBottom: 6 }}>
-              Esquema de <code>quotes_output</code> ({probeData.columns.length} columnas)
-            </h3>
-            <div style={{
-              background: '#0f172a', color: '#e2e8f0', padding: 10, borderRadius: 6,
-              fontSize: 11, fontFamily: 'monospace', overflowX: 'auto', maxHeight: 220,
-            }}>
-              {probeData.columns.map(c => (
-                <div key={c.column_name}>
-                  <span style={{ color: '#7dd3fc' }}>{c.column_name}</span>{' '}
-                  <span style={{ color: '#94a3b8' }}>{c.data_type}</span>
-                </div>
-              ))}
-            </div>
-            {probeData.sample.length > 0 && (
-              <details style={{ marginTop: 8 }}>
-                <summary style={{ cursor: 'pointer', fontSize: 12 }}>Filas de muestra ({probeData.sample.length})</summary>
-                <pre style={{
-                  background: '#fafafa', border: '1px solid #e5e7eb', borderRadius: 6,
-                  padding: 10, fontSize: 10, maxHeight: 280, overflow: 'auto',
-                }}>
-                  {JSON.stringify(probeData.sample, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-        )}
 
         {/* Log de corridas */}
         <h3 style={{ fontSize: 14, marginBottom: 6 }}>Últimas corridas</h3>
