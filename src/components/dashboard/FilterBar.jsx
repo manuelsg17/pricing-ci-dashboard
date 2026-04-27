@@ -5,14 +5,14 @@ import { useFilterContext } from '../../context/FilterContext'
 export default function FilterBar() {
   const {
     filters, zones, country,
-    setCity, setCategory, setSubCategory, setZone, setSurge,
+    setCity, setCategory, setSubCategory, setZone, setSurge, setDataSource,
     setCompareVs, setViewMode, setWeekStart,
     setDailyStart,
     setHistoricFrom, setHistoricTo,
   } = useFilterContext()
 
   const config = getCountryConfig(country)
-  const { city, category, subCategory, zone, surge, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
+  const { city, category, subCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
   const categories  = config.categoriesByCity[city] || []
   const competitors = getCompetitors(city, category, subCategory, country)
   const showSubCategory = category === 'Aeropuerto'
@@ -83,6 +83,21 @@ export default function FilterBar() {
           <option value="all">{t('filter.both_surge')}</option>
           <option value="true">{t('filter.yes')}</option>
           <option value="false">{t('filter.no')}</option>
+        </select>
+      </div>
+
+      <div className="filter-bar__divider" />
+
+      {/* Fuente: data del bot, hubs (manual) o ambos */}
+      <div className="filter-bar__group">
+        <span className="filter-bar__label">{t('filter.source')}</span>
+        <select
+          value={dataSource === null ? 'all' : dataSource}
+          onChange={e => setDataSource(e.target.value === 'all' ? null : e.target.value)}
+        >
+          <option value="all">{t('filter.source_both')}</option>
+          <option value="bot">{t('filter.source_bot')}</option>
+          <option value="manual">{t('filter.source_hubs')}</option>
         </select>
       </div>
 

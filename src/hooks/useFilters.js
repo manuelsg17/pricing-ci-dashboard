@@ -19,6 +19,7 @@ export function useFilters(country) {
   const [subCategory, setSubCategory] = useState(null)  // solo para Aeropuerto
   const [zone,        setZone]        = useState('All')
   const [surge,       setSurge]       = useState(null)   // null=ambos, true/false
+  const [dataSource,  setDataSource]  = useState(null)   // null=ambas, 'bot' | 'manual'
   const [compareVs,   setCompareVs]   = useState('Yango')
   const [viewMode,      setViewMode]      = useState('weekly') // 'weekly' | 'daily' | 'historic'
   const [weekStart,     setWeekStart]     = useState(toISODate(getMondayWeeksAgo(8)))
@@ -156,6 +157,7 @@ export function useFilters(country) {
     dbCategory,
     zone,
     surge,
+    dataSource,
     compareVs,
     viewMode,
     weekStart,
@@ -165,7 +167,7 @@ export function useFilters(country) {
     historicFrom,
     historicTo,
     competitors,
-  }), [country, city, category, subCategory, dbCity, dbCategory, zone, surge, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, historicFrom, historicTo, competitors])
+  }), [country, city, category, subCategory, dbCity, dbCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, historicFrom, historicTo, competitors])
 
   return {
     filters,
@@ -176,6 +178,7 @@ export function useFilters(country) {
     setSubCategory,
     setZone,
     setSurge,
+    setDataSource,
     setCompareVs,
     setViewMode,
     setWeekStart,

@@ -95,6 +95,10 @@ export const TRANSLATIONS = {
     'filter.both_surge': 'Ambos',
     'filter.yes':        'Sí',
     'filter.no':         'No',
+    'filter.source':       'Fuente',
+    'filter.source_both':  'Ambos',
+    'filter.source_bot':   'Bot',
+    'filter.source_hubs':  'Hubs',
 
     // ── DataEntry ──────────────────────────────────────
     'dataentry.title':          'Ingresar CI',
@@ -288,6 +292,10 @@ export const TRANSLATIONS = {
     'filter.both_surge': 'Both',
     'filter.yes':        'Yes',
     'filter.no':         'No',
+    'filter.source':       'Source',
+    'filter.source_both':  'Both',
+    'filter.source_bot':   'Bot',
+    'filter.source_hubs':  'Hubs',
 
     'dataentry.title':          'Enter CI',
     'dataentry.start_session':  '▶ Start Session',
@@ -476,6 +484,10 @@ export const TRANSLATIONS = {
     'filter.both_surge': 'Оба',
     'filter.yes':        'Да',
     'filter.no':         'Нет',
+    'filter.source':       'Источник',
+    'filter.source_both':  'Оба',
+    'filter.source_bot':   'Bot',
+    'filter.source_hubs':  'Hubs',
 
     'dataentry.title':          'Ввод CI',
     'dataentry.start_session':  '▶ Начать сессию',

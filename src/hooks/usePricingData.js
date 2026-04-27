@@ -22,7 +22,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
 
-  const { country, dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd } = filters
+  const { country, dbCity, dbCategory, zone, surge, dataSource, viewMode, weekColumns, dailyStart, dailyEnd } = filters
 
   // ── Cargar datos desde Supabase ──────────────────────────
   useEffect(() => {
@@ -50,18 +50,20 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
             p_year_start:  y1,
             p_week_end:    w2,
             p_year_end:    y2,
+            p_data_source: dataSource,
           })
           if (err) throw err
           setRawRows(data || [])
         } else {
           const { data, error: err } = await sb.rpc('get_dashboard_data_daily', {
-            p_city:       dbCity,
-            p_category:   dbCategory,
-            p_country:    country,
-            p_zone:       zone === 'All' ? null : zone,
-            p_surge:      surge,
-            p_date_start: dailyStart,
-            p_date_end:   dailyEnd,
+            p_city:        dbCity,
+            p_category:    dbCategory,
+            p_country:     country,
+            p_zone:        zone === 'All' ? null : zone,
+            p_surge:       surge,
+            p_date_start:  dailyStart,
+            p_date_end:    dailyEnd,
+            p_data_source: dataSource,
           })
           if (err) throw err
           setRawRows(data || [])
@@ -74,7 +76,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
     }
 
     fetchData()
-  }, [country, dbCity, dbCategory, zone, surge, viewMode, weekColumns, dailyStart, dailyEnd])
+  }, [country, dbCity, dbCategory, zone, surge, dataSource, viewMode, weekColumns, dailyStart, dailyEnd])
 
   // ── Construir matriz de datos ───────────────────────────
   const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods } =
