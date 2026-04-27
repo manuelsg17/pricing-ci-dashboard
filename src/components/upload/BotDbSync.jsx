@@ -67,7 +67,10 @@ export default function BotDbSync() {
         columns: sample[0] ? Object.keys(sample[0]).map(k => ({ column_name: k, data_type: typeof sample[0][k] })) : [],
         sample,
       })
-      toast.ok(`Conexión FDW OK · ${total.toLocaleString()} filas en quotes_output · 3 de muestra leídas.`, { duration: 7000 })
+      const countMsg = total < 0
+        ? `${sample.length} filas de muestra leídas (count(*) timeout, helioho lento)`
+        : `${total.toLocaleString()} filas en quotes_output · ${sample.length} de muestra`
+      toast.ok(`Conexión FDW OK · ${countMsg}.`, { duration: 7000 })
     } catch (e) {
       toast.err(`No se pudo leer bot_quotes_remote: ${e.message}. Verifica que las migraciones 36 y 38 corrieron completas (incluyendo password en USER MAPPING).`, { duration: 12000 })
     } finally {

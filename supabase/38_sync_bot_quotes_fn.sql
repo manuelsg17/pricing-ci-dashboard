@@ -54,10 +54,10 @@ BEGIN
   WITH source AS (
     SELECT *
     FROM bot_quotes_remote
-    WHERE country       = p_country
-      AND timestamp_utc > v_watermark
-      AND status        = 'ok'
-      AND business_unit = 'ridehailing'
+    WHERE country               = p_country
+      AND timestamp_utc         > v_watermark
+      AND lower(status)         = 'ok'           -- case-insensitive
+      AND lower(business_unit)  = 'ridehailing'
     ORDER BY timestamp_utc
     LIMIT p_limit
   ),
@@ -130,32 +130,26 @@ BEGIN
      OR effective_price  IS NULL;
 
   -- 5. Filtrar outliers (precio mayor al threshold de price_validation_rules)
-  WITH outliers AS (
-    DELETE FROM _bot_batch b
-    USING (
-      SELECT DISTINCT ON (b.timestamp_utc, b.country, b.db_city, b.competition_name)
-        b.timestamp_utc, b.country, b.db_city, b.competition_name, pvr.max_price
-      FROM _bot_batch b
-      JOIN price_validation_rules pvr
-        ON  pvr.country = b.country
-        AND (pvr.city = b.db_city OR pvr.city = 'all')
-        AND (pvr.category = b.category OR pvr.category = 'all')
-        AND (pvr.competition = b.competition_name OR pvr.competition = 'all')
-      ORDER BY b.timestamp_utc, b.country, b.db_city, b.competition_name,
-               (pvr.city = b.db_city) DESC,
-               (pvr.category = b.category) DESC,
-               (pvr.competition = b.competition_name) DESC
-    ) f
-    WHERE b.timestamp_utc    = f.timestamp_utc
-      AND b.country          = f.country
-      AND b.db_city          = f.db_city
-      AND b.competition_name = f.competition_name
-      AND b.effective_price  > f.max_price
-    RETURNING 1
-  )
-  SELECT count(*) INTO v_outliers FROM outliers;
+  --     EXISTS short-circuit: si CUALQUIER regla matching dice que el precio
+  --     supera su threshold, descartamos. Es la regla más estricta y la más
+  --     simple — evita el ranking de specificity.
+  DELETE FROM _bot_batch b
+  WHERE EXISTS (
+    SELECT 1 FROM price_validation_rules pvr
+    WHERE pvr.country = b.country
+      AND (pvr.city        = b.db_city          OR pvr.city = 'all')
+      AND (pvr.category    = b.category         OR pvr.category = 'all')
+      AND (pvr.competition = b.competition_name OR pvr.competition = 'all')
+      AND b.effective_price > pvr.max_price
+  );
+  GET DIAGNOSTICS v_outliers = ROW_COUNT;
 
   -- 6. INSERT en pricing_observations
+  --    Conversión de timestamp: la sesión de Supabase corre en UTC. Para
+  --    obtener la fecha/hora LOCAL correcta (lo que ve el usuario en
+  --    Lima/Bogotá/etc.) hay que aplicar AT TIME ZONE con el timezone real
+  --    del registro. El cast ::date a un timestamptz en sesión UTC daría
+  --    fecha equivocada cerca de medianoche local.
   INSERT INTO pricing_observations (
     country, city, observed_date, observed_time, category, competition_name,
     recommended_price, price_with_discount, price_without_discount,
@@ -164,13 +158,13 @@ BEGIN
   SELECT
     country,
     db_city,
-    timestamp_local::date,
-    timestamp_local::time,
+    (timestamp_utc AT TIME ZONE COALESCE(timezone, 'UTC'))::date AS observed_date,
+    (timestamp_utc AT TIME ZONE COALESCE(timezone, 'UTC'))::time AS observed_time,
     category,
     competition_name,
-    price_regular_value,         -- precio de bandera
+    price_regular_value,         -- precio de bandera (recommended_price)
     price_discounted_value,      -- precio con descuento (si hay)
-    price_regular_value,         -- alias para compatibilidad con queries existentes
+    price_regular_value,         -- también lo guardamos en price_without_discount para compat con queries existentes
     eta_mins,
     surge,
     norm_bracket,
@@ -249,9 +243,23 @@ DECLARE
   v_count int;
   v_sample jsonb;
 BEGIN
-  SELECT count(*) INTO v_count FROM bot_quotes_remote;
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'bot_quotes_remote' AND relkind = 'f') THEN
+    RETURN jsonb_build_object('ok', false,
+      'error', 'Foreign table bot_quotes_remote no existe — falta correr la migración 36 paso 3 (IMPORT FOREIGN SCHEMA o CREATE FOREIGN TABLE manual).');
+  END IF;
+
   SELECT jsonb_agg(row_to_json(t)) INTO v_sample
     FROM (SELECT * FROM bot_quotes_remote LIMIT 3) t;
+
+  -- count(*) puede ser caro en una tabla foránea con 200k+ filas;
+  -- lo corremos sólo si el SELECT LIMIT 3 fue rápido (<10s del timeout
+  -- de 60s). Si timeout, devolvemos sin total.
+  BEGIN
+    SELECT count(*) INTO v_count FROM bot_quotes_remote;
+  EXCEPTION WHEN query_canceled THEN
+    v_count := -1;   -- señaliza "no medible en este momento"
+  END;
+
   RETURN jsonb_build_object(
     'ok',         true,
     'total_rows', v_count,
