@@ -457,8 +457,15 @@ def _required(var):
     return val
 
 
-SUPABASE_URL = _required('SUPABASE_URL')
-SUPABASE_KEY = _required('SUPABASE_SERVICE_ROLE_KEY')
+def _normalize_url(u):
+    u = u.strip().rstrip('/')
+    if not u.startswith(('http://', 'https://')):
+        u = 'https://' + u
+    return u
+
+
+SUPABASE_URL = _normalize_url(_required('SUPABASE_URL'))
+SUPABASE_KEY = _required('SUPABASE_SERVICE_ROLE_KEY').strip()
 
 if __name__ == '__main__':
     main()
