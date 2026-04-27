@@ -70,6 +70,23 @@ except ImportError:
     print("Falta dependencia: pip install requests", file=sys.stderr)
     sys.exit(2)
 
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except ImportError:
+    print("Falta dependencia (zoneinfo, viene con Python 3.9+)", file=sys.stderr)
+    sys.exit(2)
+
+
+# Normalización de distance_bracket: el bot usa Title Case, nosotros snake_case
+BRACKET_NORMALIZE = {
+    'very short': 'very_short',
+    'very long':  'very_long',
+    'short':      'short',
+    'median':     'median',
+    'average':    'average',
+    'long':       'long',
+}
+
 
 # ── Reglas y diccionarios ───────────────────────────────────────────────
 # Deben coincidir con:
@@ -285,17 +302,28 @@ def main():
     stats = {'read': 0, 'dropped': 0, 'outliers': 0}
 
     try:
+        # Filtros de la query: status='ok' + business_unit='ridehailing' +
+        # solo el país pedido. Los hacemos lower() para tolerar variantes.
         if args.date_from and args.date_to:
             cur.execute(
-                f'SELECT * FROM {fq_table} WHERE created_at::date BETWEEN %s AND %s '
-                f'ORDER BY created_at LIMIT %s',
-                (args.date_from, args.date_to, args.limit),
+                f'SELECT * FROM {fq_table} '
+                f'WHERE timestamp_utc::date BETWEEN %s AND %s '
+                f'  AND lower(status) = %s '
+                f'  AND lower(business_unit) = %s '
+                f'  AND country = %s '
+                f'ORDER BY timestamp_utc LIMIT %s',
+                (args.date_from, args.date_to, 'ok', 'ridehailing', country, args.limit),
             )
         else:
             wm = get_watermark(country)
             cur.execute(
-                f'SELECT * FROM {fq_table} WHERE created_at > %s ORDER BY created_at LIMIT %s',
-                (wm, args.limit),
+                f'SELECT * FROM {fq_table} '
+                f'WHERE timestamp_utc > %s '
+                f'  AND lower(status) = %s '
+                f'  AND lower(business_unit) = %s '
+                f'  AND country = %s '
+                f'ORDER BY timestamp_utc LIMIT %s',
+                (wm, 'ok', 'ridehailing', country, args.limit),
             )
         rows = cur.fetchall()
         stats['read'] = len(rows)
@@ -306,15 +334,19 @@ def main():
         max_created = '1970-01-01T00:00:00+00:00'
 
         for raw in rows:
-            c_at = raw.get('created_at')
-            c_str = c_at.isoformat() if hasattr(c_at, 'isoformat') else str(c_at or '')
-            if c_str > max_created:
-                max_created = c_str
+            # Watermark: timestamp_utc es la columna de incremento del bot
+            ts_utc = raw.get('timestamp_utc')
+            if ts_utc is None:
+                stats['dropped'] += 1; continue
+            ts_str = ts_utc.isoformat() if hasattr(ts_utc, 'isoformat') else str(ts_utc)
+            if ts_str > max_created:
+                max_created = ts_str
 
             db_city = normalize_city(raw.get('city'))
-            if not db_city or not raw.get('observed_date') or not raw.get('app'):
+            if not db_city or not raw.get('app'):
                 stats['dropped'] += 1; continue
 
+            # Resolver regla del bot
             name, category = resolve_rule(
                 raw.get('app'),
                 raw.get('vehicle_category'),
@@ -324,13 +356,10 @@ def main():
             if not name:
                 stats['dropped'] += 1; continue
 
-            if raw.get('category'):
-                category = CATEGORY_NORMALIZE.get(raw['category'], category)
-
-            rec = raw.get('price_recommended')
-            pwo = raw.get('price_without_discount')
-            pwd = raw.get('price_with_discount')
-            eff = rec if rec is not None else (pwo if pwo is not None else pwd)
+            # Precios — el bot usa price_regular_value y price_discounted_value
+            rec = raw.get('price_regular_value')      # precio sin descuento
+            pwd = raw.get('price_discounted_value')   # precio con descuento (puede ser NULL)
+            eff = rec if rec is not None else pwd
             if eff is None:
                 stats['dropped'] += 1; continue
 
@@ -338,20 +367,40 @@ def main():
             if threshold is not None and float(eff) > float(threshold):
                 stats['outliers'] += 1; continue
 
+            # observed_date / observed_time: convertir timestamp_utc a la
+            # zona horaria local del registro para obtener la fecha/hora
+            # correcta como la ve el usuario en el dashboard.
+            tz_name = raw.get('timezone') or 'UTC'
+            try:
+                tz = ZoneInfo(tz_name)
+            except Exception:
+                tz = ZoneInfo('UTC')
+            local_dt = ts_utc.astimezone(tz) if hasattr(ts_utc, 'astimezone') else ts_utc
+            observed_date = local_dt.date().isoformat()
+            observed_time = local_dt.strftime('%H:%M:%S')
+
+            # distance_bracket: el bot ya viene con bracket en Title Case
+            raw_bracket = raw.get('distance_bracket')
+            norm_bracket = None
+            if raw_bracket:
+                norm_bracket = BRACKET_NORMALIZE.get(raw_bracket.lower()) \
+                            or raw_bracket.lower().replace(' ', '_')
+
             accepted.append({
-                'country': country,
-                'city': db_city,
-                'observed_date': str(raw['observed_date']),
-                'observed_time': str(raw['observed_time']) if raw.get('observed_time') else None,
-                'category': category,
-                'competition_name': name,
+                'country':                country,
+                'city':                   db_city,
+                'observed_date':          observed_date,
+                'observed_time':          observed_time,
+                'category':               category,
+                'competition_name':       name,
                 'recommended_price':      float(rec) if rec is not None else None,
                 'price_with_discount':    float(pwd) if pwd is not None else None,
-                'price_without_discount': float(pwo) if pwo is not None else None,
-                'distance_km':            float(raw['distance_km']) if raw.get('distance_km') is not None else None,
-                'eta_min':                float(raw['eta_min'])     if raw.get('eta_min')     is not None else None,
+                # también lo guardamos en price_without_discount para que
+                # las queries del dashboard que prefieren ese campo lo encuentren
+                'price_without_discount': float(rec) if rec is not None else None,
+                'eta_min':                float(raw['eta_mins']) if raw.get('eta_mins') is not None else None,
                 'surge':                  raw.get('surge'),
-                'rush_hour':              raw.get('rush_hour'),
+                'distance_bracket':       norm_bracket,
                 'data_source':            'bot',
             })
 
