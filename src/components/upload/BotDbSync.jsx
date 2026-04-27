@@ -14,9 +14,7 @@ export default function BotDbSync() {
   const [watermark, setWatermark] = useState(null)
   const [logRows, setLogRows]     = useState([])
   const [loadingLog, setLoadingLog] = useState(true)
-  const [from, setFrom] = useState('')
-  const [to, setTo]     = useState('')
-  const [limit, setLimit] = useState(5000)
+  const [limit, setLimit] = useState(50000)
 
   const reload = useCallback(async () => {
     setLoadingLog(true)
@@ -129,61 +127,19 @@ export default function BotDbSync() {
               border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer',
               fontSize: 12,
             }}
+            title="Lee 3 filas de bot_quotes_remote — confirma que postgres_fdw está bien configurado"
           >
-            {probing ? 'Sondeando…' : '🔍 Sondear esquema (probe)'}
+            {probing ? 'Sondeando…' : '🔍 Probar conexión FDW'}
           </button>
-          <button
-            onClick={handlePing}
-            disabled={probing}
-            style={{
-              padding: '6px 12px', borderRadius: 6,
-              border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer',
-              fontSize: 12,
-            }}
-            title="Test de conectividad — verifica que la función responde y los secrets están seteados, sin tocar la BD del bot"
-          >
-            📡 Ping
-          </button>
+          <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+            Límite por corrida
+            <input
+              type="number" min="1000" max="100000" step="1000"
+              value={limit} onChange={e => setLimit(e.target.value)}
+              style={{ width: 100 }}
+            />
+          </label>
         </div>
-
-        {/* Backfill manual */}
-        <details style={{ marginBottom: 16 }}>
-          <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-            Backfill manual (rango de fechas)
-          </summary>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 8, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 11, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              Desde
-              <input type="date" value={from} onChange={e => setFrom(e.target.value)} />
-            </label>
-            <label style={{ fontSize: 11, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              Hasta
-              <input type="date" value={to} onChange={e => setTo(e.target.value)} />
-            </label>
-            <label style={{ fontSize: 11, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              Límite
-              <input
-                type="number" min="100" max="50000" step="500"
-                value={limit} onChange={e => setLimit(e.target.value)}
-                style={{ width: 100 }}
-              />
-            </label>
-            <button
-              onClick={() => from && to ? handleSync({ from, to, limit: Number(limit) }) : toast.warn('Indica fecha desde y hasta')}
-              disabled={running || !from || !to}
-              style={{
-                padding: '6px 12px', borderRadius: 6,
-                border: '1px solid #f59e0b', background: '#fef3c7', color: '#78350f',
-                cursor: running ? 'default' : 'pointer', fontSize: 12, fontWeight: 600,
-              }}
-            >
-              Backfill
-            </button>
-          </div>
-          <p style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
-            ⚠ El backfill ignora el watermark. Si el rango se solapa con data ya ingestada, puede generar duplicados.
-          </p>
-        </details>
 
         {/* Probe results */}
         {probeData && (
