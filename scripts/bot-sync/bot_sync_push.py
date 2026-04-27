@@ -386,6 +386,12 @@ def main():
                 norm_bracket = BRACKET_NORMALIZE.get(raw_bracket.lower()) \
                             or raw_bracket.lower().replace(' ', '_')
 
+            # Direcciones: preferimos start_address/end_address (más ricos —
+            # incluyen nombre + dirección). Si vienen vacíos, caemos a las
+            # versiones observed_* que son la versión geocodificada.
+            point_a = raw.get('start_address') or raw.get('observed_start_address')
+            point_b = raw.get('end_address')   or raw.get('observed_end_address')
+
             accepted.append({
                 'country':                country,
                 'city':                   db_city,
@@ -401,6 +407,8 @@ def main():
                 'eta_min':                float(raw['eta_mins']) if raw.get('eta_mins') is not None else None,
                 'surge':                  raw.get('surge'),
                 'distance_bracket':       norm_bracket,
+                'point_a':                point_a,
+                'point_b':                point_b,
                 'data_source':            'bot',
             })
 
