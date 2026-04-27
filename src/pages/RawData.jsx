@@ -80,7 +80,15 @@ export default function RawData() {
   }, [config, dbCity])
 
   const competitors = useMemo(() => {
-    return config.competitorsByDbCityCategory?.[dbCity]?.[dbCategory] || []
+    const cityMap = config.competitorsByDbCityCategory?.[dbCity]
+    if (!cityMap) return []
+    if (dbCategory) return cityMap[dbCategory] || []
+    // Sin categoría seleccionada: unión de todos los competidores de la ciudad
+    const all = new Set()
+    for (const list of Object.values(cityMap)) {
+      for (const c of list) all.add(c)
+    }
+    return Array.from(all)
   }, [config, dbCity, dbCategory])
 
   const filters = {
