@@ -174,7 +174,7 @@ export const COUNTRY_CONFIG = {
       { app: 'uber',    vc: 'comfort', ovc: 'comfort',  name: 'Uber',         category: 'Comfort+' },
       { app: 'indrive', vc: 'comfort', ovc: 'confort',  name: 'InDrive',      category: 'Comfort+' },
       // Premier — solo Lima y Lima_Airport
-      { app: 'yango',   vc: 'premier', ovc: 'premier',  name: 'Yango',        category: 'Premier', cities: ['Lima', 'Lima_Airport'] },
+      { app: 'yango',   vc: 'premium', ovc: 'premier',  name: 'Yango',        category: 'Premier', cities: ['Lima', 'Lima_Airport'] },
       { app: 'uber',    vc: 'premium', ovc: 'black',    name: 'Uber',         category: 'Premier', cities: ['Lima', 'Lima_Airport'] },
       // XL — todas las ciudades (regular + airport)
       { app: 'yango',   vc: 'xl',      ovc: 'xl',       name: 'Yango',        category: 'XL' },

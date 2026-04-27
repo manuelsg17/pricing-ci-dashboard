@@ -107,7 +107,7 @@ BOT_RULES = [
     ('yango_api', 'economy',  'economy',  'Yango',        'Economy/Comfort', None),
     ('yango_api', 'comfort',  'comfort',  'YangoComfort', 'Economy/Comfort', None),
     ('yango_api', 'comfort',  'comfort+', 'Yango',        'Comfort+',        None),
-    ('yango_api', 'premier',  'premier',  'Yango',        'Premier',         {'Lima', 'Lima_Airport'}),
+    ('yango_api', 'premium',  'premier',  'Yango',        'Premier',         {'Lima', 'Lima_Airport'}),
     ('yango_api', 'xl',       'xl',       'Yango',        'XL',              None),
     ('yango_api', 'tuktuk',   '*',        'Yango',        'TukTuk',          {'Lima'}),
     ('uber',      'economy',  'uberx',    'Uber',         'Economy/Comfort', None),
