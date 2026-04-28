@@ -68,9 +68,22 @@ export default function BracketSection({
     return periodSamples[key] || 0
   }
 
-  const lastPeriod = periods[periods.length - 1]
-  const lastPeriodKey   = lastPeriod?.key
-  const lastPeriodLabel = lastPeriod?.label || ''
+  // El resumen de muestras apunta a la ÚLTIMA semana con data real (al menos
+  // un competidor con muestras > 0). Si nos limitamos a periods[length-1]
+  // estricto, cuando se filtra por Hubs o se está a inicios de la semana en
+  // curso, los pills salen todos en cero y no comunican nada útil.
+  const summaryPeriod = useMemo(() => {
+    for (let i = periods.length - 1; i >= 0; i--) {
+      const total = competitors.reduce(
+        (sum, comp) => sum + getSampleCount(comp, periods[i].key), 0
+      )
+      if (total > 0) return periods[i]
+    }
+    return periods[periods.length - 1] || null
+  }, [periods, competitors, sampleMatrix, key])
+
+  const summaryPeriodKey   = summaryPeriod?.key
+  const summaryPeriodLabel = summaryPeriod?.label || ''
 
   // Auto-scroll de las 3 tablas al extremo derecho cada vez que cambian
   // los períodos o el tamaño del contenedor. Doble rAF porque el primer
@@ -140,13 +153,13 @@ export default function BracketSection({
             textTransform: 'none', letterSpacing: 0,
             flexWrap: 'wrap',
           }}
-          title={`Muestras observadas (${lastPeriodLabel})`}
+          title={`Muestras observadas (${summaryPeriodLabel}) — última semana con data`}
         >
           <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>
-            n {lastPeriodLabel}:
+            n {summaryPeriodLabel}:
           </span>
           {competitors.map(comp => {
-            const n = getSampleCount(comp, lastPeriodKey)
+            const n = getSampleCount(comp, summaryPeriodKey)
             return (
               <span
                 key={`title-${comp}`}
