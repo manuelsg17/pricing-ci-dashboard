@@ -31,7 +31,7 @@ function DashboardContent({ dbWeights }) {
 
   const {
     loading, error,
-    priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix,
+    priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, sampleMatrix,
     chartData, deltaChartData, periods,
   } = usePricingData(filters, dbWeights, locale)
 
@@ -207,6 +207,7 @@ function DashboardContent({ dbWeights }) {
           deltaMatrix={deltaMatrix}
           semaforoMatrix={semaforoMatrix}
           diffMatrix={diffMatrix}
+          sampleMatrix={sampleMatrix}
           compareVs={filters.compareVs}
           chartData={chartData[bracket] || []}
           deltaChartData={deltaChartData[bracket] || []}

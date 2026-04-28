@@ -1,10 +1,29 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
-import { COMPETITOR_COLORS } from '../../lib/constants'
+import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+
+// Umbrales de confianza por celda — usados para colorear el grid de muestras.
+// Los valores son intencionalmente conservadores; el head de pricing puede
+// pedirnos ajustarlos sin tocar más código.
+const SAMPLE_LOW  = 30   // < 30 → rojo (data poco confiable)
+const SAMPLE_MED  = 100  // 30..99 → amarillo (data medianamente confiable)
+
+function sampleBg(n) {
+  if (!n)              return 'transparent'
+  if (n < SAMPLE_LOW)  return '#fee2e2'   // rojo claro
+  if (n < SAMPLE_MED)  return '#fef9c3'   // amarillo claro
+  return '#dcfce7'                         // verde claro (≥ 100)
+}
+function sampleColor(n) {
+  if (!n)              return '#94a3b8'
+  if (n < SAMPLE_LOW)  return '#991b1b'
+  if (n < SAMPLE_MED)  return '#854d0e'
+  return '#166534'
+}
 
 const IMPACT_COLORS = { alto: '#dc2626', medio: '#d97706', bajo: '#94a3b8' }
 
@@ -22,6 +41,7 @@ export default function BracketSection({
   deltaMatrix,
   semaforoMatrix,
   diffMatrix,
+  sampleMatrix = {},
   compareVs,
   chartData,
   deltaChartData,
@@ -34,6 +54,23 @@ export default function BracketSection({
   const priceWrapRef = useRef(null)
   const deltaWrapRef = useRef(null)
   const diffWrapRef  = useRef(null)
+
+  const [showSamples, setShowSamples] = useState(false)
+
+  // Para `_wa` el conteo es la suma de todos los brackets de ese período.
+  // Para un bracket específico, el conteo es directo.
+  const getSampleCount = (comp, periodKey) => {
+    const periodSamples = sampleMatrix?.[comp]?.[periodKey]
+    if (!periodSamples) return 0
+    if (key === '_wa') {
+      return BRACKETS.reduce((sum, b) => sum + (periodSamples[b] || 0), 0)
+    }
+    return periodSamples[key] || 0
+  }
+
+  const lastPeriod = periods[periods.length - 1]
+  const lastPeriodKey   = lastPeriod?.key
+  const lastPeriodLabel = lastPeriod?.label || ''
 
   // Auto-scroll de las 3 tablas al extremo derecho cada vez que cambian
   // los períodos o el tamaño del contenedor. Doble rAF porque el primer
@@ -92,7 +129,105 @@ export default function BracketSection({
 
   return (
     <div className="bracket-section">
-      <div className="bracket-section__title">{label}</div>
+      <div className="bracket-section__title" style={{ flexWrap: 'wrap' }}>
+        <span>{label}</span>
+
+        {/* Conteo de muestras de la ÚLTIMA semana, siempre visible */}
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            marginLeft: 'auto', fontSize: 10,
+            textTransform: 'none', letterSpacing: 0,
+            flexWrap: 'wrap',
+          }}
+          title={`Muestras observadas (${lastPeriodLabel})`}
+        >
+          <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>
+            n {lastPeriodLabel}:
+          </span>
+          {competitors.map(comp => {
+            const n = getSampleCount(comp, lastPeriodKey)
+            return (
+              <span
+                key={`title-${comp}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  background: 'rgba(255,255,255,0.92)',
+                  color: '#1f2937',
+                  padding: '1px 6px', borderRadius: 4,
+                  fontWeight: 600, fontSize: 10,
+                }}
+              >
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: COMPETITOR_COLORS[comp] || '#64748b',
+                }}/>
+                {comp}: <strong style={{ color: sampleColor(n) }}>{n}</strong>
+              </span>
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => setShowSamples(s => !s)}
+            style={{
+              marginLeft: 4, padding: '2px 8px',
+              border: '1px solid rgba(255,255,255,0.4)',
+              background: 'rgba(255,255,255,0.15)',
+              color: '#fff', borderRadius: 4, cursor: 'pointer',
+              fontSize: 10, fontWeight: 600,
+            }}
+            title="Ver muestras por semana"
+          >
+            {showSamples ? '▲ ocultar muestras' : '📊 todas las semanas'}
+          </button>
+        </div>
+      </div>
+
+      {/* Panel expandible: muestras por (competidor × semana) */}
+      {showSamples && (
+        <div style={{
+          padding: '10px 14px', background: '#f8fafc',
+          borderBottom: '1px solid #e2e8f0', overflowX: 'auto',
+        }}>
+          <div style={{ fontSize: 10, color: '#475569', marginBottom: 6 }}>
+            <strong>Muestras observadas</strong> por competidor y semana —
+            {' '}
+            <span style={{ background: '#fee2e2', padding: '0 4px', borderRadius: 3 }}>&lt;{SAMPLE_LOW}</span>
+            {' '}poca data ·{' '}
+            <span style={{ background: '#fef9c3', padding: '0 4px', borderRadius: 3 }}>{SAMPLE_LOW}–{SAMPLE_MED - 1}</span>
+            {' '}aceptable ·{' '}
+            <span style={{ background: '#dcfce7', padding: '0 4px', borderRadius: 3 }}>≥{SAMPLE_MED}</span>
+            {' '}buena
+          </div>
+          <table className="matrix-table" style={{ fontSize: 11 }}>
+            <thead>
+              <tr>
+                <th className="col-label">{t('dashboard.table.competitor')}</th>
+                {periods.map(p => <th key={p.key}>{p.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {competitors.map(comp => (
+                <tr key={`samples-${comp}`}>
+                  <td className="col-label">{compBadge(comp)}</td>
+                  {periods.map(p => {
+                    const n = getSampleCount(comp, p.key)
+                    return (
+                      <td key={p.key} style={{
+                        background: sampleBg(n),
+                        color: sampleColor(n),
+                        fontWeight: 600, textAlign: 'center',
+                      }}>
+                        {n || '—'}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="bracket-section__tables">
         {/* Tabla 1: Precios absolutos */}
