@@ -96,39 +96,42 @@ export const COUNTRY_CONFIG = {
       'Arequipa|||Aeropuerto|||XL':              { dbCity: 'Arequipa_Airport', dbCategory: 'XL'              },
     },
 
+    // Orden canónico Perú: Yango, YangoComfort, Uber, Didi, InDrive, Cabify.
+    // Mantener este orden en todas las (city, category) — el dashboard usa
+    // el array tal cual para renderizar columnas y leyendas.
     competitorsByDbCityCategory: {
       Lima: {
-        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Cabify', 'InDrive', 'Didi'],
-        'Comfort+':        ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
         Premier:           ['Yango', 'Uber', 'Cabify'],
-        XL:                ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
         TukTuk:            ['Yango', 'Uber'],
       },
       Trujillo: {
-        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Cabify', 'InDrive', 'Didi'],
-        'Comfort+':        ['Yango', 'Uber', 'Cabify', 'InDrive'],
-        XL:                ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
       Arequipa: {
-        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Cabify', 'InDrive', 'Didi'],
-        'Comfort+':        ['Yango', 'Uber', 'Cabify', 'InDrive'],
-        XL:                ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
       Lima_Airport: {
-        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Cabify', 'InDrive', 'Didi'],
-        'Comfort+':        ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
         Premier:           ['Yango', 'Uber', 'Cabify'],
-        XL:                ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
       Trujillo_Airport: {
-        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Cabify', 'InDrive', 'Didi'],
-        'Comfort+':        ['Yango', 'Uber', 'Cabify', 'InDrive'],
-        XL:                ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
       Arequipa_Airport: {
-        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Cabify', 'InDrive', 'Didi'],
-        'Comfort+':        ['Yango', 'Uber', 'Cabify', 'InDrive'],
-        XL:                ['Yango', 'Uber', 'Cabify', 'InDrive'],
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
       Corp: {
         Corp: ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL',
