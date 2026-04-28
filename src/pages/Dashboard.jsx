@@ -3,6 +3,7 @@ import { usePricingData }  from '../hooks/usePricingData'
 import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
+import DashboardLegend     from '../components/dashboard/DashboardLegend'
 import { useI18n }         from '../context/LanguageContext'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { BRACKETS, getCountryConfig } from '../lib/constants'
@@ -171,6 +172,12 @@ function DashboardContent({ dbWeights }) {
           <button className="kpi-export-btn" onClick={handleExportCSV} title="Exportar tabla a CSV" style={{ marginLeft: 6 }}>
             ⬇ CSV
           </button>
+          <DashboardLegend
+            country={filters.country}
+            dbCity={filters.dbCity}
+            dbCategory={filters.dbCategory}
+            currency={currency}
+          />
         </div>
       )}
 
