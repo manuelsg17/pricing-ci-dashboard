@@ -153,7 +153,7 @@ export default function BracketSection({
             textTransform: 'none', letterSpacing: 0,
             flexWrap: 'wrap',
           }}
-          title={`Muestras observadas (${summaryPeriodLabel}) — última semana con data`}
+          title={t('samples.summary_title_attr').replace('{label}', summaryPeriodLabel)}
         >
           <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>
             n {summaryPeriodLabel}:
@@ -189,9 +189,9 @@ export default function BracketSection({
               color: '#fff', borderRadius: 4, cursor: 'pointer',
               fontSize: 10, fontWeight: 600,
             }}
-            title="Ver muestras por semana"
+            title={t('samples.toggle_title')}
           >
-            {showSamples ? '▲ ocultar muestras' : '📊 todas las semanas'}
+            {showSamples ? t('samples.toggle_hide') : t('samples.toggle_show')}
           </button>
         </div>
       </div>
@@ -203,14 +203,14 @@ export default function BracketSection({
           borderBottom: '1px solid #e2e8f0', overflowX: 'auto',
         }}>
           <div style={{ fontSize: 10, color: '#475569', marginBottom: 6 }}>
-            <strong>Muestras observadas</strong> por competidor y semana —
+            <strong>{t('samples.legend_title')}</strong> {t('samples.legend_per')} —
             {' '}
             <span style={{ background: '#fee2e2', padding: '0 4px', borderRadius: 3 }}>&lt;{SAMPLE_LOW}</span>
-            {' '}poca data ·{' '}
+            {' '}{t('samples.legend_low')} ·{' '}
             <span style={{ background: '#fef9c3', padding: '0 4px', borderRadius: 3 }}>{SAMPLE_LOW}–{SAMPLE_MED - 1}</span>
-            {' '}aceptable ·{' '}
+            {' '}{t('samples.legend_med')} ·{' '}
             <span style={{ background: '#dcfce7', padding: '0 4px', borderRadius: 3 }}>≥{SAMPLE_MED}</span>
-            {' '}buena
+            {' '}{t('samples.legend_high')}
           </div>
           <table className="matrix-table" style={{ fontSize: 11 }}>
             <thead>

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig, BRACKET_LABELS, BRACKETS, COMPETITOR_COLORS } from '../../lib/constants'
+import { useI18n } from '../../context/LanguageContext'
 
 // Pretty-print de un par (vehicle_category, observed_vehicle_category) tal
 // como el bot lo registra. Si ovc='*' (wildcard) lo omitimos para no llenar
@@ -18,6 +19,7 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
   const [thresholds, setThresholds] = useState([])
   const [loading, setLoading] = useState(false)
   const config = useMemo(() => getCountryConfig(country), [country])
+  const { t } = useI18n()
 
   // Fetch thresholds del (country, city, category) actual sólo cuando
   // se abre el modal, para no pegarle a Supabase hasta que se necesite.
@@ -76,10 +78,10 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
         type="button"
         className="kpi-export-btn"
         onClick={() => setOpen(true)}
-        title="Ver leyenda: qué incluye cada categoría y los rangos de distancia"
+        title={t('legend.button_title')}
         style={{ marginLeft: 6 }}
       >
-        📖 Leyenda
+        {t('legend.button')}
       </button>
     )
   }
@@ -92,7 +94,7 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
         onClick={() => setOpen(false)}
         style={{ marginLeft: 6 }}
       >
-        📖 Leyenda
+        {t('legend.button')}
       </button>
       <div
         role="dialog"
@@ -116,7 +118,7 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-              📖 Leyenda · {dbCity} · {dbCategory}
+              {t('legend.heading')} · {dbCity} · {dbCategory}
             </h3>
             <button
               onClick={() => setOpen(false)}
@@ -124,7 +126,7 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
                 background: 'transparent', border: 'none', cursor: 'pointer',
                 fontSize: 18, color: '#64748b', padding: 4,
               }}
-              aria-label="Cerrar"
+              aria-label={t('legend.close')}
             >
               ✕
             </button>
@@ -133,18 +135,15 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
           {/* ── Sección 1: Categorías ─────────────────────────── */}
           <section style={{ marginBottom: 18 }}>
             <h4 style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 700, color: '#1f2937' }}>
-              Categorías y qué tier mide cada competidor
+              {t('legend.section1_title')}
             </h4>
             <p style={{ margin: '0 0 8px', color: '#64748b', fontSize: 12 }}>
-              Cada categoría del dashboard agrupa el tier equivalente de cada
-              competidor (basado en cómo el bot observa la respuesta del API).
-              Los competidores marcados como <em>manual</em> se ingresan desde
-              los hubs porque el bot no los cubre.
+              {t('legend.section1_intro')}
             </p>
 
             {Object.keys(categoryRules).length === 0 ? (
               <div style={{ color: '#64748b', fontSize: 12 }}>
-                No hay reglas de bot configuradas para esta combinación.
+                {t('legend.no_rules')}
               </div>
             ) : (
               Object.entries(categoryRules).map(([cat, rules]) => {
@@ -175,7 +174,7 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
                             <div style={{ fontSize: 12, color: '#334155' }}>
                               {ruleList && ruleList.length
                                 ? ruleList.map(r => fmtTier(r)).join(', ')
-                                : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>manual (entra desde hubs)</span>}
+                                : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('legend.manual_only')}</span>}
                             </div>
                           </Fragment>
                         )
@@ -190,26 +189,24 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
           {/* ── Sección 2: Distance brackets ─────────────────── */}
           <section>
             <h4 style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 700, color: '#1f2937' }}>
-              Brackets de distancia · {dbCity} / {dbCategory}
+              {t('legend.section2_title')} · {dbCity} / {dbCategory}
             </h4>
             <p style={{ margin: '0 0 8px', color: '#64748b', fontSize: 12 }}>
-              Los rangos se configuran en <strong>Config → Distancias</strong>.
-              Cada observación cae en un bucket según los km de la ruta.
+              {t('legend.section2_intro')}
             </p>
 
             {loading ? (
-              <div style={{ fontSize: 12, color: '#64748b' }}>Cargando…</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{t('legend.loading')}</div>
             ) : orderedThresholds.length === 0 ? (
               <div style={{ fontSize: 12, color: '#64748b' }}>
-                No hay umbrales configurados para esta combinación. Revisa
-                <strong> Config → Distancias</strong>.
+                {t('legend.no_thresholds')}
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9' }}>
-                    <th style={{ textAlign: 'left',  padding: '6px 8px', borderBottom: '1px solid #cbd5e1' }}>Bracket</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid #cbd5e1' }}>Rango (km)</th>
+                    <th style={{ textAlign: 'left',  padding: '6px 8px', borderBottom: '1px solid #cbd5e1' }}>{t('legend.col_bracket')}</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid #cbd5e1' }}>{t('legend.col_range')}</th>
                   </tr>
                 </thead>
                 <tbody>
