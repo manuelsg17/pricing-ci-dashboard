@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useConfirm } from '../ui/ConfirmDialog'
+import { sb } from '../../lib/supabase'
 
 export default function WeightsTable({ weights, onSave, saving, country }) {
   const config = getCountryConfig(country)
@@ -64,8 +66,34 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
 
   const totalOk = Math.abs(totalPct - 100) < 0.1
 
+  const confirm = useConfirm()
+
   const handleSave = async () => {
     setSaveMsg(null)
+
+    // Confirmación + hard copy antes de aplicar cambio
+    const ok = await confirm({
+      title:       '⚠ Cambio de pesos — hard copy requerido',
+      message:     'Antes de guardar los nuevos pesos se creará un snapshot (hard copy) ' +
+                   'de los promedios ponderados actuales para todos los períodos históricos. ' +
+                   'Esos valores quedarán fijos y no cambiarán con los nuevos pesos. ' +
+                   '\n\n¿Confirmar el snapshot y guardar?',
+      confirmText: 'Crear snapshot y guardar',
+      cancelText:  'Cancelar',
+      danger:      true,
+    })
+    if (!ok) return
+
+    // Crear snapshot antes de aplicar nuevos pesos
+    const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
+      p_country: country,
+      p_label:   `Pesos cambiados — ${new Date().toISOString()}`,
+    })
+    if (snapErr) {
+      setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+      return
+    }
+
     const rows = BRACKETS.map(b => ({
       city:    activeCity,
       bracket: b,
@@ -73,7 +101,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     }))
     try {
       await onSave(rows)
-      setSaveMsg({ type: 'ok', text: `Pesos guardados para ${activeCity === 'all' ? 'Global' : activeCity}.` })
+      setSaveMsg({ type: 'ok', text: `Snapshot creado y pesos guardados para ${activeCity === 'all' ? 'Global' : activeCity}.` })
       setLocal(prev => {
         const next = { ...prev }
         BRACKETS.forEach(b => delete next[getKey(activeCity, b)])

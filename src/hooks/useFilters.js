@@ -35,6 +35,10 @@ export function useFilters(country) {
   const [historicTo,    setHistoricTo]    = useState(toISODate(getMondayWeeksAgo(0)))
   const [zones,         setZones]         = useState(['All'])
 
+  // Franjas horarias — todas activas por defecto
+  const ALL_TIME_SLOTS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
+  const [timeOfDay, setTimeOfDay] = useState(ALL_TIME_SLOTS)
+
   // Ajustar weekStart dinámicamente al lunes de la semana MÁS RECIENTE con datos.
   // (Incluye la semana en curso si hay observaciones, aunque esté incompleta.)
   useEffect(() => {
@@ -167,7 +171,8 @@ export function useFilters(country) {
     historicFrom,
     historicTo,
     competitors,
-  }), [country, city, category, subCategory, dbCity, dbCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, historicFrom, historicTo, competitors])
+    timeOfDay,
+  }), [country, city, category, subCategory, dbCity, dbCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, weekColumns, dailyStart, dailyEnd, historicFrom, historicTo, competitors, timeOfDay])
 
   return {
     filters,
@@ -185,5 +190,8 @@ export function useFilters(country) {
     setDailyStart,
     setHistoricFrom,
     setHistoricTo,
+    timeOfDay,
+    setTimeOfDay,
+    ALL_TIME_SLOTS,
   }
 }

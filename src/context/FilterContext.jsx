@@ -6,7 +6,11 @@ const FilterContext = createContext(null)
 export function FilterProvider({ children }) {
   const { country } = useCountry()
   const filterState = useFilters(country)
-  const value = useMemo(() => ({ ...filterState, country }), [filterState, country])
+  const value = useMemo(
+    () => ({ ...filterState, country }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filterState, country]
+  )
   return (
     <FilterContext.Provider value={value}>
       {children}

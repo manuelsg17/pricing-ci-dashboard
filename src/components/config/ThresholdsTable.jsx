@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useConfirm } from '../ui/ConfirmDialog'
+import { sb } from '../../lib/supabase'
 
 export default function ThresholdsTable({ thresholds, onSave, saving, country }) {
   const config = getCountryConfig(country)
@@ -105,6 +107,8 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
     })
   }
 
+  const confirm = useConfirm()
+
   const handleSave = async () => {
     setSaveMsg(null)
     if (hasErrors) {
@@ -114,6 +118,29 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       })
       return
     }
+
+    // Confirmación + hard copy — los umbrales de km reclasifican brackets históricos
+    const ok = await confirm({
+      title:       '⚠ Cambio de umbrales — hard copy requerido',
+      message:     'Cambiar los kilómetros por rango reclasificará los brackets de datos históricos. ' +
+                   'Antes de aplicar, se creará un snapshot de los promedios actuales para que ' +
+                   'los datos anteriores queden con valores fijos. ' +
+                   '\n\n¿Confirmar el snapshot y guardar?',
+      confirmText: 'Crear snapshot y guardar',
+      cancelText:  'Cancelar',
+      danger:      true,
+    })
+    if (!ok) return
+
+    const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
+      p_country: country,
+      p_label:   `Umbrales km cambiados — ${new Date().toISOString()}`,
+    })
+    if (snapErr) {
+      setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+      return
+    }
+
     const rows = BRACKETS.map(b => ({
       city:     selectedCity,
       category: selectedCat,

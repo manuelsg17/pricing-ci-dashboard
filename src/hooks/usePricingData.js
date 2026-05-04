@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { BRACKETS, BRACKET_LABELS, DEFAULT_WEIGHTS } from '../lib/constants'
 import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAverage'
 import { computeDelta, getSemaforoClass } from '../algorithms/semaforo'
+
+const ALL_TIME_SLOTS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
 
 /**
  * Extrae año e ISO week de una fecha JS
@@ -18,11 +20,18 @@ function getYearWeek(date) {
 }
 
 export function usePricingData(filters, dbWeights, locale = 'es-PE') {
-  const [rawRows,  setRawRows]  = useState([])
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState(null)
+  const [rawRows,    setRawRows]    = useState([])
+  const [frozenRows, setFrozenRows] = useState([])
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState(null)
 
-  const { country, dbCity, dbCategory, zone, surge, dataSource, viewMode, weekColumns, dailyStart, dailyEnd } = filters
+  const { country, dbCity, dbCategory, zone, surge, dataSource, viewMode, weekColumns, dailyStart, dailyEnd, timeOfDay } = filters
+
+  // Null → no filter (todas las franjas, incluyendo registros sin time_of_day)
+  const timeOfDayParam = useMemo(() => {
+    if (!timeOfDay || timeOfDay.length === ALL_TIME_SLOTS.length) return null
+    return timeOfDay
+  }, [timeOfDay])
 
   // ── Cargar datos desde Supabase ──────────────────────────
   useEffect(() => {
@@ -40,20 +49,31 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
           lastDate.setDate(lastDate.getDate() + 6)
           const { year: y2, week: w2 } = getYearWeek(lastDate)
 
-          const { data, error: err } = await sb.rpc('get_dashboard_data_weekly', {
-            p_city:        dbCity,
-            p_category:    dbCategory,
-            p_country:     country,
-            p_zone:        zone === 'All' ? null : zone,
-            p_surge:       surge,
-            p_week_start:  w1,
-            p_year_start:  y1,
-            p_week_end:    w2,
-            p_year_end:    y2,
-            p_data_source: dataSource,
-          })
-          if (err) throw err
-          setRawRows(data || [])
+          const [liveRes, frozenRes] = await Promise.all([
+            sb.rpc('get_dashboard_data_weekly', {
+              p_city:        dbCity,
+              p_category:    dbCategory,
+              p_country:     country,
+              p_zone:        zone === 'All' ? null : zone,
+              p_surge:       surge,
+              p_week_start:  w1,
+              p_year_start:  y1,
+              p_week_end:    w2,
+              p_year_end:    y2,
+              p_data_source: dataSource,
+              p_time_of_day: timeOfDayParam,
+            }),
+            sb.from('pricing_wa_frozen')
+              .select('competition_name,distance_bracket,year,week,avg_price,observation_count')
+              .eq('country', country)
+              .eq('city', dbCity)
+              .eq('category', dbCategory)
+              .gte('year', y1)
+              .lte('year', y2),
+          ])
+          if (liveRes.error) throw liveRes.error
+          setRawRows(liveRes.data || [])
+          setFrozenRows(frozenRes.data || [])
         } else {
           const { data, error: err } = await sb.rpc('get_dashboard_data_daily', {
             p_city:        dbCity,
@@ -64,9 +84,11 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
             p_date_start:  dailyStart,
             p_date_end:    dailyEnd,
             p_data_source: dataSource,
+            p_time_of_day: timeOfDayParam,
           })
           if (err) throw err
           setRawRows(data || [])
+          setFrozenRows([])
         }
       } catch (e) {
         setError(e.message || 'Error al cargar datos')
@@ -76,12 +98,36 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
     }
 
     fetchData()
-  }, [country, dbCity, dbCategory, zone, surge, dataSource, viewMode, weekColumns, dailyStart, dailyEnd])
+  }, [country, dbCity, dbCategory, zone, surge, dataSource, viewMode, weekColumns, dailyStart, dailyEnd, timeOfDayParam])
+
+  // ── Construir set de semanas congeladas para indicador visual ──
+  const frozenWeeks = useMemo(() => {
+    const set = new Set()
+    for (const r of frozenRows) {
+      set.add(`${r.year}-W${String(r.week).padStart(2, '0')}`)
+    }
+    return set
+  }, [frozenRows])
+
+  // ── Índice de datos congelados: comp → periodKey → bracket → {avg_price, count} ──
+  const frozenNested = useMemo(() => {
+    const idx = {}
+    for (const r of frozenRows) {
+      const pk = `${r.year}-W${String(r.week).padStart(2, '0')}`
+      if (!idx[r.competition_name]) idx[r.competition_name] = {}
+      if (!idx[r.competition_name][pk]) idx[r.competition_name][pk] = {}
+      idx[r.competition_name][pk][r.distance_bracket] = {
+        avgPrice: Number(r.avg_price),
+        count:    Number(r.observation_count),
+      }
+    }
+    return idx
+  }, [frozenRows])
 
   // ── Construir matriz de datos ───────────────────────────
   const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods } =
     useMemo(() => {
-      if (!rawRows.length) {
+      if (!rawRows.length && !frozenRows.length) {
         return { priceMatrix: {}, deltaMatrix: {}, semaforoMatrix: {}, sampleMatrix: {}, diffMatrix: {}, chartData: {}, deltaChartData: {}, periods: [] }
       }
 
@@ -164,7 +210,11 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
       for (const period of periods) {
         // ── Paso 1: construir priceMatrix para todos los competidores ──
         for (const comp of competitors) {
-          const bracketData  = nested[comp]?.[period.key] || {}
+          // Preferir datos congelados si existen para esta semana
+          const isFrozen  = frozenNested[comp]?.[period.key] != null
+          const bracketData = isFrozen
+            ? frozenNested[comp][period.key]
+            : (nested[comp]?.[period.key] || {})
           const bracketPrices = {}
           const bracketCounts = {}
 
@@ -240,9 +290,9 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
       }
 
       return { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
-    }, [rawRows, dbWeights, filters, locale])
+    }, [rawRows, frozenRows, dbWeights, filters, frozenNested, locale])
 
-  return { loading, error, priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
+  return { loading, error, priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods, frozenWeeks }
 }
 
 // ── Helpers de formato ──────────────────────────────────

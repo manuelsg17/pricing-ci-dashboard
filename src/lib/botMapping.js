@@ -224,6 +224,14 @@ export function mapBotRows(rows, activeCountry = 'Peru') {
       ? parseFloat(row.eta_mins) || null
       : null
 
+    // 11. Rush hour — usar columna del bot si existe, si no el trigger lo deriva del horario
+    const rushRaw  = String(row.rush_hour ?? row['rush hour'] ?? row.is_rush_hour ?? row.isRushHour ?? '').trim().toUpperCase()
+    const rush_hour = rushRaw === 'TRUE' || rushRaw === '1' || rushRaw === 'YES' || rushRaw === 'SÍ'
+      ? true
+      : rushRaw === 'FALSE' || rushRaw === '0' || rushRaw === 'NO'
+        ? false
+        : null  // null → trigger asigna desde observed_time
+
     ok.push({
       city:                   dbCity,
       category,
@@ -235,6 +243,7 @@ export function mapBotRows(rows, activeCountry = 'Peru') {
       distance_km:            null,
       distance_bracket:       bracket || null,
       surge,
+      rush_hour,
       recommended_price,
       price_without_discount,
       price_with_discount,

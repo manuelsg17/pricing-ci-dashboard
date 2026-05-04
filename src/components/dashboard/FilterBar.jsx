@@ -2,6 +2,14 @@ import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useFilterContext } from '../../context/FilterContext'
 
+const TIME_SLOTS = [
+  { key: 'early_morning', label: 'Madrugada', range: '0–6h'  },
+  { key: 'morning',       label: 'Mañana',    range: '6–12h' },
+  { key: 'midday',        label: 'Mediodía',  range: '12–14h'},
+  { key: 'afternoon',     label: 'Tarde',     range: '14–18h'},
+  { key: 'evening',       label: 'Noche',     range: '18–24h'},
+]
+
 export default function FilterBar() {
   const {
     filters, zones, country,
@@ -9,7 +17,20 @@ export default function FilterBar() {
     setCompareVs, setViewMode, setWeekStart,
     setDailyStart,
     setHistoricFrom, setHistoricTo,
+    timeOfDay, setTimeOfDay, ALL_TIME_SLOTS,
   } = useFilterContext()
+
+  function toggleSlot(key) {
+    setTimeOfDay(prev => {
+      if (prev.includes(key)) {
+        const next = prev.filter(s => s !== key)
+        return next.length === 0 ? ALL_TIME_SLOTS : next
+      }
+      return [...prev, key]
+    })
+  }
+
+  const allSelected = timeOfDay.length === ALL_TIME_SLOTS.length
 
   const config = getCountryConfig(country)
   const { city, category, subCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
@@ -84,6 +105,54 @@ export default function FilterBar() {
           <option value="true">{t('filter.yes')}</option>
           <option value="false">{t('filter.no')}</option>
         </select>
+      </div>
+
+      <div className="filter-bar__divider" />
+
+      {/* Franja horaria */}
+      <div className="filter-bar__group" style={{ gap: 4 }}>
+        <span className="filter-bar__label">Horario</span>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+          {TIME_SLOTS.map(slot => {
+            const active = timeOfDay.includes(slot.key)
+            return (
+              <button
+                key={slot.key}
+                type="button"
+                title={`${slot.label} (${slot.range})`}
+                onClick={() => toggleSlot(slot.key)}
+                style={{
+                  padding: '2px 7px',
+                  fontSize: 11,
+                  fontWeight: active ? 700 : 400,
+                  borderRadius: 4,
+                  border: `1px solid ${active ? '#E53935' : '#d1d5db'}`,
+                  background: active ? '#FFF0F0' : '#f9fafb',
+                  color: active ? '#B71C1C' : '#6b7280',
+                  cursor: 'pointer',
+                  lineHeight: 1.4,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {slot.label}
+              </button>
+            )
+          })}
+          {!allSelected && (
+            <button
+              type="button"
+              onClick={() => setTimeOfDay(ALL_TIME_SLOTS)}
+              style={{
+                padding: '2px 6px', fontSize: 10, borderRadius: 4,
+                border: '1px solid #d1d5db', background: '#f9fafb',
+                color: '#6b7280', cursor: 'pointer',
+              }}
+              title="Seleccionar todas las franjas"
+            >
+              Todas
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="filter-bar__divider" />

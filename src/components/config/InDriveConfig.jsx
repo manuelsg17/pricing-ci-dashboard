@@ -16,9 +16,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 
 export default function InDriveConfig({ country }) {
+  const confirm    = useConfirm()
   const cfgCountry = getCountryConfig(country)
   
   const CONFIG_ROWS = useMemo(() => {
@@ -151,8 +153,31 @@ export default function InDriveConfig({ country }) {
   const hasUnsavedChanges = CONFIG_ROWS.some(({ city, category }) => isCellDirty(city, category))
 
   async function handleSave() {
-    setSaving(true)
     setSaveMsg(null)
+
+    // Confirmación + hard copy — los % de InDrive afectan el precio efectivo histórico
+    const ok = await confirm({
+      title:       '⚠ Cambio InDrive — hard copy requerido',
+      message:     'Cambiar el % de ajuste de InDrive afecta cómo se calculan los precios ' +
+                   'efectivos históricos del bot. Antes de aplicar se creará un snapshot ' +
+                   'de los promedios actuales para que los datos anteriores queden fijos. ' +
+                   '\n\n¿Confirmar el snapshot y guardar?',
+      confirmText: 'Crear snapshot y guardar',
+      cancelText:  'Cancelar',
+      danger:      true,
+    })
+    if (!ok) return
+
+    const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
+      p_country: country,
+      p_label:   `Config InDrive cambiada — ${new Date().toISOString()}`,
+    })
+    if (snapErr) {
+      setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+      return
+    }
+
+    setSaving(true)
     try {
       // Solo guardar las filas que cambiaron
       const changed = CONFIG_ROWS.filter(({ city, category }) => isCellDirty(city, category))
