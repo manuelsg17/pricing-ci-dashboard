@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useFilterContext } from '../../context/FilterContext'
@@ -20,6 +21,17 @@ export default function FilterBar() {
     timeOfDay, setTimeOfDay, ALL_TIME_SLOTS,
   } = useFilterContext()
 
+  const [timeOpen, setTimeOpen] = useState(false)
+  const timeRef  = useRef(null)
+
+  useEffect(() => {
+    function onOutsideClick(e) {
+      if (timeRef.current && !timeRef.current.contains(e.target)) setTimeOpen(false)
+    }
+    document.addEventListener('mousedown', onOutsideClick)
+    return () => document.removeEventListener('mousedown', onOutsideClick)
+  }, [])
+
   function toggleSlot(key) {
     setTimeOfDay(prev => {
       if (prev.includes(key)) {
@@ -31,6 +43,9 @@ export default function FilterBar() {
   }
 
   const allSelected = timeOfDay.length === ALL_TIME_SLOTS.length
+  const timeLabel   = allSelected
+    ? 'Todas'
+    : TIME_SLOTS.filter(s => timeOfDay.includes(s.key)).map(s => s.label).join(', ')
 
   const config = getCountryConfig(country)
   const { city, category, subCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
@@ -109,50 +124,115 @@ export default function FilterBar() {
 
       <div className="filter-bar__divider" />
 
-      {/* Franja horaria */}
-      <div className="filter-bar__group" style={{ gap: 4 }}>
+      {/* Franja horaria — dropdown con checkboxes */}
+      <div className="filter-bar__group" ref={timeRef} style={{ position: 'relative' }}>
         <span className="filter-bar__label">Horario</span>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-          {TIME_SLOTS.map(slot => {
-            const active = timeOfDay.includes(slot.key)
-            return (
+        <button
+          type="button"
+          onClick={() => setTimeOpen(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '0 8px', height: 28, minWidth: 110, maxWidth: 200,
+            border: `1px solid ${allSelected ? 'var(--color-border)' : '#E53935'}`,
+            borderRadius: 'var(--radius-sm)',
+            background: allSelected ? 'var(--color-bg)' : '#FFF5F5',
+            color: allSelected ? 'var(--color-text)' : '#B71C1C',
+            fontSize: 12, fontWeight: allSelected ? 400 : 600,
+            cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden',
+            transition: 'border-color 0.15s, background 0.15s',
+          }}
+        >
+          <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            🕐 {timeLabel}
+          </span>
+          {!allSelected && (
+            <span style={{
+              background: '#E53935', color: '#fff',
+              borderRadius: 10, fontSize: 10, fontWeight: 700,
+              padding: '0 5px', lineHeight: '16px', flexShrink: 0,
+            }}>
+              {timeOfDay.length}/{ALL_TIME_SLOTS.length}
+            </span>
+          )}
+          <span style={{ fontSize: 9, color: 'inherit', flexShrink: 0, opacity: 0.6 }}>
+            {timeOpen ? '▲' : '▼'}
+          </span>
+        </button>
+
+        {timeOpen && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200,
+            background: 'var(--color-panel)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
+            minWidth: 220, overflow: 'hidden',
+          }}>
+            {/* Header del dropdown */}
+            <div style={{
+              padding: '8px 12px 6px',
+              borderBottom: '1px solid var(--color-border)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Franja horaria
+              </span>
               <button
-                key={slot.key}
                 type="button"
-                title={`${slot.label} (${slot.range})`}
-                onClick={() => toggleSlot(slot.key)}
+                onClick={() => setTimeOfDay(ALL_TIME_SLOTS)}
                 style={{
-                  padding: '2px 7px',
-                  fontSize: 11,
-                  fontWeight: active ? 700 : 400,
-                  borderRadius: 4,
-                  border: `1px solid ${active ? '#E53935' : '#d1d5db'}`,
-                  background: active ? '#FFF0F0' : '#f9fafb',
-                  color: active ? '#B71C1C' : '#6b7280',
-                  cursor: 'pointer',
-                  lineHeight: 1.4,
-                  whiteSpace: 'nowrap',
+                  fontSize: 10, fontWeight: 600,
+                  color: allSelected ? 'var(--color-muted)' : '#E53935',
+                  background: 'none', border: 'none', cursor: allSelected ? 'default' : 'pointer',
+                  padding: 0, opacity: allSelected ? 0.4 : 1,
                 }}
               >
-                {slot.label}
+                Seleccionar todas
               </button>
-            )
-          })}
-          {!allSelected && (
-            <button
-              type="button"
-              onClick={() => setTimeOfDay(ALL_TIME_SLOTS)}
-              style={{
-                padding: '2px 6px', fontSize: 10, borderRadius: 4,
-                border: '1px solid #d1d5db', background: '#f9fafb',
-                color: '#6b7280', cursor: 'pointer',
-              }}
-              title="Seleccionar todas las franjas"
-            >
-              Todas
-            </button>
-          )}
-        </div>
+            </div>
+
+            {/* Opciones */}
+            {TIME_SLOTS.map((slot, i) => {
+              const checked = timeOfDay.includes(slot.key)
+              return (
+                <label
+                  key={slot.key}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '7px 12px',
+                    cursor: 'pointer',
+                    background: checked ? 'rgba(229, 57, 53, 0.04)' : 'transparent',
+                    borderBottom: i < TIME_SLOTS.length - 1 ? '1px solid var(--color-border)' : 'none',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = checked ? 'rgba(229,57,53,0.08)' : 'var(--color-bg)'}
+                  onMouseLeave={e => e.currentTarget.style.background = checked ? 'rgba(229,57,53,0.04)' : 'transparent'}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleSlot(slot.key)}
+                    style={{ accentColor: '#E53935', width: 14, height: 14, cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: 12, fontWeight: checked ? 600 : 400,
+                      color: checked ? '#B71C1C' : 'var(--color-text)',
+                    }}>
+                      {slot.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 1 }}>
+                      {slot.range}
+                    </div>
+                  </div>
+                  {checked && (
+                    <span style={{ fontSize: 12, color: '#E53935' }}>✓</span>
+                  )}
+                </label>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <div className="filter-bar__divider" />
