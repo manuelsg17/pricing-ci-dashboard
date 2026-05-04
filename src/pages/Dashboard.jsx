@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { usePricingData }  from '../hooks/usePricingData'
+import { useCountUp }      from '../hooks/useCountUp'
 import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
@@ -20,6 +21,13 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
   const { currency }  = countryConfig
   const [filterBarVisible, setFilterBarVisible] = useState(true)
 
+  // #26 — drag & drop section order
+  const defaultOrder = useMemo(() => [
+    '_wa', 'very_short', 'short', 'median', 'average', 'long', 'very_long',
+  ], [])
+  const [sectionOrder, setSectionOrder] = useState(null) // null = default
+  const dragBracketRef = useRef(null)
+
   const sections = useMemo(() => [
     { bracket: '_wa',        label: t('bracket.weighted_average') },
     { bracket: 'very_short', label: t('bracket.very_short') },
@@ -30,13 +38,41 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
     { bracket: 'very_long',  label: t('bracket.very_long') },
   ], [t])
 
+  const orderedSections = useMemo(() => {
+    if (!sectionOrder) return sections
+    return sectionOrder
+      .map(b => sections.find(s => s.bracket === b))
+      .filter(Boolean)
+  }, [sections, sectionOrder])
+
+  function handleDragStart(e, bracket) {
+    dragBracketRef.current = bracket
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  function handleDragOver(e) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+  function handleDrop(e, bracket) {
+    e.preventDefault()
+    const from = dragBracketRef.current
+    if (!from || from === bracket) return
+    const order = sectionOrder || sections.map(s => s.bracket)
+    const fromIdx = order.indexOf(from)
+    const toIdx   = order.indexOf(bracket)
+    const next    = [...order]
+    next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, from)
+    setSectionOrder(next)
+  }
+
   const {
     loading, error,
     priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, sampleMatrix,
     chartData, deltaChartData, periods, frozenWeeks,
   } = usePricingData(filters, dbWeights, locale, dbSemaforo)
 
-  // Load market events for daily view
+  // Market events for daily view
   const [marketEvents, setMarketEvents] = useState([])
   useEffect(() => {
     if (filters.viewMode !== 'daily') { setMarketEvents([]); return }
@@ -65,7 +101,6 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
     const yangoComp = filters.compareVs
     const yangoWA   = priceMatrix[yangoComp]?.[latestKey]?.['_wa'] ?? null
 
-    // Collect all competitor WA prices for latest period
     const compPrices = filters.competitors
       .map(c => ({ comp: c, wa: priceMatrix[c]?.[latestKey]?.['_wa'] ?? null }))
       .filter(x => x.wa != null)
@@ -76,25 +111,26 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
       ? compPrices.findIndex(x => x.comp === yangoComp) + 1
       : null
 
-    // Total observations (count) for latest period across all competitors + brackets
     let totalObs = 0
     for (const comp of filters.competitors) {
       for (const b of BRACKETS) {
         const entry = priceMatrix[comp]?.[latestKey]?.[b]
         if (typeof entry === 'object' && entry?.count) totalObs += entry.count
-        else if (typeof entry === 'number') totalObs++ // fallback
+        else if (typeof entry === 'number') totalObs++
       }
     }
 
     const lastPeriodLabel = periods[periods.length - 1]?.label || '—'
-
-    // #19 — WoW badge: compare latest vs previous period WA
     const prevKey  = periods[periods.length - 2]?.key ?? null
     const prevWA   = prevKey ? (priceMatrix[yangoComp]?.[prevKey]?.['_wa'] ?? null) : null
     const wowDelta = yangoWA != null && prevWA != null ? yangoWA - prevWA : null
 
     return { yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel, wowDelta }
   }, [periods, priceMatrix, filters.compareVs, filters.competitors])
+
+  // #32 — animated KPI values
+  const animYangoWA  = useCountUp(kpis?.yangoWA  ?? null)
+  const animWowDelta = useCountUp(kpis?.wowDelta ?? null)
 
   // ── Export PNG ────────────────────────────────────────────────────────
   async function handleExportPNG() {
@@ -140,45 +176,66 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
     URL.revokeObjectURL(url)
   }
 
+  // ── Export PDF ────────────────────────────────────────────────────────
+  async function handleExportPDF() {
+    const { default: html2canvas } = await import('html2canvas')
+    const { default: jsPDF }       = await import('jspdf')
+    const pdf = new jsPDF('landscape', 'mm', 'a4')
+    const pageW = pdf.internal.pageSize.getWidth()
+
+    pdf.setFontSize(14)
+    pdf.setTextColor(229, 57, 53)
+    pdf.text(`Pricing CI — ${filters.dbCity} / ${filters.dbCategory}`, 14, 16)
+    pdf.setFontSize(9)
+    pdf.setTextColor(100, 100, 100)
+    pdf.text(`Exportado: ${new Date().toLocaleDateString()}  |  ${filters.viewMode}  |  ${kpis?.lastPeriodLabel || ''}`, 14, 22)
+
+    const canvas   = await html2canvas(dashRef.current, { scale: 1.5, useCORS: true })
+    const imgData  = canvas.toDataURL('image/jpeg', 0.85)
+    const imgWidth = pageW - 28
+    const imgHeight = (canvas.height / canvas.width) * imgWidth
+
+    // Paginate if image is taller than a page
+    const pageH = pdf.internal.pageSize.getHeight() - 32
+    let yOffset = 0
+    let pageY   = 28
+    let first   = true
+    while (yOffset < imgHeight) {
+      if (!first) { pdf.addPage(); pageY = 14 }
+      pdf.addImage(imgData, 'JPEG', 14, pageY, imgWidth, imgHeight, '', 'FAST', 0)
+      yOffset += pageH
+      pdf.setPage(pdf.internal.getNumberOfPages())
+      first = false
+    }
+
+    pdf.save(`pricing-ci-${filters.dbCity}-${filters.dbCategory}-${new Date().toISOString().slice(0,10)}.pdf`)
+  }
+
   return (
     <div className="dashboard" ref={dashRef}>
-      <div className="filter-bar-wrapper">
-        <div className="filter-bar-toggle">
-          <button
-            className="filter-bar-toggle__btn"
-            onClick={() => setFilterBarVisible(v => !v)}
-            title={filterBarVisible ? t('filter.collapse') : t('filter.expand')}
-          >
-            {filterBarVisible ? '▲' : '▼'} {filterBarVisible ? t('filter.collapse') : t('filter.expand')}
-          </button>
-        </div>
-        <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
-      </div>
-
-      {/* ── KPI Bar ── */}
+      {/* ── KPI Bar — scrolls naturally above the sticky filter ── */}
       {!loading && kpis && (
         <div className="kpi-bar">
           <div className="kpi-card">
             <div className="kpi-card__label">{t('dashboard.kpi.yango_wa')}</div>
             <div className="kpi-card__value" style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              {kpis.yangoWA != null ? `${currency} ${kpis.yangoWA.toFixed(2)}` : '—'}
+              {animYangoWA != null ? `${currency} ${animYangoWA.toFixed(2)}` : '—'}
               {/* #19 — WoW badge */}
-              {kpis.wowDelta != null && (
+              {animWowDelta != null && (
                 <span style={{
                   fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
-                  background: kpis.wowDelta > 0 ? '#fee2e2' : kpis.wowDelta < 0 ? '#dcfce7' : '#f1f5f9',
-                  color:      kpis.wowDelta > 0 ? '#b91c1c' : kpis.wowDelta < 0 ? '#15803d' : '#64748b',
+                  background: animWowDelta > 0 ? '#fee2e2' : animWowDelta < 0 ? '#dcfce7' : '#f1f5f9',
+                  color:      animWowDelta > 0 ? '#b91c1c' : animWowDelta < 0 ? '#15803d' : '#64748b',
                 }}>
-                  {kpis.wowDelta > 0 ? '↑' : kpis.wowDelta < 0 ? '↓' : '→'} {kpis.wowDelta > 0 ? '+' : ''}{kpis.wowDelta.toFixed(2)}
+                  {animWowDelta > 0 ? '↑' : animWowDelta < 0 ? '↓' : '→'}{' '}
+                  {animWowDelta > 0 ? '+' : ''}{animWowDelta.toFixed(2)}
                 </span>
               )}
             </div>
           </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
             <div className="kpi-card__label">{t('dashboard.kpi.market_leader')}</div>
-            <div className="kpi-card__value">
-              {kpis.leader ? kpis.leader.comp : '—'}
-            </div>
+            <div className="kpi-card__value">{kpis.leader ? kpis.leader.comp : '—'}</div>
             <div className="kpi-card__sub">
               {kpis.leader ? `${currency} ${kpis.leader.wa.toFixed(2)}` : ''}
             </div>
@@ -196,8 +253,11 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
           <button className="kpi-export-btn" onClick={handleExportPNG} title={t('dashboard.export_png')}>
             {t('dashboard.export_png')}
           </button>
-          <button className="kpi-export-btn" onClick={handleExportCSV} title="Exportar tabla a CSV" style={{ marginLeft: 6 }}>
+          <button className="kpi-export-btn" onClick={handleExportCSV} title="Exportar tabla a CSV">
             ⬇ CSV
+          </button>
+          <button className="kpi-export-btn" onClick={handleExportPDF} title={t('dashboard.export_pdf')}>
+            {t('dashboard.export_pdf')}
           </button>
           <DashboardLegend
             country={filters.country}
@@ -208,7 +268,31 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
         </div>
       )}
 
-      {/* #38 — first load skeleton (no prior data) */}
+      {/* ── Filter bar — sticky just below topbar ── */}
+      <div className="filter-bar-wrapper">
+        <div className="filter-bar-toggle">
+          {sectionOrder && (
+            <button
+              className="filter-bar-toggle__btn"
+              style={{ marginRight: 'auto' }}
+              onClick={() => setSectionOrder(null)}
+              title={t('dashboard.reset_order')}
+            >
+              ↺ {t('dashboard.reset_order')}
+            </button>
+          )}
+          <button
+            className="filter-bar-toggle__btn"
+            onClick={() => setFilterBarVisible(v => !v)}
+            title={filterBarVisible ? t('filter.collapse') : t('filter.expand')}
+          >
+            {filterBarVisible ? '▲' : '▼'} {filterBarVisible ? t('filter.collapse') : t('filter.expand')}
+          </button>
+        </div>
+        <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
+      </div>
+
+      {/* #38 — first load skeleton */}
       {loading && periods.length === 0 && <SkeletonDashboard />}
 
       {error && (
@@ -223,7 +307,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
         />
       )}
 
-      {/* #37 — stale overlay: show old data dimmed while refetching */}
+      {/* #37 — stale overlay while refetching */}
       {periods.length > 0 && (
         <div style={{ position: 'relative' }}>
           {loading && (
@@ -232,9 +316,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
               background: 'rgba(255,255,255,0.55)',
               backdropFilter: 'blur(2px)',
               display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-              paddingTop: 24,
-              borderRadius: 8,
-              pointerEvents: 'none',
+              paddingTop: 24, borderRadius: 8, pointerEvents: 'none',
             }}>
               <span style={{
                 background: 'rgba(255,255,255,0.9)', border: '1px solid var(--color-border)',
@@ -246,27 +328,37 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
             </div>
           )}
 
-      {sections.map(({ bracket, label }) => (
-        <BracketSection
-          key={bracket}
-          bracket={bracket}
-          label={label}
-          currency={currency}
-          competitors={filters.competitors}
-          periods={periods}
-          priceMatrix={priceMatrix}
-          deltaMatrix={deltaMatrix}
-          semaforoMatrix={semaforoMatrix}
-          diffMatrix={diffMatrix}
-          sampleMatrix={sampleMatrix}
-          compareVs={filters.compareVs}
-          chartData={chartData[bracket] || []}
-          deltaChartData={deltaChartData[bracket] || []}
-          events={marketEvents}
-          semaforoBands={dbSemaforo}
-          frozenWeeks={frozenWeeks}
-        />
-      ))}
+          {/* #26 — draggable sections */}
+          {orderedSections.map(({ bracket, label }) => (
+            <div
+              key={bracket}
+              draggable
+              onDragStart={e => handleDragStart(e, bracket)}
+              onDragOver={handleDragOver}
+              onDrop={e => handleDrop(e, bracket)}
+            >
+              <BracketSection
+                bracket={bracket}
+                label={label}
+                currency={currency}
+                competitors={filters.competitors}
+                periods={periods}
+                priceMatrix={priceMatrix}
+                deltaMatrix={deltaMatrix}
+                semaforoMatrix={semaforoMatrix}
+                diffMatrix={diffMatrix}
+                sampleMatrix={sampleMatrix}
+                compareVs={filters.compareVs}
+                chartData={chartData[bracket] || []}
+                deltaChartData={deltaChartData[bracket] || []}
+                events={marketEvents}
+                semaforoBands={dbSemaforo}
+                frozenWeeks={frozenWeeks}
+                loading={loading}
+                viewMode={filters.viewMode}
+              />
+            </div>
+          ))}
         </div>
       )}
     </div>

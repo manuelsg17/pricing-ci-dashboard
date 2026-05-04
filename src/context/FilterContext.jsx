@@ -7,7 +7,7 @@ export function FilterProvider({ children }) {
   const { country } = useCountry()
   const filterState = useFilters(country)
   const value = useMemo(
-    () => ({ ...filterState, country }),
+    () => ({ ...filterState, country, applyPreset: filterState.applyPreset }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filterState, country]
   )

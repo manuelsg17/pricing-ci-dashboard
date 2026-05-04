@@ -1,11 +1,12 @@
-import { useRef, useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
 import {
-  ComposedChart, LineChart, Line, Area, BarChart, Bar,
-  XAxis, YAxis, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine, ReferenceArea,
+  ComposedChart, Line, Area, BarChart, Bar,
+  XAxis, YAxis, Tooltip,
+  ResponsiveContainer, ReferenceLine, ReferenceArea, Brush,
 } from 'recharts'
 import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import DrillDownModal from './DrillDownModal'
 
 const SAMPLE_LOW  = 30
 const SAMPLE_MED  = 100
@@ -25,7 +26,7 @@ function sampleColor(n) {
 
 const IMPACT_COLORS = { alto: '#dc2626', medio: '#d97706', bajo: '#94a3b8' }
 
-// #4 — trend arrow: compares last value to second-last
+// #4 — trend arrow: only in last column
 function TrendArrow({ curr, prev }) {
   if (curr == null || prev == null) return null
   const diff = curr - prev
@@ -35,11 +36,10 @@ function TrendArrow({ curr, prev }) {
     : <span style={{ color: '#16a34a', fontSize: 9, marginLeft: 2 }}>↓</span>
 }
 
-// #6 — semaforo intensity: scales opacity by magnitude within band
+// #6 — semaforo intensity scaling
 function getSemaforoIntensityStyle(semClass, delta) {
   if (!delta || semClass === 'sem-none') return undefined
   const abs = Math.abs(Number(delta))
-  // intensity 0–1 capped at 20%
   const intensity = Math.min(abs / 20, 1)
   if (semClass === 'sem-green') {
     return {
@@ -62,6 +62,34 @@ function getSemaforoIntensityStyle(semClass, delta) {
   return undefined
 }
 
+// #5 — mini sparkline SVG in competitor label
+function Sparkline({ values, color = '#E53935' }) {
+  const valid = values.filter(v => v != null)
+  if (valid.length < 2) return null
+  const min = Math.min(...valid)
+  const max = Math.max(...valid)
+  const range = max - min || 1
+  const W = 48, H = 14
+  const pts = values
+    .map((v, i) => {
+      if (v == null) return null
+      const x = (i / (values.length - 1)) * W
+      const y = H - ((v - min) / range) * (H - 2) - 1
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <svg
+      width={W} height={H}
+      style={{ marginLeft: 5, verticalAlign: 'middle', flexShrink: 0, overflow: 'visible' }}
+    >
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export default function BracketSection({
   bracket,
   label,
@@ -79,24 +107,29 @@ export default function BracketSection({
   currency = 'S/',
   semaforoBands = [],
   frozenWeeks,
+  loading = false,
+  viewMode = 'weekly',
 }) {
   const key = bracket
   const { t } = useI18n()
 
+  const sectionRef = useRef(null)
   const priceWrapRef = useRef(null)
   const deltaWrapRef = useRef(null)
   const diffWrapRef  = useRef(null)
   const tableRef     = useRef(null)
 
   const [showSamples,  setShowSamples]  = useState(false)
-  // #25 — section collapse
   const [collapsed,    setCollapsed]    = useState(false)
-  // #14 — chart type toggle
   const [chartType,    setChartType]    = useState('line')
-  // #16 — hidden competitors in chart
   const [hiddenComps,  setHiddenComps]  = useState(new Set())
-  // #40 — sort config
-  const [sortConfig,   setSortConfig]   = useState(null) // { periodKey, dir: 'asc'|'desc' }
+  const [sortConfig,   setSortConfig]   = useState(null)
+  // #41 — pin periods
+  const [pinnedPeriods, setPinnedPeriods] = useState(new Set())
+  // #39 — drill-down modal
+  const [drillDown, setDrillDown] = useState(null) // { comp, periodKey }
+  // #45 — copy feedback
+  const [copyDone, setCopyDone] = useState(false)
 
   const getSampleCount = (comp, periodKey) => {
     const periodSamples = sampleMatrix?.[comp]?.[periodKey]
@@ -115,6 +148,7 @@ export default function BracketSection({
       if (total > 0) return periods[i]
     }
     return periods[periods.length - 1] || null
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periods, competitors, sampleMatrix, key])
 
   const summaryPeriodKey   = summaryPeriod?.key
@@ -145,20 +179,20 @@ export default function BracketSection({
     return () => { cancelAnimationFrame(raf1); window.removeEventListener('resize', scrollToEnd) }
   }, [periods, collapsed])
 
-  // #2 — column hover: direct DOM class toggle, zero React re-renders
-  const handleColEnter = (idx) => {
+  // #2 — column hover via direct DOM class toggle
+  const handleColEnter = useCallback((idx) => {
     const tables = tableRef.current?.querySelectorAll('.matrix-table')
     tables?.forEach(tbl => {
       tbl.querySelectorAll(`th:nth-child(${idx + 2}), td:nth-child(${idx + 2})`).forEach(el => {
         el.classList.add('col-highlighted')
       })
     })
-  }
-  const handleColLeave = () => {
+  }, [])
+  const handleColLeave = useCallback(() => {
     tableRef.current?.querySelectorAll('.col-highlighted').forEach(el => {
       el.classList.remove('col-highlighted')
     })
-  }
+  }, [])
 
   function getPrice(comp, periodKey) { return priceMatrix[comp]?.[periodKey]?.[key] ?? null }
   function getDelta(comp, periodKey) { return deltaMatrix[comp]?.[periodKey]?.[key] ?? null }
@@ -166,7 +200,7 @@ export default function BracketSection({
   function getDiff(comp, periodKey) { return diffMatrix[comp]?.[periodKey]?.[key] ?? null }
   const isBase = (comp) => comp === compareVs
 
-  // #12 — green band boundaries from semaforo config
+  // #12 — green tolerance band from semaforo config
   const greenBand = useMemo(() => semaforoBands?.find(b => b.band === 'green'), [semaforoBands])
 
   function compBadge(comp) {
@@ -182,6 +216,31 @@ export default function BracketSection({
         {comp}
       </span>
     )
+  }
+
+  // #41 — toggle pin on a period
+  function togglePin(periodKey) {
+    setPinnedPeriods(prev => {
+      const next = new Set(prev)
+      if (next.has(periodKey)) next.delete(periodKey)
+      else next.add(periodKey)
+      return next
+    })
+  }
+
+  // #45 — copy section as image to clipboard
+  async function handleCopySection() {
+    try {
+      const { default: html2canvas } = await import('html2canvas')
+      const canvas = await html2canvas(sectionRef.current, { scale: 2, useCORS: true })
+      canvas.toBlob(async blob => {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        setCopyDone(true)
+        setTimeout(() => setCopyDone(false), 2000)
+      })
+    } catch (e) {
+      console.error('Copy failed:', e)
+    }
   }
 
   // Chart type button bar
@@ -214,10 +273,21 @@ export default function BracketSection({
 
   const lastPeriodIdx = periods.length - 1
 
+  // #5 — sparkline data for each competitor (last N price values)
+  function getSparkValues(comp) {
+    return periods.map(p => getPrice(comp, p.key))
+  }
+
   return (
-    <div className="bracket-section">
+    <div className="bracket-section" ref={sectionRef}>
       {/* Header */}
       <div className="bracket-section__title" style={{ flexWrap: 'wrap' }}>
+        {/* #26 drag handle indicator */}
+        <span
+          title={t('dashboard.drag_reorder')}
+          style={{ cursor: 'grab', opacity: 0.6, fontSize: 12, marginRight: 2, flexShrink: 0 }}
+        >⠿</span>
+
         {/* #27 collapse toggle */}
         <button
           type="button"
@@ -234,50 +304,63 @@ export default function BracketSection({
 
         <span>{label}</span>
 
-        {/* Sample counts */}
+        {/* Section actions */}
         {!collapsed && (
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              marginLeft: 'auto', fontSize: 10,
-              textTransform: 'none', letterSpacing: 0, flexWrap: 'wrap',
-            }}
-            title={t('samples.summary_title_attr').replace('{label}', summaryPeriodLabel)}
-          >
-            <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>n {summaryPeriodLabel}:</span>
-            {competitors.map(comp => {
-              const n = getSampleCount(comp, summaryPeriodKey)
-              return (
-                <span
-                  key={`title-${comp}`}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: 'rgba(255,255,255,0.92)', color: '#1f2937',
-                    padding: '1px 6px', borderRadius: 4, fontWeight: 600, fontSize: 10,
-                  }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: COMPETITOR_COLORS[comp] || '#64748b' }}/>
-                  {comp}: <strong style={{ color: sampleColor(n) }}>{n}</strong>
-                </span>
-              )
-            })}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {/* #45 — copy section as image */}
             <button
               type="button"
-              onClick={() => setShowSamples(s => !s)}
+              onClick={handleCopySection}
+              title={t('dashboard.copy_image')}
               style={{
-                marginLeft: 4, padding: '2px 8px',
-                border: '1px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.15)',
-                color: '#fff', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 600,
+                padding: '2px 8px', fontSize: 10, fontWeight: 600,
+                background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff', borderRadius: 4, cursor: 'pointer',
               }}
-              title={t('samples.toggle_title')}
             >
-              {showSamples ? t('samples.toggle_hide') : t('samples.toggle_show')}
+              {copyDone ? t('dashboard.kpi.copy_done') : '📋'}
             </button>
+
+            {/* Sample counts */}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, textTransform: 'none', letterSpacing: 0, flexWrap: 'wrap' }}
+              title={t('samples.summary_title_attr').replace('{label}', summaryPeriodLabel)}
+            >
+              <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>n {summaryPeriodLabel}:</span>
+              {competitors.map(comp => {
+                const n = getSampleCount(comp, summaryPeriodKey)
+                return (
+                  <span
+                    key={`title-${comp}`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: 'rgba(255,255,255,0.92)', color: '#1f2937',
+                      padding: '1px 6px', borderRadius: 4, fontWeight: 600, fontSize: 10,
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: COMPETITOR_COLORS[comp] || '#64748b' }} />
+                    {comp}: <strong style={{ color: sampleColor(n) }}>{n}</strong>
+                  </span>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => setShowSamples(s => !s)}
+                style={{
+                  marginLeft: 4, padding: '2px 8px',
+                  border: '1px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.15)',
+                  color: '#fff', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 600,
+                }}
+                title={t('samples.toggle_title')}
+              >
+                {showSamples ? t('samples.toggle_hide') : t('samples.toggle_show')}
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Collapsible body #25 */}
+      {/* Collapsible body */}
       {!collapsed && (
         <>
           {/* Samples panel */}
@@ -321,6 +404,7 @@ export default function BracketSection({
 
           {/* 3 tables */}
           <div className="bracket-section__tables" ref={tableRef}>
+
             {/* Tabla 1: Precios absolutos */}
             <div className="bracket-section__table-wrap">
               <div className="bracket-section__table-title">{t('dashboard.table.price')} {currency}</div>
@@ -329,48 +413,85 @@ export default function BracketSection({
                   <thead>
                     <tr>
                       <th className="col-label">{t('dashboard.table.competitor')}</th>
-                      {periods.map((p, i) => (
-                        <th
-                          key={p.key}
-                          onMouseEnter={() => handleColEnter(i)}
-                          onMouseLeave={handleColLeave}
-                          onClick={() => {
-                            if (sortConfig?.periodKey === p.key) {
-                              setSortConfig(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
-                            } else {
-                              setSortConfig({ periodKey: p.key, dir: 'asc' })
-                            }
-                          }}
-                          style={{
-                            cursor: 'pointer',
-                            ...(frozenWeeks?.has(p.key) ? { background: '#eef2ff', color: '#4338ca' } : {}),
-                            ...(sortConfig?.periodKey === p.key ? { background: '#fef3c7' } : {}),
-                          }}
-                          title={frozenWeeks?.has(p.key) ? t('dashboard.frozen_period') : undefined}
-                        >
-                          {frozenWeeks?.has(p.key) ? '🔒 ' : ''}{p.label}
-                          {sortConfig?.periodKey === p.key ? (sortConfig.dir === 'asc' ? ' ↑' : ' ↓') : ''}
-                        </th>
-                      ))}
+                      {periods.map((p, i) => {
+                        const isPinned = pinnedPeriods.has(p.key)
+                        const isFrozen = frozenWeeks?.has(p.key)
+                        const isSort   = sortConfig?.periodKey === p.key
+                        return (
+                          <th
+                            key={p.key}
+                            onMouseEnter={() => handleColEnter(i)}
+                            onMouseLeave={handleColLeave}
+                            onClick={() => {
+                              if (sortConfig?.periodKey === p.key) {
+                                setSortConfig(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
+                              } else {
+                                setSortConfig({ periodKey: p.key, dir: 'asc' })
+                              }
+                            }}
+                            style={{
+                              cursor: 'pointer',
+                              ...(isFrozen ? { background: '#eef2ff', color: '#4338ca' } : {}),
+                              ...(isSort   ? { background: '#fef3c7' } : {}),
+                              ...(isPinned ? { borderBottom: '2px solid #E53935' } : {}),
+                            }}
+                            title={isFrozen ? t('dashboard.frozen_period') : undefined}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                              {isFrozen ? '🔒 ' : ''}
+                              {p.label}
+                              {isSort ? (sortConfig.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                              {/* #41 pin button */}
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); togglePin(p.key) }}
+                                title={isPinned ? t('dashboard.unpin_period') : t('dashboard.pin_period')}
+                                style={{
+                                  background: 'none', border: 'none', padding: 0,
+                                  cursor: 'pointer', fontSize: 9, lineHeight: 1,
+                                  opacity: isPinned ? 1 : 0.3,
+                                  color: isPinned ? '#E53935' : 'inherit',
+                                }}
+                              >📍</button>
+                            </span>
+                          </th>
+                        )
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     {sortedCompetitors.map(comp => (
                       <tr key={comp} className={isBase(comp) ? 'row-yango' : ''}>
-                        <td className="col-label">{compBadge(comp)}</td>
+                        {/* #5 — competitor label with sparkline */}
+                        <td className="col-label">
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            {compBadge(comp)}
+                            <Sparkline
+                              values={getSparkValues(comp)}
+                              color={COMPETITOR_COLORS[comp] || '#64748b'}
+                            />
+                          </div>
+                        </td>
                         {periods.map((p, i) => {
                           const v    = getPrice(comp, p.key)
                           const prev = i > 0 ? getPrice(comp, periods[i - 1].key) : null
                           const isLast = i === lastPeriodIdx
                           return (
-                            <td key={p.key}>
+                            <td
+                              key={p.key}
+                              onClick={() => v != null && setDrillDown({ comp, periodKey: p.key })}
+                              style={{ cursor: v != null ? 'pointer' : 'default' }}
+                              title={v != null ? t('dashboard.drill.title') : undefined}
+                            >
                               {v != null ? (
                                 <>
                                   {v.toFixed(2)}
-                                  {/* #4 — trend arrow only in last column */}
                                   {isLast && <TrendArrow curr={v} prev={prev} />}
                                 </>
-                              ) : <span className="cell-empty">—</span>}
+                              ) : loading
+                                ? <span className="skel-cell" />
+                                : <span className="cell-empty">—</span>
+                              }
                             </td>
                           )
                         })}
@@ -409,8 +530,11 @@ export default function BracketSection({
                           const d   = getDelta(comp, p.key)
                           const sem = getSemaforo(comp, p.key)
                           if (isBase(comp)) return <td key={p.key} className="sem-none bs-base-cell">0%</td>
-                          if (d == null)    return <td key={p.key} className="sem-none"><span className="cell-empty">—</span></td>
-                          // #6 — intensity-scaled semaforo
+                          if (d == null) return (
+                            <td key={p.key} className="sem-none">
+                              {loading ? <span className="skel-cell" /> : <span className="cell-empty">—</span>}
+                            </td>
+                          )
                           const intensityStyle = getSemaforoIntensityStyle(sem, d)
                           const sign = d >= 0 ? '+' : ''
                           return (
@@ -453,7 +577,11 @@ export default function BracketSection({
                         {periods.map(p => {
                           const d = getDiff(comp, p.key)
                           if (isBase(comp)) return <td key={p.key} className="bs-base-cell">0.00</td>
-                          if (d == null)    return <td key={p.key}><span className="cell-empty">—</span></td>
+                          if (d == null) return (
+                            <td key={p.key}>
+                              {loading ? <span className="skel-cell" /> : <span className="cell-empty">—</span>}
+                            </td>
+                          )
                           const sign = d >= 0 ? '+' : ''
                           const cls  = d > 0 ? 'diff-pos' : d < 0 ? 'diff-neg' : ''
                           return <td key={p.key} className={cls}>{sign}{d.toFixed(2)}</td>
@@ -480,6 +608,8 @@ export default function BracketSection({
               setHiddenComps={setHiddenComps}
               chartTypeToggle={<ChartTypeToggle />}
               syncId={`bracket-${bracket}`}
+              viewMode={viewMode}
+              exportName={`chart-price-${bracket}`}
             />
             <MiniChart
               title={t('dashboard.chart.delta')}
@@ -494,21 +624,40 @@ export default function BracketSection({
               setHiddenComps={setHiddenComps}
               greenBand={greenBand}
               syncId={`bracket-${bracket}`}
+              viewMode={viewMode}
+              exportName={`chart-delta-${bracket}`}
             />
           </div>
         </>
       )}
+
+      {/* #39 — drill-down modal */}
+      {drillDown && (
+        <DrillDownModal
+          open
+          onClose={() => setDrillDown(null)}
+          comp={drillDown.comp}
+          periodKey={drillDown.periodKey}
+          bracket={key}
+          currency={currency}
+          viewMode={viewMode}
+        />
+      )}
     </div>
   )
 }
+
+// ── MiniChart ────────────────────────────────────────────────────────────────
 
 function MiniChart({
   title, data, competitors, compareVs,
   yFormatter, isPercent = false, events = [],
   chartType = 'line', hiddenComps, setHiddenComps,
   chartTypeToggle, greenBand, syncId,
+  viewMode = 'weekly', exportName = 'chart',
 }) {
   const { t } = useI18n()
+  const chartCardRef = useRef(null)
   const hasData = data && data.length > 0 && competitors.some(c => data.some(d => d[c] != null))
   const periodKeys = new Set((data || []).map(d => d.period))
   const visibleComps = competitors.filter(c => !hiddenComps?.has(c))
@@ -522,10 +671,24 @@ function MiniChart({
     })
   }
 
+  // #43 — per-chart PNG export
+  async function handleExportChart() {
+    try {
+      const { default: html2canvas } = await import('html2canvas')
+      const canvas = await html2canvas(chartCardRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+      const link = document.createElement('a')
+      link.download = `${exportName}.png`
+      link.href = canvas.toDataURL()
+      link.click()
+    } catch (e) {
+      console.error('Chart export failed:', e)
+    }
+  }
+
   function renderSeries(comp) {
     const color  = COMPETITOR_COLORS[comp] || '#999'
-    const isBase = comp === compareVs
-    const sw     = isBase ? 2.5 : 1.5
+    const isBaseComp = comp === compareVs
+    const sw     = isBaseComp ? 2.5 : 1.5
 
     const commonProps = {
       key: comp, type: 'monotone', dataKey: comp,
@@ -534,17 +697,16 @@ function MiniChart({
       isAnimationActive: true, animationDuration: 600, animationEasing: 'ease-out',
     }
 
-    // #10 — compareVs gets area fill; others stay as lines
     if (chartType === 'bar') {
       return <Bar key={comp} dataKey={comp} fill={color} radius={[2,2,0,0]} maxBarSize={12} isAnimationActive animationDuration={400} />
     }
-    if (isBase || chartType === 'area') {
+    if (isBaseComp || chartType === 'area') {
       return (
         <Area
           {...commonProps}
           fill={color}
-          fillOpacity={isBase ? 0.12 : 0.06}
-          dot={isBase ? { r: 2 } : false}
+          fillOpacity={isBaseComp ? 0.12 : 0.06}
+          dot={isBaseComp ? { r: 2 } : false}
         />
       )
     }
@@ -553,18 +715,35 @@ function MiniChart({
 
   const ChartComponent = chartType === 'bar' ? BarChart : ComposedChart
 
+  // Chart height: smaller in historic mode to leave room for Brush
+  const chartHeight = viewMode === 'historic' ? 130 : 150
+
   return (
-    <div className="chart-card">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+    <div className="chart-card" ref={chartCardRef}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 4 }}>
         <div className="chart-card__title" style={{ margin: 0 }}>{title}</div>
-        {chartTypeToggle}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {chartTypeToggle}
+          {/* #43 — per-chart export */}
+          <button
+            type="button"
+            onClick={handleExportChart}
+            title={t('dashboard.export_chart')}
+            style={{
+              padding: '2px 6px', fontSize: 10,
+              border: '1px solid var(--color-border)',
+              background: 'transparent', color: 'var(--color-muted)',
+              borderRadius: 4, cursor: 'pointer',
+            }}
+          >📷</button>
+        </div>
       </div>
 
       {!hasData ? (
         <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', padding: '16px 0' }}>{t('app.no_data')}</div>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={150}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <ChartComponent data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} syncId={syncId}>
               <XAxis dataKey="period" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
               <YAxis
@@ -581,7 +760,7 @@ function MiniChart({
                 labelFormatter={label => `${t('dataentry.col_date')}: ${label}`}
               />
 
-              {/* #12 — tolerance band from semaforo config */}
+              {/* #12 — tolerance band */}
               {isPercent && greenBand && (
                 <ReferenceArea
                   y1={greenBand.min_pct ?? 0}
@@ -612,6 +791,18 @@ function MiniChart({
               })}
 
               {visibleComps.map(comp => renderSeries(comp))}
+
+              {/* #15 — Brush for historic / zoom */}
+              {viewMode === 'historic' && data.length > 8 && (
+                <Brush
+                  dataKey="period"
+                  height={18}
+                  travellerWidth={6}
+                  stroke="var(--color-border)"
+                  fill="#f8fafc"
+                  tickFormatter={() => ''}
+                />
+              )}
             </ChartComponent>
           </ResponsiveContainer>
 

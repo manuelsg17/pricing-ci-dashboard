@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useFilterContext } from '../../context/FilterContext'
+import { useFilterPresets } from '../../hooks/useFilterPresets'
 
 const TIME_SLOTS = [
   { key: 'early_morning', label: 'Madrugada', range: '0–6h'  },
@@ -19,18 +20,31 @@ export default function FilterBar({ className = '' }) {
     setDailyStart,
     setHistoricFrom, setHistoricTo,
     timeOfDay, setTimeOfDay, ALL_TIME_SLOTS,
+    applyPreset,
   } = useFilterContext()
 
-  const [timeOpen, setTimeOpen] = useState(false)
-  const timeRef  = useRef(null)
+  const [timeOpen,    setTimeOpen]    = useState(false)
+  const [presetOpen,  setPresetOpen]  = useState(false)
+  const [presetName,  setPresetName]  = useState('')
+  const [saveFeedback, setSaveFeedback] = useState(false)
+  const timeRef   = useRef(null)
+  const presetRef = useRef(null)
+
+  const { presets, saving, savePreset, deletePreset } = useFilterPresets(country)
 
   useEffect(() => {
     function onOutsideClick(e) {
       if (timeRef.current && !timeRef.current.contains(e.target)) setTimeOpen(false)
+      if (presetRef.current && !presetRef.current.contains(e.target)) setPresetOpen(false)
     }
     document.addEventListener('mousedown', onOutsideClick)
     return () => document.removeEventListener('mousedown', onOutsideClick)
   }, [])
+
+  async function handleSavePreset() {
+    const ok = await savePreset(presetName, filters)
+    if (ok) { setPresetName(''); setSaveFeedback(true); setTimeout(() => setSaveFeedback(false), 2000) }
+  }
 
   function toggleSlot(key) {
     setTimeOfDay(prev => {
@@ -312,6 +326,119 @@ export default function FilterBar({ className = '' }) {
           </div>
         </>
       )}
+
+      <div className="filter-bar__divider" />
+
+      {/* #23 — filter presets */}
+      <div className="filter-bar__group" ref={presetRef} style={{ position: 'relative' }}>
+        <span className="filter-bar__label">{t('dashboard.preset.label')}</span>
+        <button
+          type="button"
+          onClick={() => setPresetOpen(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '0 8px', height: 28, minWidth: 90,
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--color-bg)',
+            color: 'var(--color-text)', fontSize: 12, cursor: 'pointer',
+          }}
+        >
+          ⭐ {presets.length > 0 ? `${presets.length}` : ''}
+          <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 2 }}>{presetOpen ? '▲' : '▼'}</span>
+        </button>
+
+        {presetOpen && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200,
+            background: 'var(--color-panel)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            minWidth: 240, overflow: 'hidden',
+          }}>
+            {/* Save new preset */}
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+                {t('dashboard.preset.save')}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  type="text"
+                  value={presetName}
+                  onChange={e => setPresetName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSavePreset()}
+                  placeholder={t('dashboard.preset.name_placeholder')}
+                  style={{
+                    flex: 1, padding: '4px 8px', fontSize: 12,
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-sm)', outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSavePreset}
+                  disabled={saving || !presetName.trim()}
+                  style={{
+                    padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                    background: saveFeedback ? '#16a34a' : 'var(--color-yango)',
+                    color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)',
+                    cursor: saving || !presetName.trim() ? 'default' : 'pointer',
+                    opacity: !presetName.trim() ? 0.5 : 1,
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  {saveFeedback ? '✓' : t('app.save')}
+                </button>
+              </div>
+            </div>
+
+            {/* Saved presets list */}
+            {presets.length === 0 ? (
+              <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--color-muted)', textAlign: 'center' }}>
+                {t('app.no_data')}
+              </div>
+            ) : (
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                {presets.map(preset => (
+                  <div
+                    key={preset.id}
+                    style={{
+                      display: 'flex', alignItems: 'center',
+                      padding: '8px 12px',
+                      borderBottom: '1px solid var(--color-border-soft)',
+                      gap: 8,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => { applyPreset(preset.filters); setPresetOpen(false) }}
+                      style={{
+                        flex: 1, textAlign: 'left', background: 'none', border: 'none',
+                        fontSize: 12, fontWeight: 500, color: 'var(--color-text)',
+                        cursor: 'pointer', padding: 0,
+                      }}
+                      title={t('dashboard.preset.load')}
+                    >
+                      ⭐ {preset.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePreset(preset.id)}
+                      title={t('dashboard.preset.delete')}
+                      style={{
+                        background: 'none', border: 'none', color: '#ef4444',
+                        cursor: 'pointer', fontSize: 14, padding: '0 2px',
+                        opacity: 0.6, lineHeight: 1,
+                      }}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

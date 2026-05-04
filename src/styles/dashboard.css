@@ -16,6 +16,8 @@
 .filter-bar-toggle {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   padding: 4px 0 2px;
 }
 
@@ -437,3 +439,35 @@
   transition: all 0.15s;
 }
 .kpi-export-btn:hover { border-color: #64748b; background: #f1f5f9; }
+
+/* ── #36 Skeleton shimmer cell ───────────────────────────── */
+.skel-cell {
+  display: inline-block;
+  width: 38px; height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s infinite linear;
+  vertical-align: middle;
+}
+
+/* ── #5 Sparkline in col-label ───────────────────────────── */
+.col-label > div {
+  display: flex;
+  align-items: center;
+}
+
+/* ── #41 Pin period button ───────────────────────────────── */
+.matrix-table thead th .pin-btn {
+  background: none;
+  border: none;
+  padding: 0 1px;
+  cursor: pointer;
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.25;
+  transition: opacity 0.15s;
+}
+.matrix-table thead th:hover .pin-btn { opacity: 0.6; }
+.matrix-table thead th .pin-btn.pinned { opacity: 1; color: #E53935; }
+
