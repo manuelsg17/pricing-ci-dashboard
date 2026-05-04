@@ -11,6 +11,7 @@ import BotUpload           from '../components/upload/BotUpload'
 import BotConverter        from '../components/upload/BotConverter'
 import BotDbSync           from '../components/upload/BotDbSync'
 import OutlierReview          from '../components/upload/OutlierReview'
+import BotFreshnessBadge      from '../components/ui/BotFreshnessBadge'
 import { usePriceRules }      from '../hooks/usePriceRules'
 import { useRushHourConfig }  from '../hooks/useRushHourConfig'
 import { sanitizeBatch }      from '../algorithms/ingestionFilters'
@@ -582,7 +583,10 @@ export default function Upload() {
 
   return (
     <div className="upload-page">
-      <h1>Cargar Data</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h1 style={{ margin: 0 }}>Cargar Data</h1>
+        <BotFreshnessBadge variant="pill" />
+      </div>
 
       {/* Sub-tabs */}
       <div className="upload-tabs">

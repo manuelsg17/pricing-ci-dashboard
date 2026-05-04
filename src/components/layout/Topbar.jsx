@@ -3,6 +3,7 @@ import { COUNTRIES, getCountryIso } from '../../lib/constants'
 import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import CountrySelector from './CountrySelector'
+import BotFreshnessBadge from '../ui/BotFreshnessBadge'
 import '../../styles/topbar.css'
 
 const getNav = (t) => [
@@ -138,6 +139,9 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
       </div>
 
       <div className="topbar__right">
+        {/* Bot freshness — pequeño semáforo de última sync */}
+        <BotFreshnessBadge />
+
         {/* Country selector — custom dropdown con banderas SVG */}
         <CountrySelector
           country={country}

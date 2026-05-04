@@ -5,6 +5,7 @@ import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
 import DashboardLegend     from '../components/dashboard/DashboardLegend'
+import WowCallouts         from '../components/dashboard/WowCallouts'
 import { useI18n }         from '../context/LanguageContext'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { BRACKETS, getCountryConfig } from '../lib/constants'
@@ -111,22 +112,51 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
       ? compPrices.findIndex(x => x.comp === yangoComp) + 1
       : null
 
-    let totalObs = 0
-    for (const comp of filters.competitors) {
-      for (const b of BRACKETS) {
-        const entry = priceMatrix[comp]?.[latestKey]?.[b]
-        if (typeof entry === 'object' && entry?.count) totalObs += entry.count
-        else if (typeof entry === 'number') totalObs++
-      }
-    }
-
     const lastPeriodLabel = periods[periods.length - 1]?.label || '—'
     const prevKey  = periods[periods.length - 2]?.key ?? null
     const prevWA   = prevKey ? (priceMatrix[yangoComp]?.[prevKey]?.['_wa'] ?? null) : null
     const wowDelta = yangoWA != null && prevWA != null ? yangoWA - prevWA : null
 
-    return { yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel, wowDelta }
+    // % de períodos donde Yango fue el más barato (líder)
+    let yangoCheapestCount = 0
+    let yangoComparablePeriods = 0
+    for (const p of periods) {
+      const yWa = priceMatrix[yangoComp]?.[p.key]?.['_wa']
+      if (yWa == null) continue
+      const others = filters.competitors
+        .filter(c => c !== yangoComp)
+        .map(c => priceMatrix[c]?.[p.key]?.['_wa'])
+        .filter(v => v != null)
+      if (!others.length) continue
+      yangoComparablePeriods++
+      if (yWa <= Math.min(...others)) yangoCheapestCount++
+    }
+    const yangoLeaderPct = yangoComparablePeriods > 0
+      ? Math.round((yangoCheapestCount / yangoComparablePeriods) * 100)
+      : null
+
+    return {
+      yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel, wowDelta,
+      yangoLeaderPct, yangoComparablePeriods,
+    }
   }, [periods, priceMatrix, filters.compareVs, filters.competitors])
+
+  // ── Outlier count from recent bot_sync_log runs ──────────────────────
+  const [outlierTotal, setOutlierTotal] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString()
+    sb.from('bot_sync_log')
+      .select('outlier_count')
+      .eq('country', filters.country)
+      .gte('started_at', sevenDaysAgo)
+      .then(({ data }) => {
+        if (cancelled) return
+        const total = (data || []).reduce((s, r) => s + (r.outlier_count || 0), 0)
+        setOutlierTotal(total)
+      })
+    return () => { cancelled = true }
+  }, [filters.country])
 
   // #32 — animated KPI values
   const animYangoWA  = useCountUp(kpis?.yangoWA  ?? null)
@@ -213,6 +243,15 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
 
   return (
     <div className="dashboard" ref={dashRef}>
+      {/* ── WoW Callouts banner ── */}
+      {!loading && periods.length > 1 && (
+        <WowCallouts
+          priceMatrix={priceMatrix}
+          competitors={filters.competitors}
+          periods={periods}
+        />
+      )}
+
       {/* ── KPI Bar — scrolls naturally above the sticky filter ── */}
       {!loading && kpis && (
         <div className="kpi-bar">
@@ -249,6 +288,28 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
           <div className="kpi-card">
             <div className="kpi-card__label">{t('dashboard.kpi.data_as_of')}</div>
             <div className="kpi-card__value kpi-card__value--sm">{kpis.lastPeriodLabel}</div>
+          </div>
+          <div className="kpi-card" title="Porcentaje de períodos visibles donde Yango (compareVs) fue el más barato del mercado">
+            <div className="kpi-card__label">% Yango líder</div>
+            <div className="kpi-card__value">
+              {kpis.yangoLeaderPct != null ? `${kpis.yangoLeaderPct}%` : '—'}
+            </div>
+            <div className="kpi-card__sub">
+              {kpis.yangoComparablePeriods
+                ? `en ${kpis.yangoComparablePeriods} ${kpis.yangoComparablePeriods === 1 ? 'período' : 'períodos'}`
+                : ''}
+            </div>
+          </div>
+          <div
+            className="kpi-card"
+            title="Outliers detectados por el bot en los últimos 7 días — descartados por exceder los límites de price_validation_rules"
+            style={outlierTotal && outlierTotal > 0 ? { borderColor: '#fca5a5' } : undefined}
+          >
+            <div className="kpi-card__label">Outliers (7d)</div>
+            <div className="kpi-card__value" style={{ color: outlierTotal && outlierTotal > 0 ? '#b91c1c' : undefined }}>
+              {outlierTotal == null ? '—' : outlierTotal.toLocaleString()}
+            </div>
+            <div className="kpi-card__sub">descartes del bot</div>
           </div>
           <button className="kpi-export-btn" onClick={handleExportPNG} title={t('dashboard.export_png')}>
             {t('dashboard.export_png')}
@@ -356,6 +417,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
                 frozenWeeks={frozenWeeks}
                 loading={loading}
                 viewMode={filters.viewMode}
+                categoryLabel={filters.dbCategory}
               />
             </div>
           ))}

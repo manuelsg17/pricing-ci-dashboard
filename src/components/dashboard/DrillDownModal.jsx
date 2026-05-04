@@ -32,14 +32,18 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
     setLoading(true)
 
     async function load() {
+      // InDrive guarda precio en recommended_price; los demás en price_without_discount.
+      const priceField = comp === 'InDrive' ? 'recommended_price' : 'price_without_discount'
       let query = sb.from('pricing_observations')
-        .select('observed_date, avg_price, observation_count, surge, data_source, time_of_day')
+        .select('observed_date, observed_time, distance_bracket, price_without_discount, price_with_discount, recommended_price, minimal_bid, surge, data_source, time_of_day')
         .eq('country', filters.country)
         .eq('city', filters.dbCity)
         .eq('category', filters.dbCategory)
         .eq('competition_name', comp)
+        .not(priceField, 'is', null)
         .order('observed_date')
-        .order('time_of_day')
+        .order('observed_time')
+        .limit(500)
 
       if (bracket && bracket !== '_wa') {
         query = query.eq('distance_bracket', bracket)
@@ -52,8 +56,12 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
         query = query.gte('observed_date', start).lte('observed_date', end)
       }
 
-      const { data } = await query
-      if (!cancelled) { setRows(data || []); setLoading(false) }
+      const { data, error } = await query
+      if (!cancelled) {
+        if (error) console.error('Drill-down query error:', error)
+        setRows(data || [])
+        setLoading(false)
+      }
     }
     load()
     return () => { cancelled = true }
@@ -111,22 +119,37 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8 }}>
-              {rows.length} {t('dataentry.rows')} · {filters.dbCity} · {filters.dbCategory}
+            <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+              <span>
+                {rows.length} {t('dataentry.rows')} · {filters.dbCity} · {filters.dbCategory}
+              </span>
+              <span>
+                {(() => {
+                  const prices = rows
+                    .map(r => Number(r.price_without_discount ?? r.recommended_price))
+                    .filter(p => !isNaN(p) && p > 0)
+                  if (!prices.length) return null
+                  const avg = prices.reduce((a, b) => a + b, 0) / prices.length
+                  const min = Math.min(...prices)
+                  const max = Math.max(...prices)
+                  return `Avg ${currency} ${avg.toFixed(2)} · min ${currency} ${min.toFixed(2)} · max ${currency} ${max.toFixed(2)}`
+                })()}
+              </span>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
                   {[
                     t('dashboard.drill.date'),
+                    t('dashboard.drill.time') + ' obs',
+                    'Bracket',
                     t('dashboard.drill.price'),
-                    t('dashboard.drill.count'),
                     t('dashboard.drill.surge'),
                     t('dashboard.drill.source'),
                     t('dashboard.drill.time'),
-                  ].map(h => (
-                    <th key={h} style={{
-                      padding: '6px 10px', textAlign: h === t('dashboard.drill.date') ? 'left' : 'right',
+                  ].map((h, i) => (
+                    <th key={i} style={{
+                      padding: '6px 10px', textAlign: i === 0 ? 'left' : 'right',
                       borderBottom: '2px solid var(--color-border)',
                       fontSize: 10, fontWeight: 700, color: 'var(--color-muted)',
                       textTransform: 'uppercase', letterSpacing: '0.4px',
@@ -138,10 +161,18 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
                 {rows.map((r, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
                     <td style={{ padding: '5px 10px', fontVariantNumeric: 'tabular-nums' }}>{r.observed_date}</td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                      {currency} {Number(r.avg_price).toFixed(2)}
+                    <td style={{ padding: '5px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+                      {r.observed_time ? String(r.observed_time).slice(0, 5) : '—'}
                     </td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.observation_count ?? '—'}</td>
+                    <td style={{ padding: '5px 10px', textAlign: 'right', fontSize: 10, color: 'var(--color-muted)' }}>
+                      {r.distance_bracket || '—'}
+                    </td>
+                    <td style={{ padding: '5px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                      {(() => {
+                        const p = r.price_without_discount ?? r.recommended_price
+                        return p != null ? `${currency} ${Number(p).toFixed(2)}` : '—'
+                      })()}
+                    </td>
                     <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.surge ? '⚡ Sí' : '—'}</td>
                     <td style={{ padding: '5px 10px', textAlign: 'right', fontSize: 10, color: 'var(--color-muted)' }}>
                       {r.data_source || '—'}
@@ -153,6 +184,11 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
                 ))}
               </tbody>
             </table>
+            {rows.length >= 500 && (
+              <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 8, fontStyle: 'italic' }}>
+                Mostrando las primeras 500 observaciones · ajusta los filtros si necesitas más detalle.
+              </div>
+            )}
           </>
         )}
       </div>

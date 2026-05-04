@@ -109,6 +109,7 @@ export default function BracketSection({
   frozenWeeks,
   loading = false,
   viewMode = 'weekly',
+  categoryLabel = '',
 }) {
   const key = bracket
   const { t } = useI18n()
@@ -326,7 +327,9 @@ export default function BracketSection({
               style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, textTransform: 'none', letterSpacing: 0, flexWrap: 'wrap' }}
               title={t('samples.summary_title_attr').replace('{label}', summaryPeriodLabel)}
             >
-              <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>n {summaryPeriodLabel}:</span>
+              <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>
+                n {summaryPeriodLabel}{categoryLabel ? ` · ${categoryLabel}` : ''}:
+              </span>
               {competitors.map(comp => {
                 const n = getSampleCount(comp, summaryPeriodKey)
                 return (
@@ -424,7 +427,11 @@ export default function BracketSection({
                             onMouseLeave={handleColLeave}
                             onClick={() => {
                               if (sortConfig?.periodKey === p.key) {
-                                setSortConfig(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
+                                if (sortConfig.dir === 'asc') {
+                                  setSortConfig({ periodKey: p.key, dir: 'desc' })
+                                } else {
+                                  setSortConfig(null)
+                                }
                               } else {
                                 setSortConfig({ periodKey: p.key, dir: 'asc' })
                               }
