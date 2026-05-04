@@ -19,7 +19,19 @@ function getYearWeek(date) {
   return { year, week }
 }
 
-export function usePricingData(filters, dbWeights, locale = 'es-PE') {
+function getSemaforoClassDynamic(deltaPct, bands) {
+  if (deltaPct === null || deltaPct === undefined) return 'sem-none'
+  if (!bands || bands.length === 0) return getSemaforoClass(deltaPct)
+  const d = Number(deltaPct)
+  for (const b of bands) {
+    const min = b.min_pct != null ? Number(b.min_pct) : -Infinity
+    const max = b.max_pct != null ? Number(b.max_pct) : Infinity
+    if (d >= min && d <= max) return `sem-${b.band}`
+  }
+  return 'sem-red'
+}
+
+export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo = []) {
   const [rawRows,    setRawRows]    = useState([])
   const [frozenRows, setFrozenRows] = useState([])
   const [loading,    setLoading]    = useState(false)
@@ -257,12 +269,12 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
             const baseP = baseData[b] ?? null
             const d     = isBase ? 0 : computeDelta(compP, baseP)
             bDelta[b]    = d
-            bSemaforo[b] = getSemaforoClass(d)
+            bSemaforo[b] = getSemaforoClassDynamic(d, dbSemaforo)
             bDiff[b]     = isBase ? 0 : (compP != null && baseP != null ? compP - baseP : null)
           }
 
           deltaMatrix[comp][period.key]    = { _wa: deltaWA,            ...bDelta }
-          semaforoMatrix[comp][period.key] = { _wa: getSemaforoClass(deltaWA), ...bSemaforo }
+          semaforoMatrix[comp][period.key] = { _wa: getSemaforoClassDynamic(deltaWA, dbSemaforo), ...bSemaforo }
           diffMatrix[comp][period.key]     = { _wa: diffWA,             ...bDiff }
         }
 
@@ -290,7 +302,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE') {
       }
 
       return { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
-    }, [rawRows, frozenRows, dbWeights, filters, frozenNested, locale])
+    }, [rawRows, frozenRows, dbWeights, dbSemaforo, filters, frozenNested, locale])
 
   return { loading, error, priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods, frozenWeeks }
 }

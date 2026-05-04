@@ -12,12 +12,13 @@ import { SkeletonDashboard } from '../components/ui/Skeleton'
 import EmptyState           from '../components/ui/EmptyState'
 import '../styles/dashboard.css'
 
-function DashboardContent({ dbWeights }) {
+function DashboardContent({ dbWeights, dbSemaforo = [] }) {
   const { country, countryConfig } = useCountry()
   const { filters } = useFilterContext()
   const dashRef = useRef(null)
   const { t, locale } = useI18n()
   const { currency }  = countryConfig
+  const [filterBarVisible, setFilterBarVisible] = useState(true)
 
   const sections = useMemo(() => [
     { bracket: '_wa',        label: t('bracket.weighted_average') },
@@ -32,8 +33,8 @@ function DashboardContent({ dbWeights }) {
   const {
     loading, error,
     priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, sampleMatrix,
-    chartData, deltaChartData, periods,
-  } = usePricingData(filters, dbWeights, locale)
+    chartData, deltaChartData, periods, frozenWeeks,
+  } = usePricingData(filters, dbWeights, locale, dbSemaforo)
 
   // Load market events for daily view
   const [marketEvents, setMarketEvents] = useState([])
@@ -87,7 +88,12 @@ function DashboardContent({ dbWeights }) {
 
     const lastPeriodLabel = periods[periods.length - 1]?.label || '—'
 
-    return { yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel }
+    // #19 — WoW badge: compare latest vs previous period WA
+    const prevKey  = periods[periods.length - 2]?.key ?? null
+    const prevWA   = prevKey ? (priceMatrix[yangoComp]?.[prevKey]?.['_wa'] ?? null) : null
+    const wowDelta = yangoWA != null && prevWA != null ? yangoWA - prevWA : null
+
+    return { yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel, wowDelta }
   }, [periods, priceMatrix, filters.compareVs, filters.competitors])
 
   // ── Export PNG ────────────────────────────────────────────────────────
@@ -136,15 +142,36 @@ function DashboardContent({ dbWeights }) {
 
   return (
     <div className="dashboard" ref={dashRef}>
-      <FilterBar />
+      <div className="filter-bar-wrapper">
+        <div className="filter-bar-toggle">
+          <button
+            className="filter-bar-toggle__btn"
+            onClick={() => setFilterBarVisible(v => !v)}
+            title={filterBarVisible ? t('filter.collapse') : t('filter.expand')}
+          >
+            {filterBarVisible ? '▲' : '▼'} {filterBarVisible ? t('filter.collapse') : t('filter.expand')}
+          </button>
+        </div>
+        <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
+      </div>
 
       {/* ── KPI Bar ── */}
       {!loading && kpis && (
         <div className="kpi-bar">
           <div className="kpi-card">
             <div className="kpi-card__label">{t('dashboard.kpi.yango_wa')}</div>
-            <div className="kpi-card__value">
+            <div className="kpi-card__value" style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
               {kpis.yangoWA != null ? `${currency} ${kpis.yangoWA.toFixed(2)}` : '—'}
+              {/* #19 — WoW badge */}
+              {kpis.wowDelta != null && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                  background: kpis.wowDelta > 0 ? '#fee2e2' : kpis.wowDelta < 0 ? '#dcfce7' : '#f1f5f9',
+                  color:      kpis.wowDelta > 0 ? '#b91c1c' : kpis.wowDelta < 0 ? '#15803d' : '#64748b',
+                }}>
+                  {kpis.wowDelta > 0 ? '↑' : kpis.wowDelta < 0 ? '↓' : '→'} {kpis.wowDelta > 0 ? '+' : ''}{kpis.wowDelta.toFixed(2)}
+                </span>
+              )}
             </div>
           </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
@@ -181,7 +208,8 @@ function DashboardContent({ dbWeights }) {
         </div>
       )}
 
-      {loading && <SkeletonDashboard />}
+      {/* #38 — first load skeleton (no prior data) */}
+      {loading && periods.length === 0 && <SkeletonDashboard />}
 
       {error && (
         <div className="state-box state-box--error">{t('app.error')}: {error}</div>
@@ -195,7 +223,30 @@ function DashboardContent({ dbWeights }) {
         />
       )}
 
-      {!loading && periods.length > 0 && sections.map(({ bracket, label }) => (
+      {/* #37 — stale overlay: show old data dimmed while refetching */}
+      {periods.length > 0 && (
+        <div style={{ position: 'relative' }}>
+          {loading && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 10,
+              background: 'rgba(255,255,255,0.55)',
+              backdropFilter: 'blur(2px)',
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+              paddingTop: 24,
+              borderRadius: 8,
+              pointerEvents: 'none',
+            }}>
+              <span style={{
+                background: 'rgba(255,255,255,0.9)', border: '1px solid var(--color-border)',
+                borderRadius: 99, padding: '4px 14px', fontSize: 11, fontWeight: 600,
+                color: 'var(--color-muted)', boxShadow: 'var(--shadow-sm)',
+              }}>
+                {t('dashboard.updating')}
+              </span>
+            </div>
+          )}
+
+      {sections.map(({ bracket, label }) => (
         <BracketSection
           key={bracket}
           bracket={bracket}
@@ -212,16 +263,20 @@ function DashboardContent({ dbWeights }) {
           chartData={chartData[bracket] || []}
           deltaChartData={deltaChartData[bracket] || []}
           events={marketEvents}
+          semaforoBands={dbSemaforo}
+          frozenWeeks={frozenWeeks}
         />
       ))}
+        </div>
+      )}
     </div>
   )
 }
 
-export default function Dashboard({ dbWeights }) {
+export default function Dashboard({ dbWeights, dbSemaforo }) {
   return (
     <FilterProvider>
-      <DashboardContent dbWeights={dbWeights} />
+      <DashboardContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
     </FilterProvider>
   )
 }

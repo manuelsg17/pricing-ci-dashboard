@@ -6,17 +6,64 @@
 }
 
 /* ── FilterBar ───────────────────────────────────────── */
+.filter-bar-wrapper {
+  position: sticky;
+  top: 52px; /* topbar height */
+  z-index: 90;
+  margin-bottom: 4px;
+}
+
+.filter-bar-toggle {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0 2px;
+}
+
+.filter-bar-toggle__btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.3px;
+}
+.filter-bar-toggle__btn:hover {
+  color: var(--color-yango);
+  border-color: var(--color-yango);
+}
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  background: var(--color-panel);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 10px 14px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-sm);
+  transition: max-height 0.25s ease, padding 0.2s ease, opacity 0.2s ease;
+  overflow: hidden;
+  max-height: 200px;
+  opacity: 1;
+}
+
+.filter-bar--collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .filter-bar__group {
@@ -92,21 +139,22 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   margin-bottom: 16px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
 .bracket-section__title {
-  background: var(--color-yango);
+  background: linear-gradient(135deg, #E53935 0%, #C62828 100%);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  padding: 7px 14px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   gap: 6px;
+  box-shadow: 0 2px 4px rgba(198,40,40,0.25);
 }
 
 .bracket-section__title::before {
@@ -114,8 +162,9 @@
   display: inline-block;
   width: 6px;
   height: 6px;
-  background: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.5);
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .bracket-section__tables {
@@ -170,7 +219,17 @@
 /* ── Tabla matricial tipo Excel ──────────────────────── */
 .matrix-wrap {
   overflow-x: auto;
+  /* custom scrollbar #31 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(229,57,53,0.35) transparent;
 }
+.matrix-wrap::-webkit-scrollbar { height: 4px; }
+.matrix-wrap::-webkit-scrollbar-track { background: transparent; }
+.matrix-wrap::-webkit-scrollbar-thumb {
+  background: rgba(229,57,53,0.3);
+  border-radius: 99px;
+}
+.matrix-wrap::-webkit-scrollbar-thumb:hover { background: rgba(229,57,53,0.55); }
 
 .matrix-table {
   border-collapse: collapse;
@@ -182,10 +241,13 @@
 
 .matrix-table th,
 .matrix-table td {
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-bottom: 1px solid var(--color-border-soft);
   border-right: 1px solid var(--color-border-soft);
   text-align: right;
+  /* tabular nums #30 */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .matrix-table tbody tr:last-child td {
@@ -228,9 +290,10 @@
   z-index: 3;
 }
 
-/* Fila hover */
-.matrix-table tbody tr:hover td { background: #f8fafc; }
-.matrix-table tbody tr:hover .col-label { background: #f0f4f8; }
+/* Fila hover con transición suave #1 */
+.matrix-table tbody tr td { transition: background 0.1s; }
+.matrix-table tbody tr:hover td { background: #eef3fb; }
+.matrix-table tbody tr:hover .col-label { background: #e5ecf8; }
 
 /* Fila de Yango destacada */
 .matrix-table .row-yango td { background: var(--color-yango-light); }
@@ -243,6 +306,12 @@
 
 /* Celda sin dato */
 .cell-empty { color: var(--color-subtle); font-size: 10px; }
+
+/* #2 — Column hover: header triggers JS to add .col-highlighted to all nth cells */
+.matrix-table td.col-highlighted,
+.matrix-table th.col-highlighted {
+  background: #e8f0fe !important;
+}
 
 /* ── Semáforo ────────────────────────────────────────── */
 .sem-green  { background: var(--sem-green-bg)  !important; color: var(--sem-green-fg); font-weight: 600; }

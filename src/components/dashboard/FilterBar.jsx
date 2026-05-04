@@ -11,7 +11,7 @@ const TIME_SLOTS = [
   { key: 'evening',       label: 'Noche',     range: '18–24h'},
 ]
 
-export default function FilterBar() {
+export default function FilterBar({ className = '' }) {
   const {
     filters, zones, country,
     setCity, setCategory, setSubCategory, setZone, setSurge, setDataSource,
@@ -65,7 +65,7 @@ export default function FilterBar() {
   }
 
   return (
-    <div className="filter-bar">
+    <div className={`filter-bar${className ? ` ${className}` : ''}`}>
       {/* Ciudad */}
       <div className="filter-bar__group">
         <span className="filter-bar__label">{t('filter.city')}</span>
@@ -126,7 +126,7 @@ export default function FilterBar() {
 
       {/* Franja horaria — dropdown con checkboxes */}
       <div className="filter-bar__group" ref={timeRef} style={{ position: 'relative' }}>
-        <span className="filter-bar__label">Horario</span>
+        <span className="filter-bar__label">{t('filter.time_of_day')}</span>
         <button
           type="button"
           onClick={() => setTimeOpen(v => !v)}
@@ -175,7 +175,7 @@ export default function FilterBar() {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Franja horaria
+                {t('filter.time_of_day')}
               </span>
               <button
                 type="button"
@@ -187,7 +187,7 @@ export default function FilterBar() {
                   padding: 0, opacity: allSelected ? 0.4 : 1,
                 }}
               >
-                Seleccionar todas
+                {t('filter.time_select_all')}
               </button>
             </div>
 

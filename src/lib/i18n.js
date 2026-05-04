@@ -43,6 +43,7 @@ export const TRANSLATIONS = {
 
     // ── Dashboard ──────────────────────────────────────
     'dashboard.loading':     'Cargando datos…',
+    'dashboard.updating':    'Actualizando…',
     'dashboard.no_data':     'Sin datos para los filtros seleccionados. Prueba con otra ciudad, categoría o rango de fechas.',
     'dashboard.export_png':  '📷 Exportar',
     'dashboard.kpi.yango_wa':       'Avg Yango (WA)',
@@ -60,6 +61,17 @@ export const TRANSLATIONS = {
     'dashboard.chart.impact_high':  'Alto',
     'dashboard.chart.impact_med':   'Medio',
     'dashboard.chart.impact_low':   'Bajo',
+    'dashboard.chart.type_line':    'Línea',
+    'dashboard.chart.type_area':    'Área',
+    'dashboard.chart.type_bar':     'Barras',
+    'dashboard.chart.show_comp':    'Mostrar competidor',
+    'dashboard.chart.hide_comp':    'Ocultar competidor',
+    'dashboard.section.collapse':   'Colapsar sección',
+    'dashboard.section.expand':     'Expandir sección',
+    'dashboard.frozen_period':      'Período con datos congelados (snapshot)',
+    'dashboard.trend.up':           'Precio subió vs semana anterior',
+    'dashboard.trend.down':         'Precio bajó vs semana anterior',
+    'dashboard.trend.stable':       'Precio estable vs semana anterior',
 
     // ── Brackets ──────────────────────────────────────────
     'bracket.weighted_average':     'Promedio Ponderado',
@@ -99,6 +111,11 @@ export const TRANSLATIONS = {
     'filter.source_both':  'Ambos',
     'filter.source_bot':   'Bot',
     'filter.source_hubs':  'Hubs',
+    'filter.collapse':     'Ocultar filtros',
+    'filter.expand':       'Mostrar filtros',
+    'filter.time_of_day':  'Franja horaria',
+    'filter.time_all':     'Todas',
+    'filter.time_select_all': 'Seleccionar todas',
 
     // ── Samples (BracketSection) ───────────────────────
     'samples.summary_title_attr': 'Muestras observadas ({label}) — última semana con data',
@@ -270,6 +287,7 @@ export const TRANSLATIONS = {
     'nav.access':            '🔐 Access',
 
     'dashboard.loading':     'Loading data…',
+    'dashboard.updating':    'Updating…',
     'dashboard.no_data':     'No data for the selected filters. Try a different city, category, or date range.',
     'dashboard.export_png':  '📷 Export',
     'dashboard.kpi.yango_wa':       'Avg Yango (WA)',
@@ -287,6 +305,17 @@ export const TRANSLATIONS = {
     'dashboard.chart.impact_high':  'High',
     'dashboard.chart.impact_med':   'Medium',
     'dashboard.chart.impact_low':   'Low',
+    'dashboard.chart.type_line':    'Line',
+    'dashboard.chart.type_area':    'Area',
+    'dashboard.chart.type_bar':     'Bars',
+    'dashboard.chart.show_comp':    'Show competitor',
+    'dashboard.chart.hide_comp':    'Hide competitor',
+    'dashboard.section.collapse':   'Collapse section',
+    'dashboard.section.expand':     'Expand section',
+    'dashboard.frozen_period':      'Period with frozen data (snapshot)',
+    'dashboard.trend.up':           'Price up vs previous week',
+    'dashboard.trend.down':         'Price down vs previous week',
+    'dashboard.trend.stable':       'Price stable vs previous week',
 
     'bracket.weighted_average':     'Weighted Average',
     'bracket.very_short':           'Very Short',
@@ -323,6 +352,11 @@ export const TRANSLATIONS = {
     'filter.source_both':  'Both',
     'filter.source_bot':   'Bot',
     'filter.source_hubs':  'Hubs',
+    'filter.collapse':     'Hide filters',
+    'filter.expand':       'Show filters',
+    'filter.time_of_day':  'Time of day',
+    'filter.time_all':     'All',
+    'filter.time_select_all': 'Select all',
 
     // ── Samples (BracketSection) ───────────────────────
     'samples.summary_title_attr': 'Observed samples ({label}) — most recent week with data',
@@ -489,6 +523,7 @@ export const TRANSLATIONS = {
     'nav.access':            '🔐 Доступ',
 
     'dashboard.loading':     'Загрузка данных…',
+    'dashboard.updating':    'Обновление…',
     'dashboard.no_data':     'Нет данных для выбранных фильтров. Попробуйте другой город, категорию или период.',
     'dashboard.export_png':  '📷 Экспорт',
     'dashboard.kpi.yango_wa':       'Avg Yango (WA)',
@@ -506,6 +541,17 @@ export const TRANSLATIONS = {
     'dashboard.chart.impact_high':  'Высокое',
     'dashboard.chart.impact_med':   'Среднее',
     'dashboard.chart.impact_low':   'Низкое',
+    'dashboard.chart.type_line':    'Линия',
+    'dashboard.chart.type_area':    'Зона',
+    'dashboard.chart.type_bar':     'Столбцы',
+    'dashboard.chart.show_comp':    'Показать конкурента',
+    'dashboard.chart.hide_comp':    'Скрыть конкурента',
+    'dashboard.section.collapse':   'Свернуть раздел',
+    'dashboard.section.expand':     'Развернуть раздел',
+    'dashboard.frozen_period':      'Период с замороженными данными (снимок)',
+    'dashboard.trend.up':           'Цена выросла vs прошлая неделя',
+    'dashboard.trend.down':         'Цена упала vs прошлая неделя',
+    'dashboard.trend.stable':       'Цена стабильна vs прошлая неделя',
 
     'bracket.weighted_average':     'Средневзвешенное',
     'bracket.very_short':           'Очень короткий',
@@ -542,6 +588,11 @@ export const TRANSLATIONS = {
     'filter.source_both':  'Оба',
     'filter.source_bot':   'Bot',
     'filter.source_hubs':  'Hubs',
+    'filter.collapse':     'Скрыть фильтры',
+    'filter.expand':       'Показать фильтры',
+    'filter.time_of_day':  'Время суток',
+    'filter.time_all':     'Все',
+    'filter.time_select_all': 'Выбрать все',
 
     // ── Samples (BracketSection) ───────────────────────
     'samples.summary_title_attr': 'Наблюдаемые выборки ({label}) — последняя неделя с данными',

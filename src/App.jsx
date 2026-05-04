@@ -24,13 +24,16 @@ export default function App() {
   const { country, setCountry } = useCountry()
   const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [dbWeights, setDbWeights] = useState([])
+  const [dbWeights,   setDbWeights]   = useState([])
+  const [dbSemaforo,  setDbSemaforo]  = useState([])
 
-  // Pre-cargar pesos al iniciar sesión (para usePricingData)
+  // Pre-cargar pesos y configuración de semáforo al iniciar sesión
   useEffect(() => {
     if (!session) return
     sb.from('bracket_weights').select('*')
       .then(({ data }) => setDbWeights(data || []))
+    sb.from('semaforo_config').select('*').order('band').order('min_pct')
+      .then(({ data }) => setDbSemaforo(data || []))
   }, [session])
 
   // Países permitidos según rol
@@ -100,7 +103,7 @@ export default function App() {
             Cargando vista…
           </div>
         }>
-          {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} />}
+          {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
           {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
           {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
           {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}

@@ -7,11 +7,24 @@
   height: 52px;
   gap: 8px;
   flex-shrink: 0;
-  border-bottom: 2px solid var(--color-yango);
-  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 1px 12px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+/* Línea inferior con gradiente que se desvanece en los extremos #33 */
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent 0%, var(--color-yango) 15%, var(--color-yango) 85%, transparent 100%);
+  opacity: 0.75;
+  pointer-events: none;
 }
 
 .topbar__brand {
