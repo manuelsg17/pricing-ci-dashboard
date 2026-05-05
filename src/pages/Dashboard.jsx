@@ -6,6 +6,8 @@ import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
 import DashboardLegend     from '../components/dashboard/DashboardLegend'
 import WowCallouts         from '../components/dashboard/WowCallouts'
+import WhatIfSimulator     from '../components/dashboard/WhatIfSimulator'
+import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
 import { useI18n }         from '../context/LanguageContext'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { BRACKETS, getCountryConfig } from '../lib/constants'
@@ -69,9 +71,101 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
 
   const {
     loading, error,
-    priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, sampleMatrix,
-    chartData, deltaChartData, periods, frozenWeeks,
+    priceMatrix: rawPriceMatrix, deltaMatrix: rawDeltaMatrix, semaforoMatrix: rawSemaforoMatrix,
+    diffMatrix: rawDiffMatrix, sampleMatrix,
+    chartData: rawChartData, deltaChartData: rawDeltaChartData, periods, frozenWeeks,
   } = usePricingData(filters, dbWeights, locale, dbSemaforo)
+
+  // ── What-if simulator: aplica un % a Yango y recalcula deltas/charts ────
+  const [simEnabled, setSimEnabled] = useState(false)
+  const [simPct,     setSimPct]     = useState(0)
+
+  const {
+    priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, chartData, deltaChartData,
+  } = useMemo(() => {
+    if (!simEnabled || simPct === 0) {
+      return {
+        priceMatrix: rawPriceMatrix, deltaMatrix: rawDeltaMatrix,
+        semaforoMatrix: rawSemaforoMatrix, diffMatrix: rawDiffMatrix,
+        chartData: rawChartData, deltaChartData: rawDeltaChartData,
+      }
+    }
+    const factor = 1 + simPct / 100
+    const yangoComp = filters.compareVs
+
+    // 1. Clonar priceMatrix y multiplicar Yango (compareVs)
+    const newPriceMatrix = {}
+    for (const comp of Object.keys(rawPriceMatrix || {})) {
+      newPriceMatrix[comp] = {}
+      for (const periodKey of Object.keys(rawPriceMatrix[comp])) {
+        const cell = rawPriceMatrix[comp][periodKey]
+        if (comp === yangoComp && cell) {
+          const adj = {}
+          for (const b of Object.keys(cell)) {
+            adj[b] = cell[b] != null ? cell[b] * factor : null
+          }
+          newPriceMatrix[comp][periodKey] = adj
+        } else {
+          newPriceMatrix[comp][periodKey] = cell
+        }
+      }
+    }
+
+    // 2. Recalcular delta/diff vs compareVs
+    const newDeltaMatrix    = {}
+    const newSemaforoMatrix = {}
+    const newDiffMatrix     = {}
+    for (const comp of filters.competitors) {
+      newDeltaMatrix[comp]    = {}
+      newSemaforoMatrix[comp] = {}
+      newDiffMatrix[comp]     = {}
+      for (const p of periods) {
+        const baseRow = newPriceMatrix[yangoComp]?.[p.key] || {}
+        const compRow = newPriceMatrix[comp]?.[p.key]      || {}
+        const isBase  = comp === yangoComp
+        const dRow = {}, sRow = {}, fRow = {}
+        for (const b of [...BRACKETS, '_wa']) {
+          const c = compRow[b], y = baseRow[b]
+          dRow[b] = isBase ? 0 : (c != null && y != null ? ((c - y) / y) * 100 : null)
+          fRow[b] = isBase ? 0 : (c != null && y != null ? c - y : null)
+          // Mantener semáforo del cálculo original — la simulación solo
+          // afecta los precios, no las bandas dinámicas (evita flicker raro).
+          sRow[b] = rawSemaforoMatrix?.[comp]?.[p.key]?.[b] || 'sem-none'
+        }
+        newDeltaMatrix[comp][p.key]    = dRow
+        newSemaforoMatrix[comp][p.key] = sRow
+        newDiffMatrix[comp][p.key]     = fRow
+      }
+    }
+
+    // 3. Reconstruir chartData / deltaChartData con valores ajustados
+    const newChartData      = {}
+    const newDeltaChartData = {}
+    for (const b of [...BRACKETS, '_wa']) {
+      newChartData[b]      = []
+      newDeltaChartData[b] = []
+      for (const p of periods) {
+        const pricePoint = { period: p.label }
+        const deltaPoint = { period: p.label }
+        for (const comp of filters.competitors) {
+          pricePoint[comp] = newPriceMatrix[comp]?.[p.key]?.[b] ?? null
+          deltaPoint[comp] = newDeltaMatrix[comp]?.[p.key]?.[b] ?? null
+        }
+        newChartData[b].push(pricePoint)
+        newDeltaChartData[b].push(deltaPoint)
+      }
+    }
+
+    return {
+      priceMatrix: newPriceMatrix, deltaMatrix: newDeltaMatrix,
+      semaforoMatrix: newSemaforoMatrix, diffMatrix: newDiffMatrix,
+      chartData: newChartData, deltaChartData: newDeltaChartData,
+    }
+  }, [
+    simEnabled, simPct, filters.compareVs, filters.competitors, periods,
+    rawPriceMatrix, rawDeltaMatrix, rawSemaforoMatrix, rawDiffMatrix,
+    rawChartData, rawDeltaChartData,
+  ])
 
   // Market events for daily view
   const [marketEvents, setMarketEvents] = useState([])
@@ -243,6 +337,26 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
 
   return (
     <div className="dashboard" ref={dashRef}>
+      {/* ── Anomaly digest compact (link a Mercado para detalle) ── */}
+      {!loading && periods.length > 3 && (
+        <AnomalyDigestCompact
+          priceMatrix={rawPriceMatrix}
+          periods={periods}
+          competitors={filters.competitors}
+          compareVs={filters.compareVs}
+        />
+      )}
+
+      {/* ── What-if simulator banner ── */}
+      {simEnabled && (
+        <WhatIfSimulator
+          pct={simPct}
+          setPct={setSimPct}
+          onClose={() => { setSimEnabled(false); setSimPct(0) }}
+          compareVs={filters.compareVs}
+        />
+      )}
+
       {/* ── WoW Callouts banner ── */}
       {!loading && periods.length > 1 && (
         <WowCallouts
@@ -311,6 +425,14 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
             </div>
             <div className="kpi-card__sub">descartes del bot</div>
           </div>
+          <button
+            className="kpi-export-btn"
+            onClick={() => setSimEnabled(s => !s)}
+            title="Activar modo simulación: ajustar precio Yango con un slider y ver KPIs/charts en vivo"
+            style={simEnabled ? { background: '#fef3c7', borderColor: '#f59e0b', color: '#92400e' } : undefined}
+          >
+            {simEnabled ? '🎚️ Sim ON' : '🎚️ Simular'}
+          </button>
           <button className="kpi-export-btn" onClick={handleExportPNG} title={t('dashboard.export_png')}>
             {t('dashboard.export_png')}
           </button>

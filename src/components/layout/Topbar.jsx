@@ -11,6 +11,7 @@ const getNav = (t) => [
   {
     id: 'analisis', label: t('nav.analisis'), icon: '📈',
     children: [
+      { id: 'market',   label: t('nav.market')   },
       { id: 'earnings', label: t('nav.earnings') },
       { id: 'report',   label: t('nav.report')   },
     ],
@@ -22,6 +23,7 @@ const getNav = (t) => [
       { id: 'upload',     label: t('nav.upload')  },
       { id: 'rawdata',    label: t('nav.rawdata')      },
       { id: 'botvshubs',  label: t('nav.botvshubs')  },
+      { id: 'coverage',   label: t('nav.coverage')  },
     ],
   },
   {

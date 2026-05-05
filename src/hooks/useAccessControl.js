@@ -4,8 +4,8 @@ import { useAuth } from '../lib/auth'
 
 // All known sections in the app
 export const ALL_SECTIONS = [
-  'dashboard', 'earnings', 'report',
-  'dataentry', 'upload', 'rawdata', 'botvshubs',
+  'dashboard', 'earnings', 'report', 'market',
+  'dataentry', 'upload', 'rawdata', 'botvshubs', 'coverage',
   'events', 'distances', 'config', 'access',
 ]
 
@@ -13,10 +13,12 @@ export const SECTION_LABELS = {
   dashboard: '📊 Dashboard',
   earnings:  '💰 Ganancias',
   report:    '📄 Reporte',
+  market:    '🎯 Mercado',
   dataentry: '✏️ Ingresar CI',
   upload:    '📤 Cargar Data',
   rawdata:   '🗃 Data Raw',
   botvshubs: '📊 Bot vs Hubs',
+  coverage:  '🛡️ Cobertura',
   events:    '📌 Eventos',
   distances: '📍 Distancias Ref.',
   config:    '⚙️ Configuración',

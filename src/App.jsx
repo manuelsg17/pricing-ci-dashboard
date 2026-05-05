@@ -18,6 +18,8 @@ const WeeklyReport = lazy(() => import('./pages/WeeklyReport'))
 const MarketEvents = lazy(() => import('./pages/MarketEvents'))
 const AccessManagement = lazy(() => import('./pages/AccessManagement'))
 const BotVsHubs = lazy(() => import('./pages/BotVsHubs'))
+const Market = lazy(() => import('./pages/Market'))
+const Coverage = lazy(() => import('./pages/Coverage'))
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -53,6 +55,26 @@ export default function App() {
       setActiveTab('dashboard')
     }
   }, [acLoading])
+
+  // Listener para navegación entre pestañas desde componentes hijos
+  // (ej: el digest compact en Dashboard linkea a Mercado).
+  useEffect(() => {
+    function handler(e) {
+      const tab = e.detail?.tab
+      if (tab && canAccess(tab)) {
+        setActiveTab(tab)
+        const section = e.detail?.section
+        if (section) {
+          // scroll a la sección después que el tab montó
+          setTimeout(() => {
+            document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }, 200)
+        }
+      }
+    }
+    window.addEventListener('navigate-to-tab', handler)
+    return () => window.removeEventListener('navigate-to-tab', handler)
+  }, [canAccess])
 
   if (loading || acLoading) {
     return (
@@ -107,6 +129,8 @@ export default function App() {
           {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
           {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
           {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}
+          {activeTab === 'market'    && canAccess('market')    && <Market dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
+          {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage />}
           {activeTab === 'events'    && canAccess('events')    && <MarketEvents />}
           {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
           {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
