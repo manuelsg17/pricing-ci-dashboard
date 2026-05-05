@@ -29,7 +29,7 @@ export default function HeatmapDayHour({ filters, competitors, focusComp = 'Yang
     let cancelled = false
     setLoading(true)
 
-    // Rango aprox: las últimas 8 semanas — usa weekColumns si los hay, si no caemos a 56 días.
+    // Rango: las últimas 8 semanas (o el weekColumns actual si está)
     const startDate = filters.weekColumns?.[0]
       ? toISO(filters.weekColumns[0])
       : toISO(new Date(Date.now() - 56 * 86400_000))
@@ -37,44 +37,35 @@ export default function HeatmapDayHour({ filters, competitors, focusComp = 'Yang
       ? toISO(addDays(filters.weekColumns[filters.weekColumns.length - 1], 6))
       : toISO(new Date())
 
-    const priceField = 'price_without_discount'
-    sb.from('pricing_observations')
-      .select('competition_name, observed_date, time_of_day, price_without_discount, recommended_price, surge')
-      .eq('country', filters.country)
-      .eq('city', filters.dbCity)
-      .eq('category', filters.dbCategory)
-      .gte('observed_date', startDate)
-      .lte('observed_date', endDate)
-      .limit(50000)
-      .then(({ data, error }) => {
-        if (cancelled) return
-        if (error) console.error('Heatmap query error:', error)
-        setRawRows(data || [])
-        setLoading(false)
-      })
+    // Server-side aggregation vía RPC para evitar el cap de 1000 filas de PostgREST
+    sb.rpc('get_heatmap_dow_tod', {
+      p_country:    filters.country,
+      p_city:       filters.dbCity,
+      p_category:   filters.dbCategory,
+      p_start_date: startDate,
+      p_end_date:   endDate,
+    }).then(({ data, error }) => {
+      if (cancelled) return
+      if (error) console.error('Heatmap RPC error:', error)
+      setRawRows(data || [])
+      setLoading(false)
+    })
     return () => { cancelled = true }
   }, [filters.country, filters.dbCity, filters.dbCategory, filters.weekColumns])
 
-  // Promedio (price, n) por (comp, dow, time_of_day). Luego para cada celda
-  // calculamos rank de focusComp.
+  // El RPC ya devuelve agregado: { competition_name, dow, time_of_day, avg_price, n }
   const cells = useMemo(() => {
-    const map = {}     // comp → dow → tod → { sum, n }
+    const map = {}
     for (const r of rawRows) {
-      const date = new Date(r.observed_date + 'T00:00:00')
-      const dow = ((date.getDay() + 6) % 7) + 1   // 1=lun ... 7=dom
-      const tod = r.time_of_day
-      if (!tod) continue
-      const price = r.price_without_discount ?? r.recommended_price
-      if (price == null || price <= 0) continue
       const comp = r.competition_name
+      const dow  = Number(r.dow)
+      const tod  = r.time_of_day
+      if (!comp || !dow || !tod) continue
       if (!map[comp]) map[comp] = {}
       if (!map[comp][dow]) map[comp][dow] = {}
-      if (!map[comp][dow][tod]) map[comp][dow][tod] = { sum: 0, n: 0 }
-      map[comp][dow][tod].sum += Number(price)
-      map[comp][dow][tod].n += 1
+      map[comp][dow][tod] = { avg: Number(r.avg_price), n: Number(r.n) }
     }
 
-    // Por celda (dow, tod): ranking de competidores
     const grid = {}
     for (const dow of DOWS) {
       grid[dow.key] = {}
@@ -82,8 +73,8 @@ export default function HeatmapDayHour({ filters, competitors, focusComp = 'Yang
         const arr = competitors
           .map(c => {
             const cell = map[c]?.[dow.key]?.[tod.key]
-            if (!cell || cell.n < 3) return null   // mínimo 3 obs para rankear
-            return { comp: c, avg: cell.sum / cell.n, n: cell.n }
+            if (!cell || cell.n < 3) return null
+            return { comp: c, avg: cell.avg, n: cell.n }
           })
           .filter(Boolean)
           .sort((a, b) => a.avg - b.avg)

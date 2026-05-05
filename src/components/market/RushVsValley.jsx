@@ -17,44 +17,34 @@ export default function RushVsValley({ filters, currency = 'S/' }) {
       ? toISO(addDays(filters.weekColumns[filters.weekColumns.length - 1], 6))
       : toISO(new Date())
 
-    sb.from('pricing_observations')
-      .select('competition_name, rush_hour, price_without_discount, recommended_price')
-      .eq('country', filters.country)
-      .eq('city', filters.dbCity)
-      .eq('category', filters.dbCategory)
-      .gte('observed_date', startDate)
-      .lte('observed_date', endDate)
-      .not('rush_hour', 'is', null)
-      .limit(50000)
-      .then(({ data, error }) => {
-        if (cancelled) return
-        if (error) console.error('RushVsValley error:', error)
-        setRawRows(data || [])
-        setLoading(false)
-      })
+    sb.rpc('get_rush_valley_stats', {
+      p_country:    filters.country,
+      p_city:       filters.dbCity,
+      p_category:   filters.dbCategory,
+      p_start_date: startDate,
+      p_end_date:   endDate,
+    }).then(({ data, error }) => {
+      if (cancelled) return
+      if (error) console.error('RushVsValley RPC error:', error)
+      setRawRows(data || [])
+      setLoading(false)
+    })
     return () => { cancelled = true }
   }, [filters.country, filters.dbCity, filters.dbCategory, filters.weekColumns])
 
+  // RPC ya agregó: { competition_name, rush_avg, rush_n, valley_avg, valley_n }
   const rows = useMemo(() => {
-    const buckets = {}
-    for (const r of rawRows) {
-      const price = r.price_without_discount ?? r.recommended_price
-      if (price == null || price <= 0) continue
-      const comp = r.competition_name
-      if (!buckets[comp]) buckets[comp] = { rush: [], valley: [] }
-      ;(r.rush_hour ? buckets[comp].rush : buckets[comp].valley).push(Number(price))
-    }
-    const out = []
-    for (const [comp, b] of Object.entries(buckets)) {
-      const valleyAvg = b.valley.length ? b.valley.reduce((a, n) => a + n, 0) / b.valley.length : null
-      const rushAvg   = b.rush.length   ? b.rush.reduce((a, n) => a + n, 0)   / b.rush.length   : null
+    const out = rawRows.map(r => {
+      const valleyAvg = r.valley_avg != null ? Number(r.valley_avg) : null
+      const rushAvg   = r.rush_avg   != null ? Number(r.rush_avg)   : null
       const diffPct = (valleyAvg && rushAvg) ? ((rushAvg - valleyAvg) / valleyAvg) * 100 : null
-      out.push({
-        comp,
+      return {
+        comp: r.competition_name,
         valleyAvg, rushAvg, diffPct,
-        valleyN: b.valley.length, rushN: b.rush.length,
-      })
-    }
+        valleyN: Number(r.valley_n || 0),
+        rushN:   Number(r.rush_n   || 0),
+      }
+    })
     return out.sort((a, b) => (b.diffPct || 0) - (a.diffPct || 0))
   }, [rawRows])
 

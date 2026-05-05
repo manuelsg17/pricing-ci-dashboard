@@ -17,49 +17,35 @@ export default function DiscountIntensity({ filters, currency = 'S/' }) {
       ? toISO(addDays(filters.weekColumns[filters.weekColumns.length - 1], 6))
       : toISO(new Date())
 
-    sb.from('pricing_observations')
-      .select('competition_name, price_without_discount, price_with_discount, recommended_price, minimal_bid')
-      .eq('country', filters.country)
-      .eq('city', filters.dbCity)
-      .eq('category', filters.dbCategory)
-      .gte('observed_date', startDate)
-      .lte('observed_date', endDate)
-      .limit(50000)
-      .then(({ data, error }) => {
-        if (cancelled) return
-        if (error) console.error('DiscountIntensity error:', error)
-        setRawRows(data || [])
-        setLoading(false)
-      })
+    sb.rpc('get_discount_stats', {
+      p_country:    filters.country,
+      p_city:       filters.dbCity,
+      p_category:   filters.dbCategory,
+      p_start_date: startDate,
+      p_end_date:   endDate,
+    }).then(({ data, error }) => {
+      if (cancelled) return
+      if (error) console.error('DiscountIntensity RPC error:', error)
+      setRawRows(data || [])
+      setLoading(false)
+    })
     return () => { cancelled = true }
   }, [filters.country, filters.dbCity, filters.dbCategory, filters.weekColumns])
 
+  // RPC ya agregó: { competition_name, list_avg, final_avg, with_discount, n_total }
   const rows = useMemo(() => {
-    const buckets = {}
-    for (const r of rawRows) {
-      const comp = r.competition_name
-      // Para InDrive: comparamos minimal_bid vs recommended_price (descuento del bidder)
-      // Para los demás: price_with_discount vs price_without_discount.
-      const list  = comp === 'InDrive' ? r.recommended_price : r.price_without_discount
-      const final = comp === 'InDrive' ? r.minimal_bid       : r.price_with_discount
-      if (list == null || final == null || list <= 0) continue
-      const fl = Number(final), li = Number(list)
-      if (fl <= 0) continue
-      if (!buckets[comp]) buckets[comp] = { lists: [], finals: [], obs: 0, withDiscount: 0 }
-      buckets[comp].lists.push(li)
-      buckets[comp].finals.push(fl)
-      buckets[comp].obs++
-      if (fl < li * 0.99) buckets[comp].withDiscount++
-    }
-    const out = []
-    for (const [comp, b] of Object.entries(buckets)) {
-      const listAvg  = b.lists.reduce((a, n) => a + n, 0) / b.lists.length
-      const finalAvg = b.finals.reduce((a, n) => a + n, 0) / b.finals.length
-      const discountPct = ((finalAvg - listAvg) / listAvg) * 100
-      const pctWithDisc = (b.withDiscount / b.obs) * 100
-      out.push({ comp, listAvg, finalAvg, discountPct, obs: b.obs, pctWithDisc })
-    }
-    return out.sort((a, b) => a.discountPct - b.discountPct)   // descuento más fuerte primero
+    const out = rawRows
+      .filter(r => r.list_avg != null && r.final_avg != null)
+      .map(r => {
+        const listAvg  = Number(r.list_avg)
+        const finalAvg = Number(r.final_avg)
+        const obs      = Number(r.n_total || 0)
+        const withDisc = Number(r.with_discount || 0)
+        const discountPct = ((finalAvg - listAvg) / listAvg) * 100
+        const pctWithDisc = obs > 0 ? (withDisc / obs) * 100 : 0
+        return { comp: r.competition_name, listAvg, finalAvg, discountPct, obs, pctWithDisc }
+      })
+    return out.sort((a, b) => a.discountPct - b.discountPct)
   }, [rawRows])
 
   if (loading && !rawRows.length) {
