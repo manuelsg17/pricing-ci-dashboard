@@ -511,10 +511,15 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
             </div>
           )}
 
-          {/* #26 — draggable sections */}
+          {/* #26 — draggable sections.
+              Key incluye viewMode para forzar remount cuando se cambia
+              entre weekly/daily/historic — evita el bug de recharts
+              "Cannot read properties of null (reading 'dir')" causado por
+              estado interno stale del chart cuando cambia la estructura
+              de datos. */}
           {orderedSections.map(({ bracket, label }) => (
             <div
-              key={bracket}
+              key={`${bracket}-${filters.viewMode}`}
               draggable
               onDragStart={e => handleDragStart(e, bracket)}
               onDragOver={handleDragOver}
