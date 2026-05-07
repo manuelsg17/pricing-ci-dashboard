@@ -51,6 +51,15 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     setLoading(true)
     setError(null)
 
+    // CRÍTICO: limpiar rawRows en cada fetch.
+    // Sin esto, durante el cambio de viewMode (weekly→daily) los rawRows
+    // viejos tienen shape {year, week, ...} pero el viewMode nuevo es
+    // 'daily' (que espera {observed_date, ...}). El useMemo de priceMatrix
+    // construye periods con keys=undefined y recharts crashea con
+    // "Cannot read properties of null (reading 'dir')".
+    setRawRows([])
+    setFrozenRows([])
+
     async function fetchData() {
       try {
         if (viewMode === 'weekly' || viewMode === 'historic') {
@@ -139,8 +148,22 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
   // ── Construir matriz de datos ───────────────────────────
   const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods } =
     useMemo(() => {
+      const empty = { priceMatrix: {}, deltaMatrix: {}, semaforoMatrix: {}, sampleMatrix: {}, diffMatrix: {}, chartData: {}, deltaChartData: {}, periods: [] }
       if (!rawRows.length && !frozenRows.length) {
-        return { priceMatrix: {}, deltaMatrix: {}, semaforoMatrix: {}, sampleMatrix: {}, diffMatrix: {}, chartData: {}, deltaChartData: {}, periods: [] }
+        return empty
+      }
+
+      // Defense-in-depth: validar que rawRows matchean el viewMode actual.
+      // Si están mismatched (race condition entre fetch y rerender), no
+      // construimos la matriz para evitar pasar datos malformados a recharts.
+      if (rawRows.length > 0) {
+        const sample = rawRows[0]
+        if ((filters.viewMode === 'weekly' || filters.viewMode === 'historic') && sample.year == null) {
+          return empty
+        }
+        if (filters.viewMode === 'daily' && !sample.observed_date) {
+          return empty
+        }
       }
 
       const weights = buildWeightsMap(dbWeights || [], filters.dbCity) || DEFAULT_WEIGHTS
