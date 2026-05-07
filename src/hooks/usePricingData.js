@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { BRACKETS, BRACKET_LABELS, DEFAULT_WEIGHTS } from '../lib/constants'
 import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAverage'
@@ -45,20 +45,31 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     return timeOfDay
   }, [timeOfDay])
 
+  // Track previous viewMode shape — solo necesitamos limpiar rawRows
+  // cuando la SHAPE cambia (daily ↔ weekly/historic), no en cada filtro.
+  // Esto preserva el patrón "stale-while-revalidating" para cambios
+  // normales (city, category, surge, etc.) donde los datos viejos siguen
+  // siendo legibles mientras llegan los nuevos.
+  const prevShapeRef = useRef(viewMode === 'daily' ? 'daily' : 'weekly')
+
   // ── Cargar datos desde Supabase ──────────────────────────
   useEffect(() => {
     if (!dbCity || !dbCategory) return
     setLoading(true)
     setError(null)
 
-    // CRÍTICO: limpiar rawRows en cada fetch.
-    // Sin esto, durante el cambio de viewMode (weekly→daily) los rawRows
-    // viejos tienen shape {year, week, ...} pero el viewMode nuevo es
-    // 'daily' (que espera {observed_date, ...}). El useMemo de priceMatrix
-    // construye periods con keys=undefined y recharts crashea con
-    // "Cannot read properties of null (reading 'dir')".
-    setRawRows([])
-    setFrozenRows([])
+    // Limpiar rawRows SOLO si la shape de datos cambió (daily ↔ weekly).
+    // Sin esto, durante el cambio de viewMode los rawRows viejos
+    // (shape {year, week, ...}) se mezclan con el viewMode nuevo
+    // (que espera {observed_date, ...}), produciendo periods con
+    // keys=undefined y crash de recharts ("Cannot read properties of
+    // null (reading 'dir')").
+    const currentShape = viewMode === 'daily' ? 'daily' : 'weekly'
+    if (currentShape !== prevShapeRef.current) {
+      setRawRows([])
+      setFrozenRows([])
+      prevShapeRef.current = currentShape
+    }
 
     async function fetchData() {
       try {

@@ -10,7 +10,7 @@ import WhatIfSimulator     from '../components/dashboard/WhatIfSimulator'
 import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
 import { useI18n }         from '../context/LanguageContext'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
-import { BRACKETS, getCountryConfig } from '../lib/constants'
+import { BRACKETS } from '../lib/constants'
 import { useCountry }      from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
 import EmptyState           from '../components/ui/EmptyState'
@@ -18,7 +18,7 @@ import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import '../styles/dashboard.css'
 
 function DashboardContent({ dbWeights, dbSemaforo = [] }) {
-  const { country, countryConfig } = useCountry()
+  const { countryConfig } = useCountry()
   const { filters } = useFilterContext()
   const dashRef = useRef(null)
   const { t, locale } = useI18n()
