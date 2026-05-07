@@ -20,7 +20,7 @@ const DOWS = [
   { key: 7, label: 'Dom' },
 ]
 
-export default function HeatmapDayHour({ filters, competitors, focusComp = 'Yango' }) {
+export default function HeatmapDayHour({ filters, competitors = [], focusComp = 'Yango' }) {
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(false)
 

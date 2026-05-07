@@ -10,8 +10,12 @@ export default defineConfig({
     // browser cache vendor code across deploys.
     rollupOptions: {
       output: {
+        // Nota: NO splitear react/react-dom en su propio chunk.
+        // En aplicaciones con muchas pages lazy-loaded, splitearlo puede
+        // producir errores "Invalid hook call" si Rollup termina creando
+        // dos copias de React en chunks distintos. Mantener react en el
+        // chunk principal (entry) es el patrón más seguro.
         manualChunks: {
-          'vendor-react':    ['react', 'react-dom'],
           'vendor-recharts': ['recharts'],
           'vendor-pdf':      ['jspdf', 'jspdf-autotable'],
           'vendor-xlsx':     ['xlsx'],

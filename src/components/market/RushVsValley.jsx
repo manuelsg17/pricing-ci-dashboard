@@ -34,7 +34,7 @@ export default function RushVsValley({ filters, currency = 'S/' }) {
 
   // RPC ya agregó: { competition_name, rush_avg, rush_n, valley_avg, valley_n }
   const rows = useMemo(() => {
-    const out = rawRows.map(r => {
+    const out = (rawRows || []).filter(Boolean).map(r => {
       const valleyAvg = r.valley_avg != null ? Number(r.valley_avg) : null
       const rushAvg   = r.rush_avg   != null ? Number(r.rush_avg)   : null
       const diffPct = (valleyAvg && rushAvg) ? ((rushAvg - valleyAvg) / valleyAvg) * 100 : null

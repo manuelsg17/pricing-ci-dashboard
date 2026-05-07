@@ -34,14 +34,14 @@ export default function DiscountIntensity({ filters, currency = 'S/' }) {
 
   // RPC ya agregó: { competition_name, list_avg, final_avg, with_discount, n_total }
   const rows = useMemo(() => {
-    const out = rawRows
-      .filter(r => r.list_avg != null && r.final_avg != null)
+    const out = (rawRows || [])
+      .filter(r => r && r.list_avg != null && r.final_avg != null && Number(r.list_avg) > 0)
       .map(r => {
         const listAvg  = Number(r.list_avg)
         const finalAvg = Number(r.final_avg)
         const obs      = Number(r.n_total || 0)
         const withDisc = Number(r.with_discount || 0)
-        const discountPct = ((finalAvg - listAvg) / listAvg) * 100
+        const discountPct = listAvg > 0 ? ((finalAvg - listAvg) / listAvg) * 100 : 0
         const pctWithDisc = obs > 0 ? (withDisc / obs) * 100 : 0
         return { comp: r.competition_name, listAvg, finalAvg, discountPct, obs, pctWithDisc }
       })

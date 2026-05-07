@@ -10,8 +10,9 @@ const BRACKET_COLORS = {
   very_long:  '#7c3aed',
 }
 
-export default function BracketMix({ sampleMatrix, periods, competitors }) {
+export default function BracketMix({ sampleMatrix = {}, periods = [], competitors = [] }) {
   const rows = useMemo(() => {
+    if (!competitors?.length || !periods?.length) return []
     return competitors.map(comp => {
       const counts = {}
       let total = 0

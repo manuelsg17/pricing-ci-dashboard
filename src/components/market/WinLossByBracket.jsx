@@ -1,16 +1,16 @@
 import { useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
 
-export default function WinLossByBracket({ priceMatrix, periods, competitors, compareVs = 'Yango' }) {
+export default function WinLossByBracket({ priceMatrix = {}, periods = [], competitors = [], compareVs = 'Yango' }) {
   const grid = useMemo(() => {
-    if (!periods?.length) return []
+    if (!periods?.length || !competitors?.length) return []
     return periods.map(p => {
       const wins = {}
       let totalChecked = 0
       let totalWon = 0
       for (const b of BRACKETS) {
         const arr = competitors
-          .map(c => ({ comp: c, price: priceMatrix[c]?.[p.key]?.[b] }))
+          .map(c => ({ comp: c, price: priceMatrix?.[c]?.[p.key]?.[b] }))
           .filter(x => x.price != null)
         if (arr.length < 2) {
           wins[b] = null   // sin comparables, no se puede determinar líder

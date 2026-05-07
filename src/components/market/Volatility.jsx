@@ -30,10 +30,11 @@ function Sparkline({ values, color }) {
   )
 }
 
-export default function Volatility({ priceMatrix, periods, competitors, currency = 'S/' }) {
+export default function Volatility({ priceMatrix = {}, periods = [], competitors = [], currency = 'S/' }) {
   const rows = useMemo(() => {
+    if (!competitors?.length || !periods?.length) return []
     return competitors.map(comp => {
-      const series = periods.map(p => priceMatrix[comp]?.[p.key]?.['_wa'])
+      const series = periods.map(p => priceMatrix?.[comp]?.[p.key]?.['_wa'])
       const validSeries = series.filter(v => v != null)
       const s = stats(validSeries)
       return { comp, series, ...s }

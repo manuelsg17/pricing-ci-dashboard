@@ -17,9 +17,9 @@ function fg(n) {
   return '#166534'
 }
 
-export default function CoverageReport({ sampleMatrix, periods, competitors }) {
+export default function CoverageReport({ sampleMatrix = {}, periods = [], competitors = [] }) {
   const grid = useMemo(() => {
-    if (!periods?.length) return []
+    if (!periods?.length || !competitors?.length) return []
     return competitors.map(comp => {
       const row = { comp }
       let totalCells = 0

@@ -8,6 +8,7 @@ import FilterBar from '../components/dashboard/FilterBar'
 import CollapsibleSection from '../components/market/CollapsibleSection'
 import CoverageReport from '../components/market/CoverageReport'
 import BracketMix from '../components/market/BracketMix'
+import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 
 function CoverageContent() {
   const { country } = useCountry()
@@ -51,41 +52,45 @@ function CoverageContent() {
         <div className="state-box state-box--error">Error: {error}</div>
       )}
 
-      {loading && periods.length === 0 ? (
+      {loading && (!periods || periods.length === 0) ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
           Cargando…
         </div>
-      ) : periods.length === 0 ? (
+      ) : (!periods || periods.length === 0) ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
           Sin datos para los filtros actuales.
         </div>
       ) : (
         <>
-          <CollapsibleSection
-            id="coverage"
-            title="📊 Cobertura por celda"
-            subtitle="Cantidad de observaciones por (competidor × bracket × período). Rojo = poco confiable."
-            defaultOpen
-          >
-            <CoverageReport
-              sampleMatrix={sampleMatrix}
-              periods={periods}
-              competitors={filters.competitors}
-            />
-          </CollapsibleSection>
+          <SectionErrorBoundary label="Cobertura por celda">
+            <CollapsibleSection
+              id="coverage"
+              title="📊 Cobertura por celda"
+              subtitle="Cantidad de observaciones por (competidor × bracket × período). Rojo = poco confiable."
+              defaultOpen
+            >
+              <CoverageReport
+                sampleMatrix={sampleMatrix}
+                periods={periods}
+                competitors={filters.competitors || []}
+              />
+            </CollapsibleSection>
+          </SectionErrorBoundary>
 
-          <CollapsibleSection
-            id="mix"
-            title="🥧 Mix de brackets por competidor"
-            subtitle="Distribución relativa — desigualdades aquí desvirtúan comparaciones de WA"
-            defaultOpen={false}
-          >
-            <BracketMix
-              sampleMatrix={sampleMatrix}
-              periods={periods}
-              competitors={filters.competitors}
-            />
-          </CollapsibleSection>
+          <SectionErrorBoundary label="Mix de brackets">
+            <CollapsibleSection
+              id="mix"
+              title="🥧 Mix de brackets por competidor"
+              subtitle="Distribución relativa — desigualdades aquí desvirtúan comparaciones de WA"
+              defaultOpen={false}
+            >
+              <BracketMix
+                sampleMatrix={sampleMatrix}
+                periods={periods}
+                competitors={filters.competitors || []}
+              />
+            </CollapsibleSection>
+          </SectionErrorBoundary>
         </>
       )}
     </div>

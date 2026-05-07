@@ -2,18 +2,19 @@ import { useMemo } from 'react'
 import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
 
 // z-score sobre rolling mean. Devuelve top N anomalías.
-export default function AnomalyDigest({ priceMatrix, periods, competitors, compareVs = 'Yango', limit = 10 }) {
+export default function AnomalyDigest({ priceMatrix = {}, periods = [], competitors = [], compareVs = 'Yango', limit = 10 }) {
   const anomalies = useMemo(() => {
     if (!periods?.length || periods.length < 4) return []   // necesito histórico para rolling mean
+    if (!competitors?.length) return []
     const out = []
     const lastIdx = periods.length - 1
     const lastPeriod = periods[lastIdx]
 
     for (const comp of competitors) {
       for (const b of [...BRACKETS, '_wa']) {
-        const series = periods.map(p => priceMatrix[comp]?.[p.key]?.[b]).filter(v => v != null)
+        const series = periods.map(p => priceMatrix?.[comp]?.[p.key]?.[b]).filter(v => v != null)
         if (series.length < 4) continue
-        const cur = priceMatrix[comp]?.[lastPeriod.key]?.[b]
+        const cur = priceMatrix?.[comp]?.[lastPeriod.key]?.[b]
         if (cur == null) continue
 
         // rolling stats sobre todo menos el último período
@@ -45,7 +46,7 @@ export default function AnomalyDigest({ priceMatrix, periods, competitors, compa
       const prevPeriod = periods[lastIdx - 1]
       const rankAt = (key) => {
         const arr = competitors
-          .map(c => ({ comp: c, wa: priceMatrix[c]?.[key]?.['_wa'] }))
+          .map(c => ({ comp: c, wa: priceMatrix?.[c]?.[key]?.['_wa'] }))
           .filter(x => x.wa != null)
           .sort((a, b) => a.wa - b.wa)
         const idx = arr.findIndex(x => x.comp === compareVs)

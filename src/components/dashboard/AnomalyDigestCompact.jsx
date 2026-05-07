@@ -3,18 +3,19 @@ import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants
 
 // Versión compact: muestra los top 3 atípicos en una sola línea con
 // link a la pestaña Mercado para ver el detalle completo.
-export default function AnomalyDigestCompact({ priceMatrix, periods, competitors, compareVs = 'Yango' }) {
+export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], competitors = [], compareVs = 'Yango' }) {
   const top = useMemo(() => {
     if (!periods?.length || periods.length < 4) return []
+    if (!competitors?.length) return []
     const out = []
     const lastIdx = periods.length - 1
     const lastPeriod = periods[lastIdx]
 
     for (const comp of competitors) {
       for (const b of [...BRACKETS, '_wa']) {
-        const series = periods.map(p => priceMatrix[comp]?.[p.key]?.[b]).filter(v => v != null)
+        const series = periods.map(p => priceMatrix?.[comp]?.[p.key]?.[b]).filter(v => v != null)
         if (series.length < 4) continue
-        const cur = priceMatrix[comp]?.[lastPeriod.key]?.[b]
+        const cur = priceMatrix?.[comp]?.[lastPeriod.key]?.[b]
         if (cur == null) continue
         const hist = series.slice(0, -1)
         const mean = hist.reduce((a, n) => a + n, 0) / hist.length
