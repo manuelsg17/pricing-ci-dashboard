@@ -778,10 +778,12 @@ function MiniChart({
                 />
               )}
 
-              {/* Market events */}
-              {events.map(evt => {
-                if (!periodKeys.has(evt.event_date)) return null
-                return (
+              {/* Market events — filtramos antes de mapear para no inyectar
+                  `null` como child de ChartComponent (recharts puede crashear
+                  haciendo introspección de children con null en algunos paths). */}
+              {events
+                .filter(evt => evt && evt.event_date && periodKeys.has(evt.event_date))
+                .map(evt => (
                   <ReferenceLine
                     key={evt.id}
                     x={evt.event_date}
@@ -790,12 +792,12 @@ function MiniChart({
                     strokeWidth={1.5}
                     label={{
                       value: evt.event_type === 'huelga' ? 'H' : evt.event_type === 'lluvia' ? 'L' : '●',
+                      position: 'top',
                       fill: IMPACT_COLORS[evt.impact] || '#f97316',
                       fontSize: 8, fontWeight: 'bold',
                     }}
                   />
-                )
-              })}
+                ))}
 
               {visibleComps.map(comp => renderSeries(comp))}
 

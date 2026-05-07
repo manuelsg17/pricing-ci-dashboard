@@ -14,6 +14,7 @@ import { BRACKETS, getCountryConfig } from '../lib/constants'
 import { useCountry }      from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
 import EmptyState           from '../components/ui/EmptyState'
+import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import '../styles/dashboard.css'
 
 function DashboardContent({ dbWeights, dbSemaforo = [] }) {
@@ -525,27 +526,29 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
               onDragOver={handleDragOver}
               onDrop={e => handleDrop(e, bracket)}
             >
-              <BracketSection
-                bracket={bracket}
-                label={label}
-                currency={currency}
-                competitors={filters.competitors}
-                periods={periods}
-                priceMatrix={priceMatrix}
-                deltaMatrix={deltaMatrix}
-                semaforoMatrix={semaforoMatrix}
-                diffMatrix={diffMatrix}
-                sampleMatrix={sampleMatrix}
-                compareVs={filters.compareVs}
-                chartData={chartData[bracket] || []}
-                deltaChartData={deltaChartData[bracket] || []}
-                events={marketEvents}
-                semaforoBands={dbSemaforo}
-                frozenWeeks={frozenWeeks}
-                loading={loading}
-                viewMode={filters.viewMode}
-                categoryLabel={filters.dbCategory}
-              />
+              <SectionErrorBoundary label={label}>
+                <BracketSection
+                  bracket={bracket}
+                  label={label}
+                  currency={currency}
+                  competitors={filters.competitors}
+                  periods={periods}
+                  priceMatrix={priceMatrix}
+                  deltaMatrix={deltaMatrix}
+                  semaforoMatrix={semaforoMatrix}
+                  diffMatrix={diffMatrix}
+                  sampleMatrix={sampleMatrix}
+                  compareVs={filters.compareVs}
+                  chartData={chartData[bracket] || []}
+                  deltaChartData={deltaChartData[bracket] || []}
+                  events={marketEvents}
+                  semaforoBands={dbSemaforo}
+                  frozenWeeks={frozenWeeks}
+                  loading={loading}
+                  viewMode={filters.viewMode}
+                  categoryLabel={filters.dbCategory}
+                />
+              </SectionErrorBoundary>
             </div>
           ))}
         </div>
