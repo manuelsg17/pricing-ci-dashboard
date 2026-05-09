@@ -102,32 +102,70 @@ CATEGORY_NORMALIZE = {
     'Comfort':          'Comfort+',
 }
 
-# (app, vc, ovc, competition_name, ui_category, allowed_cities or None)
-BOT_RULES = [
-    ('yango_api', 'economy',  'economy',  'Yango',        'Economy/Comfort', None),
-    ('yango_api', 'comfort',  'comfort',  'YangoComfort', 'Economy/Comfort', None),
-    ('yango_api', 'comfort',  'comfort+', 'Yango',        'Comfort+',        None),
-    ('yango_api', 'premium',  'premier',  'Yango',        'Premier',         {'Lima', 'Lima_Airport'}),
-    ('yango_api', 'xl',       'xl',       'Yango',        'XL',              None),
-    ('yango_api', 'tuktuk',   '*',        'Yango',        'TukTuk',          {'Lima'}),
-    ('uber',      'economy',  'uberx',    'Uber',         'Economy/Comfort', None),
-    ('uber',      'comfort',  'comfort',  'Uber',         'Comfort+',        None),
-    ('uber',      'premium',  'black',    'Uber',         'Premier',         {'Lima', 'Lima_Airport'}),
-    ('uber',      'xl',       'xl',       'Uber',         'XL',              None),
-    ('uber',      'tuktuk',   '*',        'Uber',         'TukTuk',          {'Lima'}),
-    ('indrive',   'economy',  'viaje',    'InDrive',      'Economy/Comfort', None),
-    ('indrive',   'comfort',  'confort',  'InDrive',      'Comfort+',        None),
-    ('indrive',   'xl',       'xl',       'InDrive',      'XL',              None),
-    ('didi',      'economy',  'express',  'Didi',         'Economy/Comfort', None),
-]
+# BOT_RULES se carga desde Supabase (tabla bot_rules) para que cada país
+# tenga su propio set de reglas sin tocar este script. Ver load_bot_rules().
+# El array global se llena en main() después de leer BOT_SYNC_COUNTRY.
+BOT_RULES = []
 
+# botCityMap de respaldo. Si la tabla country_config existe en Supabase,
+# se prefiere ese; si no, este dict cubre los casos conocidos.
 BOT_CITY_MAP = {
+    # Perú
     'lima': 'Lima', 'trujillo': 'Trujillo', 'arequipa': 'Arequipa',
     'lima_airport': 'Lima_Airport',
     'trujillo_airport': 'Trujillo_Airport',
     'arequipa_airport': 'Arequipa_Airport',
-    'bogota': 'Bogota', 'medellin': 'Medellin', 'cali': 'Cali',
+    # Colombia
+    'bogota': 'Bogota', 'bogotá': 'Bogota',
+    'cali': 'Cali',
+    'barranquilla': 'Barranquilla', 'baq': 'Barranquilla',
+    # Otros países LATAM (single-city)
+    'kathmandu': 'Kathmandu',
+    'santa_cruz': 'Santa Cruz', 'santa cruz': 'Santa Cruz',
+    'caracas': 'Caracas',
+    'lusaka': 'Lusaka',
 }
+
+
+def load_bot_rules(country):
+    """
+    Carga botRules desde la tabla bot_rules de Supabase para el country
+    activo. Retorna una lista de tuplas compatible con resolve_rule().
+
+    Ventajas vs hardcodear:
+    - Agregar un país nuevo NO requiere editar este script.
+    - Si el equipo ajusta una regla en SQL/UI, el bot la levanta en la
+      próxima corrida sin necesidad de redeploy.
+    """
+    try:
+        res = requests.get(
+            f'{SUPABASE_URL}/rest/v1/bot_rules',
+            headers=sb_headers(),
+            params={
+                'country':  f'eq.{country}',
+                'active':   'eq.true',
+                'select':   'app,vc,ovc,competition_name,category,cities',
+            },
+            timeout=20,
+        )
+        res.raise_for_status()
+        rows = res.json() or []
+    except Exception as e:
+        print(f"[load_bot_rules] error: {e}", file=sys.stderr)
+        return []
+
+    rules = []
+    for r in rows:
+        cities = set(r.get('cities') or [])
+        rules.append((
+            (r.get('app') or '').lower(),
+            (r.get('vc') or '').lower(),
+            (r.get('ovc') or '').lower(),
+            r.get('competition_name'),
+            r.get('category'),
+            cities if cities else None,
+        ))
+    return rules
 
 
 def normalize_city(c):
@@ -262,6 +300,16 @@ def main():
     table   = os.environ.get('LOCAL_PG_TABLE',  'quotes_output')
     schema  = os.environ.get('LOCAL_PG_SCHEMA', 'public')
     fq_table = f'"{schema}"."{table}"'
+
+    # Cargar BOT_RULES desde Supabase (data-driven multi-país)
+    global BOT_RULES
+    BOT_RULES = load_bot_rules(country)
+    if not BOT_RULES:
+        print(f"⚠ No hay bot_rules activas para country={country}. "
+              f"Verifica que la tabla bot_rules tenga filas para este país.",
+              file=sys.stderr)
+        sys.exit(3)
+    print(f"✓ Loaded {len(BOT_RULES)} bot rules for country={country}", file=sys.stderr)
 
     conn = psycopg2.connect(
         host=os.environ['LOCAL_PG_HOST'],

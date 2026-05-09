@@ -158,7 +158,10 @@ export default function RawData() {
         .eq('id', id)
       
       if (!updErr) {
-        rows.find(r => r.id === id)[field] = finalVal
+        // Inmutable: setRows en lugar de mutar el array directamente.
+        // La mutación directa no dispara re-render y produce
+        // inconsistencias visuales.
+        setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: finalVal } : r))
         toast.ok('Valor actualizado.')
       } else {
         toast.err('Error actualizando: ' + updErr.message)

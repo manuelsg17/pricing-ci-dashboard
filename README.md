@@ -140,3 +140,53 @@ para entender el modelo:
 - Render principal de tablas: [src/components/dashboard/BracketSection.jsx](src/components/dashboard/BracketSection.jsx).
 - Auth/RBAC: [src/lib/auth.js](src/lib/auth.js) + [src/hooks/useAccessControl.js](src/hooks/useAccessControl.js).
 - i18n (es/en/ru): [src/lib/i18n.js](src/lib/i18n.js) — todos los strings van acá.
+
+---
+
+## Roadmap — Self-service config (planificado)
+
+Hoy la mayoría de la config (cities, categorías, competidores, botRules,
+botCityMap, weights por defecto) vive en `src/lib/constants.js` →
+`COUNTRY_CONFIG`. Esto exige tocar código + redeploy para añadir un país,
+ciudad, categoría o competidor nuevo.
+
+Tablas DB que ya soportan multi-país (no requieren código):
+- `bracket_weights` — UI: Config > Pesos
+- `distance_thresholds` — UI: Config > Distancias
+- `price_validation_rules` — UI: Config > Límites Precio
+- `semaforo_config` — UI: Config > Semáforo
+- `commission_rules`, `bonus_config`, `rush_hour_config` — todas tienen UI
+- `bot_rules` — DB lista (ver `supabase/37_bot_rules_table.sql`), **falta UI**
+- `country_config` (jsonb cities/categories/competitors) — DB lista, **UI parcial** en
+  [src/components/config/CountriesConfig.jsx](src/components/config/CountriesConfig.jsx)
+
+Bloqueo actual de self-service: cualquier país que esté hardcoded en
+`COUNTRY_CONFIG` queda 🔒 read-only en `CountriesConfig.jsx` (ver línea 99).
+
+### Plan en 3 fases
+
+**Fase 1 — Quick win (Colombia ya migrada hoy):**
+- ✅ Mover el array `COUNTRY_CONFIG.Colombia.botRules` a la tabla `bot_rules`
+  (script `supabase/45_colombia_setup.sql`).
+- ✅ Hacer `bot_sync_push.py` y la edge function `sync-bot-quotes` cargar
+  `bot_rules` desde Supabase en cada corrida (data-driven).
+
+**Fase 2 — Self-service de bot rules y countries (próxima sprint):**
+- Crear `BotRulesConfig.jsx` (~150 LOC, mirror de `CountriesConfig.jsx`):
+  CRUD sobre `bot_rules` con dropdown de country, app, vc, ovc, name,
+  category, cities[]. Una pestaña nueva en Config.
+- Migrar `COUNTRY_CONFIG.Peru` y `Colombia` a la tabla `country_config`,
+  borrar las entradas hardcoded en `constants.js` (mantener Nepal, Bolivia,
+  Venezuela, Zambia hardcoded mientras no se necesiten).
+- Cambiar el lock de `CountriesConfig.jsx:99` a "DB overrides constants"
+  con un botón "Promover a DB" para cualquier país read-only.
+
+**Fase 3 — UX completo de onboarding de país (futuro):**
+- Wizard guiado "Agregar país nuevo" en `Config > Países` que:
+  1. Crea fila en `country_config` (cities, categories, competitors)
+  2. Inserta `bracket_weights` defaults
+  3. Inserta `distance_thresholds` defaults (copiando de un país-template)
+  4. Inserta `bot_rules` con plantilla común (yango/uber/indrive/didi)
+  5. Inserta `price_validation_rules` con tope estimado (currency-aware)
+  6. Marca el país como activo y aparece en el dropdown del topbar
+- Estimación: ~1 semana de trabajo. ROI alto cuando expandan a más países.

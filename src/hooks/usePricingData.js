@@ -3,21 +3,9 @@ import { sb } from '../lib/supabase'
 import { BRACKETS, BRACKET_LABELS, DEFAULT_WEIGHTS } from '../lib/constants'
 import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAverage'
 import { computeDelta, getSemaforoClass } from '../algorithms/semaforo'
+import { getISOYearWeek as getYearWeek } from '../lib/dateUtils'
 
 const ALL_TIME_SLOTS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
-
-/**
- * Extrae año e ISO week de una fecha JS
- */
-function getYearWeek(date) {
-  const d = new Date(date)
-  const dayOfWeek = d.getDay() || 7
-  d.setDate(d.getDate() + 4 - dayOfWeek)
-  const year = d.getFullYear()
-  const startOfYear = new Date(year, 0, 1)
-  const week = Math.ceil(((d - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7)
-  return { year, week }
-}
 
 function getSemaforoClassDynamic(deltaPct, bands) {
   if (deltaPct === null || deltaPct === undefined) return 'sem-none'
@@ -54,7 +42,11 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
 
   // ── Cargar datos desde Supabase ──────────────────────────
   useEffect(() => {
-    if (!dbCity || !dbCategory) return
+    if (!dbCity || !dbCategory) {
+      // Sin city/category válidas → limpiar loading para evitar overlay infinito
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
 

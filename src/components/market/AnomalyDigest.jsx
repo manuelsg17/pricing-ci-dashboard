@@ -20,6 +20,7 @@ export default function AnomalyDigest({ priceMatrix = {}, periods = [], competit
         // rolling stats sobre todo menos el último período
         const hist = series.slice(0, -1)
         const mean = hist.reduce((a, n) => a + n, 0) / hist.length
+        if (mean <= 0) continue   // evitar division por cero / Infinity%
         const variance = hist.reduce((a, n) => a + (n - mean) ** 2, 0) / hist.length
         const sd = Math.sqrt(variance)
         if (sd < 0.05) continue   // serie demasiado estable, ignorar

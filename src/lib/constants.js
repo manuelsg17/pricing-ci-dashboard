@@ -338,57 +338,84 @@ export const COUNTRY_CONFIG = {
     currency: 'COP',
     locale:   'es-CO',
 
-    cities:   ['Bogotá', 'Medellín', 'Cali'],
-    dbCities: ['Bogotá', 'Medellín', 'Cali'],
+    // Estructura real (mayo 2026): Bogotá, Cali, Barranquilla.
+    // dbCities sin tilde para matchear el normalize del bot (helioho.st
+    // emite city sin acento; ver supabase/38_sync_bot_quotes_fn.sql CASE).
+    cities:   ['Bogotá', 'Cali', 'Barranquilla'],
+    dbCities: ['Bogota', 'Cali', 'Barranquilla'],
 
     categoriesByCity: {
-      Bogotá:   ['Economy', 'Comfort', 'XL'],
-      Medellín: ['Economy', 'Comfort'],
-      Cali:     ['Economy'],
+      'Bogotá':       ['Economy', 'Bike', 'Comfort'],
+      'Cali':         ['Economy', 'Bike', 'Comfort'],
+      'Barranquilla': ['Economy', 'Bike', 'Comfort'],
     },
 
     aeropuertoSubcategories: [],
 
     categoryDbMap: {
-      'Bogotá|||Economy':   { dbCity: 'Bogotá',   dbCategory: 'Economy' },
-      'Bogotá|||Comfort':   { dbCity: 'Bogotá',   dbCategory: 'Comfort' },
-      'Bogotá|||XL':        { dbCity: 'Bogotá',   dbCategory: 'XL'      },
-      'Medellín|||Economy': { dbCity: 'Medellín', dbCategory: 'Economy' },
-      'Medellín|||Comfort': { dbCity: 'Medellín', dbCategory: 'Comfort' },
-      'Cali|||Economy':     { dbCity: 'Cali',     dbCategory: 'Economy' },
+      'Bogotá|||Economy':       { dbCity: 'Bogota',       dbCategory: 'Economy' },
+      'Bogotá|||Bike':          { dbCity: 'Bogota',       dbCategory: 'Bike'    },
+      'Bogotá|||Comfort':       { dbCity: 'Bogota',       dbCategory: 'Comfort' },
+      'Cali|||Economy':         { dbCity: 'Cali',         dbCategory: 'Economy' },
+      'Cali|||Bike':            { dbCity: 'Cali',         dbCategory: 'Bike'    },
+      'Cali|||Comfort':         { dbCity: 'Cali',         dbCategory: 'Comfort' },
+      'Barranquilla|||Economy': { dbCity: 'Barranquilla', dbCategory: 'Economy' },
+      'Barranquilla|||Bike':    { dbCity: 'Barranquilla', dbCategory: 'Bike'    },
+      'Barranquilla|||Comfort': { dbCity: 'Barranquilla', dbCategory: 'Comfort' },
     },
 
+    // Picap solo aparece en Bike (es app moto-only colombiana).
     competitorsByDbCityCategory: {
-      Bogotá: {
-        Economy: ['Yango', 'Uber', 'InDrive', 'Cabify', 'Beat'],
-        Comfort: ['Yango', 'Uber', 'InDrive', 'Cabify'],
-        XL:      ['Yango', 'Uber', 'InDrive'],
-      },
-      Medellín: {
-        Economy: ['Yango', 'Uber', 'InDrive', 'Cabify', 'Beat'],
-        Comfort: ['Yango', 'Uber', 'InDrive'],
+      Bogota: {
+        Economy: ['Yango', 'Didi', 'InDrive', 'Uber'],
+        Bike:    ['Yango', 'Didi', 'InDrive', 'Picap'],
+        Comfort: ['Yango', 'Didi', 'InDrive', 'Uber'],
       },
       Cali: {
-        Economy: ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        Economy: ['Yango', 'Didi', 'InDrive', 'Uber'],
+        Bike:    ['Yango', 'Didi', 'InDrive', 'Picap'],
+        Comfort: ['Yango', 'Didi', 'InDrive', 'Uber'],
+      },
+      Barranquilla: {
+        Economy: ['Yango', 'Didi', 'InDrive', 'Uber'],
+        Bike:    ['Yango', 'Didi', 'InDrive', 'Picap'],
+        Comfort: ['Yango', 'Didi', 'InDrive', 'Uber'],
       },
     },
 
     yangoDisplayName: {
-      Bogotá:   { Economy: 'Yango', Comfort: 'Yango', XL: 'Yango' },
-      Medellín: { Economy: 'Yango', Comfort: 'Yango' },
-      Cali:     { Economy: 'Yango' },
+      Bogota:       { Economy: 'Yango', Bike: 'Yango', Comfort: 'Yango' },
+      Cali:         { Economy: 'Yango', Bike: 'Yango', Comfort: 'Yango' },
+      Barranquilla: { Economy: 'Yango', Bike: 'Yango', Comfort: 'Yango' },
     },
 
-    weightCities: ['all', 'Bogotá', 'Medellín', 'Cali'],
+    weightCities: ['all', 'Bogota', 'Cali', 'Barranquilla'],
     outlierThreshold: 300000,
     maxPrice: 1000000,
     botCityMap: {
-      'bogota': 'Bogotá',
-      'bogotá': 'Bogotá',
-      'medellin': 'Medellín',
-      'medellín': 'Medellín',
-      'cali': 'Cali'
-    }
+      'bogota': 'Bogota',
+      'bogotá': 'Bogota',
+      'cali':   'Cali',
+      'barranquilla': 'Barranquilla',
+      'baq':    'Barranquilla',
+    },
+    botRules: [
+      // Economy
+      { app: 'yango',   vc: 'economy', ovc: 'economy',  name: 'Yango',   category: 'Economy' },
+      { app: 'uber',    vc: 'economy', ovc: 'uberx',    name: 'Uber',    category: 'Economy' },
+      { app: 'didi',    vc: 'economy', ovc: 'express',  name: 'Didi',    category: 'Economy' },
+      { app: 'indrive', vc: 'economy', ovc: 'viaje',    name: 'InDrive', category: 'Economy' },
+      // Comfort
+      { app: 'yango',   vc: 'comfort', ovc: 'comfort',  name: 'Yango',   category: 'Comfort' },
+      { app: 'uber',    vc: 'comfort', ovc: 'comfort',  name: 'Uber',    category: 'Comfort' },
+      { app: 'didi',    vc: 'comfort', ovc: '*',        name: 'Didi',    category: 'Comfort' },
+      { app: 'indrive', vc: 'comfort', ovc: 'confort',  name: 'InDrive', category: 'Comfort' },
+      // Bike (sin Uber — Uber no opera moto en Colombia. Picap es moto-only.)
+      { app: 'yango',   vc: 'moto',    ovc: '*',        name: 'Yango',   category: 'Bike' },
+      { app: 'didi',    vc: 'moto',    ovc: '*',        name: 'Didi',    category: 'Bike' },
+      { app: 'indrive', vc: 'moto',    ovc: '*',        name: 'InDrive', category: 'Bike' },
+      { app: 'picap',   vc: 'moto',    ovc: '*',        name: 'Picap',   category: 'Bike' },
+    ],
   },
 }
 

@@ -69,30 +69,35 @@ const COMPETITOR_NORMALIZE: Record<string, string> = {
   'YangoComfort+':   'Yango',
 }
 
-// ── Reglas del bot (Perú). Mismo contenido que constants.js → botRules.
-//     Cuando se confirme el esquema real de quotes_output, esto se
-//     puede mover a una tabla bot_rules en Supabase para que sea
-//     editable desde Config → Países sin redeployar la función.
-const BOT_RULES: Array<{
+// ── Reglas del bot — data-driven desde tabla bot_rules en Supabase.
+//     Cada país tiene su propio set de reglas. La función las carga
+//     en cada invocación filtrando por country (loadBotRules).
+type BotRule = {
   app: string; vc: string; ovc: string;
   name: string; category: string; cities?: string[];
-}> = [
-  { app: 'yango_api', vc: 'economy',  ovc: 'economy',  name: 'Yango',       category: 'Economy/Comfort' },
-  { app: 'yango_api', vc: 'comfort',  ovc: 'comfort',  name: 'YangoComfort',category: 'Economy/Comfort' },
-  { app: 'yango_api', vc: 'comfort',  ovc: 'comfort+', name: 'Yango',       category: 'Comfort+' },
-  { app: 'yango_api', vc: 'premier',  ovc: 'premier',  name: 'Yango',       category: 'Premier',      cities: ['Lima','Lima_Airport'] },
-  { app: 'yango_api', vc: 'xl',       ovc: 'xl',       name: 'Yango',       category: 'XL' },
-  { app: 'yango_api', vc: 'tuktuk',   ovc: '*',        name: 'Yango',       category: 'TukTuk',       cities: ['Lima'] },
-  { app: 'uber',      vc: 'economy',  ovc: 'uberx',    name: 'Uber',        category: 'Economy/Comfort' },
-  { app: 'uber',      vc: 'comfort',  ovc: 'comfort',  name: 'Uber',        category: 'Comfort+' },
-  { app: 'uber',      vc: 'premium',  ovc: 'black',    name: 'Uber',        category: 'Premier',      cities: ['Lima','Lima_Airport'] },
-  { app: 'uber',      vc: 'xl',       ovc: 'xl',       name: 'Uber',        category: 'XL' },
-  { app: 'uber',      vc: 'tuktuk',   ovc: '*',        name: 'Uber',        category: 'TukTuk',       cities: ['Lima'] },
-  { app: 'indrive',   vc: 'economy',  ovc: 'viaje',    name: 'InDrive',     category: 'Economy/Comfort' },
-  { app: 'indrive',   vc: 'comfort',  ovc: 'confort',  name: 'InDrive',     category: 'Comfort+' },
-  { app: 'indrive',   vc: 'xl',       ovc: 'xl',       name: 'InDrive',     category: 'XL' },
-  { app: 'didi',      vc: 'economy',  ovc: 'express',  name: 'Didi',        category: 'Economy/Comfort' },
-]
+}
+
+let BOT_RULES: BotRule[] = []
+
+async function loadBotRules(admin: any, country: string): Promise<BotRule[]> {
+  const { data, error } = await admin
+    .from('bot_rules')
+    .select('app, vc, ovc, competition_name, category, cities')
+    .eq('country', country)
+    .eq('active', true)
+  if (error) {
+    console.error('[loadBotRules] error', error)
+    return []
+  }
+  return (data || []).map((r: any): BotRule => ({
+    app:      String(r.app || '').toLowerCase(),
+    vc:       String(r.vc || '').toLowerCase(),
+    ovc:      String(r.ovc || '').toLowerCase(),
+    name:     r.competition_name,
+    category: r.category,
+    cities:   (r.cities && r.cities.length > 0) ? r.cities : undefined,
+  }))
+}
 
 function resolveByRules(appKey: string, vc: string, ovc: string, dbCity: string) {
   const a = (appKey || '').toLowerCase()
@@ -109,9 +114,18 @@ function resolveByRules(appKey: string, vc: string, ovc: string, dbCity: string)
 }
 
 const BOT_CITY_MAP: Record<string, string> = {
+  // Perú
   lima: 'Lima', trujillo: 'Trujillo', arequipa: 'Arequipa',
   lima_airport: 'Lima_Airport', trujillo_airport: 'Trujillo_Airport', arequipa_airport: 'Arequipa_Airport',
-  bogota: 'Bogota', medellin: 'Medellin', cali: 'Cali',
+  // Colombia
+  bogota: 'Bogota', 'bogotá': 'Bogota',
+  cali: 'Cali',
+  barranquilla: 'Barranquilla', baq: 'Barranquilla',
+  // Otros LATAM
+  kathmandu: 'Kathmandu',
+  santa_cruz: 'Santa Cruz',
+  caracas: 'Caracas',
+  lusaka: 'Lusaka',
 }
 function normalizeCity(c: string | null | undefined): string | null {
   if (!c) return null
@@ -225,9 +239,20 @@ Deno.serve(async (req) => {
   const from    = body.from   // 'YYYY-MM-DD' opcional
   const to      = body.to     // 'YYYY-MM-DD' opcional
 
+  // Cargar bot_rules para el país. Si no hay, abortamos antes de tocar
+  // la BD del bot — sin reglas no hay nada útil que ingerir.
+  BOT_RULES = await loadBotRules(admin, country)
+  if (BOT_RULES.length === 0) {
+    return json(400, {
+      ok: false,
+      error: `No hay reglas activas en bot_rules para country='${country}'. ` +
+             `Inserta filas vía supabase/45_colombia_setup.sql o el equivalente.`,
+    })
+  }
+
   // Crear log entry
   const { data: logRow } = await admin.from('bot_sync_log').insert({
-    country, status: 'running', notes: { action, limit, from, to, caller: caller.email },
+    country, status: 'running', notes: { action, limit, from, to, caller: caller.email, rules_loaded: BOT_RULES.length },
   }).select().single()
   const logId = logRow?.id
 

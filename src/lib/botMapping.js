@@ -19,6 +19,7 @@ const APP_KEY_MAP = {
   didi:      'didi',
   indrive:   'indrive',
   cabify:    'cabify',
+  picap:     'picap',  // Colombia: app moto-only
 }
 
 // competition_name por defecto cuando no se usan reglas (fallback legacy)
@@ -29,6 +30,7 @@ const APP_MAP = {
   didi:      'Didi',
   indrive:   'InDrive',
   cabify:    'Cabify',
+  picap:     'Picap',
 }
 
 // ── Legacy path (países sin botRules) ─────────────────────

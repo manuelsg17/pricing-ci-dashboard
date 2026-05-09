@@ -79,6 +79,8 @@ function getThreshold(rules, city, category, competition) {
   const byCity = rules.find(r => r.city === city && r.category === 'all' && r.competition === 'all')
   if (byCity) return byCity.max_price
 
-  // Sin regla → no bloquear
-  return 999
+  // Sin regla → no bloquear. Importante: NO usar 999 como fallback,
+  // porque rompe países con escala COP (ej. un viaje de 50000 COP en
+  // Colombia se marcaría falsamente como outlier).
+  return Infinity
 }

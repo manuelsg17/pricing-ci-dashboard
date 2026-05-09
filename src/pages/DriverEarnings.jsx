@@ -261,6 +261,11 @@ export default function DriverEarnings() {
     setSaving(false)
   }
 
+  // Helper: ¿este competidor es una variante de Yango?
+  // Definido arriba de generateEarningsPDF para evitar TDZ si la función
+  // se invoca antes de que el const sea evaluado.
+  const isYango = (comp) => comp.startsWith('Yango') || comp.startsWith('yango')
+
   // ── Generate PDF ─────────────────────────────────────────────────────
   function generateEarningsPDF() {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -361,8 +366,6 @@ export default function DriverEarnings() {
 
   // ── Sorted trip scale for display ─────────────────────────────────────
   const sortedScale = [...tripScale].sort((a, b) => a - b)
-
-  const isYango = (comp) => comp.startsWith('Yango') || comp.startsWith('yango')
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (

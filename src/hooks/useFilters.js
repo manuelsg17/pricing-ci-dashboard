@@ -107,15 +107,22 @@ export function useFilters(country) {
 
   // ── Cascade effects (suppressed on initial mount and during applyPreset) ──
 
-  // country → reset city, category, zone
+  // country → reset city, category, zone, compareVs (explicit defense-in-depth)
   useEffect(() => {
     if (suppressCascades.current) return
     const firstCity = CITIES[0]
     setCity(firstCity)
     const cats = CATEGORIES_BY_CITY[firstCity] || []
-    setCategory(cats[0] || '')
+    const firstCat = cats[0] || ''
+    setCategory(firstCat)
     setSubCategory(null)
     setZone('All')
+    // Resetear compareVs explícitamente. Si el usuario venía con
+    // compareVs='Cabify' (Perú) y cambia a Colombia donde Cabify no
+    // existe, el cascade de category lo reseteará pero solo si
+    // category también cambió. Reseteo explícito = garantía.
+    const comps = getCompetitors(firstCity, firstCat, null, country)
+    setCompareVs(comps[0] || 'Yango')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country])
 

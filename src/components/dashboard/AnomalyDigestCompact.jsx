@@ -19,6 +19,7 @@ export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], c
         if (cur == null) continue
         const hist = series.slice(0, -1)
         const mean = hist.reduce((a, n) => a + n, 0) / hist.length
+        if (mean <= 0) continue   // evitar division por cero
         const variance = hist.reduce((a, n) => a + (n - mean) ** 2, 0) / hist.length
         const sd = Math.sqrt(variance)
         if (sd < 0.05) continue

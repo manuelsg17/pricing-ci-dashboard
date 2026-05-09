@@ -65,6 +65,13 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Una corrida por país. Se ejecutan en paralelo, cada una con su
+    # propio BOT_SYNC_COUNTRY. Para añadir un país nuevo, solo agregalo
+    # a esta lista — el script lee bot_rules de Supabase data-driven.
+    strategy:
+      fail-fast: false
+      matrix:
+        country: [Peru, Colombia]
 
     steps:
       - name: Checkout
@@ -81,7 +88,7 @@ jobs:
         run: |
           pip install --quiet -r scripts/bot-sync/requirements.txt
 
-      - name: Run sync (or probe)
+      - name: Run sync (or probe) — ${{ matrix.country }}
         env:
           LOCAL_PG_HOST:             ${{ secrets.LOCAL_PG_HOST }}
           LOCAL_PG_PORT:             ${{ secrets.LOCAL_PG_PORT }}
@@ -92,7 +99,7 @@ jobs:
           LOCAL_PG_SCHEMA:           ${{ secrets.LOCAL_PG_SCHEMA }}
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          BOT_SYNC_COUNTRY:          ${{ secrets.BOT_SYNC_COUNTRY }}
+          BOT_SYNC_COUNTRY:          ${{ matrix.country }}
         run: |
           cd scripts/bot-sync
           if [ "${{ inputs.probe_only }}" = "true" ]; then

@@ -73,8 +73,10 @@ BEGIN
         WHEN 'trujillo_airport'  THEN 'Trujillo_Airport'
         WHEN 'arequipa_airport'  THEN 'Arequipa_Airport'
         WHEN 'bogota'            THEN 'Bogota'
-        WHEN 'medellin'          THEN 'Medellin'
+        WHEN 'bogotá'            THEN 'Bogota'
         WHEN 'cali'              THEN 'Cali'
+        WHEN 'barranquilla'      THEN 'Barranquilla'
+        WHEN 'baq'               THEN 'Barranquilla'
         ELSE s.city
       END AS db_city,
       -- normalize bracket
