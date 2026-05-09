@@ -50,15 +50,19 @@ export default function App() {
   }, [acLoading])
 
   // Si el tab activo no es accesible, redirigir a dashboard
+  // canAccess is stable (useCallback) so we can safely depend on it.
   useEffect(() => {
     if (!acLoading && !canAccess(activeTab)) {
       setActiveTab('dashboard')
     }
-  }, [acLoading])
+  }, [acLoading, canAccess, activeTab])
 
   // Listener para navegación entre pestañas desde componentes hijos
   // (ej: el digest compact en Dashboard linkea a Mercado).
+  // canAccess is stable (useCallback in useAccessControl) so this effect
+  // only re-mounts when `role` actually changes, not on every render.
   useEffect(() => {
+    let scrollTimer = null
     function handler(e) {
       const tab = e.detail?.tab
       if (tab && canAccess(tab)) {
@@ -66,14 +70,17 @@ export default function App() {
         const section = e.detail?.section
         if (section) {
           // scroll a la sección después que el tab montó
-          setTimeout(() => {
+          scrollTimer = setTimeout(() => {
             document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }, 200)
         }
       }
     }
     window.addEventListener('navigate-to-tab', handler)
-    return () => window.removeEventListener('navigate-to-tab', handler)
+    return () => {
+      window.removeEventListener('navigate-to-tab', handler)
+      if (scrollTimer) clearTimeout(scrollTimer)
+    }
   }, [canAccess])
 
   if (loading || acLoading) {

@@ -52,19 +52,21 @@ export function useAccessControl() {
 
   useEffect(() => { loadProfile() }, [loadProfile])
 
-  function canAccess(section) {
+  // Stable identity tied to `role` so consumers can safely add these to
+  // useEffect deps without causing re-mount loops.
+  const canAccess = useCallback((section) => {
     if (!role) return true          // No profile = unrestricted (backward compat)
     const sections = role.permissions?.sections || []
     if (sections.includes('all')) return true
     return sections.includes(section)
-  }
+  }, [role])
 
-  function canAccessCountry(country) {
+  const canAccessCountry = useCallback((country) => {
     if (!role) return true
     const countries = role.permissions?.countries || []
     if (countries.includes('all')) return true
     return countries.includes(country)
-  }
+  }, [role])
 
   const isAdmin = role?.name === 'admin'
 

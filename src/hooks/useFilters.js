@@ -267,8 +267,12 @@ export function useFilters(country) {
     if (p.historicFrom) setHistoricFrom(p.historicFrom)
     if (p.historicTo)   setHistoricTo(p.historicTo)
     if (p.timeOfDay)    setTimeOfDay(p.timeOfDay)
-    // Re-enable cascades after effects have fired for this batch
-    setTimeout(() => { suppressCascades.current = false }, 150)
+    // Re-enable cascades after React has painted this batch.
+    // Two RAFs guarantees we run after all useEffect cascades for the
+    // batched state updates have flushed (independent of device speed).
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { suppressCascades.current = false })
+    })
   }
 
   return {

@@ -342,6 +342,21 @@ Deno.serve(async (req) => {
         continue
       }
 
+      // Normalizar bracket si el bot lo emite. Si viene null, el trigger
+      // de la BD lo computa desde distance_km (ahora que get_distance_bracket
+      // está fixeado en migración 46).
+      const rawBracket = raw.distance_bracket
+      const norm_bracket = rawBracket
+        ? String(rawBracket).toLowerCase().replace(/\s+/g, '_')
+        : null
+
+      // Distance: aceptar distance_km directo o caer a distance_meters/1000.
+      let distance_km = num(raw.distance_km)
+      if (distance_km == null && raw.distance_meters != null) {
+        const dm = num(raw.distance_meters)
+        distance_km = dm != null ? dm / 1000 : null
+      }
+
       accepted.push({
         country,
         city: dbCity,
@@ -352,7 +367,8 @@ Deno.serve(async (req) => {
         recommended_price,
         price_with_discount,
         price_without_discount,
-        distance_km:  num(raw.distance_km),
+        distance_km,
+        distance_bracket: norm_bracket,
         eta_min:      num(raw.eta_min),
         surge:        toBool(raw.surge),
         rush_hour:    toBool(raw.rush_hour),

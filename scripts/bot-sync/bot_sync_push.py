@@ -434,6 +434,22 @@ def main():
                 norm_bracket = BRACKET_NORMALIZE.get(raw_bracket.lower()) \
                             or raw_bracket.lower().replace(' ', '_')
 
+            # distance_km: si el bot lo emite directo úsalo, si no probá
+            # con distance_meters/1000. Sin esto, el trigger de la BD no
+            # puede computar bracket cuando raw_bracket viene NULL —
+            # cae al fallback NULL→'very_long' y rompe el dashboard.
+            distance_km = raw.get('distance_km')
+            if distance_km is None and raw.get('distance_meters') is not None:
+                try:
+                    distance_km = float(raw['distance_meters']) / 1000.0
+                except (TypeError, ValueError):
+                    distance_km = None
+            if distance_km is not None:
+                try:
+                    distance_km = float(distance_km)
+                except (TypeError, ValueError):
+                    distance_km = None
+
             # Direcciones: preferimos start_address/end_address (más ricos —
             # incluyen nombre + dirección). Si vienen vacíos, caemos a las
             # versiones observed_* que son la versión geocodificada.
@@ -455,6 +471,7 @@ def main():
                 'eta_min':                float(raw['eta_mins']) if raw.get('eta_mins') is not None else None,
                 'surge':                  raw.get('surge'),
                 'distance_bracket':       norm_bracket,
+                'distance_km':            distance_km,
                 'point_a':                point_a,
                 'point_b':                point_b,
                 'data_source':            'bot',
