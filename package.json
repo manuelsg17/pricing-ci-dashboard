@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:bot-mapping": "node scripts/test-bot-mapping.mjs"
+    "test:bot-mapping": "node scripts/test-bot-mapping.mjs",
+    "test:bracket-normalize": "node scripts/test-bracket-normalize.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

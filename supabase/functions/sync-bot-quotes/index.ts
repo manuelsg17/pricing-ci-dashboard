@@ -342,13 +342,22 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // Normalizar bracket si el bot lo emite. Si viene null, el trigger
-      // de la BD lo computa desde distance_km (ahora que get_distance_bracket
-      // está fixeado en migración 46).
-      const rawBracket = raw.distance_bracket
-      const norm_bracket = rawBracket
-        ? String(rawBracket).toLowerCase().replace(/\s+/g, '_')
-        : null
+      // Normalizar bracket — colapsa variantes zone-aware a los 6 canónicos.
+      // Mismo algoritmo que normalize_distance_bracket() en SQL (mig 47)
+      // y bot_sync_push.py.
+      const norm_bracket = (() => {
+        const raw_b = raw.distance_bracket
+        if (!raw_b) return null
+        let s = String(raw_b).toLowerCase().replace(/[\s-]+/g, '_')
+        s = s.replace(/^airport_/, '')
+        s = s.replace(/_(madrid|funza|mosquera|cota|chia|soacha|cajica|tenjo|sopo|sibate)$/, '')
+        s = s.replace(/_(zona_sur|zona_norte|zona_centro|zona_este|zona_oeste|sur|norte|centro|este|oeste)$/, '')
+        s = s.replace(/_(a|b)$/, '')
+        if (s === 'medium')     s = 'median'
+        if (s === 'very short') s = 'very_short'
+        if (s === 'very long')  s = 'very_long'
+        return ['very_short','short','median','average','long','very_long'].includes(s) ? s : null
+      })()
 
       // Distance: aceptar distance_km directo o caer a distance_meters/1000.
       let distance_km = num(raw.distance_km)

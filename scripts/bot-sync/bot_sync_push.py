@@ -87,6 +87,29 @@ BRACKET_NORMALIZE = {
     'long':       'long',
 }
 
+# 6 brackets canónicos que entiende el dashboard. Cualquier variante
+# (long_a, airport_short_b, median_zona_sur, *_madrid, etc.) tiene que
+# colapsar a uno de estos o a None.
+import re as _re
+_CANONICAL = {'very_short', 'short', 'median', 'average', 'long', 'very_long'}
+_SATELLITE_RE = _re.compile(r'_(madrid|funza|mosquera|cota|chia|soacha|cajica|tenjo|sopo|sibate)$')
+_ZONE_RE      = _re.compile(r'_(zona_(sur|norte|centro|este|oeste)|sur|norte|centro|este|oeste)$')
+_AB_RE        = _re.compile(r'_(a|b)$')
+
+def normalize_distance_bracket(raw):
+    """Mapea variantes zone-aware del bot al canónico, o None."""
+    if not raw:
+        return None
+    s = _re.sub(r'[\s\-]+', '_', str(raw).lower())
+    s = _re.sub(r'^airport_', '', s)
+    s = _SATELLITE_RE.sub('', s)
+    s = _ZONE_RE.sub('', s)
+    s = _AB_RE.sub('', s)
+    if s == 'medium':     s = 'median'   # typo común del bot
+    if s == 'very short': s = 'very_short'
+    if s == 'very long':  s = 'very_long'
+    return s if s in _CANONICAL else None
+
 
 # ── Reglas y diccionarios ───────────────────────────────────────────────
 # Deben coincidir con:
@@ -427,12 +450,12 @@ def main():
             observed_date = local_dt.date().isoformat()
             observed_time = local_dt.strftime('%H:%M:%S')
 
-            # distance_bracket: el bot ya viene con bracket en Title Case
+            # distance_bracket: usa el normalizador robusto que colapsa
+            # variantes zone-aware (long_a, airport_short_b, *_zona_sur,
+            # *_madrid, etc.) a uno de los 6 canónicos. Si no matchea
+            # → None y el trigger intenta computar desde distance_km.
             raw_bracket = raw.get('distance_bracket')
-            norm_bracket = None
-            if raw_bracket:
-                norm_bracket = BRACKET_NORMALIZE.get(raw_bracket.lower()) \
-                            or raw_bracket.lower().replace(' ', '_')
+            norm_bracket = normalize_distance_bracket(raw_bracket)
 
             # distance_km: si el bot lo emite directo úsalo, si no probá
             # con distance_meters/1000. Sin esto, el trigger de la BD no
