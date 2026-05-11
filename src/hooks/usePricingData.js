@@ -169,7 +169,10 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         }
       }
 
-      const weights = buildWeightsMap(dbWeights || [], filters.dbCity) || DEFAULT_WEIGHTS
+      // Pasamos dbCategory para que la cascada de pesos resuelva por
+      // (city, category) con fallback a (city, 'all'). Si dbCategory no
+      // está definido, buildWeightsMap usa 'all' (retrocompat pre mig 56).
+      const weights = buildWeightsMap(dbWeights || [], filters.dbCity, filters.dbCategory) || DEFAULT_WEIGHTS
 
       // Determinar períodos (columnas)
       let periods = []

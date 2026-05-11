@@ -8,33 +8,54 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
   const config = getCountryConfig(country)
   const weightCities = useMemo(() => ['all', ...config.dbCities], [config.dbCities])
 
-  const [activeCity, setActiveCity] = useState(weightCities[1] || 'all')
+  // Lista de categorías disponibles para el país. 'all' es default y
+  // siempre presente (representa pesos globales del país, retrocompat
+  // con pre mig 56).
+  const weightCategories = useMemo(() => {
+    const cats = new Set(['all'])
+    Object.values(config.categoriesByCity || {}).forEach(list =>
+      (list || []).forEach(c => cats.add(c))
+    )
+    return Array.from(cats)
+  }, [config.categoriesByCity])
+
+  const [activeCity,     setActiveCity]     = useState(weightCities[1] || 'all')
+  const [activeCategory, setActiveCategory] = useState('all')
 
   // Reseteo si cambia país
   useEffect(() => {
     if (!weightCities.includes(activeCity)) {
        setActiveCity(weightCities[1] || 'all')
     }
-  }, [country, weightCities, activeCity])
+    if (!weightCategories.includes(activeCategory)) {
+      setActiveCategory('all')
+    }
+  }, [country, weightCities, weightCategories, activeCity, activeCategory])
 
   const [local,   setLocal]   = useState({})
   const [saveMsg, setSaveMsg] = useState(null)
 
-  const getKey = (city, bracket) => `${city}|||${bracket}`
+  const getKey = (city, category, bracket) => `${city}|||${category}|||${bracket}`
 
+  // Lee la fila exacta para (city, category). Sin fallback —
+  // la cascada se aplica en buildWeightsMap al consumir, no acá.
   const getDbValue = (bracket) => {
-    const row = weights.find(w => w.city === activeCity && w.bracket === bracket)
+    const row = weights.find(w =>
+      w.city === activeCity &&
+      (w.category ?? 'all') === activeCategory &&
+      w.bracket === bracket
+    )
     return row ? (Number(row.weight) * 100).toFixed(2) : ''
   }
 
   const getValue = (bracket) => {
-    const key = getKey(activeCity, bracket)
+    const key = getKey(activeCity, activeCategory, bracket)
     if (key in local) return local[key]
     return getDbValue(bracket)
   }
 
   const isDirty = (bracket) => {
-    const key = getKey(activeCity, bracket)
+    const key = getKey(activeCity, activeCategory, bracket)
     if (!(key in local)) return false
     return String(local[key] ?? '') !== String(getDbValue(bracket) ?? '')
   }
@@ -43,14 +64,14 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
 
   const handleChange = (bracket, val) => {
     setSaveMsg(null)
-    setLocal(prev => ({ ...prev, [getKey(activeCity, bracket)]: val }))
+    setLocal(prev => ({ ...prev, [getKey(activeCity, activeCategory, bracket)]: val }))
   }
 
   const handleDiscard = () => {
     setSaveMsg(null)
     setLocal(prev => {
       const next = { ...prev }
-      BRACKETS.forEach(b => delete next[getKey(activeCity, b)])
+      BRACKETS.forEach(b => delete next[getKey(activeCity, activeCategory, b)])
       return next
     })
   }
@@ -62,7 +83,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
       return sum + v
     }, 0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [local, weights, activeCity])
+  }, [local, weights, activeCity, activeCategory])
 
   const totalOk = Math.abs(totalPct - 100) < 0.1
 
@@ -101,17 +122,19 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     }
 
     const rows = BRACKETS.map(b => ({
-      city:    activeCity,
-      bracket: b,
-      weight:  (parseFloat(getValue(b)) || 0) / 100,
+      city:     activeCity,
+      category: activeCategory,
+      bracket:  b,
+      weight:   (parseFloat(getValue(b)) || 0) / 100,
     }))
     try {
       await onSave(rows)
       const snapNote = withSnapshot ? '(snapshot creado)' : '(sin snapshot)'
-      setSaveMsg({ type: 'ok', text: `Pesos guardados para ${activeCity === 'all' ? 'Global' : activeCity} ${snapNote}.` })
+      const scopeLabel = `${activeCity === 'all' ? 'Global' : activeCity} / ${activeCategory === 'all' ? 'Todas las categorías' : activeCategory}`
+      setSaveMsg({ type: 'ok', text: `Pesos guardados para ${scopeLabel} ${snapNote}.` })
       setLocal(prev => {
         const next = { ...prev }
-        BRACKETS.forEach(b => delete next[getKey(activeCity, b)])
+        BRACKETS.forEach(b => delete next[getKey(activeCity, activeCategory, b)])
         return next
       })
     } catch (e) {
@@ -126,10 +149,11 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     <div className="config-section">
       <h2>Pesos para Promedio Ponderado (%)</h2>
       <p style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
-        Cada ciudad puede tener pesos distintos. La suma debe ser 100%.
+        Cada (ciudad × categoría) puede tener pesos distintos. La suma debe ser 100%.
+        Categoría <strong>'all'</strong> aplica como fallback si no hay pesos específicos para esa categoría.
       </p>
 
-      <div className="city-tabs">
+      <div className="city-tabs" style={{ marginBottom: 6 }}>
         {weightCities.map(c => (
           <button
             key={c}
@@ -137,6 +161,29 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
             onClick={() => setActiveCity(c)}
           >
             {c === 'all' ? 'Global (default)' : c}
+          </button>
+        ))}
+      </div>
+
+      <div style={{
+        display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap',
+        marginBottom: 12, fontSize: 12,
+      }}>
+        <strong style={{ marginRight: 4 }}>Categoría:</strong>
+        {weightCategories.map(c => (
+          <button
+            key={c}
+            onClick={() => setActiveCategory(c)}
+            style={{
+              padding: '4px 10px', borderRadius: 14, fontSize: 11,
+              border: activeCategory === c ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+              background: activeCategory === c ? '#dbeafe' : '#fff',
+              color: activeCategory === c ? '#1e3a8a' : '#475569',
+              fontWeight: activeCategory === c ? 600 : 400,
+              cursor: 'pointer',
+            }}
+          >
+            {c === 'all' ? 'Todas (default)' : c}
           </button>
         ))}
       </div>
@@ -149,7 +196,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           color: '#78350f', fontSize: 13, fontWeight: 500,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
         }}>
-          <span>⚠ Hay cambios sin guardar en <strong>{activeCity === 'all' ? 'Global' : activeCity}</strong></span>
+          <span>⚠ Hay cambios sin guardar en <strong>{activeCity === 'all' ? 'Global' : activeCity} / {activeCategory === 'all' ? 'Todas las categorías' : activeCategory}</strong></span>
           <button
             type="button"
             onClick={handleDiscard}

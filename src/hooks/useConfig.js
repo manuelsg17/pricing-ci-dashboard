@@ -16,7 +16,7 @@ export function useConfig(country) {
     try {
       const [t, w, s] = await Promise.all([
         sb.from('distance_thresholds').select('*').eq('country', country).order('city').order('category').order('max_km'),
-        sb.from('bracket_weights').select('*').eq('country', country).order('city').order('bracket'),
+        sb.from('bracket_weights').select('*').eq('country', country).order('city').order('category').order('bracket'),
         sb.from('semaforo_config').select('*').eq('country', country).order('band').order('min_pct'),
       ])
       if (t.error) throw t.error
@@ -93,10 +93,17 @@ export function useConfig(country) {
   const saveWeights = async (rows) => {
     setSaving(true)
     try {
-      const data = rows.map(r => ({ ...r, country }))
+      // Garantizar que cada row tenga `category` (default 'all' para
+      // retrocompat con callers viejos pre mig 56). El onConflict
+      // incluye category para que el UNIQUE constraint matchee.
+      const data = rows.map(r => ({
+        ...r,
+        country,
+        category: r.category ?? 'all',
+      }))
       const { error } = await sb
         .from('bracket_weights')
-        .upsert(data, { onConflict: 'country,city,bracket' })
+        .upsert(data, { onConflict: 'country,city,category,bracket' })
       if (error) throw error
       await load()
     } finally {
