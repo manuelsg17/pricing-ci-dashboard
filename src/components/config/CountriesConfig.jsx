@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { COUNTRY_CONFIG, COMPETITOR_COLORS } from '../../lib/constants'
 import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
+import CountryWizard from './CountryWizard'
 
 const CONST_KEYS    = Object.keys(COUNTRY_CONFIG)
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
@@ -93,6 +94,9 @@ export default function CountriesConfig() {
   const [draft, setDraft]                     = useState({})
   const [savingKey, setSavingKey]             = useState(null)
   const [msg, setMsg]                         = useState(null)
+  // Modo wizard vs avanzado. El wizard guía paso a paso; el modo
+  // avanzado es el formulario flat de siempre (sin breaking change).
+  const [showWizard, setShowWizard]           = useState(false)
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -297,6 +301,21 @@ export default function CountriesConfig() {
 
   if (loading) return <div className="config-loading">Cargando países…</div>
 
+  // Wizard mode: pantalla completa para no perder al usuario en pasos
+  if (showWizard) {
+    return (
+      <CountryWizard
+        onClose={() => setShowWizard(false)}
+        onCreated={(key) => {
+          setShowWizard(false)
+          refreshConfigs()
+          loadRows()
+          setSelectedKey(key)
+        }}
+      />
+    )
+  }
+
   return (
     <div style={{ display: 'flex', gap: 0, height: 'calc(100vh - 160px)', overflow: 'hidden', borderTop: '1px solid var(--color-border)' }}>
 
@@ -313,10 +332,21 @@ export default function CountriesConfig() {
                          letterSpacing: 0.5, color: 'var(--color-muted)' }}>
             Países
           </span>
-          <button className="btn-add-row" style={{ height: 24, padding: '0 10px' }}
-            onClick={addNewCountry} title="Agregar nuevo país">
-            +
-          </button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button style={{
+              height: 24, padding: '0 8px', fontSize: 10, borderRadius: 4,
+              background: '#dbeafe', border: '1px solid #2563eb',
+              color: '#1e3a8a', cursor: 'pointer', fontWeight: 600,
+            }}
+              onClick={() => setShowWizard(true)}
+              title="Wizard guiado paso a paso para crear país nuevo">
+              ✨ Wizard
+            </button>
+            <button className="btn-add-row" style={{ height: 24, padding: '0 10px' }}
+              onClick={addNewCountry} title="Formulario avanzado (todos los campos a la vista)">
+              +
+            </button>
+          </div>
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {allKeys.map(key => {
