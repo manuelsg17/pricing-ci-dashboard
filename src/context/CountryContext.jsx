@@ -4,14 +4,45 @@ import { sb } from '../lib/supabase'
 
 const CountryContext = createContext(null)
 
+// Cache de dbConfigs en localStorage para mitigar el caso "primer render
+// con dbConfigs vacío" — sin esto, antes de que cargue el fetch async,
+// getCountryConfig cae al fallback de Peru aunque el usuario tenga
+// localStorage.country='Bolivia'. TTL de 24h porque la config cambia
+// poco y el costo de cache stale es bajo (siguiente fetch lo refresca).
+const CACHE_KEY = 'cc.dbConfigs.v1'
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const { ts, data } = JSON.parse(raw)
+    if (!ts || (Date.now() - ts) > CACHE_TTL_MS) return null
+    return data
+  } catch {
+    return null
+  }
+}
+
+function writeCache(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }))
+  } catch {
+    /* localStorage full / disabled, no-op */
+  }
+}
+
 export function CountryProvider({ children }) {
   const [country, setCountryState] = useState(
     () => localStorage.getItem('country') || 'Peru'
   )
 
   // dbConfigs: { countryKey → internalConfig }
-  // Starts empty — constants.js is the immediate synchronous fallback.
-  const [dbConfigs, setDbConfigs] = useState({})
+  // Init from localStorage cache para evitar race del primer render.
+  const [dbConfigs, setDbConfigs] = useState(() => readCache() || {})
+  // loading=true mientras el primer fetch no terminó. Algunos componentes
+  // pueden querer mostrar spinner antes de leer countryConfig.
+  const [loading, setLoading] = useState(true)
   const fetchedRef = useRef(false)
 
   const fetchAllConfigs = useCallback(async () => {
@@ -30,14 +61,16 @@ export function CountryProvider({ children }) {
         mapped[row.country_key] = dbConfigToInternal(row)
       })
       setDbConfigs(mapped)
+      writeCache(mapped)
     } catch (e) {
       console.warn('[CountryContext] Unexpected error:', e)
     } finally {
       fetchedRef.current = true
+      setLoading(false)
     }
   }, [])
 
-  // Load on mount — no loading spinner: constants.js serves as instant fallback
+  // Load on mount — cache de localStorage cubre el primer render
   useEffect(() => { fetchAllConfigs() }, [fetchAllConfigs])
 
   const setCountry = useCallback((val) => {
@@ -47,7 +80,7 @@ export function CountryProvider({ children }) {
 
   // DB config takes precedence; constants.js as fallback
   const countryConfig = useMemo(
-    () => dbConfigs[country] ?? getCountryConfig(country),
+    () => dbConfigs[country] ?? getCountryConfig(country, dbConfigs),
     [country, dbConfigs]
   )
 
@@ -66,6 +99,7 @@ export function CountryProvider({ children }) {
       countryConfig,
       availableCountries,
       dbConfigs,
+      loading,
       refreshConfigs,
     }}>
       {children}

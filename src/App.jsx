@@ -2,7 +2,6 @@ import { useState, useEffect, Suspense, lazy } from 'react'
 import { useAuth }           from './lib/auth'
 import { sb }                from './lib/supabase'
 import { useAccessControl }  from './hooks/useAccessControl'
-import { COUNTRIES }         from './lib/constants'
 import { useCountry }        from './context/CountryContext'
 import Topbar                from './components/layout/Topbar'
 import LoginScreen     from './components/layout/LoginScreen'
@@ -23,7 +22,7 @@ const Coverage = lazy(() => import('./pages/Coverage'))
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
-  const { country, setCountry } = useCountry()
+  const { country, setCountry, availableCountries } = useCountry()
   const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [dbWeights,   setDbWeights]   = useState([])
@@ -38,8 +37,9 @@ export default function App() {
       .then(({ data }) => setDbSemaforo(data || []))
   }, [session])
 
-  // Países permitidos según rol
-  const allowedCountries = COUNTRIES.filter(c => canAccessCountry(c))
+  // Países permitidos según rol — usa availableCountries del context
+  // (incluye los que viven solo en DB, no solo los hardcoded de constants.js)
+  const allowedCountries = availableCountries.filter(c => canAccessCountry(c))
 
   // Si el país seleccionado no está permitido, forzar al primero disponible
   useEffect(() => {

@@ -485,8 +485,25 @@ export function getCountryNativeLabel(country) {
 }
 
 // ── Helper functions ──────────────────────────────────────
-export function getCountryConfig(country) {
-  return COUNTRY_CONFIG[country] || COUNTRY_CONFIG.Peru
+//
+// dbConfigs (opcional) toma precedencia sobre el hardcoded. Si el país
+// no existe en ninguno, cae a Peru con warning visible — antes era
+// fallback silencioso a Peru, que ocultaba bugs (usuario veía data de
+// Peru bajo el header de otro país).
+//
+// Callers nuevos deberían pasar dbConfigs desde `useCountry()` para
+// que los overrides editados en /config se reflejen inmediatamente.
+const _warned = new Set()
+export function getCountryConfig(country, dbConfigs = null) {
+  if (dbConfigs && dbConfigs[country]) return dbConfigs[country]
+  if (COUNTRY_CONFIG[country])         return COUNTRY_CONFIG[country]
+  // No encontrado — warning una sola vez por país
+  if (country && !_warned.has(country)) {
+    _warned.add(country)
+    // eslint-disable-next-line no-console
+    console.warn(`[getCountryConfig] País "${country}" no encontrado ni en DB ni en constants.js. Usando Peru como fallback — esto indica un bug.`)
+  }
+  return COUNTRY_CONFIG.Peru
 }
 
 /**

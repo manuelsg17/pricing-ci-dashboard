@@ -10,7 +10,8 @@
     "test:bot-mapping": "node scripts/test-bot-mapping.mjs",
     "test:bracket-normalize": "node scripts/test-bracket-normalize.mjs",
     "test:bracket-parity": "node scripts/test-bracket-parity.mjs",
-    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity"
+    "test:get-country-config": "node scripts/test-getcountryconfig.mjs",
+    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
