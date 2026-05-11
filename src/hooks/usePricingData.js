@@ -194,17 +194,31 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       // Además normalizamos distance_bracket a snake_case lowercase como defensa
       // ante datos legados con formato inconsistente ('Short' vs 'short').
       const nested = {}
+      const CANONICAL_BRACKETS = new Set(['very_short', 'short', 'median', 'average', 'long', 'very_long'])
       const normalizeBracket = (b) => {
         if (b == null) return null
-        return String(b).toLowerCase().replace(/\s+/g, '_')
+        let s = String(b).toLowerCase().replace(/[\s-]+/g, '_')
+        s = s.replace(/^airport_/, '')
+        s = s.replace(/_(madrid|funza|mosquera|cota|chia|soacha|cajica|tenjo|sopo|sibate)$/, '')
+        s = s.replace(/_(zona_sur|zona_norte|zona_centro|zona_este|zona_oeste|sur|norte|centro|este|oeste)$/, '')
+        s = s.replace(/_(a|b)$/, '')
+        if (s === 'medium')     s = 'median'
+        if (s === 'very short') s = 'very_short'
+        if (s === 'very long')  s = 'very_long'
+        if (CANONICAL_BRACKETS.has(s)) return s
+        for (const c of ['very_short', 'very_long', 'short', 'median', 'average', 'long']) {
+          if (s.startsWith(c)) return c
+        }
+        return null
       }
+      let droppedNullBracket = 0
       for (const row of rawRows) {
         const periodKey = (filters.viewMode === 'weekly' || filters.viewMode === 'historic')
           ? `${row.year}-W${String(row.week).padStart(2,'0')}`
           : row.observed_date
 
         const bracketKey = normalizeBracket(row.distance_bracket)
-        if (!bracketKey) continue
+        if (!bracketKey) { droppedNullBracket++; continue }
 
         if (!nested[row.competition_name]) nested[row.competition_name] = {}
         if (!nested[row.competition_name][periodKey]) nested[row.competition_name][periodKey] = {}
@@ -228,6 +242,11 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
             count:    totalCount,
           }
         }
+      }
+
+      if (droppedNullBracket > 0 && rawRows.length > 0) {
+        const pct = ((droppedNullBracket / rawRows.length) * 100).toFixed(1)
+        console.warn(`[usePricingData] ${droppedNullBracket}/${rawRows.length} filas (${pct}%) descartadas por distance_bracket no canónico/null. País=${filters.country}, ciudad=${dbCity}, categoría=${dbCategory}.`)
       }
 
       const competitors = filters.competitors

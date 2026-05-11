@@ -17,7 +17,13 @@ function normalize(raw) {
   if (s === 'medium')     s = 'median'
   if (s === 'very short') s = 'very_short'
   if (s === 'very long')  s = 'very_long'
-  return CANONICAL.has(s) ? s : null
+  if (CANONICAL.has(s)) return s
+  // Fallback de prefijo. very_short / very_long ANTES de short / long
+  // para que 'very_long_zona_xx' no matchee 'long'.
+  for (const c of ['very_short', 'very_long', 'short', 'median', 'average', 'long']) {
+    if (s.startsWith(c)) return c
+  }
+  return null
 }
 
 const cases = [
