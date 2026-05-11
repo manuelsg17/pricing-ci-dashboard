@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
+import { CATALOG_CATEGORIES, CATALOG_COMPETITORS } from '../../lib/catalogs'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -14,9 +15,14 @@ export default function BotRulesTable({ country }) {
   const config = getCountryConfig(country)
   const confirm = useConfirm()
 
+  // Unión: categorías/competidores del país + catálogo canónico.
+  // Esto cubre el caso de país recién creado (sin config) — los dropdowns
+  // muestran el catálogo entero. Para países maduros, las del país
+  // aparecen primero y el catálogo solo agrega las que falten.
   const allCategories = useMemo(() => {
     const cats = new Set()
     Object.values(config.categoriesByCity || {}).forEach(list => list.forEach(c => cats.add(c)))
+    CATALOG_CATEGORIES.forEach(c => cats.add(c.value))
     return Array.from(cats).sort()
   }, [config])
 
@@ -25,6 +31,7 @@ export default function BotRulesTable({ country }) {
     Object.values(config.competitorsByDbCityCategory || {}).forEach(byCat =>
       Object.values(byCat).forEach(list => list.forEach(c => comps.add(c)))
     )
+    CATALOG_COMPETITORS.forEach(c => comps.add(c.value))
     return Array.from(comps).sort()
   }, [config])
 

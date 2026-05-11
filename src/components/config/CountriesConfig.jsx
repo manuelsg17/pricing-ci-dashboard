@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../../lib/supabase'
 import { COUNTRY_CONFIG, COMPETITOR_COLORS } from '../../lib/constants'
+import { CATALOG_CATEGORIES } from '../../lib/catalogs'
 import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
 import CountryWizard from './CountryWizard'
@@ -616,14 +617,20 @@ export default function CountriesConfig() {
                       <label style={fieldLabelStyle}>Nombre UI</label>
                       <input style={{ ...inputStyle(readonly), width: 120 }}
                         placeholder="Economy"
+                        list="cat-catalog-list"
                         disabled={readonly} value={cat.name || ''}
                         onChange={e => setCategoryField(selectedKey, selectedCityIdx, catIdx, 'name', e.target.value)}
+                        title="Datalist con el catálogo canónico para evitar typos. Podés escribir uno custom si necesitás."
                       />
+                      <datalist id="cat-catalog-list">
+                        {CATALOG_CATEGORIES.map(c => <option key={c.value} value={c.value} />)}
+                      </datalist>
                     </div>
                     <div style={{ minWidth: 110 }}>
                       <label style={fieldLabelStyle}>Nombre DB</label>
                       <input style={{ ...inputStyle(readonly), width: 120 }}
                         placeholder="Economy"
+                        list="cat-catalog-list"
                         disabled={readonly} value={cat.dbName || ''}
                         onChange={e => setCategoryField(selectedKey, selectedCityIdx, catIdx, 'dbName', e.target.value)}
                       />

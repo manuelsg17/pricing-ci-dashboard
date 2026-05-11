@@ -259,20 +259,22 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
       </table>
 
       <div className="config-footer" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Primario: sin snapshot — el usuario lo usa frecuentemente */}
         <button
           className="btn-save"
-          onClick={handleSave}
+          onClick={handleSaveNoSnapshot}
           disabled={saving || !hasUnsavedChanges || !totalOk}
           title={
             !hasUnsavedChanges ? 'No hay cambios para guardar'
           : !totalOk ? 'La suma debe ser exactamente 100%'
-          : 'Crea un snapshot para preservar promedios históricos antes de aplicar'
+          : 'Aplica los nuevos pesos sin crear snapshot. Los promedios históricos se recalculan en vivo.'
           }
         >
-          {saving ? 'Guardando…' : 'Guardar con snapshot'}
+          {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>
+        {/* Secundario: con snapshot — para cambios que afectan data histórica significativa */}
         <button
-          onClick={handleSaveNoSnapshot}
+          onClick={handleSave}
           disabled={saving || !hasUnsavedChanges || !totalOk}
           style={{
             padding: '8px 14px', borderRadius: 6, fontSize: 13,
@@ -280,9 +282,9 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
             cursor: saving || !hasUnsavedChanges || !totalOk ? 'not-allowed' : 'pointer',
             color: '#475569',
           }}
-          title="Guarda directamente sin crear snapshot. Los promedios históricos se recalcularán en vivo con los nuevos pesos."
+          title="Crea snapshot (hard copy) antes de guardar. Útil cuando el cambio afecta data histórica significativa que no querés que se recalcule."
         >
-          Guardar sin snapshot
+          📸 Guardar con snapshot
         </button>
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
       </div>
