@@ -553,6 +553,20 @@ export function dbConfigToInternal(row) {
     botCityMap[key] = city.dbName
   })
 
+  // Mig 58: botRules y airport subcategorías persistidos en row JSONB.
+  // Si la migración no se aplicó, los campos vienen undefined y caemos
+  // a [] / {} sin romper.
+  const botRules                      = Array.isArray(row.bot_rules) ? row.bot_rules : []
+  const aeropuertoSubcategoriesByCity = (row.airport_subcategories_by_city && typeof row.airport_subcategories_by_city === 'object')
+    ? row.airport_subcategories_by_city
+    : {}
+
+  // Computar aeropuertoSubcategories como unión de todas las ciudades
+  // (mantenemos retrocompat con código que lee este campo).
+  const aeropuertoSubcategories = Array.from(new Set(
+    Object.values(aeropuertoSubcategoriesByCity).flat()
+  ))
+
   return {
     label:                        row.label,
     currency:                     row.currency  || 'USD',
@@ -563,7 +577,8 @@ export function dbConfigToInternal(row) {
     cities:                       uiCities,
     dbCities,
     categoriesByCity,
-    aeropuertoSubcategories:      [],
+    aeropuertoSubcategories,
+    aeropuertoSubcategoriesByCity,
     categoryDbMap,
     competitorsByDbCityCategory,
     yangoDisplayName,
@@ -571,6 +586,7 @@ export function dbConfigToInternal(row) {
     outlierThreshold:             Number(row.outlier_threshold ?? 100),
     maxPrice:                     Number(row.max_price ?? 1000),
     botCityMap,
+    botRules,
   }
 }
 

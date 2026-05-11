@@ -117,6 +117,57 @@ export default function CountriesConfig() {
   const isDbManaged = (key) => dbRows.some(r => r.country_key === key)
   const isReadOnly  = (key) => CONST_KEYS.includes(key) && !isDbManaged(key)
 
+  // Detecta si el draft difiere del row de DB. Útil para mostrar
+  // indicadores visuales y para confirmar antes de descartar cambios.
+  // Compara solo campos persistidos para evitar falsos positivos
+  // (e.g. updated_at, id).
+  function isDirty(key) {
+    if (!draft[key]) return false
+    const dbRow = dbRows.find(r => r.country_key === key)
+    if (!dbRow) return true   // recién creado en memoria
+    const FIELDS = ['label','currency','locale','outlier_threshold','max_price','sort_order','cities','iso2','native_label','status']
+    return FIELDS.some(f => JSON.stringify(draft[key][f]) !== JSON.stringify(dbRow[f]))
+  }
+
+  // Descarta cambios sin guardar. Tres casos:
+  //   1. País nuevo en memoria (NewCountry_*) sin save → eliminar entero
+  //   2. País en DB con draft modificado → revertir draft a DB
+  //   3. País sin cambios → no-op (botón estará disabled)
+  async function handleCancel(key) {
+    const dbRow         = dbRows.find(r => r.country_key === key)
+    const isNewInMemory = !dbRow && key.startsWith('NewCountry_')
+
+    if (isNewInMemory) {
+      const ok = await confirm({
+        title: 'Descartar país nuevo',
+        message: `"${draft[key]?.label || key}" no se guardó todavía. ¿Descartarlo?`,
+        confirmText: 'Descartar',
+        cancelText:  'Seguir editando',
+        danger: true,
+      })
+      if (!ok) return
+      setDbRows(prev => prev.filter(r => r.country_key !== key))
+      setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
+      setSelectedKey(null); setSelectedCityIdx(null)
+      setMsg({ type: 'ok', text: 'País descartado.' })
+      return
+    }
+
+    if (!isDirty(key)) return  // no-op defensivo
+
+    const ok = await confirm({
+      title: 'Descartar cambios',
+      message: `Vas a perder los cambios sin guardar en "${dbRow?.label || key}". ¿Continuar?`,
+      confirmText: 'Descartar',
+      cancelText:  'Seguir editando',
+      danger: true,
+    })
+    if (!ok) return
+    setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
+    setSelectedCityIdx(null)
+    setMsg({ type: 'ok', text: '✓ Cambios descartados.' })
+  }
+
   // ── Draft helpers ─────────────────────────────────────────────────
 
   function getOrInitDraft(key) {
@@ -211,15 +262,25 @@ export default function CountriesConfig() {
       label:             row.label,
       currency:          row.currency,
       locale:            row.locale,
+      iso2:              row.iso2 || null,
+      native_label:      row.native_label || row.label,
+      status:            row.status || 'active',
       outlier_threshold: Number(row.outlier_threshold),
       max_price:         Number(row.max_price),
       sort_order:        Number(row.sort_order ?? 0),
       cities:            row.cities || [],
+      // ★ Mig 58: preservar botRules y airport subcategorías si vinieron
+      // del row de DB (no perderlos en el save).
+      bot_rules:                       row.bot_rules || [],
+      airport_subcategories_by_city:   row.airport_subcategories_by_city || {},
       updated_at:        new Date().toISOString(),
     }
     const { error } = await sb.from('country_config')
       .upsert(payload, { onConflict: 'country_key' })
     if (!error) {
+      // Limpiar draft del país recién guardado — evita que isDirty
+      // siga true después del save.
+      setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
       setMsg({ type: 'ok', text: '✓ Guardado' })
       await loadRows()
       refreshConfigs()
@@ -269,33 +330,50 @@ export default function CountriesConfig() {
       return
     }
 
-    const ok = await confirm({
-      title: `Hacer editable ${key}`,
-      message: `Vas a copiar la configuración hardcoded de ${key} a la base de datos. Después podrás editarla desde esta UI.\n\n` +
-               `La configuración hardcoded (constants.js) sigue intacta como fallback, pero la versión DB tendrá precedencia.\n\n` +
-               `¿Continuar?`,
-      confirmText: 'Hacer editable',
-      cancelText:  'Cancelar',
-    })
-    if (!ok) return
+    // Check si ya existe row en DB — evita sobrescribir edits previos
+    const existing = dbRows.find(r => r.country_key === key)
+    if (existing) {
+      const reOk = await confirm({
+        title: `${key} ya está en DB`,
+        message: `Este país ya fue promovido antes. Si continuás, vas a SOBRESCRIBIR los edits que tengas en DB con los valores hardcoded de constants.js.\n\n¿Querés realmente reemplazar la versión DB con la hardcoded?`,
+        confirmText: 'Sí, sobrescribir',
+        cancelText:  'Cancelar',
+        danger: true,
+      })
+      if (!reOk) return
+    } else {
+      const ok = await confirm({
+        title: `Hacer editable ${key}`,
+        message: `Vas a copiar la configuración hardcoded de ${key} a la base de datos. Después podrás editarla desde esta UI.\n\n` +
+                 `La configuración hardcoded (constants.js) sigue intacta como fallback, pero la versión DB tendrá precedencia.\n\n` +
+                 `¿Continuar?`,
+        confirmText: 'Hacer editable',
+        cancelText:  'Cancelar',
+      })
+      if (!ok) return
+    }
 
     // Reconstruir el shape de DB desde el config interno hardcoded.
     // El shape de DB tiene cities[] con categories[] anidadas — espejo
     // de getCountryConfig pero en sentido inverso.
-    const dbCities = (hardcoded.dbCities || []).map((dbName, i) => {
-      const uiName = hardcoded.cities?.[i] || dbName
+    //
+    // Edge case Peru: `Corp` aparece en dbCities pero NO en cities[] →
+    // se marca isVirtual=true para que no aparezca en el selector UI.
+    const dbCities = (hardcoded.dbCities || []).map((dbName) => {
+      const uiIdx = (hardcoded.cities || []).indexOf(dbName)
+      const isVirtual = uiIdx === -1   // no está en cities[] de UI
+      const uiName = isVirtual ? dbName : (hardcoded.cities[uiIdx] || dbName)
       const categories = (hardcoded.categoriesByCity?.[dbName] || []).map(catName => ({
         name:             catName,
         dbName:           catName,
         competitors:      hardcoded.competitorsByDbCityCategory?.[dbName]?.[catName] || [],
         yangoDisplayName: hardcoded.yangoDisplayName?.[dbName]?.[catName] || 'Yango',
       }))
-      // Buscar botKey en botCityMap
+      // Buscar botKey en botCityMap (primer alias que mapee al dbName)
       const botKey = Object.entries(hardcoded.botCityMap || {})
         .find(([, v]) => v === dbName)?.[0] || dbName.toLowerCase()
       return {
-        uiName, dbName, botKey,
-        isVirtual: false,
+        uiName, dbName, botKey, isVirtual,
         categories,
       }
     })
@@ -309,9 +387,14 @@ export default function CountriesConfig() {
       max_price:         Number(hardcoded.maxPrice ?? 1000),
       iso2:              hardcoded.iso2 || null,
       native_label:      hardcoded.nativeLabel || hardcoded.label || key,
-      status:            'active',
-      sort_order:        dbRows.length,
+      // ★ Si row ya existe, preservar status y sort_order para no resetearlos
+      status:            existing?.status     ?? 'active',
+      sort_order:        existing?.sort_order ?? dbRows.length,
       cities:            dbCities,
+      // ★ Mig 58: persistir botRules y airport subcategorías para no
+      // perderlos en el upload manual CSV / dropdown aeropuerto.
+      bot_rules:                       hardcoded.botRules || [],
+      airport_subcategories_by_city:   hardcoded.aeropuertoSubcategoriesByCity || {},
     }
 
     setSavingKey(key)
@@ -322,6 +405,10 @@ export default function CountriesConfig() {
       setMsg({ type: 'err', text: `Error al promover ${key}: ${error.message}` })
       return
     }
+
+    // Limpiar draft del país recién promovido — evita que un draft stale
+    // sobrescriba los datos recién hidratados de DB en el próximo save.
+    setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
 
     setMsg({ type: 'ok', text: `${key} promovido a DB. Ahora podés editarlo.` })
     await loadRows()
@@ -550,6 +637,28 @@ export default function CountriesConfig() {
                     disabled={savingKey === selectedKey}
                     onClick={() => handleSave(selectedKey)}>
                     {savingKey === selectedKey ? 'Guardando…' : 'Guardar país'}
+                  </button>
+                  {/* Cancelar — descarta cambios o el país en memoria.
+                      Disabled si no hay nada que cancelar (defensivo). */}
+                  <button
+                    onClick={() => handleCancel(selectedKey)}
+                    disabled={!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')}
+                    style={{
+                      padding: '4px 10px', borderRadius: 4, fontSize: 12,
+                      border: '1px solid var(--color-border)',
+                      background: 'transparent',
+                      color: (!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')) ? '#94a3b8' : 'var(--color-text)',
+                      cursor: (!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')) ? 'not-allowed' : 'pointer',
+                    }}
+                    title={
+                      selectedKey.startsWith('NewCountry_')
+                        ? 'Descartar este país nuevo sin guardarlo'
+                        : isDirty(selectedKey)
+                          ? 'Descartar cambios sin guardar y volver a los valores de DB'
+                          : 'No hay cambios para descartar'
+                    }
+                  >
+                    Cancelar
                   </button>
                   {isDbManaged(selectedKey) && (
                     <button className="btn-delete-sm"
