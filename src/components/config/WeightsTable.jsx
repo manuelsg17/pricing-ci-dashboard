@@ -68,30 +68,36 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
 
   const confirm = useConfirm()
 
-  const handleSave = async () => {
+  const doSave = async (withSnapshot) => {
     setSaveMsg(null)
 
-    // Confirmación + hard copy antes de aplicar cambio
     const ok = await confirm({
-      title:       '⚠ Cambio de pesos — hard copy requerido',
-      message:     'Antes de guardar los nuevos pesos se creará un snapshot (hard copy) ' +
-                   'de los promedios ponderados actuales para todos los períodos históricos. ' +
-                   'Esos valores quedarán fijos y no cambiarán con los nuevos pesos. ' +
-                   '\n\n¿Confirmar el snapshot y guardar?',
-      confirmText: 'Crear snapshot y guardar',
+      title:       withSnapshot
+                    ? '⚠ Cambio de pesos — hard copy requerido'
+                    : 'Guardar sin snapshot',
+      message:     withSnapshot
+                    ? 'Antes de guardar los nuevos pesos se creará un snapshot (hard copy) ' +
+                      'de los promedios ponderados actuales para todos los períodos históricos. ' +
+                      'Esos valores quedarán fijos y no cambiarán con los nuevos pesos.\n\n' +
+                      '¿Confirmar el snapshot y guardar?'
+                    : 'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán ' +
+                      'en vivo con los nuevos pesos — los valores anteriores YA NO quedarán fijos.\n\n' +
+                      'Usar solo si el cambio es pequeño o no afecta data histórica significativa.',
+      confirmText: withSnapshot ? 'Crear snapshot y guardar' : 'Guardar sin snapshot',
       cancelText:  'Cancelar',
-      danger:      true,
+      danger:      withSnapshot,
     })
     if (!ok) return
 
-    // Crear snapshot antes de aplicar nuevos pesos
-    const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
-      p_country: country,
-      p_label:   `Pesos cambiados — ${new Date().toISOString()}`,
-    })
-    if (snapErr) {
-      setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
-      return
+    if (withSnapshot) {
+      const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
+        p_country: country,
+        p_label:   `Pesos cambiados — ${new Date().toISOString()}`,
+      })
+      if (snapErr) {
+        setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+        return
+      }
     }
 
     const rows = BRACKETS.map(b => ({
@@ -101,7 +107,8 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     }))
     try {
       await onSave(rows)
-      setSaveMsg({ type: 'ok', text: `Snapshot creado y pesos guardados para ${activeCity === 'all' ? 'Global' : activeCity}.` })
+      const snapNote = withSnapshot ? '(snapshot creado)' : '(sin snapshot)'
+      setSaveMsg({ type: 'ok', text: `Pesos guardados para ${activeCity === 'all' ? 'Global' : activeCity} ${snapNote}.` })
       setLocal(prev => {
         const next = { ...prev }
         BRACKETS.forEach(b => delete next[getKey(activeCity, b)])
@@ -111,6 +118,9 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
       setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
     }
   }
+
+  const handleSave           = () => doSave(true)
+  const handleSaveNoSnapshot = () => doSave(false)
 
   return (
     <div className="config-section">
@@ -201,7 +211,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
         </tbody>
       </table>
 
-      <div className="config-footer" style={{ marginTop: 14 }}>
+      <div className="config-footer" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           className="btn-save"
           onClick={handleSave}
@@ -209,10 +219,23 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           title={
             !hasUnsavedChanges ? 'No hay cambios para guardar'
           : !totalOk ? 'La suma debe ser exactamente 100%'
-          : undefined
+          : 'Crea un snapshot para preservar promedios históricos antes de aplicar'
           }
         >
-          {saving ? 'Guardando…' : 'Guardar pesos'}
+          {saving ? 'Guardando…' : 'Guardar con snapshot'}
+        </button>
+        <button
+          onClick={handleSaveNoSnapshot}
+          disabled={saving || !hasUnsavedChanges || !totalOk}
+          style={{
+            padding: '8px 14px', borderRadius: 6, fontSize: 13,
+            border: '1px solid #cbd5e1', background: '#fff',
+            cursor: saving || !hasUnsavedChanges || !totalOk ? 'not-allowed' : 'pointer',
+            color: '#475569',
+          }}
+          title="Guarda directamente sin crear snapshot. Los promedios históricos se recalcularán en vivo con los nuevos pesos."
+        >
+          Guardar sin snapshot
         </button>
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
       </div>

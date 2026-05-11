@@ -109,7 +109,8 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
 
   const confirm = useConfirm()
 
-  const handleSave = async () => {
+  // Núcleo de save — recibe withSnapshot para decidir si crear hard copy
+  const doSave = async (withSnapshot) => {
     setSaveMsg(null)
     if (hasErrors) {
       setSaveMsg({
@@ -119,26 +120,32 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       return
     }
 
-    // Confirmación + hard copy — los umbrales de km reclasifican brackets históricos
     const ok = await confirm({
-      title:       '⚠ Cambio de umbrales — hard copy requerido',
-      message:     'Cambiar los kilómetros por rango reclasificará los brackets de datos históricos. ' +
-                   'Antes de aplicar, se creará un snapshot de los promedios actuales para que ' +
-                   'los datos anteriores queden con valores fijos. ' +
-                   '\n\n¿Confirmar el snapshot y guardar?',
-      confirmText: 'Crear snapshot y guardar',
+      title:       withSnapshot
+                    ? '⚠ Cambio de umbrales — hard copy requerido'
+                    : 'Guardar sin snapshot',
+      message:     withSnapshot
+                    ? 'Cambiar los kilómetros por rango reclasificará los brackets de datos históricos. ' +
+                      'Antes de aplicar, se creará un snapshot de los promedios actuales para que ' +
+                      'los datos anteriores queden con valores fijos.\n\n¿Confirmar el snapshot y guardar?'
+                    : 'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán ' +
+                      'en vivo con los nuevos umbrales — los valores anteriores YA NO quedarán fijos.\n\n' +
+                      'Usar solo si el cambio es pequeño o no afecta data histórica significativa.',
+      confirmText: withSnapshot ? 'Crear snapshot y guardar' : 'Guardar sin snapshot',
       cancelText:  'Cancelar',
-      danger:      true,
+      danger:      withSnapshot,
     })
     if (!ok) return
 
-    const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
-      p_country: country,
-      p_label:   `Umbrales km cambiados — ${new Date().toISOString()}`,
-    })
-    if (snapErr) {
-      setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
-      return
+    if (withSnapshot) {
+      const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
+        p_country: country,
+        p_label:   `Umbrales km cambiados — ${new Date().toISOString()}`,
+      })
+      if (snapErr) {
+        setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+        return
+      }
     }
 
     const rows = BRACKETS.map(b => ({
@@ -151,27 +158,24 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       const result = await onSave(rows)
       const recomputed = result?.recomputedCount ?? 0
       const rpcError   = result?.rpcError
+      const snapNote   = withSnapshot ? ' (snapshot creado)' : ' (sin snapshot)'
 
       if (recomputed > 0) {
         setSaveMsg({
           type: 'ok',
-          text: `Guardado. ${recomputed.toLocaleString()} filas del dashboard fueron reclasificadas con los nuevos umbrales.`,
+          text: `Guardado${snapNote}. ${recomputed.toLocaleString()} filas del dashboard fueron reclasificadas.`,
         })
       } else if (rpcError) {
-        // Guardó en distance_thresholds pero el backfill falló. Mostramos
-        // un warning en amarillo (no es error bloqueante, pero el usuario
-        // debe saber que las filas existentes no se reclasificaron aún).
         setSaveMsg({
           type: 'warn',
-          text: `Umbrales guardados para ${selectedCity} — ${selectedCat}, pero el re-cálculo automático de brackets falló: ${rpcError}. Ejecuta la migración 33 en Supabase o contacta al admin.`,
+          text: `Umbrales guardados para ${selectedCity} — ${selectedCat}${snapNote}, pero el re-cálculo automático falló: ${rpcError}.`,
         })
       } else {
         setSaveMsg({
           type: 'ok',
-          text: `Guardado para ${selectedCity} — ${selectedCat}. No había filas para reclasificar.`,
+          text: `Guardado para ${selectedCity} — ${selectedCat}${snapNote}. No había filas para reclasificar.`,
         })
       }
-      // limpiar el buffer local solo para la ciudad+categoría guardada
       setLocal(prev => {
         const next = { ...prev }
         BRACKETS.forEach(b => delete next[getKey(selectedCity, selectedCat, b)])
@@ -181,6 +185,9 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
     }
   }
+
+  const handleSave           = () => doSave(true)
+  const handleSaveNoSnapshot = () => doSave(false)
 
   return (
     <div className="config-section">
@@ -285,14 +292,26 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         </tbody>
       </table>
 
-      <div className="config-footer" style={{ marginTop: 14 }}>
+      <div className="config-footer" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           className="btn-save"
           onClick={handleSave}
           disabled={saving || !hasUnsavedChanges || hasErrors}
-          title={hasErrors ? 'Corrige los errores de validación antes de guardar' : (!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined)}
+          title={hasErrors ? 'Corrige los errores de validación antes de guardar' : (!hasUnsavedChanges ? 'No hay cambios para guardar' : 'Crea un snapshot para preservar valores históricos antes de aplicar')}
         >
-          {saving ? 'Guardando…' : 'Guardar cambios'}
+          {saving ? 'Guardando…' : 'Guardar con snapshot'}
+        </button>
+        <button
+          onClick={handleSaveNoSnapshot}
+          disabled={saving || !hasUnsavedChanges || hasErrors}
+          style={{
+            padding: '8px 14px', borderRadius: 6, fontSize: 13,
+            border: '1px solid #cbd5e1', background: '#fff', cursor: saving || !hasUnsavedChanges || hasErrors ? 'not-allowed' : 'pointer',
+            color: '#475569',
+          }}
+          title="Guarda directamente sin crear snapshot. Los promedios históricos se recalcularán en vivo con los nuevos umbrales."
+        >
+          Guardar sin snapshot
         </button>
 
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
