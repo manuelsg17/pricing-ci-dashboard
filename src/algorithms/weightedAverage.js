@@ -1,4 +1,6 @@
-import { BRACKETS } from '../lib/constants'
+// Extensión .js explícita para que Node ESM strict (CI) pueda resolver.
+// Vite resuelve sin extensión, pero `node scripts/test-*.mjs` no.
+import { BRACKETS } from '../lib/constants.js'
 
 /**
  * Calcula el Promedio Ponderado para un competidor en un período dado.

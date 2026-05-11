@@ -8,8 +8,8 @@
  */
 
 import * as XLSX from 'xlsx'
-import { mapBotRows } from './botMapping'
-import { getCountryConfig } from './constants'
+import { mapBotRows } from './botMapping.js'
+import { getCountryConfig } from './constants.js'
 
 // Competidores a incluir en la salida (Cabify excluido en esta etapa)
 const INCLUDE_COMPETITORS = new Set([
