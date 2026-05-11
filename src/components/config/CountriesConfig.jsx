@@ -259,6 +259,76 @@ export default function CountriesConfig() {
     setSelectedCityIdx(null)
   }
 
+  // Promociona un país hardcoded de constants.js a la DB country_config.
+  // Esto lo desbloquea para edición. Después del save, el frontend
+  // prioriza la fila de DB sobre el hardcoded de constants.js.
+  async function makeEditable(key) {
+    const hardcoded = COUNTRY_CONFIG[key]
+    if (!hardcoded) {
+      setMsg({ type: 'err', text: `${key} no existe en constants.js` })
+      return
+    }
+
+    const ok = await confirm({
+      title: `Hacer editable ${key}`,
+      message: `Vas a copiar la configuración hardcoded de ${key} a la base de datos. Después podrás editarla desde esta UI.\n\n` +
+               `La configuración hardcoded (constants.js) sigue intacta como fallback, pero la versión DB tendrá precedencia.\n\n` +
+               `¿Continuar?`,
+      confirmText: 'Hacer editable',
+      cancelText:  'Cancelar',
+    })
+    if (!ok) return
+
+    // Reconstruir el shape de DB desde el config interno hardcoded.
+    // El shape de DB tiene cities[] con categories[] anidadas — espejo
+    // de getCountryConfig pero en sentido inverso.
+    const dbCities = (hardcoded.dbCities || []).map((dbName, i) => {
+      const uiName = hardcoded.cities?.[i] || dbName
+      const categories = (hardcoded.categoriesByCity?.[dbName] || []).map(catName => ({
+        name:             catName,
+        dbName:           catName,
+        competitors:      hardcoded.competitorsByDbCityCategory?.[dbName]?.[catName] || [],
+        yangoDisplayName: hardcoded.yangoDisplayName?.[dbName]?.[catName] || 'Yango',
+      }))
+      // Buscar botKey en botCityMap
+      const botKey = Object.entries(hardcoded.botCityMap || {})
+        .find(([, v]) => v === dbName)?.[0] || dbName.toLowerCase()
+      return {
+        uiName, dbName, botKey,
+        isVirtual: false,
+        categories,
+      }
+    })
+
+    const row = {
+      country_key:       key,
+      label:             hardcoded.label || key,
+      currency:          hardcoded.currency || 'USD',
+      locale:            hardcoded.locale || 'es-PE',
+      outlier_threshold: Number(hardcoded.outlierThreshold ?? 100),
+      max_price:         Number(hardcoded.maxPrice ?? 1000),
+      iso2:              hardcoded.iso2 || null,
+      native_label:      hardcoded.nativeLabel || hardcoded.label || key,
+      status:            'active',
+      sort_order:        dbRows.length,
+      cities:            dbCities,
+    }
+
+    setSavingKey(key)
+    const { error } = await sb.from('country_config').upsert(row, { onConflict: 'country_key' })
+    setSavingKey(null)
+
+    if (error) {
+      setMsg({ type: 'err', text: `Error al promover ${key}: ${error.message}` })
+      return
+    }
+
+    setMsg({ type: 'ok', text: `${key} promovido a DB. Ahora podés editarlo.` })
+    await loadRows()
+    refreshConfigs()
+    setSelectedKey(key)
+  }
+
   // Cuando el usuario cambia currency, si los valores actuales coinciden
   // con un preset previo (i.e. no fueron tocados manualmente), aplicar
   // el preset nuevo. Si el usuario ya editó manualmente, mantener sus
@@ -399,6 +469,31 @@ export default function CountriesConfig() {
                             letterSpacing: 0.5, color: 'var(--color-muted)', marginBottom: 6 }}>
                 {readonly ? 'Vista previa (solo lectura 🔒)' : 'Datos del país'}
               </div>
+
+              {readonly && (
+                <div style={{
+                  marginBottom: 12, padding: '8px 10px', borderRadius: 6,
+                  background: '#dbeafe', border: '1px solid #93c5fd',
+                  fontSize: 11, color: '#1e3a8a',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                }}>
+                  <span>Este país vive en <code>constants.js</code>. Para editarlo desde acá,
+                    copiá la configuración a la base de datos.</span>
+                  <button
+                    onClick={() => makeEditable(selectedKey)}
+                    disabled={savingKey === selectedKey}
+                    style={{
+                      padding: '4px 10px', borderRadius: 4, fontSize: 11,
+                      border: '1px solid #2563eb', background: '#2563eb',
+                      color: '#fff', cursor: 'pointer', fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                    }}
+                    title="Copia la config hardcoded a country_config para desbloquear edición. No rompe nada: constants.js sigue como fallback."
+                  >
+                    {savingKey === selectedKey ? 'Promoviendo…' : '📥 Hacer editable'}
+                  </button>
+                </div>
+              )}
 
               <label style={fieldLabelStyle}>Nombre / Label</label>
               <input
