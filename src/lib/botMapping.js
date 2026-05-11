@@ -1,4 +1,7 @@
-import { getCountryConfig } from './constants'
+// Importar con extensión explícita para que el test `node scripts/test-bot-mapping.mjs`
+// (Node ESM strict, sin Vite/bundler) pueda resolver el módulo. Vite resuelve
+// sin extensión, pero Node puro requiere la extensión.
+import { getCountryConfig } from './constants.js'
 
 /**
  * Mapeo de columnas del bot → pricing_observations
