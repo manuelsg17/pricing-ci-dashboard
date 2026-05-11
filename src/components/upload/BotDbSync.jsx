@@ -4,16 +4,21 @@ import { useCountry } from '../../context/CountryContext'
 import { useToast } from '../ui/Toast'
 import EmptyState from '../ui/EmptyState'
 import { SkeletonTable } from '../ui/Skeleton'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 export default function BotDbSync() {
   const { country } = useCountry()
   const toast = useToast()
+  const confirm = useConfirm()
   const [running, setRunning]     = useState(false)
   const [probing, setProbing]     = useState(false)
   const [watermark, setWatermark] = useState(null)
   const [logRows, setLogRows]     = useState([])
   const [loadingLog, setLoadingLog] = useState(true)
   const [limit, setLimit] = useState(5000)
+  // Combos (app, vc, ovc, city) que NO matchearon ninguna regla en la
+  // última corrida ok. Permiten click-to-add a bot_rules.
+  const [droppedCombos, setDroppedCombos] = useState([])
 
   const reload = useCallback(async () => {
     setLoadingLog(true)
@@ -23,8 +28,39 @@ export default function BotDbSync() {
     ])
     setWatermark(wm || null)
     setLogRows(log || [])
+    // dropped_combos del último log ok con notes.dropped_combos no null
+    const lastWithCombos = (log || []).find(r =>
+      r.status === 'ok' && Array.isArray(r.notes?.dropped_combos) && r.notes.dropped_combos.length > 0
+    )
+    setDroppedCombos(lastWithCombos?.notes?.dropped_combos || [])
     setLoadingLog(false)
   }, [country])
+
+  // Re-procesar últimos N días: retrocede el watermark vía RPC segura
+  // (mig 53). No borra data. Después dispara un sync.
+  async function handleResync() {
+    const ok = await confirm({
+      title: `Re-sincronizar últimos 30 días — ${country}`,
+      message: 'Retrocede el watermark 30 días para re-pedir filas al bot. NO borra observaciones; las nuevas reglas matchearán filas previamente dropeadas. Tarda ~1-2 min.',
+      confirmText: 'Re-sincronizar',
+    })
+    if (!ok) return
+    setRunning(true)
+    try {
+      const { data, error } = await sb.rpc('reset_bot_watermark', { p_country: country, p_days_back: 30 })
+      if (error) throw error
+      if (data?.ok === false) {
+        toast.err(`No se pudo retroceder watermark: ${data.reason}`)
+        return
+      }
+      toast.ok(`Watermark retrocedido a ${new Date(data.new).toLocaleDateString()}. Disparando sync…`, { duration: 6000 })
+      await handleSync()
+    } catch (e) {
+      toast.err(`Error: ${e.message}`)
+    } finally {
+      setRunning(false)
+    }
+  }
 
   useEffect(() => { reload() }, [reload])
 
@@ -158,6 +194,18 @@ export default function BotDbSync() {
           >
             {probing ? 'Disparando…' : '🔍 Probe'}
           </button>
+          <button
+            onClick={handleResync}
+            disabled={running}
+            style={{
+              padding: '6px 12px', borderRadius: 6,
+              border: '1px solid #f59e0b', background: '#fffbeb', cursor: 'pointer',
+              fontSize: 12, color: '#78350f',
+            }}
+            title="Retrocede el watermark 30d y re-pide filas al bot. Útil después de cambiar bot_rules."
+          >
+            ↺ Re-sync 30d
+          </button>
           <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
             Límite por corrida
             <input
@@ -167,6 +215,46 @@ export default function BotDbSync() {
             />
           </label>
         </div>
+
+        {/* Dropped combos — filas que NO matchearon reglas */}
+        {droppedCombos.length > 0 && (
+          <div style={{
+            marginBottom: 16, padding: 12, borderRadius: 8,
+            background: '#fef3c7', border: '1px solid #f59e0b',
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#78350f', marginBottom: 6 }}>
+              ⚠ {droppedCombos.length} combinaciones (app, vc, ovc, city) NO matchearon ninguna regla en la última corrida
+            </div>
+            <div style={{ fontSize: 11, color: '#92400e', marginBottom: 8 }}>
+              Si querés que estas filas se incluyan, andá a <strong>Config → Bot Rules</strong> y agregalas.
+              Después usá <strong>↺ Re-sync 30d</strong> para re-procesar el histórico.
+            </div>
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              <table className="config-table" style={{ fontSize: 11 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>app</th>
+                    <th style={{ textAlign: 'left' }}>vc</th>
+                    <th style={{ textAlign: 'left' }}>ovc</th>
+                    <th style={{ textAlign: 'left' }}>db_city</th>
+                    <th style={{ textAlign: 'right' }}>n</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {droppedCombos.slice(0, 30).map((c, i) => (
+                    <tr key={i}>
+                      <td><code>{c.app || '∅'}</code></td>
+                      <td><code>{c.vc || '∅'}</code></td>
+                      <td><code>{c.ovc || '*'}</code></td>
+                      <td>{c.db_city || '∅'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{c.n?.toLocaleString() || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Log de corridas */}
         <h3 style={{ fontSize: 14, marginBottom: 6 }}>Últimas corridas</h3>

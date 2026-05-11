@@ -10,6 +10,7 @@ import CommissionsConfig     from '../components/config/CommissionsConfig'
 import BonusesConfig         from '../components/config/BonusesConfig'
 import InDriveConfig         from '../components/config/InDriveConfig'
 import CountriesConfig       from '../components/config/CountriesConfig'
+import BotRulesTable         from '../components/config/BotRulesTable'
 import { useI18n }           from '../context/LanguageContext'
 import { useCountry }         from '../context/CountryContext'
 import '../styles/config.css'
@@ -29,6 +30,7 @@ export default function Config() {
     { id: 'commissions', label: t('config.commissions') },
     { id: 'bonuses',     label: t('config.bonuses') },
     { id: 'indrive',     label: t('config.indrive') },
+    { id: 'botrules',    label: 'Bot Rules' },
     { id: 'countries',   label: t('config.countries') },
   ], [t])
 
@@ -95,6 +97,7 @@ export default function Config() {
       {activeTab === 'commissions' && <CommissionsConfig country={country} />}
       {activeTab === 'bonuses'     && <BonusesConfig country={country} />}
       {activeTab === 'indrive'     && <InDriveConfig country={country} />}
+      {activeTab === 'botrules'    && <BotRulesTable country={country} />}
       {activeTab === 'countries'   && <CountriesConfig />}
     </div>
   )

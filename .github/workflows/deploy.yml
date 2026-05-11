@@ -32,11 +32,10 @@ jobs:
 
       - name: Run unit tests
         # Tests sin framework — corren con `node` plano. Si fallan, el
-        # deploy se aborta (previene regresiones en bot_mapping y
-        # bracket normalization, que han causado bugs de Colombia).
-        run: |
-          npm run test:bot-mapping
-          npm run test:bracket-normalize
+        # deploy se aborta (previene regresiones en bot_mapping,
+        # bracket normalization y paridad SQL↔JS — todos bugs reales
+        # ya observados en producción).
+        run: npm run test:all
 
       - name: Build
         env:
