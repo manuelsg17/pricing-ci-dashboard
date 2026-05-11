@@ -45,24 +45,16 @@ export default function PriceMatrix({ filters, priceMatrix, periods, currency = 
                     return <MatrixCell key={b} value={avg} format="price" />
                   })}
 
-                  {/* Columna WA global (promedio de WAs) */}
+                  {/* Columna WA global (promedio de WAs) — formato con separador de miles */}
                   <td className="col-wa">
                     {(() => {
                       const was = periods
                         .map(p => priceMatrix[comp]?.[p.key]?._wa)
                         .filter(v => v !== null && v !== undefined)
-                      return was.length
-                        ? was.reduce((a, v) => a + v, 0) / was.length
-                        : '—'
-                    })()}{' '}
-                    {(() => {
-                      const was = periods
-                        .map(p => priceMatrix[comp]?.[p.key]?._wa)
-                        .filter(v => v !== null && v !== undefined)
-                      return was.length
-                        ? (was.reduce((a, v) => a + v, 0) / was.length).toFixed(2)
-                        : null
-                    })() && null}
+                      if (!was.length) return '—'
+                      const avg = was.reduce((a, v) => a + v, 0) / was.length
+                      return avg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    })()}
                   </td>
 
                   {/* Una columna por período */}

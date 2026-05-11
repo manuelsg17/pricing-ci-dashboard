@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import { useFilterContext } from '../../context/FilterContext'
 import { useI18n } from '../../context/LanguageContext'
+import { formatPrice, formatCurrency } from '../../lib/format.js'
 
 function getWeekDateRange(periodKey) {
   const [yearStr, weekStr] = periodKey.split('-W')
@@ -132,7 +133,7 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
                   const avg = prices.reduce((a, b) => a + b, 0) / prices.length
                   const min = Math.min(...prices)
                   const max = Math.max(...prices)
-                  return `Avg ${currency} ${avg.toFixed(2)} · min ${currency} ${min.toFixed(2)} · max ${currency} ${max.toFixed(2)}`
+                  return `Avg ${formatCurrency(avg, currency)} · min ${formatCurrency(min, currency)} · max ${formatCurrency(max, currency)}`
                 })()}
               </span>
             </div>
@@ -170,7 +171,7 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
                     <td style={{ padding: '5px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
                       {(() => {
                         const p = r.price_without_discount ?? r.recommended_price
-                        return p != null ? `${currency} ${Number(p).toFixed(2)}` : '—'
+                        return p != null ? formatCurrency(p, currency) : '—'
                       })()}
                     </td>
                     <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.surge ? '⚡ Sí' : '—'}</td>

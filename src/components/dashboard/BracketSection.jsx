@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceArea, Brush,
 } from 'recharts'
 import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
+import { formatPrice } from '../../lib/format.js'
 import { useI18n } from '../../context/LanguageContext'
 import DrillDownModal from './DrillDownModal'
 
@@ -492,7 +493,7 @@ export default function BracketSection({
                             >
                               {v != null ? (
                                 <>
-                                  {v.toFixed(2)}
+                                  {formatPrice(v)}
                                   {isLast && <TrendArrow curr={v} prev={prev} />}
                                 </>
                               ) : loading
@@ -589,9 +590,10 @@ export default function BracketSection({
                               {loading ? <span className="skel-cell" /> : <span className="cell-empty">—</span>}
                             </td>
                           )
-                          const sign = d >= 0 ? '+' : ''
+                          const sign = d > 0 ? '+' : ''
                           const cls  = d > 0 ? 'diff-pos' : d < 0 ? 'diff-neg' : ''
-                          return <td key={p.key} className={cls}>{sign}{d.toFixed(2)}</td>
+                          // formatPrice ya incluye el '-' para negativos; el sign solo añade '+' para positivos
+                          return <td key={p.key} className={cls}>{sign}{formatPrice(d)}</td>
                         })}
                       </tr>
                     ))}
@@ -762,7 +764,7 @@ function MiniChart({
                 contentStyle={{ fontSize: 11 }}
                 formatter={(v, name) => {
                   if (v == null) return 'N/A'
-                  return [isPercent ? `${v.toFixed(0)}%` : v.toFixed(2), name]
+                  return [isPercent ? `${v.toFixed(0)}%` : formatPrice(v), name]
                 }}
                 labelFormatter={label => `${t('dataentry.col_date')}: ${label}`}
               />

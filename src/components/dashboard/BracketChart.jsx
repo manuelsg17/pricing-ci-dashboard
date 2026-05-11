@@ -62,7 +62,7 @@ export default function BracketChart({ title, data, competitors, mode = 'price',
           />
           <Tooltip
             contentStyle={{ fontSize: 11 }}
-            formatter={(v) => v !== null ? Number(v).toFixed(2) : 'N/A'}
+            formatter={(v) => v !== null ? Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
           />
           {/* Event markers: only show if the date appears as a period key */}
           {events.map(evt => {
