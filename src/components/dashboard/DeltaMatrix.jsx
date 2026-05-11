@@ -1,9 +1,9 @@
-import { BRACKETS, BRACKET_LABELS, YANGO_DISPLAY_NAME } from '../../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getYangoDisplayName } from '../../lib/constants'
 import MatrixCell from './MatrixCell'
 import { computeDelta, getSemaforoClass } from '../../algorithms/semaforo'
 
 export default function DeltaMatrix({ filters, priceMatrix, deltaMatrix, semaforoMatrix, periods }) {
-  const { competitors, city, category, compareVs } = filters
+  const { competitors, dbCity, dbCategory, compareVs, country } = filters
 
   if (!periods.length) return null
 
@@ -29,7 +29,7 @@ export default function DeltaMatrix({ filters, priceMatrix, deltaMatrix, semafor
               const isBase = comp === compareVs
               const rowClass = isBase ? 'row-yango' : ''
               const label = comp === 'Yango'
-                ? (YANGO_DISPLAY_NAME[city]?.[category] || 'Yango')
+                ? getYangoDisplayName(country, dbCity, dbCategory)
                 : comp
 
               return (

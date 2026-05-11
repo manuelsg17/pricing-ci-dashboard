@@ -570,4 +570,13 @@ export function getCompetitors(uiCity, uiCategory, subCategory, country) {
   return config.competitorsByDbCityCategory[dbCity]?.[dbCategory] || []
 }
 
+// Devuelve el label específico que Yango usa para una ciudad/categoría dada.
+// Recibe dbCity/dbCategory porque los matrices del dashboard ya operan en
+// espacio DB. Si no hay override configurado devuelve 'Yango'.
+export function getYangoDisplayName(country, dbCity, dbCategory) {
+  if (!country || !dbCity || !dbCategory) return 'Yango'
+  const config = getCountryConfig(country)
+  return config?.yangoDisplayName?.[dbCity]?.[dbCategory] || 'Yango'
+}
+
 // (End of file)

@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run unit tests
+        # Tests sin framework — corren con `node` plano. Si fallan, el
+        # deploy se aborta (previene regresiones en bot_mapping y
+        # bracket normalization, que han causado bugs de Colombia).
+        run: |
+          npm run test:bot-mapping
+          npm run test:bracket-normalize
+
       - name: Build
         env:
           VITE_SUPABASE_URL:      ${{ secrets.VITE_SUPABASE_URL }}

@@ -52,9 +52,12 @@ export default function PriceRulesTable({ country }) {
   function addRule() {
     const tempId = `new_${Date.now()}`
     setMsg(null)
+    // Default a maxPrice del país (PEN=120, COP=120000, NPR=2000, etc.).
+    // Si config.maxPrice no está seteado, fallback a 120 (Peru-equivalent).
+    const defaultMax = Number(config.maxPrice) || 120
     setRules(prev => [...prev, {
       id: tempId, city: defaultCity, category: 'all',
-      competition: 'all', max_price: 120, _new: true,
+      competition: 'all', max_price: defaultMax, _new: true,
     }])
   }
 
@@ -78,7 +81,7 @@ export default function PriceRulesTable({ country }) {
       city: rule.city,
       category: rule.category || 'all',
       competition: rule.competition || 'all',
-      max_price: parseFloat(rule.max_price) || 120,
+      max_price: parseFloat(rule.max_price) || Number(config.maxPrice) || 120,
     }
     let err
     if (rule._new) {

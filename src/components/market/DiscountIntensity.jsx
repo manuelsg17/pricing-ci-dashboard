@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 
-export default function DiscountIntensity({ filters, currency = 'S/' }) {
+export default function DiscountIntensity({ filters, currency = '' }) {
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(false)
 

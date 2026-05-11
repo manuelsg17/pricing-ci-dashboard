@@ -16,7 +16,7 @@ import { getCountryConfig, getCityLabel } from '../lib/constants'
 
 // Etiquetas personalizadas por DB
 
-function fmt(val, currency = 'S/') {
+function fmt(val, currency = '') {
   if (val === null || val === undefined) return '—'
   return `${currency} ${parseFloat(val).toFixed(2)}`
 }

@@ -1,8 +1,8 @@
-import { BRACKETS, BRACKET_LABELS, YANGO_DISPLAY_NAME } from '../../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getYangoDisplayName } from '../../lib/constants'
 import MatrixCell from './MatrixCell'
 
-export default function PriceMatrix({ filters, priceMatrix, periods, currency = 'S/' }) {
-  const { competitors, city, category, compareVs } = filters
+export default function PriceMatrix({ filters, priceMatrix, periods, currency = '' }) {
+  const { competitors, dbCity, dbCategory, compareVs, country } = filters
 
   if (!periods.length) return null
 
@@ -28,7 +28,7 @@ export default function PriceMatrix({ filters, priceMatrix, periods, currency = 
               const isYango = comp === compareVs
               const rowClass = isYango ? 'row-yango' : ''
               const label = comp === 'Yango'
-                ? (YANGO_DISPLAY_NAME[city]?.[category] || 'Yango')
+                ? getYangoDisplayName(country, dbCity, dbCategory)
                 : comp
 
               return (

@@ -104,7 +104,7 @@ export default function BracketSection({
   chartData,
   deltaChartData,
   events = [],
-  currency = 'S/',
+  currency = '',
   semaforoBands = [],
   frozenWeeks,
   loading = false,

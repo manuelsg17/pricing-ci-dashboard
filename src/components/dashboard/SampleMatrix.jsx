@@ -1,7 +1,7 @@
-import { BRACKETS, BRACKET_LABELS, YANGO_DISPLAY_NAME } from '../../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getYangoDisplayName } from '../../lib/constants'
 
 export default function SampleMatrix({ filters, sampleMatrix, periods }) {
-  const { competitors, city, category } = filters
+  const { competitors, dbCity, dbCategory, country } = filters
 
   if (!periods.length) return null
 
@@ -25,7 +25,7 @@ export default function SampleMatrix({ filters, sampleMatrix, periods }) {
           <tbody>
             {competitors.map(comp => {
               const label = comp === 'Yango'
-                ? (YANGO_DISPLAY_NAME[city]?.[category] || 'Yango')
+                ? getYangoDisplayName(country, dbCity, dbCategory)
                 : comp
 
               return (

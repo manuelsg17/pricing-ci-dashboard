@@ -7,6 +7,20 @@ import { useConfirm } from '../ui/ConfirmDialog'
 const CONST_KEYS    = Object.keys(COUNTRY_CONFIG)
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
+// Presets razonables por moneda. Evita que un usuario cree un país
+// COP/NPR con max_price=1000 (que en COP son ~0.25 USD → todos los
+// precios marcados como outliers). Usado en addNewCountry y como
+// sugerencia cuando el usuario cambia currency en el form.
+const CURRENCY_PRESETS = {
+  PEN: { locale: 'es-PE', outlier_threshold: 300,     max_price: 1000      },
+  COP: { locale: 'es-CO', outlier_threshold: 300000,  max_price: 1000000   },
+  BOB: { locale: 'es-BO', outlier_threshold: 500,     max_price: 2000      },
+  VES: { locale: 'es-VE', outlier_threshold: 200,     max_price: 1000      },
+  NPR: { locale: 'ne-NP', outlier_threshold: 5000,    max_price: 20000     },
+  ZMW: { locale: 'en-ZM', outlier_threshold: 500,     max_price: 2000      },
+  USD: { locale: 'en-US', outlier_threshold: 100,     max_price: 1000      },
+}
+
 // ── Style helpers ─────────────────────────────────────────────────────
 
 const fieldLabelStyle = {
@@ -226,15 +240,50 @@ export default function CountriesConfig() {
 
   function addNewCountry() {
     const key = `NewCountry_${Date.now()}`
+    const preset = CURRENCY_PRESETS.USD
     const blank = {
       country_key: key, label: 'Nuevo País', currency: 'USD',
-      locale: 'en-US', outlier_threshold: 100, max_price: 1000,
+      locale: preset.locale,
+      outlier_threshold: preset.outlier_threshold,
+      max_price: preset.max_price,
       sort_order: dbRows.length, cities: [],
     }
     setDbRows(prev => [...prev, blank])
     setDraft(prev => ({ ...prev, [key]: blank }))
     setSelectedKey(key)
     setSelectedCityIdx(null)
+  }
+
+  // Cuando el usuario cambia currency, si los valores actuales coinciden
+  // con un preset previo (i.e. no fueron tocados manualmente), aplicar
+  // el preset nuevo. Si el usuario ya editó manualmente, mantener sus
+  // valores y solo cambiar el currency/locale.
+  function setCurrency(key, newCurrency) {
+    const row = getOrInitDraft(key)
+    const preset = CURRENCY_PRESETS[newCurrency]
+    if (!preset) {
+      setDraftField(key, 'currency', newCurrency)
+      return
+    }
+    // Detectar si el row actual usa los defaults de algún preset conocido
+    const isUntouched = Object.values(CURRENCY_PRESETS).some(p =>
+      Number(row.outlier_threshold) === p.outlier_threshold &&
+      Number(row.max_price) === p.max_price
+    )
+    if (isUntouched) {
+      setDraft(prev => ({
+        ...prev,
+        [key]: {
+          ...row,
+          currency: newCurrency,
+          locale: preset.locale,
+          outlier_threshold: preset.outlier_threshold,
+          max_price: preset.max_price,
+        },
+      }))
+    } else {
+      setDraftField(key, 'currency', newCurrency)
+    }
   }
 
   // ── Derived active values ─────────────────────────────────────────
@@ -333,9 +382,14 @@ export default function CountriesConfig() {
                   <label style={fieldLabelStyle}>Moneda</label>
                   <input style={inputStyle(readonly)} disabled={readonly}
                     value={activeRow?.currency || ''}
-                    onChange={e => setDraftField(selectedKey, 'currency', e.target.value)}
+                    onChange={e => setCurrency(selectedKey, e.target.value)}
                     placeholder="USD"
+                    list="currency-presets-list"
+                    title="PEN/COP/BOB/VES/NPR/ZMW/USD ajustan defaults de outlier y max_price automáticamente"
                   />
+                  <datalist id="currency-presets-list">
+                    {Object.keys(CURRENCY_PRESETS).map(c => <option key={c} value={c} />)}
+                  </datalist>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={fieldLabelStyle}>Locale</label>
