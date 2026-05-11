@@ -84,8 +84,22 @@ export function CountryProvider({ children }) {
     [country, dbConfigs]
   )
 
-  // Union: constants.js countries first, then DB-only keys appended
+  // Union: constants.js countries first, then DB-only keys appended.
+  // Excluye países con status='draft' (solo visibles en /config para
+  // el operador que los está creando). Países hardcoded de constants.js
+  // se consideran 'active' por default.
   const availableCountries = useMemo(() => {
+    const dbActive = Object.keys(dbConfigs).filter(k => {
+      const cfg = dbConfigs[k]
+      return (cfg?.status ?? 'active') === 'active'
+    })
+    const dbOnly = dbActive.filter(k => !COUNTRIES.includes(k))
+    return [...COUNTRIES, ...dbOnly]
+  }, [dbConfigs])
+
+  // Todos los países (incluyendo drafts) — útil para el editor de
+  // /config → Países que necesita ver los drafts para seguir editándolos.
+  const allCountries = useMemo(() => {
     const dbOnly = Object.keys(dbConfigs).filter(k => !COUNTRIES.includes(k))
     return [...COUNTRIES, ...dbOnly]
   }, [dbConfigs])
@@ -98,6 +112,7 @@ export function CountryProvider({ children }) {
       setCountry,
       countryConfig,
       availableCountries,
+      allCountries,
       dbConfigs,
       loading,
       refreshConfigs,
