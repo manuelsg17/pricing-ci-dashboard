@@ -612,9 +612,14 @@ export default function CountryWizard({ onClose, onCreated }) {
           <button onClick={() => setStep(s => s + 1)} disabled={!canAdvance}
             className="btn-save">Siguiente →</button>
         ) : (
-          <button onClick={handleFinish} disabled={saving || !canAdvance || validation}
+          // Bug previo: `validation` siendo `[]` se evaluaba truthy y dejaba
+          // el botón disabled tras un save exitoso. Ahora chequeamos !== null
+          // explícito para identificar "creado". Si saving o canAdvance, también
+          // disabled — el resto del tiempo, habilitado.
+          <button onClick={handleFinish}
+            disabled={saving || !canAdvance || validation !== null}
             className="btn-save">
-            {saving ? 'Creando…' : validation ? '✓ Creado' : 'Crear país (status=draft)'}
+            {saving ? 'Creando…' : validation !== null ? '✓ Creado' : 'Crear país (status=draft)'}
           </button>
         )}
       </div>

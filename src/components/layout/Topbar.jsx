@@ -91,7 +91,15 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
 
 export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, canAccess = () => true, allowedCountries = COUNTRIES }) {
   const { lang, setLang, languages, t } = useI18n()
-  const { country, setCountry } = useCountry()
+  const { country, setCountry, countryConfig } = useCountry()
+  // Prioridad: countryConfig.iso2 / nativeLabel (de DB) → COUNTRY_CONFIG
+  // hardcoded → fallback al país literal. Esto hace que países creados
+  // vía wizard tengan su bandera y label correcto desde el primer render.
+  const iso2  = (countryConfig?.iso2 || getCountryIso(country) || '').toLowerCase()
+  const label = countryConfig?.nativeLabel || (() => {
+    const fromI18n = t(`country.${country}`)
+    return fromI18n === `country.${country}` ? country : fromI18n
+  })()
 
   const navItems = getNav(t)
 
@@ -102,12 +110,14 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
         <div className="topbar__brand-text">
           <span className="topbar__brand-title">{t('brand.title')}</span>
           <span className="topbar__brand-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <img
-              src={`https://flagcdn.com/w20/${getCountryIso(country)}.png`}
-              alt=""
-              style={{ width: 14, height: 'auto', borderRadius: 1 }}
-            />
-            {t(`country.${country}`) || country}
+            {iso2 && (
+              <img
+                src={`https://flagcdn.com/w20/${iso2}.png`}
+                alt=""
+                style={{ width: 14, height: 'auto', borderRadius: 1 }}
+              />
+            )}
+            {label}
           </span>
         </div>
       </div>

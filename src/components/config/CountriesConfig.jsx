@@ -125,7 +125,14 @@ export default function CountriesConfig() {
     if (!draft[key]) return false
     const dbRow = dbRows.find(r => r.country_key === key)
     if (!dbRow) return true   // recién creado en memoria
-    const FIELDS = ['label','currency','locale','outlier_threshold','max_price','sort_order','cities','iso2','native_label','status']
+    // FIELDS incluye los campos JSONB de mig 58 (bot_rules,
+    // airport_subcategories_by_city) — sin ellos, editar reglas o
+    // subcategorías no se reflejaba en el botón Guardar/Cancelar.
+    const FIELDS = [
+      'label','currency','locale','outlier_threshold','max_price','sort_order',
+      'cities','iso2','native_label','status',
+      'bot_rules','airport_subcategories_by_city',
+    ]
     return FIELDS.some(f => JSON.stringify(draft[key][f]) !== JSON.stringify(dbRow[f]))
   }
 
