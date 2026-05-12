@@ -41,21 +41,20 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
   const prevShapeRef = useRef(viewMode === 'daily' ? 'daily' : 'weekly')
 
   // ── Cargar datos desde Supabase ──────────────────────────
+  // Cancel flag (let cancelled=false) previene race condition cuando el
+  // usuario cambia de país: el fetch viejo (Peru) puede responder DESPUÉS
+  // del nuevo (Colombia) y sobrescribir los rawRows. Sin esto, dashboard
+  // se queda con data del país viejo o vacío, y requiere F5 para arreglarse.
   useEffect(() => {
     if (!dbCity || !dbCategory) {
-      // Sin city/category válidas → limpiar loading para evitar overlay infinito
       setLoading(false)
       return
     }
+    let cancelled = false
     setLoading(true)
     setError(null)
 
     // Limpiar rawRows SOLO si la shape de datos cambió (daily ↔ weekly).
-    // Sin esto, durante el cambio de viewMode los rawRows viejos
-    // (shape {year, week, ...}) se mezclan con el viewMode nuevo
-    // (que espera {observed_date, ...}), produciendo periods con
-    // keys=undefined y crash de recharts ("Cannot read properties of
-    // null (reading 'dir')").
     const currentShape = viewMode === 'daily' ? 'daily' : 'weekly'
     if (currentShape !== prevShapeRef.current) {
       setRawRows([])
@@ -95,6 +94,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
               .gte('year', y1)
               .lte('year', y2),
           ])
+          if (cancelled) return
           if (liveRes.error) throw liveRes.error
           setRawRows(liveRes.data || [])
           setFrozenRows(frozenRes.data || [])
@@ -110,18 +110,20 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
             p_data_source: dataSource,
             p_time_of_day: timeOfDayParam,
           })
+          if (cancelled) return
           if (err) throw err
           setRawRows(data || [])
           setFrozenRows([])
         }
       } catch (e) {
-        setError(e.message || 'Error al cargar datos')
+        if (!cancelled) setError(e.message || 'Error al cargar datos')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     fetchData()
+    return () => { cancelled = true }
   }, [country, dbCity, dbCategory, zone, surge, dataSource, viewMode, weekColumns, dailyStart, dailyEnd, timeOfDayParam])
 
   // ── Construir set de semanas congeladas para indicador visual ──
