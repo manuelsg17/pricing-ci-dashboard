@@ -38,16 +38,32 @@ export function useFilters(country) {
   // also set to true during applyPreset to prevent cascades from wiping applied values.
   const suppressCascades = useRef(true)
 
-  const [city,        setCity]        = useState(() => {
+  // Computar la city efectiva antes de inicializar category — esto
+  // evita el bug "cambio de país deja category undefined":
+  //   1. Usuario en Peru, hash tiene city=Lima, cat=Economy/Comfort
+  //   2. Cambia a Colombia, FilterProvider remount (key={country})
+  //   3. CITIES = [Bogotá, Cali, ...] — Lima no es válida
+  //   4. Antes: category inicializaba con CATEGORIES_BY_CITY['Lima']
+  //      = undefined → cats=[] → category=undefined → fetch aborta
+  //   5. Ahora: city se valida primero, category usa la city válida.
+  const initialCity = (() => {
     const h = H.current['city']
     return h && CITIES.includes(h) ? h : CITIES[0]
-  })
+  })()
+
+  const [city,        setCity]        = useState(initialCity)
   const [category,    setCategory]    = useState(() => {
     const h = H.current['cat']
-    const cats = CATEGORIES_BY_CITY[H.current['city'] || CITIES[0]] || []
-    return h && cats.includes(h) ? h : cats[0] || ''
+    const cats = CATEGORIES_BY_CITY[initialCity] || []
+    return h && cats.includes(h) ? h : (cats[0] || '')
   })
-  const [subCategory, setSubCategory] = useState(() => H.current['sub'] || null)
+  // Misma lógica defensiva para subCategory: si no aplica al país, null.
+  const [subCategory, setSubCategory] = useState(() => {
+    const h = H.current['sub']
+    if (!h) return null
+    const subs = AEROPUERTO_BY_CITY[initialCity] || countryConfig.aeropuertoSubcategories || []
+    return subs.includes(h) ? h : null
+  })
   const [zone,        setZone]        = useState(() => H.current['zone'] || 'All')
   const [surge,       setSurge]       = useState(() => {
     const h = H.current['surge']
@@ -59,7 +75,19 @@ export function useFilters(country) {
     const h = H.current['src']
     return (h && h !== 'all') ? h : null
   })
-  const [compareVs,   setCompareVs]   = useState(() => H.current['cmp'] || 'Yango')
+  // compareVs: si el hash trae 'Cabify' pero el país nuevo no lo tiene,
+  // cae a 'Yango' por defecto. Sin esto, charts comparativas no renderean.
+  const [compareVs,   setCompareVs]   = useState(() => {
+    const h = H.current['cmp']
+    if (!h) return 'Yango'
+    const initialCat = (() => {
+      const hc = H.current['cat']
+      const cats = CATEGORIES_BY_CITY[initialCity] || []
+      return hc && cats.includes(hc) ? hc : (cats[0] || '')
+    })()
+    const validComps = getCompetitors(initialCity, initialCat, null, country)
+    return validComps.includes(h) ? h : (validComps[0] || 'Yango')
+  })
   const [viewMode,      setViewMode]      = useState(() => H.current['view'] || 'weekly')
   const [weekStart,     setWeekStart]     = useState(() => H.current['ws'] || toISODate(getMondayWeeksAgo(8)))
   const [dailyStart,    setDailyStart]    = useState(() => H.current['ds'] || toISODate(new Date(Date.now() - 6 * 86400000)))

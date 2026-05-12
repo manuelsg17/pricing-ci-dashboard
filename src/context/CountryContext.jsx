@@ -76,6 +76,20 @@ export function CountryProvider({ children }) {
   const setCountry = useCallback((val) => {
     setCountryState(val)
     localStorage.setItem('country', val)
+    // Limpiar filtros país-específicos del hash de la URL al cambiar país.
+    // Sin esto, si el hash tenía city=Lima&cat=Economy/Comfort de Peru, al
+    // cambiar a Colombia esos valores stale pueden afectar la inicialización
+    // de useFilters (Lima no existe en Colombia → category queda undefined).
+    // Filtros universales (surge, src, view, tod, ws, ds) se preservan.
+    try {
+      const hash = window.location.hash
+      if (hash && hash.length > 1) {
+        const params = new URLSearchParams(hash.slice(1))
+        ;['city', 'cat', 'sub', 'zone', 'cmp'].forEach(k => params.delete(k))
+        const newHash = params.toString()
+        window.history.replaceState(null, '', newHash ? '#' + newHash : window.location.pathname)
+      }
+    } catch { /* no-op */ }
   }, [])
 
   // DB config takes precedence; constants.js as fallback
