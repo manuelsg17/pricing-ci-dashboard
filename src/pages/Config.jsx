@@ -31,8 +31,8 @@ export default function Config() {
     { id: 'commissions', label: t('config.commissions') },
     { id: 'bonuses',     label: t('config.bonuses') },
     { id: 'indrive',     label: t('config.indrive') },
-    { id: 'botrules',    label: 'Bot Rules' },
-    { id: 'snapshots',   label: 'Snapshots' },
+    { id: 'botrules',    label: t('config.botrules') },
+    { id: 'snapshots',   label: t('config.snapshots') },
     { id: 'countries',   label: t('config.countries') },
   ], [t])
 
