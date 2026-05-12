@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { formatPrice, formatCount } from '../../lib/format.js'
 
 /**
@@ -8,8 +9,13 @@ import { formatPrice, formatCount } from '../../lib/format.js'
  *
  * `format='price'` usa formatPrice() que aplica separador de miles
  * (coma) + 2 decimales: 60000 → "60,000.00".
+ *
+ * memo() — esta celda se renderiza ~144 veces por sección (6 brackets ×
+ * 4 competidores × 6 períodos). Sin memo, cualquier cambio en el padre
+ * fuerza re-render de todas. Con memo, solo se actualizan las que
+ * tienen props distintos. Mejora notable en interactividad.
  */
-export default function MatrixCell({ value, semaforoClass, format = 'price', isBase = false }) {
+function MatrixCell({ value, semaforoClass, format = 'price', isBase = false }) {
   if (value === null || value === undefined) {
     return <td className={`cell-empty ${semaforoClass || ''}`}>—</td>
   }
@@ -30,3 +36,5 @@ export default function MatrixCell({ value, semaforoClass, format = 'price', isB
 
   return <td className={semaforoClass || ''}>{display}</td>
 }
+
+export default memo(MatrixCell)

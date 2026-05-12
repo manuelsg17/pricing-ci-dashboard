@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+// jspdf (~390 KB) carga dinámicamente solo al hacer click en "Generar PDF".
+// El visitante que solo previsualiza el reporte no descarga la lib.
 import { sb }              from '../lib/supabase'
 import { useAuth }         from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
@@ -161,9 +161,12 @@ export default function WeeklyReport() {
   }, [reportDataList])
 
   // ── Generate PDF ────────────────────────────────────────────────────────
-  function generatePDF() {
+  async function generatePDF() {
     if (!catMatrices.length) return
     setGeneratingPdf(true)
+    // Dynamic import: ~390 KB diferidos hasta este click.
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 
     // Title page

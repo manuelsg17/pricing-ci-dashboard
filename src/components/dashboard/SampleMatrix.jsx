@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getYangoDisplayName } from '../../lib/constants'
 
-export default function SampleMatrix({ filters, sampleMatrix, periods }) {
+function SampleMatrix({ filters, sampleMatrix, periods }) {
   const { competitors, dbCity, dbCategory, country } = filters
 
   if (!periods.length) return null
@@ -70,3 +71,5 @@ export default function SampleMatrix({ filters, sampleMatrix, periods }) {
     </div>
   )
 }
+
+export default memo(SampleMatrix)

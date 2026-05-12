@@ -3,8 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip as RechartTooltip,
   Legend, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+// jspdf (~390 KB) carga dinámicamente solo al hacer click en "Generar PDF".
 import { sb }                      from '../lib/supabase'
 import { useAuth }                 from '../lib/auth'
 import { COMPETITOR_COLORS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
@@ -267,7 +266,10 @@ export default function DriverEarnings() {
   const isYango = (comp) => comp.startsWith('Yango') || comp.startsWith('yango')
 
   // ── Generate PDF ─────────────────────────────────────────────────────
-  function generateEarningsPDF() {
+  async function generateEarningsPDF() {
+    // Dynamic import: ~390 KB diferidos hasta este click.
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const ss = [...tripScale].sort((a, b) => a - b)
 

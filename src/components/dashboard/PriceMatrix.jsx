@@ -1,7 +1,8 @@
+import { memo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getYangoDisplayName } from '../../lib/constants'
 import MatrixCell from './MatrixCell'
 
-export default function PriceMatrix({ filters, priceMatrix, periods, currency = '' }) {
+function PriceMatrix({ filters, priceMatrix, periods, currency = '' }) {
   const { competitors, dbCity, dbCategory, compareVs, country } = filters
 
   if (!periods.length) return null
@@ -74,3 +75,8 @@ export default function PriceMatrix({ filters, priceMatrix, periods, currency = 
     </div>
   )
 }
+
+// memo: la matriz se re-renderiza cada vez que el padre re-renderiza,
+// aún si sus props no cambiaron. Con memo solo re-renderiza si filters/
+// priceMatrix/periods/currency cambiaron por identidad.
+export default memo(PriceMatrix)

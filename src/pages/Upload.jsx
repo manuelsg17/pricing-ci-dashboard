@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
+// xlsx (475 KB) se carga dinámicamente solo cuando el usuario arrastra
+// un archivo. Sin esto, todo visitante a /upload baja el chunk vendor-xlsx
+// inmediatamente aunque nunca suba un archivo.
 import { sb }              from '../lib/supabase'
 import { getCountryConfig } from '../lib/constants'
 import { computeEffectivePrice } from '../algorithms/indrive'
@@ -361,6 +363,8 @@ export default function Upload() {
 
   // Procesa un único archivo (File) y devuelve array de sheets
   const parseSingleFile = async (file) => {
+    // Dynamic import: solo carga xlsx (~475 KB) cuando realmente se necesita
+    const XLSX = await import('xlsx')
     const buf = await file.arrayBuffer()
     const wb  = XLSX.read(buf, { type: 'array', cellDates: false })
 

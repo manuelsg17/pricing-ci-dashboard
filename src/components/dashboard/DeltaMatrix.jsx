@@ -1,8 +1,9 @@
+import { memo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getYangoDisplayName } from '../../lib/constants'
 import MatrixCell from './MatrixCell'
 import { computeDelta, getSemaforoClass } from '../../algorithms/semaforo'
 
-export default function DeltaMatrix({ filters, priceMatrix, deltaMatrix, semaforoMatrix, periods }) {
+function DeltaMatrix({ filters, priceMatrix, deltaMatrix, semaforoMatrix, periods }) {
   const { competitors, dbCity, dbCategory, compareVs, country } = filters
 
   if (!periods.length) return null
@@ -91,3 +92,5 @@ export default function DeltaMatrix({ filters, priceMatrix, deltaMatrix, semafor
     </div>
   )
 }
+
+export default memo(DeltaMatrix)
