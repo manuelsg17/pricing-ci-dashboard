@@ -453,7 +453,18 @@ export function getCityLabel(dbCity) {
   return CITY_DISPLAY_NAMES[dbCity] || dbCity
 }
 
-export const COUNTRIES = Object.keys(COUNTRY_CONFIG)
+// Orden explícito de países en el selector del topbar.
+// Peru y Colombia primero (mercados principales en la presentación LATAM),
+// el resto en orden alfabético. Países nuevos creados via wizard (DB-only)
+// se agregan al final via availableCountries en CountryContext.
+const PREFERRED_ORDER = ['Peru', 'Colombia']
+const _allKeys = Object.keys(COUNTRY_CONFIG)
+export const COUNTRIES = [
+  ...PREFERRED_ORDER.filter(c => _allKeys.includes(c)),
+  ..._allKeys
+    .filter(c => !PREFERRED_ORDER.includes(c))
+    .sort((a, b) => a.localeCompare(b)),
+]
 
 // ISO-3166 alpha-2 codes — usado para banderas SVG (flagcdn.com)
 export const COUNTRY_ISO = {
