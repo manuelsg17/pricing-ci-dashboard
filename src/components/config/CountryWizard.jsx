@@ -30,6 +30,20 @@ const DEFAULT_WEIGHTS_PCT = {
 
 const BRACKETS = ['very_short','short','median','average','long','very_long']
 
+// Umbrales de distancia por defecto (km máximo de cada bracket).
+// Mismos para todas las monedas — la distancia geográfica no depende
+// del país. very_long no tiene max_km (sin límite superior).
+// Sin estos defaults, el dashboard cae a "very_long" por todo (mig 46)
+// y se ve sesgado. Por eso es importante seedear desde el wizard.
+const DEFAULT_DISTANCE_THRESHOLDS_KM = {
+  very_short: 2,
+  short:      4,
+  median:     6,
+  average:    8,
+  long:       10,
+  very_long:  null,
+}
+
 // Pasos del wizard. Solo Identidad y Moneda son obligatorios para
 // crear el país; el resto se puede completar después editando.
 const STEPS = [
@@ -254,7 +268,48 @@ export default function CountryWizard({ onClose, onCreated }) {
         }
       }
 
-      // 4. Validar setup
+      // 4. distance_thresholds — CRÍTICO sin esto el dashboard cae a 'very_long'
+      // por todo. Sembrar defaults por (city, category, bracket) usando los
+      // valores de DEFAULT_DISTANCE_THRESHOLDS_KM. El usuario puede editar
+      // después desde /config → Distancias.
+      const thresholdRows = []
+      for (const c of draft.cities) {
+        const categories = c.categories?.length
+          ? c.categories.map(cat => cat.dbName || cat.name)
+          : ['all']
+        for (const category of categories) {
+          for (const bracket of BRACKETS) {
+            thresholdRows.push({
+              country:  draft.country_key,
+              city:     c.dbName || c.uiName,
+              category,
+              bracket,
+              max_km:   DEFAULT_DISTANCE_THRESHOLDS_KM[bracket],
+            })
+          }
+        }
+      }
+      if (thresholdRows.length > 0) {
+        const { error: thrErr } = await sb.from('distance_thresholds')
+          .upsert(thresholdRows, { onConflict: 'country,city,category,bracket' })
+        if (thrErr) throw thrErr
+      }
+
+      // 5. price_validation_rules — outlier defensivo a nivel país
+      // Usa el max_price del país. Sin esta regla, valores muy altos
+      // del bot pasan al dashboard y sesgan los averages.
+      const validationRow = {
+        country: draft.country_key,
+        city:        'all',
+        category:    'all',
+        competition: 'all',
+        max_price:   Number(draft.max_price) * 3,   // 3x maxPrice como cota razonable
+      }
+      const { error: pvErr } = await sb.from('price_validation_rules')
+        .upsert(validationRow, { onConflict: 'country,city,category,competition' })
+      if (pvErr) throw pvErr
+
+      // 6. Validar setup
       const { data: vData } = await sb.rpc('validate_country_setup', { p_country: draft.country_key })
       setValidation(vData || [])
 

@@ -62,16 +62,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Job previo que consulta country_config para descubrir qué países
+  # están activos. Sin esto, agregar un país nuevo requería editar este
+  # archivo. Ahora cualquier país con status='active' en DB se sincroniza
+  # automáticamente.
+  discover-countries:
+    runs-on: ubuntu-latest
+    outputs:
+      countries: ${{ steps.list.outputs.countries }}
+    steps:
+      - name: Listar países activos desde country_config
+        id: list
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # Usamos SERVICE_ROLE_KEY que ya está configurado para el sync
+          # (las RLS policies pueden estar bloqueando SELECT anónimo).
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          # Query: country_config con status=active. Si no hay, fallback
+          # a la lista hardcoded para no romper el sync existente.
+          RESPONSE=$(curl -fsSL \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/country_config?select=country_key&status=eq.active&order=sort_order" \
+            || echo '[]')
+          # Extraer country_keys y convertir a array JSON para matrix
+          KEYS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps([r['country_key'] for r in d]))")
+          # Fallback si la query devolvió vacío
+          if [ "$KEYS" = "[]" ]; then
+            echo "⚠ country_config sin países active — usando fallback hardcoded"
+            KEYS='["Peru","Colombia"]'
+          fi
+          echo "Países a sincronizar: $KEYS"
+          echo "countries=$KEYS" >> "$GITHUB_OUTPUT"
+
   sync:
+    needs: discover-countries
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Una corrida por país. Se ejecutan en paralelo, cada una con su
-    # propio BOT_SYNC_COUNTRY. Para añadir un país nuevo, solo agregalo
-    # a esta lista — el script lee bot_rules de Supabase data-driven.
+    # Matriz dinámica: lista de países viene de discover-countries.
+    # Para agregar/quitar país: editar country_config.status desde el
+    # dashboard, no este archivo.
     strategy:
       fail-fast: false
       matrix:
-        country: [Peru, Colombia]
+        country: ${{ fromJson(needs.discover-countries.outputs.countries) }}
 
     steps:
       - name: Checkout
