@@ -4,8 +4,12 @@
 -- VULNERABILIDAD CRÍTICA:
 --   `user_profiles` y `roles` tienen policies `FOR ALL TO authenticated
 --   USING (true) WITH CHECK (true)`. Cualquier usuario logueado puede:
---     UPDATE user_profiles SET role_id = (SELECT id FROM roles WHERE name='admin') WHERE user_id = auth.uid()
+--     UPDATE user_profiles SET role_id = (SELECT id FROM roles WHERE name='admin')
+--     WHERE email = auth.email()
 --   y se vuelve admin instantáneamente.
+--
+-- Nota schema: user_profiles NO tiene columna user_id, matchea con
+-- auth.users vía email (single source of identity para esta app).
 --
 --   El RBAC en src/hooks/useAccessControl.js solo es client-side — no
 --   tiene enforcement en la DB.
@@ -21,9 +25,12 @@
 BEGIN;
 
 -- ── A. Helper is_admin() ──────────────────────────────────────────────
--- Devuelve true si el caller (auth.uid()) tiene rol 'admin'.
+-- Devuelve true si el caller (auth.email()) tiene rol 'admin'.
 -- SECURITY DEFINER → corre con privilegios del owner (postgres) y puede
 -- leer user_profiles aunque el caller no tenga policy de SELECT directa.
+--
+-- Matchea por email porque user_profiles.email es la PK natural en esta
+-- app (no hay columna user_id que apunte a auth.users.id).
 
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS boolean
@@ -36,8 +43,9 @@ AS $$
     SELECT 1
     FROM user_profiles up
     JOIN roles r ON r.id = up.role_id
-    WHERE up.user_id = auth.uid()
-      AND r.name = 'admin'
+    WHERE up.email   = auth.email()
+      AND up.is_active = true
+      AND r.name     = 'admin'
   );
 $$;
 
@@ -99,9 +107,12 @@ COMMIT;
 -- ════════════════════════════════════════════════════════════════════════
 -- POST-APLICACIÓN: probar con un usuario non-admin:
 --
---   UPDATE user_profiles SET role_id = X WHERE user_id = auth.uid();
+--   UPDATE user_profiles SET role_id = X WHERE email = auth.email();
 --   -- Debería fallar con "new row violates row-level security policy"
 --
 --   SELECT * FROM user_profiles;
 --   -- Debería funcionar (SELECT sigue abierto)
+--
+--   SELECT is_admin();
+--   -- Debería devolver true si sos admin, false si no.
 -- ════════════════════════════════════════════════════════════════════════
