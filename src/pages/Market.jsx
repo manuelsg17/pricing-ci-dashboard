@@ -16,7 +16,7 @@ import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 function MarketContent({ dbWeights, dbSemaforo }) {
   const { countryConfig } = useCountry()
   const { filters } = useFilterContext()
-  const { locale } = useI18n()
+  const { t, locale } = useI18n()
   const { currency } = countryConfig
   const [filterBarVisible, setFilterBarVisible] = useState(true)
 
@@ -31,9 +31,9 @@ function MarketContent({ dbWeights, dbSemaforo }) {
 
   return (
     <div style={{ padding: '16px 20px', maxWidth: '100%', overflowX: 'auto' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>🎯 Mercado</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{t('market.page_title')}</h1>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 14 }}>
-        Análisis competitivo profundo — todas las secciones usan los mismos filtros de la barra de arriba.
+        {t('market.page_subtitle')}
       </p>
 
       {/* Reusable filter bar */}
@@ -43,31 +43,31 @@ function MarketContent({ dbWeights, dbSemaforo }) {
             className="filter-bar-toggle__btn"
             onClick={() => setFilterBarVisible(v => !v)}
           >
-            {filterBarVisible ? '▲ Colapsar filtros' : '▼ Mostrar filtros'}
+            {filterBarVisible ? t('filter.collapse_long') : t('filter.expand_long')}
           </button>
         </div>
         <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
       </div>
 
       {error && (
-        <div className="state-box state-box--error">Error: {error}</div>
+        <div className="state-box state-box--error">{t('app.error_prefix')}{error}</div>
       )}
 
       {loading && (!periods || periods.length === 0) ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
-          Cargando análisis…
+          {t('market.loading')}
         </div>
       ) : (!periods || periods.length === 0) ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
-          Sin datos para los filtros actuales.
+          {t('market.empty_state')}
         </div>
       ) : (
         <>
-          <SectionErrorBoundary label="Resumen ejecutivo">
+          <SectionErrorBoundary label={t('market.section.summary_label')}>
             <CollapsibleSection
               id="anomalies"
-              title="📋 Resumen ejecutivo · Movimientos atípicos"
-              subtitle="Top movimientos del último período fuera de ±2σ del promedio histórico"
+              title={t('market.section.anomalies_title')}
+              subtitle={t('market.section.anomalies_subtitle')}
               defaultOpen
             >
               <AnomalyDigest
@@ -80,11 +80,11 @@ function MarketContent({ dbWeights, dbSemaforo }) {
             </CollapsibleSection>
           </SectionErrorBoundary>
 
-          <SectionErrorBoundary label="Win/Loss por bracket">
+          <SectionErrorBoundary label={t('market.section.winloss_label')}>
             <CollapsibleSection
               id="winloss"
-              title="🏆 Win/Loss por bracket"
-              subtitle={`En cuántos brackets ${filters.compareVs} fue el más barato cada período`}
+              title={t('market.section.winloss_title')}
+              subtitle={t('market.section.winloss_subtitle').replace('{comp}', filters.compareVs)}
               defaultOpen
             >
               <WinLossByBracket
@@ -96,11 +96,11 @@ function MarketContent({ dbWeights, dbSemaforo }) {
             </CollapsibleSection>
           </SectionErrorBoundary>
 
-          <SectionErrorBoundary label="Heatmap día × hora">
+          <SectionErrorBoundary label={t('market.section.heatmap_label')}>
             <CollapsibleSection
               id="heatmap"
-              title="🗓️ Heatmap día × hora"
-              subtitle="Posición de cada competidor según día de la semana y franja horaria"
+              title={t('market.section.heatmap_title')}
+              subtitle={t('market.section.heatmap_subtitle')}
               defaultOpen
               action={
                 <select
@@ -124,11 +124,11 @@ function MarketContent({ dbWeights, dbSemaforo }) {
             </CollapsibleSection>
           </SectionErrorBoundary>
 
-          <SectionErrorBoundary label="Volatilidad">
+          <SectionErrorBoundary label={t('market.section.volatility_label')}>
             <CollapsibleSection
               id="volatility"
-              title="📊 Volatilidad por competidor"
-              subtitle="Desviación estándar del WA — quién mueve precio agresivamente"
+              title={t('market.section.volatility_title')}
+              subtitle={t('market.section.volatility_subtitle')}
               defaultOpen={false}
             >
               <Volatility
@@ -140,22 +140,22 @@ function MarketContent({ dbWeights, dbSemaforo }) {
             </CollapsibleSection>
           </SectionErrorBoundary>
 
-          <SectionErrorBoundary label="Rush vs Valley">
+          <SectionErrorBoundary label={t('market.section.rush_label')}>
             <CollapsibleSection
               id="rush"
-              title="⚡ Rush vs Valley"
-              subtitle="Diferencial de precio en hora pico vs valle por competidor"
+              title={t('market.section.rush_title')}
+              subtitle={t('market.section.rush_subtitle')}
               defaultOpen={false}
             >
               <RushVsValley filters={filters} currency={currency} />
             </CollapsibleSection>
           </SectionErrorBoundary>
 
-          <SectionErrorBoundary label="Intensidad de descuentos">
+          <SectionErrorBoundary label={t('market.section.discount_label')}>
             <CollapsibleSection
               id="discount"
-              title="💸 Intensidad de descuentos"
-              subtitle="Quién compite con descuentos sobre lista vs precio fijo"
+              title={t('market.section.discount_title')}
+              subtitle={t('market.section.discount_subtitle')}
               defaultOpen={false}
             >
               <DiscountIntensity filters={filters} currency={currency} />

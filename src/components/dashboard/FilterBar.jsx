@@ -1,16 +1,19 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
 import { useFilterContext } from '../../context/FilterContext'
 import { useFilterPresets } from '../../hooks/useFilterPresets'
 
-const TIME_SLOTS = [
-  { key: 'early_morning', label: 'Madrugada', range: '0–6h'  },
-  { key: 'morning',       label: 'Mañana',    range: '6–12h' },
-  { key: 'midday',        label: 'Mediodía',  range: '12–14h'},
-  { key: 'afternoon',     label: 'Tarde',     range: '14–18h'},
-  { key: 'evening',       label: 'Noche',     range: '18–24h'},
+// Slots con keys estables y rangos (texto neutro entre idiomas). Los
+// labels se traducen dentro del componente vía t('filter.time_slot.<key>')
+// porque al nivel de módulo el t() de useI18n() no existe.
+const TIME_SLOT_KEYS = [
+  { key: 'early_morning', range: '0–6h'  },
+  { key: 'morning',       range: '6–12h' },
+  { key: 'midday',        range: '12–14h'},
+  { key: 'afternoon',     range: '14–18h'},
+  { key: 'evening',       range: '18–24h'},
 ]
 
 export default function FilterBar({ className = '' }) {
@@ -57,9 +60,21 @@ export default function FilterBar({ className = '' }) {
     })
   }
 
+  const { t } = useI18n()
+
+  // Slots traducidos (memoizado por idioma). Re-computa cuando el usuario
+  // cambia el toggle de idioma, no en cada render.
+  const TIME_SLOTS = useMemo(
+    () => TIME_SLOT_KEYS.map(s => ({
+      ...s,
+      label: t(`filter.time_slot.${s.key}`),
+    })),
+    [t]
+  )
+
   const allSelected = timeOfDay.length === ALL_TIME_SLOTS.length
   const timeLabel   = allSelected
-    ? 'Todas'
+    ? t('filter.time_all')
     : TIME_SLOTS.filter(s => timeOfDay.includes(s.key)).map(s => s.label).join(', ')
 
   // dbConfigs cubre países onboardeados via wizard (no en constants.js).
@@ -69,7 +84,6 @@ export default function FilterBar({ className = '' }) {
   const categories  = config.categoriesByCity[city] || []
   const competitors = getCompetitors(city, category, subCategory, country, dbConfigs)
   const showSubCategory = category === 'Aeropuerto'
-  const { t } = useI18n()
 
   // Forzar que weekStart siempre sea lunes
   const handleWeekStart = (e) => {
@@ -303,7 +317,7 @@ export default function FilterBar({ className = '' }) {
       {/* Selector de fechas según modo */}
       {viewMode === 'weekly' && (
         <div className="filter-bar__group">
-          <span className="filter-bar__label">{t('filter.from')} (L)</span>
+          <span className="filter-bar__label">{t('filter.from')} {t('filter.monday_hint')}</span>
           <input
             type="date"
             value={weekStart}
@@ -320,11 +334,11 @@ export default function FilterBar({ className = '' }) {
       {viewMode === 'historic' && (
         <>
           <div className="filter-bar__group">
-            <span className="filter-bar__label">{t('filter.from')} (L)</span>
+            <span className="filter-bar__label">{t('filter.from')} {t('filter.monday_hint')}</span>
             <input type="date" value={historicFrom} onChange={e => setHistoricFrom(e.target.value)} />
           </div>
           <div className="filter-bar__group">
-            <span className="filter-bar__label">{t('filter.to')} (L)</span>
+            <span className="filter-bar__label">{t('filter.to')} {t('filter.monday_hint')}</span>
             <input type="date" value={historicTo} onChange={e => setHistoricTo(e.target.value)} />
           </div>
         </>

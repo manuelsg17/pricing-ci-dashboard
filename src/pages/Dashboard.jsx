@@ -320,10 +320,18 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
 
     pdf.setFontSize(14)
     pdf.setTextColor(229, 57, 53)
-    pdf.text(`Pricing CI — ${filters.dbCity} / ${filters.dbCategory}`, 14, 16)
+    pdf.text(
+      t('dashboard.pdf.title')
+        .replace('{city}', filters.dbCity)
+        .replace('{category}', filters.dbCategory),
+      14, 16
+    )
     pdf.setFontSize(9)
     pdf.setTextColor(100, 100, 100)
-    pdf.text(`Exportado: ${new Date().toLocaleDateString()}  |  ${filters.viewMode}  |  ${kpis?.lastPeriodLabel || ''}`, 14, 22)
+    pdf.text(
+      `${t('dashboard.pdf.exported_at').replace('{date}', new Date().toLocaleDateString(locale))}  |  ${filters.viewMode}  |  ${kpis?.lastPeriodLabel || ''}`,
+      14, 22
+    )
 
     const canvas   = await html2canvas(dashRef.current, { scale: 1.5, useCORS: true })
     const imgData  = canvas.toDataURL('image/jpeg', 0.85)
@@ -408,41 +416,43 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
             <div className="kpi-card__label">{t('dashboard.kpi.data_as_of')}</div>
             <div className="kpi-card__value kpi-card__value--sm">{kpis.lastPeriodLabel}</div>
           </div>
-          <div className="kpi-card" title="Porcentaje de períodos visibles donde Yango (compareVs) fue el más barato del mercado">
-            <div className="kpi-card__label">% Yango líder</div>
+          <div className="kpi-card" title={t('dashboard.kpi.leader_pct_tooltip')}>
+            <div className="kpi-card__label">{t('dashboard.kpi.yango_leader_pct')}</div>
             <div className="kpi-card__value">
               {kpis.yangoLeaderPct != null ? `${kpis.yangoLeaderPct}%` : '—'}
             </div>
             <div className="kpi-card__sub">
               {kpis.yangoComparablePeriods
-                ? `en ${kpis.yangoComparablePeriods} ${kpis.yangoComparablePeriods === 1 ? 'período' : 'períodos'}`
+                ? (kpis.yangoComparablePeriods === 1
+                    ? t('dashboard.kpi.in_n_period').replace('{n}', kpis.yangoComparablePeriods)
+                    : t('dashboard.kpi.in_n_periods').replace('{n}', kpis.yangoComparablePeriods))
                 : ''}
             </div>
           </div>
           <div
             className="kpi-card"
-            title="Outliers detectados por el bot en los últimos 7 días — descartados por exceder los límites de price_validation_rules"
+            title={t('dashboard.kpi.outliers_tooltip')}
             style={outlierTotal && outlierTotal > 0 ? { borderColor: '#fca5a5' } : undefined}
           >
-            <div className="kpi-card__label">Outliers (7d)</div>
+            <div className="kpi-card__label">{t('dashboard.kpi.outliers_label')}</div>
             <div className="kpi-card__value" style={{ color: outlierTotal && outlierTotal > 0 ? '#b91c1c' : undefined }}>
               {outlierTotal == null ? '—' : outlierTotal.toLocaleString()}
             </div>
-            <div className="kpi-card__sub">descartes del bot</div>
+            <div className="kpi-card__sub">{t('dashboard.kpi.outliers_sublabel')}</div>
           </div>
           <button
             className="kpi-export-btn"
             onClick={() => setSimEnabled(s => !s)}
-            title="Activar modo simulación: ajustar precio Yango con un slider y ver KPIs/charts en vivo"
+            title={t('dashboard.sim.toggle_tooltip')}
             style={simEnabled ? { background: '#fef3c7', borderColor: '#f59e0b', color: '#92400e' } : undefined}
           >
-            {simEnabled ? '🎚️ Sim ON' : '🎚️ Simular'}
+            {simEnabled ? t('dashboard.sim.on') : t('dashboard.sim.toggle')}
           </button>
           <button className="kpi-export-btn" onClick={handleExportPNG} title={t('dashboard.export_png')}>
             {t('dashboard.export_png')}
           </button>
-          <button className="kpi-export-btn" onClick={handleExportCSV} title="Exportar tabla a CSV">
-            ⬇ CSV
+          <button className="kpi-export-btn" onClick={handleExportCSV} title={t('dashboard.export_csv_tooltip')}>
+            {t('dashboard.export_csv')}
           </button>
           <button className="kpi-export-btn" onClick={handleExportPDF} title={t('dashboard.export_pdf')}>
             {t('dashboard.export_pdf')}
@@ -491,7 +501,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
         <EmptyState
           icon="📊"
           title={t('dashboard.no_data')}
-          message="No hay observaciones para los filtros seleccionados. Prueba ampliar el rango de fechas, cambiar de ciudad/categoría o sube data desde 'Cargar Data'."
+          message={t('dashboard.empty_message_long')}
         />
       )}
 
