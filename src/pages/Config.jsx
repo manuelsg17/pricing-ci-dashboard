@@ -12,29 +12,40 @@ import InDriveConfig         from '../components/config/InDriveConfig'
 import CountriesConfig       from '../components/config/CountriesConfig'
 import BotRulesTable         from '../components/config/BotRulesTable'
 import SnapshotsManager      from '../components/config/SnapshotsManager'
+import AuditLogViewer        from '../components/config/AuditLogViewer'
 import { useI18n }           from '../context/LanguageContext'
 import { useCountry }         from '../context/CountryContext'
+import { useAccessControl }   from '../hooks/useAccessControl'
 import '../styles/config.css'
 
 export default function Config() {
   const { country } = useCountry()
   const [activeTab, setActiveTab] = useState('thresholds')
   const { t } = useI18n()
+  const { isAdmin } = useAccessControl()
 
-  const TABS = useMemo(() => [
-    { id: 'thresholds',  label: t('config.distances') },
-    { id: 'weights',     label: t('config.weights') },
-    { id: 'semaforo',    label: t('config.semaforo') },
-    { id: 'pricerules',  label: t('config.price_limits') },
-    { id: 'rushhour',    label: t('config.rush_hour') },
-    { id: 'timeslots',   label: t('config.timeslots') },
-    { id: 'commissions', label: t('config.commissions') },
-    { id: 'bonuses',     label: t('config.bonuses') },
-    { id: 'indrive',     label: t('config.indrive') },
-    { id: 'botrules',    label: t('config.botrules') },
-    { id: 'snapshots',   label: t('config.snapshots') },
-    { id: 'countries',   label: t('config.countries') },
-  ], [t])
+  const TABS = useMemo(() => {
+    const base = [
+      { id: 'thresholds',  label: t('config.distances') },
+      { id: 'weights',     label: t('config.weights') },
+      { id: 'semaforo',    label: t('config.semaforo') },
+      { id: 'pricerules',  label: t('config.price_limits') },
+      { id: 'rushhour',    label: t('config.rush_hour') },
+      { id: 'timeslots',   label: t('config.timeslots') },
+      { id: 'commissions', label: t('config.commissions') },
+      { id: 'bonuses',     label: t('config.bonuses') },
+      { id: 'indrive',     label: t('config.indrive') },
+      { id: 'botrules',    label: t('config.botrules') },
+      { id: 'snapshots',   label: t('config.snapshots') },
+      { id: 'countries',   label: t('config.countries') },
+    ]
+    // Audit log solo aparece para admins. La RPC también filtra por
+    // is_admin() en DB, pero ocultarlo mejora la UX.
+    if (isAdmin) {
+      base.push({ id: 'audit', label: '📋 ' + t('audit.title') })
+    }
+    return base
+  }, [t, isAdmin])
 
   const {
     thresholds, weights, semaforo,
@@ -102,6 +113,7 @@ export default function Config() {
       {activeTab === 'botrules'    && <BotRulesTable country={country} />}
       {activeTab === 'snapshots'   && <SnapshotsManager country={country} />}
       {activeTab === 'countries'   && <CountriesConfig />}
+      {activeTab === 'audit'       && isAdmin && <AuditLogViewer />}
     </div>
   )
 }

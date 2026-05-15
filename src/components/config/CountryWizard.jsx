@@ -119,9 +119,17 @@ export default function CountryWizard({ onClose, onCreated }) {
     setDraft(d => {
       const cities = [...d.cities]
       cities[idx] = { ...cities[idx], [field]: val }
-      // Auto-sugerir dbName y botKey desde uiName si están vacíos
+      // Auto-sugerir dbName y botKey desde uiName si están vacíos.
+      // El rango U+0300..U+036F es "Combining Diacritical Marks"
+      // (NFD separa acentos en esos codepoints). El regex anterior
+      // tenía esos chars en literal — invisibles en muchos editores
+      // y dependientes de encoding del archivo. Usamos escape Unicode
+      // explícito para que sea portable y robusto.
       if (field === 'uiName' && val) {
-        const normalized = val.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_')
+        const normalized = val
+          .normalize('NFD')
+          .replace(/\p{Mn}/gu, '')
+          .replace(/\s+/g, '_')
         if (!cities[idx].dbName) cities[idx].dbName = normalized
         if (!cities[idx].botKey) cities[idx].botKey = normalized.toLowerCase()
       }

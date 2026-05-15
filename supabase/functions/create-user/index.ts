@@ -33,6 +33,23 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Verificar que el caller es admin. Antes de mig 59 esto NO se verificaba
+    // y cualquier user autenticado podía crear users (incluso admins).
+    // Match por email porque user_profiles no tiene user_id.
+    const { data: profile, error: profileLookupErr } = await admin
+      .from('user_profiles')
+      .select('is_active, roles(name)')
+      .eq('email', (caller.email || '').toLowerCase())
+      .maybeSingle()
+
+    const callerRole = (profile as any)?.roles?.name as string | undefined
+    if (profileLookupErr || !profile || !profile.is_active || callerRole !== 'admin') {
+      return new Response(
+        JSON.stringify({ error: 'Solo los administradores pueden crear usuarios.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { email, password, first_name, last_name, role_id, invited_by } = await req.json()
 
     if (!email || !password) {

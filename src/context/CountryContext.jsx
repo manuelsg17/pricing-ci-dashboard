@@ -73,6 +73,20 @@ export function CountryProvider({ children }) {
   // Load on mount — cache de localStorage cubre el primer render
   useEffect(() => { fetchAllConfigs() }, [fetchAllConfigs])
 
+  // Live-sync: cuando OTRA sesión cambia country_config (o tablas que
+  // afectan los extras JSONB), refetcheamos en silencio. El toast lo
+  // dispara RealtimeSyncProvider — acá solo nos enteramos del trigger.
+  useEffect(() => {
+    function onChange(e) {
+      const t = e?.detail?.table
+      if (t === 'country_config' || t === 'bot_rules' || t === 'catalog_extras') {
+        fetchAllConfigs()
+      }
+    }
+    window.addEventListener('config:changed', onChange)
+    return () => window.removeEventListener('config:changed', onChange)
+  }, [fetchAllConfigs])
+
   const setCountry = useCallback((val) => {
     setCountryState(val)
     localStorage.setItem('country', val)

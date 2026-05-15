@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST')    return json(405, { error: 'Method not allowed' })
 
-  // Auth: solo usuarios autenticados pueden disparar el sync
+  // Auth: solo admins pueden disparar el sync manualmente
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -46,6 +46,19 @@ Deno.serve(async (req) => {
   const jwt = authHeader.replace('Bearer ', '').trim()
   const { data: { user: caller }, error: callerError } = await admin.auth.getUser(jwt)
   if (callerError || !caller) return json(401, { error: 'No autorizado' })
+
+  // El flujo automático corre cada 30 min vía GitHub cron, así que el botón
+  // manual es power-user only. Sin este check, cualquier viewer podía
+  // gastar minutos de GitHub Actions con disparos repetidos (vector de DoS).
+  const { data: profile } = await admin
+    .from('user_profiles')
+    .select('is_active, roles(name)')
+    .eq('email', (caller.email || '').toLowerCase())
+    .maybeSingle()
+  const role = (profile as any)?.roles?.name as string | undefined
+  if (!profile || !profile.is_active || role !== 'admin') {
+    return json(403, { error: 'Solo los administradores pueden disparar el sync manualmente.' })
+  }
 
   // Inputs
   let body: any = {}
