@@ -317,7 +317,46 @@ export default function CountryWizard({ onClose, onCreated }) {
         .upsert(validationRow, { onConflict: 'country,city,category,competition' })
       if (pvErr) throw pvErr
 
-      // 6. Validar setup
+      // 6. semaforo_config — bandas por defecto (Verde 5-10%, Amarillo
+      // 1-5% & 10-12%, Rojo el resto). Sin esto, el semáforo del
+      // dashboard cae a fallback hardcoded JS que no es per-país y no se
+      // puede editar desde /config. Solo seedeamos si NO hay filas
+      // pre-existentes para no clobbear ediciones manuales.
+      const { count: semCount } = await sb.from('semaforo_config')
+        .select('id', { count: 'exact', head: true })
+        .eq('country', draft.country_key)
+      if (!semCount) {
+        const semRows = [
+          { country: draft.country_key, band: 'green',  min_pct: 5,    max_pct: 10,  note: 'Yango competitivo' },
+          { country: draft.country_key, band: 'yellow', min_pct: 1,    max_pct: 5,   note: 'Cerca pero por debajo' },
+          { country: draft.country_key, band: 'yellow', min_pct: 10,   max_pct: 12,  note: 'Cerca pero por arriba' },
+          { country: draft.country_key, band: 'red',    min_pct: null, max_pct: 1,   note: 'Yango muy bajo vs mercado' },
+          { country: draft.country_key, band: 'red',    min_pct: 12,   max_pct: null, note: 'Yango muy alto vs mercado' },
+        ]
+        const { error: semErr } = await sb.from('semaforo_config').insert(semRows)
+        if (semErr) throw semErr
+      }
+
+      // 7. rush_hour_windows — ventanas estándar 07:00-09:00 y 17:00-20:00
+      // por cada ciudad. Sin esto, rush_hour = NULL en pricing_observations
+      // y los filtros de hora-pico no funcionan. Solo seedeamos si la
+      // ciudad no tiene ya ventanas registradas.
+      const rushRows = []
+      for (const c of draft.cities) {
+        const cityName = c.dbName || c.uiName
+        if (!cityName) continue
+        rushRows.push(
+          { country: draft.country_key, city: cityName, start_time: '07:00', end_time: '09:00', label: 'Mañana' },
+          { country: draft.country_key, city: cityName, start_time: '17:00', end_time: '20:00', label: 'Tarde' },
+        )
+      }
+      if (rushRows.length > 0) {
+        const { error: rhErr } = await sb.from('rush_hour_windows')
+          .upsert(rushRows, { onConflict: 'country,city,start_time,end_time' })
+        if (rhErr) throw rhErr
+      }
+
+      // 8. Validar setup
       const { data: vData } = await sb.rpc('validate_country_setup', { p_country: draft.country_key })
       setValidation(vData || [])
 
