@@ -183,6 +183,19 @@ Deno.serve(async (req) => {
   const { data: { user: caller }, error: callerError } = await admin.auth.getUser(jwt)
   if (callerError || !caller) return json(401, { error: 'No autorizado' })
 
+  // Auth admin-only — replica el gating de trigger-bot-sync. Sin esto un
+  // analyst puede invocar la función con su JWT y disparar inserts masivos
+  // en pricing_observations (DoS / poisoning del histórico).
+  const { data: profile } = await admin
+    .from('user_profiles')
+    .select('is_active, roles(name)')
+    .eq('email', (caller.email || '').toLowerCase())
+    .maybeSingle()
+  const role = (profile as any)?.roles?.name as string | undefined
+  if (!profile || !profile.is_active || role !== 'admin') {
+    return json(403, { error: 'Solo los administradores pueden disparar el sync del bot.' })
+  }
+
   let body: any = {}
   try { body = await req.json() } catch { body = {} }
   const action = body.action || 'sync'

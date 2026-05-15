@@ -81,30 +81,31 @@ jobs:
         run: |
           set -e
           # Query: country_config con status=active.
+          # Desde la mig 67, Peru y Colombia viven en country_config. La
+          # matriz se construye 100% desde DB — para activar/desactivar un
+          # país hay que cambiar country_config.status, NO editar este YAML.
           RESPONSE=$(curl -fsSL \
             -H "apikey: $SUPABASE_KEY" \
             -H "Authorization: Bearer $SUPABASE_KEY" \
             "$SUPABASE_URL/rest/v1/country_config?select=country_key&status=eq.active&order=sort_order" \
             || echo '[]')
-          # Combinamos:
-          #   - Lista hardcoded (Peru, Colombia) — mercados principales,
-          #     viven en constants.js y puede que NO estén en country_config DB
-          #   - Lista de country_config con status=active — países onboardeados
-          #     desde la UI (wizard) que están activos
-          # Deduplicar y exportar como JSON para matrix.
           KEYS=$(echo "$RESPONSE" | python3 -c "
           import sys, json
           db_keys = [r['country_key'] for r in json.load(sys.stdin)]
-          base = ['Peru', 'Colombia']
-          # Mantener orden: base primero, luego DB-only
+          # Dedupe preservando orden (sort_order de DB)
           seen = set()
           out = []
-          for k in base + db_keys:
+          for k in db_keys:
               if k not in seen:
                   seen.add(k)
                   out.append(k)
+          # Si la query falla o no hay países activos, no corremos nada
+          # (el sync no debería intentar mapas sin destino).
           print(json.dumps(out))
           ")
+          if [ "$KEYS" = "[]" ]; then
+            echo '::warning::country_config no devolvió países activos. Verifica RLS o que mig 67 esté aplicada.'
+          fi
           echo "Países a sincronizar: $KEYS"
           echo "countries=$KEYS" >> "$GITHUB_OUTPUT"
 
