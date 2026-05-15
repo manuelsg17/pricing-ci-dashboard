@@ -151,6 +151,13 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
   }, [frozenRows])
 
   // ── Construir matriz de datos ───────────────────────────
+  // Deps SPECIFICAS en lugar de pasar `filters` entero. Antes, cualquier cambio
+  // en filters (timeOfDay, weekStart, historicFrom...) invalidaba este memo
+  // aunque la matriz no dependa de esos campos. Ahora solo recomputa cuando
+  // los campos efectivamente usados cambian.
+  const { viewMode: f_viewMode, weekColumns: f_weekColumns, dbCity: f_dbCity,
+          dbCategory: f_dbCategory, competitors: f_competitors,
+          compareVs: f_compareVs, country: f_country } = filters
   const { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods } =
     useMemo(() => {
       const empty = { priceMatrix: {}, deltaMatrix: {}, semaforoMatrix: {}, sampleMatrix: {}, diffMatrix: {}, chartData: {}, deltaChartData: {}, periods: [] }
@@ -163,10 +170,10 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       // construimos la matriz para evitar pasar datos malformados a recharts.
       if (rawRows.length > 0) {
         const sample = rawRows[0]
-        if ((filters.viewMode === 'weekly' || filters.viewMode === 'historic') && sample.year == null) {
+        if ((f_viewMode === 'weekly' || f_viewMode === 'historic') && sample.year == null) {
           return empty
         }
-        if (filters.viewMode === 'daily' && !sample.observed_date) {
+        if (f_viewMode === 'daily' && !sample.observed_date) {
           return empty
         }
       }
@@ -174,12 +181,12 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       // Pasamos dbCategory para que la cascada de pesos resuelva por
       // (city, category) con fallback a (city, 'all'). Si dbCategory no
       // está definido, buildWeightsMap usa 'all' (retrocompat pre mig 56).
-      const weights = buildWeightsMap(dbWeights || [], filters.dbCity, filters.dbCategory) || DEFAULT_WEIGHTS
+      const weights = buildWeightsMap(dbWeights || [], f_dbCity, f_dbCategory) || DEFAULT_WEIGHTS
 
       // Determinar períodos (columnas)
       let periods = []
-      if (filters.viewMode === 'weekly' || filters.viewMode === 'historic') {
-        periods = filters.weekColumns.map(d => {
+      if (f_viewMode === 'weekly' || f_viewMode === 'historic') {
+        periods = f_weekColumns.map(d => {
           const { year, week } = getYearWeek(d)
           return { key: `${year}-W${String(week).padStart(2,'0')}`, label: formatWeekLabel(d, locale), year, week }
         })
@@ -218,7 +225,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       }
       let droppedNullBracket = 0
       for (const row of rawRows) {
-        const periodKey = (filters.viewMode === 'weekly' || filters.viewMode === 'historic')
+        const periodKey = (f_viewMode === 'weekly' || f_viewMode === 'historic')
           ? `${row.year}-W${String(row.week).padStart(2,'0')}`
           : row.observed_date
 
@@ -251,10 +258,10 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
 
       if (droppedNullBracket > 0 && rawRows.length > 0) {
         const pct = ((droppedNullBracket / rawRows.length) * 100).toFixed(1)
-        console.warn(`[usePricingData] ${droppedNullBracket}/${rawRows.length} filas (${pct}%) descartadas por distance_bracket no canónico/null. País=${filters.country}, ciudad=${dbCity}, categoría=${dbCategory}.`)
+        console.warn(`[usePricingData] ${droppedNullBracket}/${rawRows.length} filas (${pct}%) descartadas por distance_bracket no canónico/null. País=${f_country}, ciudad=${dbCity}, categoría=${dbCategory}.`)
       }
 
-      const competitors = filters.competitors
+      const competitors = f_competitors
       const priceMatrix    = {}
       const deltaMatrix    = {}
       const semaforoMatrix = {}
@@ -295,7 +302,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         }
 
         // ── Paso 2: calcular delta/semaforo/diff vs compareVs ──
-        const baseData = priceMatrix[filters.compareVs]?.[period.key] || {}
+        const baseData = priceMatrix[f_compareVs]?.[period.key] || {}
         const baseWA   = baseData._wa ?? null
 
         for (const comp of competitors) {
@@ -303,7 +310,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
           if (!semaforoMatrix[comp]) semaforoMatrix[comp] = {}
           if (!diffMatrix[comp])     diffMatrix[comp]     = {}
 
-          const isBase   = comp === filters.compareVs
+          const isBase   = comp === f_compareVs
           const compData = priceMatrix[comp][period.key]
           const compWA   = compData._wa ?? null
 
@@ -352,7 +359,12 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       }
 
       return { priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods }
-    }, [rawRows, frozenRows, dbWeights, dbSemaforo, filters, frozenNested, locale])
+    }, [
+      rawRows, frozenRows, dbWeights, dbSemaforo, frozenNested, locale,
+      // Solo los campos de filters que el cálculo realmente usa:
+      f_viewMode, f_weekColumns, f_dbCity, f_dbCategory,
+      f_competitors, f_compareVs, f_country,
+    ])
 
   return { loading, error, priceMatrix, deltaMatrix, semaforoMatrix, sampleMatrix, diffMatrix, chartData, deltaChartData, periods, frozenWeeks }
 }

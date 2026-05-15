@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense, lazy } from 'react'
 import { useAuth }           from './lib/auth'
 import { sb }                from './lib/supabase'
 import { useAccessControl }  from './hooks/useAccessControl'
+import { useStaleWhileRevalidate } from './hooks/useStaleWhileRevalidate'
 import { useCountry }        from './context/CountryContext'
 import Topbar                from './components/layout/Topbar'
 import LoginScreen     from './components/layout/LoginScreen'
@@ -25,17 +26,31 @@ export default function App() {
   const { country, setCountry, availableCountries } = useCountry()
   const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [dbWeights,   setDbWeights]   = useState([])
-  const [dbSemaforo,  setDbSemaforo]  = useState([])
 
-  // Pre-cargar pesos y configuración de semáforo al iniciar sesión
-  useEffect(() => {
-    if (!session) return
-    sb.from('bracket_weights').select('*')
-      .then(({ data }) => setDbWeights(data || []))
-    sb.from('semaforo_config').select('*').order('band').order('min_pct')
-      .then(({ data }) => setDbSemaforo(data || []))
-  }, [session])
+  // Pre-cargar pesos y semáforo con cache SWR. Cache hit → primer render
+  // instantáneo en navegaciones recurrentes. Live-sync (audit_log) refresca
+  // silenciosamente cuando otra sesión edita estas tablas.
+  const { data: dbWeights = [] } = useStaleWhileRevalidate({
+    key: 'cfg.bracket_weights.all',
+    enabled: !!session,
+    liveSyncTable: 'bracket_weights',
+    fetcher: async () => {
+      const { data, error } = await sb.from('bracket_weights').select('*')
+      if (error) throw error
+      return data || []
+    },
+  })
+  const { data: dbSemaforo = [] } = useStaleWhileRevalidate({
+    key: 'cfg.semaforo_config.all',
+    enabled: !!session,
+    liveSyncTable: 'semaforo_config',
+    fetcher: async () => {
+      const { data, error } = await sb.from('semaforo_config')
+        .select('*').order('band').order('min_pct')
+      if (error) throw error
+      return data || []
+    },
+  })
 
   // Países permitidos según rol — usa availableCountries del context
   // (incluye los que viven solo en DB, no solo los hardcoded de constants.js)

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
+import { memo, useRef, useEffect, useMemo, useState, useCallback } from 'react'
 import {
   ComposedChart, Line, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip,
@@ -91,7 +91,7 @@ function Sparkline({ values, color = '#E53935' }) {
   )
 }
 
-export default function BracketSection({
+function BracketSection({
   bracket,
   label,
   competitors,
@@ -850,3 +850,11 @@ function MiniChart({
     </div>
   )
 }
+
+// React.memo con shallow compare default. BracketSection recibe 17 props y se
+// renderiza una vez por bracket (~6 instancias). Sin memo, cada cambio de
+// filtro re-renderea las 6 instancias aunque sus props específicas no hayan
+// cambiado. La estabilidad de props depende de que el padre (Dashboard) use
+// useMemo para arrays/objetos — ver chartData[bracket] que pasa por un dict
+// estable producido en usePricingData.
+export default memo(BracketSection)

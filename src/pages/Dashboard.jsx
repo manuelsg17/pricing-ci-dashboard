@@ -1,9 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { usePricingData }  from '../hooks/usePricingData'
-import { useCountUp }      from '../hooks/useCountUp'
 import { sb }              from '../lib/supabase'
 import FilterBar           from '../components/dashboard/FilterBar'
 import BracketSection      from '../components/dashboard/BracketSection'
+import AnimatedKpiValue    from '../components/dashboard/AnimatedKpiValue'
+import AnimatedWowBadge    from '../components/dashboard/AnimatedWowBadge'
+
+// Empty arrays estables a nivel de módulo. Sin esto, `chartData[bracket] || []`
+// crearía un nuevo [] en cada render → BracketSection (ahora memoizado) se
+// re-rendea aunque nada haya cambiado. Reusar la misma referencia rompe el
+// patrón.
+const EMPTY_ARR = Object.freeze([])
+
 import DashboardLegend     from '../components/dashboard/DashboardLegend'
 import WowCallouts         from '../components/dashboard/WowCallouts'
 import WhatIfSimulator     from '../components/dashboard/WhatIfSimulator'
@@ -253,9 +261,11 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
     return () => { cancelled = true }
   }, [filters.country])
 
-  // #32 — animated KPI values
-  const animYangoWA  = useCountUp(kpis?.yangoWA  ?? null)
-  const animWowDelta = useCountUp(kpis?.wowDelta ?? null)
+  // #32 — animated KPI values: viven dentro de <AnimatedKpiValue> y
+  // <AnimatedWowBadge>. Antes useCountUp se llamaba acá → ~30 setState/s
+  // durante 500ms forzaba el re-render del dashboard entero (charts, todas
+  // las BracketSection, etc.). Aislado en sub-componentes, solo esos nodos
+  // se re-renderean a 60fps.
 
   // ── Export PNG ────────────────────────────────────────────────────────
   async function handleExportPNG() {
@@ -373,18 +383,12 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
           <div className="kpi-card">
             <div className="kpi-card__label">{t('dashboard.kpi.yango_wa')}</div>
             <div className="kpi-card__value" style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              {animYangoWA != null ? `${currency} ${animYangoWA.toFixed(2)}` : '—'}
-              {/* #19 — WoW badge */}
-              {animWowDelta != null && (
-                <span style={{
-                  fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
-                  background: animWowDelta > 0 ? '#fee2e2' : animWowDelta < 0 ? '#dcfce7' : '#f1f5f9',
-                  color:      animWowDelta > 0 ? '#b91c1c' : animWowDelta < 0 ? '#15803d' : '#64748b',
-                }}>
-                  {animWowDelta > 0 ? '↑' : animWowDelta < 0 ? '↓' : '→'}{' '}
-                  {animWowDelta > 0 ? '+' : ''}{animWowDelta.toFixed(2)}
-                </span>
-              )}
+              <AnimatedKpiValue
+                target={kpis?.yangoWA ?? null}
+                prefix={`${currency} `}
+              />
+              {/* #19 — WoW badge animado */}
+              <AnimatedWowBadge target={kpis?.wowDelta ?? null} />
             </div>
           </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
@@ -539,8 +543,8 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
                   diffMatrix={diffMatrix}
                   sampleMatrix={sampleMatrix}
                   compareVs={filters.compareVs}
-                  chartData={chartData[bracket] || []}
-                  deltaChartData={deltaChartData[bracket] || []}
+                  chartData={chartData[bracket] || EMPTY_ARR}
+                  deltaChartData={deltaChartData[bracket] || EMPTY_ARR}
                   events={marketEvents}
                   semaforoBands={dbSemaforo}
                   frozenWeeks={frozenWeeks}
