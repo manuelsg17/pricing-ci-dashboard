@@ -168,7 +168,11 @@ $migration$;
 
 -- ── C. Excepciones: tablas con RLS distinta ────────────────────────────
 
--- C.1 user_filter_presets — cada usuario CRUD sólo sus presets
+-- C.1 user_filter_presets — la mig 30 ya creó una policy correcta:
+--     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)
+--   El schema usa user_id (uuid → auth.users.id), NO created_by (email).
+--   Solo nos aseguramos de que RLS esté habilitado y que NO haya policies
+--   abiertas legacy. La policy owner-based de mig 30 cubre el caso.
 DO $$
 BEGIN
   IF EXISTS (
@@ -176,28 +180,25 @@ BEGIN
     WHERE table_schema = 'public' AND table_name = 'user_filter_presets'
   ) THEN
     ALTER TABLE public.user_filter_presets ENABLE ROW LEVEL SECURITY;
-
-    DROP POLICY IF EXISTS auth_read_write           ON public.user_filter_presets;
+    -- Dropear cualquier policy abierta legacy (defensivo). NO tocar la
+    -- "users manage their own presets" de mig 30.
+    DROP POLICY IF EXISTS auth_read_write            ON public.user_filter_presets;
     DROP POLICY IF EXISTS user_filter_presets_select ON public.user_filter_presets;
     DROP POLICY IF EXISTS user_filter_presets_insert ON public.user_filter_presets;
     DROP POLICY IF EXISTS user_filter_presets_update ON public.user_filter_presets;
     DROP POLICY IF EXISTS user_filter_presets_delete ON public.user_filter_presets;
-
-    -- SELECT: ven todos los presets (UI espera ver presets compartidos)
-    CREATE POLICY user_filter_presets_select ON public.user_filter_presets
-      FOR SELECT TO authenticated USING (true);
-    -- INSERT: solo si created_by = mi email
-    CREATE POLICY user_filter_presets_insert ON public.user_filter_presets
-      FOR INSERT TO authenticated
-      WITH CHECK (created_by = auth.email() OR can_edit());
-    -- UPDATE/DELETE: dueño o admin
-    CREATE POLICY user_filter_presets_update ON public.user_filter_presets
-      FOR UPDATE TO authenticated
-      USING (created_by = auth.email() OR can_edit())
-      WITH CHECK (created_by = auth.email() OR can_edit());
-    CREATE POLICY user_filter_presets_delete ON public.user_filter_presets
-      FOR DELETE TO authenticated
-      USING (created_by = auth.email() OR can_edit());
+    -- Si la policy de mig 30 no existiera por alguna razón, recrearla con
+    -- el modelo correcto user_id-based (no email-based).
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'user_filter_presets'
+    ) THEN
+      CREATE POLICY "users manage their own presets"
+        ON public.user_filter_presets FOR ALL
+        TO authenticated
+        USING  (auth.uid() = user_id)
+        WITH CHECK (auth.uid() = user_id);
+    END IF;
   END IF;
 END
 $$;
