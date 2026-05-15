@@ -62,15 +62,11 @@ export function useConfig(country) {
       let rpcError = null
       if (rows.length > 0) {
         const { city, category } = rows[0]
-        // eslint-disable-next-line no-console
-        console.log('[useConfig] llamando recompute_brackets_for', { country, city, category })
         const { data: cnt, error: rpcErr } = await sb.rpc('recompute_brackets_for', {
           p_country:  country,
           p_city:     city,
           p_category: category,
         })
-        // eslint-disable-next-line no-console
-        console.log('[useConfig] respuesta recompute_brackets_for', { cnt, rpcErr })
         if (rpcErr) {
           rpcError = rpcErr.message || String(rpcErr)
         } else if (cnt == null) {

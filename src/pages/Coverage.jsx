@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
-import { useCountry } from '../context/CountryContext'
 import { useI18n } from '../context/LanguageContext'
 import { usePricingData } from '../hooks/usePricingData'
 import FilterBar from '../components/dashboard/FilterBar'
@@ -11,7 +10,6 @@ import BracketMix from '../components/market/BracketMix'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 
 function CoverageContent() {
-  const { country } = useCountry()
   const { filters } = useFilterContext()
   const { t, locale } = useI18n()
   const [filterBarVisible, setFilterBarVisible] = useState(true)

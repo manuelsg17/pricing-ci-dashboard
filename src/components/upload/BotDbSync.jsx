@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { sb } from '../../lib/supabase'
 import { useCountry } from '../../context/CountryContext'
 import { useToast } from '../ui/Toast'
@@ -19,6 +19,12 @@ export default function BotDbSync() {
   // Combos (app, vc, ovc, city) que NO matchearon ninguna regla en la
   // última corrida ok. Permiten click-to-add a bot_rules.
   const [droppedCombos, setDroppedCombos] = useState([])
+  // Timer del auto-refresh de 60s post-trigger. Lo guardamos para
+  // limpiarlo si el componente unmounta antes (evita setState en unmounted).
+  const autoRefreshTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (autoRefreshTimerRef.current) clearTimeout(autoRefreshTimerRef.current)
+  }, [])
 
   const reload = useCallback(async () => {
     setLoadingLog(true)
@@ -94,8 +100,10 @@ export default function BotDbSync() {
         '⚡ Workflow disparado. La corrida tarda ~30-60s en aparecer en "Últimas corridas". Auto-refresh en 60s.',
         { duration: 8000 }
       )
-      // Auto-refresh la tabla de corridas en 60s
-      setTimeout(() => reload(), 60_000)
+      // Auto-refresh la tabla de corridas en 60s — guardamos el id en
+      // ref por si el user navega antes de que dispare.
+      if (autoRefreshTimerRef.current) clearTimeout(autoRefreshTimerRef.current)
+      autoRefreshTimerRef.current = setTimeout(() => reload(), 60_000)
     } catch (e) {
       toast.err(`No se pudo disparar el sync: ${e.message}`, { duration: 12000 })
     } finally {
