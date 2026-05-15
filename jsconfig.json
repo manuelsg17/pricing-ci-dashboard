@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*":            ["src/*"],
+      "@/components/*": ["src/components/*"],
+      "@/hooks/*":      ["src/hooks/*"],
+      "@/lib/*":        ["src/lib/*"],
+      "@/context/*":    ["src/context/*"],
+      "@/pages/*":      ["src/pages/*"],
+      "@/styles/*":     ["src/styles/*"]
+    },
+    "jsx": "react",
+    "checkJs": false,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true
+  },
+  "exclude": ["node_modules", "dist"]
+}

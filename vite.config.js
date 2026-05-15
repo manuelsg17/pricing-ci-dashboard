@@ -1,5 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // ════════════════════════════════════════════════════════════════════════
 // Build version stamping
@@ -34,6 +38,20 @@ function buildVersionPlugin() {
 export default defineConfig({
   plugins: [react(), buildVersionPlugin()],
   base: '/pricing-ci-dashboard/',
+  // Aliases para imports sin paths relativos largos.
+  // Uso opcional: el código existente con '../../lib/foo' sigue funcionando.
+  // Patrón nuevo recomendado: '@/lib/foo', '@/hooks/useFoo', etc.
+  resolve: {
+    alias: {
+      '@':            path.resolve(__dirname, 'src'),
+      '@/components': path.resolve(__dirname, 'src/components'),
+      '@/hooks':      path.resolve(__dirname, 'src/hooks'),
+      '@/lib':        path.resolve(__dirname, 'src/lib'),
+      '@/context':    path.resolve(__dirname, 'src/context'),
+      '@/pages':      path.resolve(__dirname, 'src/pages'),
+      '@/styles':     path.resolve(__dirname, 'src/styles'),
+    },
+  },
   define: {
     // Expone la versión a runtime via __BUILD_VERSION__ (más simple que
     // import.meta.env.VITE_*, que requeriría leerla con cuidado).

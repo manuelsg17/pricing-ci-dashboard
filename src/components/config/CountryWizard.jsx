@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import { CATALOG_CATEGORIES, CATALOG_COMPETITORS, getBotRulesTemplate } from '../../lib/catalogs'
+import { stripAccents } from '../../lib/normalize'
 import { useConfirm } from '../ui/ConfirmDialog'
 import SaveStatusBanner from './SaveStatusBanner'
 
@@ -120,18 +121,15 @@ export default function CountryWizard({ onClose, onCreated }) {
       const cities = [...d.cities]
       cities[idx] = { ...cities[idx], [field]: val }
       // Auto-sugerir dbName y botKey desde uiName si están vacíos.
-      // El rango U+0300..U+036F es "Combining Diacritical Marks"
-      // (NFD separa acentos en esos codepoints). El regex anterior
-      // tenía esos chars en literal — invisibles en muchos editores
-      // y dependientes de encoding del archivo. Usamos escape Unicode
-      // explícito para que sea portable y robusto.
+      // dbName preserva el case original ("Bogotá Norte" → "Bogota_Norte")
+      // porque las dbCities históricas son CapCase. botKey es siempre
+      // lowercase porque el bot manda strings ya lowercase.
+      // stripAccents() centraliza el NFD + regex de combining marks
+      // — ver src/lib/normalize.js.
       if (field === 'uiName' && val) {
-        const normalized = val
-          .normalize('NFD')
-          .replace(/\p{Mn}/gu, '')
-          .replace(/\s+/g, '_')
-        if (!cities[idx].dbName) cities[idx].dbName = normalized
-        if (!cities[idx].botKey) cities[idx].botKey = normalized.toLowerCase()
+        const noAccents = stripAccents(val).replace(/[\s-]+/g, '_')
+        if (!cities[idx].dbName) cities[idx].dbName = noAccents
+        if (!cities[idx].botKey) cities[idx].botKey = noAccents.toLowerCase()
       }
       return { ...d, cities }
     })
