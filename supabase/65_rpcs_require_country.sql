@@ -40,6 +40,13 @@
 BEGIN;
 
 -- ── 1. get_dashboard_data_weekly ──────────────────────────────
+-- DROP necesario: Postgres NO permite CREATE OR REPLACE quitar DEFAULTs
+-- de parámetros. Drop+create con la firma exacta de la función actual
+-- (que puede tener distintas variantes históricas — usamos IF EXISTS).
+
+DROP FUNCTION IF EXISTS get_dashboard_data_weekly(text, text, text, text, boolean, int, int, int, int, text, text[]);
+DROP FUNCTION IF EXISTS get_dashboard_data_weekly(text, text, text, text, boolean, int, int, int, int, text);
+DROP FUNCTION IF EXISTS get_dashboard_data_weekly(text, text, text, text, boolean, int, int, int, int);
 
 CREATE OR REPLACE FUNCTION get_dashboard_data_weekly(
   p_city        text,
@@ -100,6 +107,10 @@ $$;
 
 -- ── 2. get_dashboard_data_daily ───────────────────────────────
 
+DROP FUNCTION IF EXISTS get_dashboard_data_daily(text, text, text, text, boolean, date, date, text, text[]);
+DROP FUNCTION IF EXISTS get_dashboard_data_daily(text, text, text, text, boolean, date, date, text);
+DROP FUNCTION IF EXISTS get_dashboard_data_daily(text, text, text, text, boolean, date, date);
+
 CREATE OR REPLACE FUNCTION get_dashboard_data_daily(
   p_city        text,
   p_category    text,
@@ -144,6 +155,8 @@ $$;
 
 
 -- ── 3. get_available_zones ────────────────────────────────────
+
+DROP FUNCTION IF EXISTS get_available_zones(text, text, text);
 
 CREATE OR REPLACE FUNCTION get_available_zones(
   p_city     text,
@@ -297,6 +310,8 @@ $$;
 
 -- ── 6. get_indrive_counts ─────────────────────────────────────
 
+DROP FUNCTION IF EXISTS get_indrive_counts(text);
+
 CREATE OR REPLACE FUNCTION get_indrive_counts(
   p_country text                              -- antes DEFAULT 'Peru'
 )
@@ -365,6 +380,8 @@ $$;
 
 -- ── 8. upsert_pricing_batch ───────────────────────────────────
 
+DROP FUNCTION IF EXISTS upsert_pricing_batch(jsonb, jsonb, uuid, text, int, text);
+
 CREATE OR REPLACE FUNCTION upsert_pricing_batch(
   p_rows        jsonb,
   p_city_ranges jsonb,
@@ -402,6 +419,8 @@ $$;
 
 
 -- ── 9. get_bot_vs_hubs_summary ────────────────────────────────
+
+DROP FUNCTION IF EXISTS get_bot_vs_hubs_summary(text);
 
 CREATE OR REPLACE FUNCTION get_bot_vs_hubs_summary(
   p_country text                              -- antes DEFAULT 'Peru'
