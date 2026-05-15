@@ -38,7 +38,7 @@ export default function DriverEarnings() {
   const { session } = useAuth()
   const userEmail   = session?.user?.email || ''
   const { t, locale } = useI18n()
-  const { country, countryConfig } = useCountry()
+  const { country, countryConfig, dbConfigs } = useCountry()
   const uiCities = countryConfig.cities
 
   const [uiCity,     setUiCity]     = useState(uiCities[0] || 'Lima')
@@ -71,8 +71,8 @@ export default function DriverEarnings() {
   const fmt = useMemo(() => makeFmt(countryConfig.currency), [countryConfig])
   const { currency }  = countryConfig
   const { dbCity, dbCategory: dbCat } = useMemo(
-    () => resolveDbParams(uiCity, uiCat, null, country),
-    [uiCity, uiCat, country]
+    () => resolveDbParams(uiCity, uiCat, null, country, dbConfigs),
+    [uiCity, uiCat, country, dbConfigs]
   )
   const categories  = countryConfig.categoriesByCity[uiCity] || []
 
@@ -144,11 +144,11 @@ export default function DriverEarnings() {
 
   // ── Competitors to show (base = expected list from constants, plus any extras from data/commissions) ─
   const competitors = useMemo(() => {
-    const fromConstants = getCompetitors(uiCity, uiCat, null, country)
+    const fromConstants = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
     const fromData      = Object.keys(effectivePrices)
     const fromComms     = commRows.filter(r => !r.city || r.city === dbCity).map(r => r.competitor_name)
     return [...new Set([...fromConstants, ...fromData, ...fromComms])].sort()
-  }, [effectivePrices, commRows, dbCity, uiCity, uiCat])
+  }, [effectivePrices, commRows, dbCity, uiCity, uiCat, country, dbConfigs])
 
   // ── Calculation ────────────────────────────────────────────────────────
   function calcCell(comp, n) {

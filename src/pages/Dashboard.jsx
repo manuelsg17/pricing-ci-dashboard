@@ -558,13 +558,13 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
 }
 
 export default function Dashboard({ dbWeights, dbSemaforo }) {
-  // key={country} fuerza remount limpio del subárbol al cambiar de país.
-  // Elimina el race condition donde el fetch viejo (Peru) podía sobrescribir
-  // el rawRows del país nuevo (Colombia), dejando el dashboard vacío hasta F5.
-  // Equivalente a un F5 del subárbol sin recargar la página entera.
-  const { country } = useCountry()
+  // Sin key={country}: las cascadas de useFilters resetean los filtros
+  // país-específicos (city, category, subCategory, zone, compareVs) y el
+  // cancel flag de usePricingData previene race conditions. Esto preserva
+  // los filtros universales (viewMode, weekStart, timeOfDay) al cambiar
+  // de país — UX mucho más fluida.
   return (
-    <FilterProvider key={country}>
+    <FilterProvider>
       <DashboardContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
     </FilterProvider>
   )

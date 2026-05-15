@@ -79,7 +79,7 @@ export default function WeeklyReport() {
   const userEmail    = session?.user?.email || ''
   const now          = getISOYearWeek()
   const { t, locale } = useI18n()
-  const { country, countryConfig } = useCountry()
+  const { country, countryConfig, dbConfigs } = useCountry()
   const uiCities = countryConfig.cities
 
   const [uiCity,   setUiCity]   = useState(uiCities[0] || 'Lima')
@@ -114,13 +114,16 @@ export default function WeeklyReport() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiCity])
   const fmt           = useMemo(() => makeFmt(countryConfig.currency), [countryConfig])
-  const { dbCity }    = useMemo(() => resolveDbParams(uiCity, uiCat, null, country), [uiCity, uiCat, country])
+  const { dbCity }    = useMemo(
+    () => resolveDbParams(uiCity, uiCat, null, country, dbConfigs),
+    [uiCity, uiCat, country, dbConfigs]
+  )
   const baseCats      = countryConfig.categoriesByCity[uiCity] || []
   const categories    = ['Todos', ...baseCats]
 
   // ── Fetch single category ───────────────────────────────────────────────
   async function fetchCat(cat) {
-    const { dbCategory: dbCat } = resolveDbParams(uiCity, cat, null, country)
+    const { dbCategory: dbCat } = resolveDbParams(uiCity, cat, null, country, dbConfigs)
     const [{ data: curr }, { data: prev }] = await Promise.all([
       sb.from('pricing_observations')
         .select('competition_name, distance_bracket, price_without_discount')
@@ -137,7 +140,7 @@ export default function WeeklyReport() {
     ])
     const currAgg = aggregate(curr)
     const prevAgg = aggregate(prev)
-    const baseComps = getCompetitors(uiCity, cat, null, country)
+    const baseComps = getCompetitors(uiCity, cat, null, country, dbConfigs)
     const competitors = [
       ...new Set([...baseComps, ...Object.keys(currAgg), ...Object.keys(prevAgg)]),
     ].sort()

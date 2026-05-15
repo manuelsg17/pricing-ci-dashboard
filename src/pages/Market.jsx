@@ -168,11 +168,11 @@ function MarketContent({ dbWeights, dbSemaforo }) {
 }
 
 export default function Market({ dbWeights, dbSemaforo }) {
-  // key={country} fuerza remount limpio al cambiar de país — mismo
-  // patrón que Dashboard.jsx para evitar race de fetches.
-  const { country } = useCountry()
+  // Sin key={country} — ver comentario equivalente en Dashboard.jsx.
+  // Las cascadas de useFilters + cancel flag de usePricingData manejan
+  // el switch de país sin perder filtros universales (viewMode, etc.).
   return (
-    <FilterProvider key={country}>
+    <FilterProvider>
       <MarketContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
     </FilterProvider>
   )

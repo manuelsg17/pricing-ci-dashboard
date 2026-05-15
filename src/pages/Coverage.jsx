@@ -98,10 +98,9 @@ function CoverageContent() {
 }
 
 export default function Coverage() {
-  // key={country} fuerza remount limpio al cambiar de país.
-  const { country } = useCountry()
+  // Sin key={country} — ver Dashboard.jsx.
   return (
-    <FilterProvider key={country}>
+    <FilterProvider>
       <CoverageContent />
     </FilterProvider>
   )

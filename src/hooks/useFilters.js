@@ -5,6 +5,7 @@ import {
   getCompetitors,
 } from '../lib/constants'
 import { sb } from '../lib/supabase'
+import { useCountry } from '../context/CountryContext'
 import { getMondayWeeksAgo, toISODate } from '../lib/dateUtils'
 
 // ── URL hash helpers ────────────────────────────────────────────
@@ -25,7 +26,19 @@ function writeHash(params) {
 }
 
 export function useFilters(country) {
-  const countryConfig = useMemo(() => getCountryConfig(country), [country])
+  // dbConfigs viene de CountryContext (cargado al boot, refrescado por live-sync).
+  // Lo leemos vía ref para que los efectos cascade que ya están vinculados a
+  // [country] no se re-disparen cuando dbConfigs cambie (live-sync) y reseteen
+  // filtros del usuario. Los useMemo SÍ incluyen dbConfigs en deps para
+  // recomputar config/competitors cuando llega data fresca.
+  const { dbConfigs } = useCountry()
+  const dbConfigsRef = useRef(dbConfigs)
+  useEffect(() => { dbConfigsRef.current = dbConfigs }, [dbConfigs])
+
+  const countryConfig = useMemo(
+    () => getCountryConfig(country, dbConfigs),
+    [country, dbConfigs]
+  )
   const CITIES              = countryConfig.cities
   const CATEGORIES_BY_CITY  = countryConfig.categoriesByCity
   const AEROPUERTO_BY_CITY  = countryConfig.aeropuertoSubcategoriesByCity || {}
@@ -85,7 +98,7 @@ export function useFilters(country) {
       const cats = CATEGORIES_BY_CITY[initialCity] || []
       return hc && cats.includes(hc) ? hc : (cats[0] || '')
     })()
-    const validComps = getCompetitors(initialCity, initialCat, null, country)
+    const validComps = getCompetitors(initialCity, initialCat, null, country, dbConfigs)
     return validComps.includes(h) ? h : (validComps[0] || 'Yango')
   })
   const [viewMode,      setViewMode]      = useState(() => H.current['view'] || 'weekly')
@@ -149,7 +162,7 @@ export function useFilters(country) {
     // compareVs='Cabify' (Perú) y cambia a Colombia donde Cabify no
     // existe, el cascade de category lo reseteará pero solo si
     // category también cambió. Reseteo explícito = garantía.
-    const comps = getCompetitors(firstCity, firstCat, null, country)
+    const comps = getCompetitors(firstCity, firstCat, null, country, dbConfigsRef.current)
     setCompareVs(comps[0] || 'Yango')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country])
@@ -174,7 +187,7 @@ export function useFilters(country) {
     } else {
       setSubCategory(null)
     }
-    const comps = getCompetitors(city, category, category === 'Aeropuerto' ? aeropuertoSubs(city)[0] : null, country)
+    const comps = getCompetitors(city, category, category === 'Aeropuerto' ? aeropuertoSubs(city)[0] : null, country, dbConfigsRef.current)
     setCompareVs(comps[0] || 'Yango')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city, category, country])
@@ -183,7 +196,7 @@ export function useFilters(country) {
   useEffect(() => {
     if (suppressCascades.current) return
     if (category === 'Aeropuerto' && subCategory) {
-      const comps = getCompetitors(city, category, subCategory, country)
+      const comps = getCompetitors(city, category, subCategory, country, dbConfigsRef.current)
       setCompareVs(comps[0] || 'Yango')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,9 +206,12 @@ export function useFilters(country) {
   useEffect(() => { suppressCascades.current = false }, [])
 
   // Resolver parámetros de DB
+  // dbConfigs en deps: cuando el wizard onboardea un país nuevo o un admin
+  // edita country_config en otra sesión, queremos recomputar dbCity/dbCategory
+  // con la data fresca. Sin esto, países wizard-creados resuelven a hardcoded.
   const { dbCity, dbCategory } = useMemo(
-    () => resolveDbParams(city, category, subCategory, country),
-    [city, category, subCategory, country]
+    () => resolveDbParams(city, category, subCategory, country, dbConfigs),
+    [city, category, subCategory, country, dbConfigs]
   )
 
   // Cargar zonas disponibles
@@ -233,8 +249,8 @@ export function useFilters(country) {
   }, [viewMode, weekStart, historicFrom, historicTo])
 
   const competitors = useMemo(
-    () => getCompetitors(city, category, subCategory, country),
-    [city, category, subCategory, country]
+    () => getCompetitors(city, category, subCategory, country, dbConfigs),
+    [city, category, subCategory, country, dbConfigs]
   )
 
   const filters = useMemo(() => ({

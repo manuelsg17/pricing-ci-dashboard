@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import { useCountry } from '../../context/CountryContext'
 import { useFilterContext } from '../../context/FilterContext'
 import { useFilterPresets } from '../../hooks/useFilterPresets'
 
@@ -61,10 +62,12 @@ export default function FilterBar({ className = '' }) {
     ? 'Todas'
     : TIME_SLOTS.filter(s => timeOfDay.includes(s.key)).map(s => s.label).join(', ')
 
-  const config = getCountryConfig(country)
+  // dbConfigs cubre países onboardeados via wizard (no en constants.js).
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const { city, category, subCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
   const categories  = config.categoriesByCity[city] || []
-  const competitors = getCompetitors(city, category, subCategory, country)
+  const competitors = getCompetitors(city, category, subCategory, country, dbConfigs)
   const showSubCategory = category === 'Aeropuerto'
   const { t } = useI18n()
 

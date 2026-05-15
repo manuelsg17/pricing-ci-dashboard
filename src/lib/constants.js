@@ -601,8 +601,13 @@ export function dbConfigToInternal(row) {
   }
 }
 
-export function resolveDbParams(uiCity, uiCategory, subCategory, country) {
-  const config = getCountryConfig(country)
+// IMPORTANTE: el parámetro `dbConfigs` (opcional) se pasa desde
+// componentes que tienen acceso a useCountry().dbConfigs. Sin él, países
+// onboardeados vía wizard (que viven SOLO en DB) caen al fallback de Peru
+// hardcoded → datos completamente equivocados. Mantener compatibilidad:
+// si no se pasa, se preserva el comportamiento legacy.
+export function resolveDbParams(uiCity, uiCategory, subCategory, country, dbConfigs = null) {
+  const config = getCountryConfig(country, dbConfigs)
   if (uiCategory === 'Aeropuerto' && subCategory) {
     const key = `${uiCity}|||${uiCategory}|||${subCategory}`
     return config.categoryDbMap[key] || { dbCity: 'Airport', dbCategory: subCategory }
@@ -611,9 +616,9 @@ export function resolveDbParams(uiCity, uiCategory, subCategory, country) {
   return config.categoryDbMap[key] || { dbCity: uiCity, dbCategory: uiCategory }
 }
 
-export function getCompetitors(uiCity, uiCategory, subCategory, country) {
-  const config = getCountryConfig(country)
-  const { dbCity, dbCategory } = resolveDbParams(uiCity, uiCategory, subCategory, country)
+export function getCompetitors(uiCity, uiCategory, subCategory, country, dbConfigs = null) {
+  const config = getCountryConfig(country, dbConfigs)
+  const { dbCity, dbCategory } = resolveDbParams(uiCity, uiCategory, subCategory, country, dbConfigs)
   return config.competitorsByDbCityCategory[dbCity]?.[dbCategory] || []
 }
 

@@ -159,7 +159,7 @@ export default function DataEntry() {
   const { session }    = useAuth()
   const userEmail      = session?.user?.email || ''
   const { t, locale }  = useI18n()
-  const { country, countryConfig } = useCountry()
+  const { country, countryConfig, dbConfigs } = useCountry()
 
   const uiCities      = countryConfig.cities
 
@@ -202,8 +202,8 @@ export default function DataEntry() {
 
   // dbCity: the DB city for the current UI city (use first non-special category)
   const { dbCity } = useMemo(
-    () => resolveDbParams(uiCity, categories[0] || '', null, country),
-    [uiCity, categories, country]
+    () => resolveDbParams(uiCity, categories[0] || '', null, country, dbConfigs),
+    [uiCity, categories, country, dbConfigs]
   )
 
   // Reverse lookup: dbCategory → uiCategory for the current city
@@ -345,7 +345,7 @@ export default function DataEntry() {
   // ── Row validation ─────────────────────────────────────
   // Returns 'empty' | 'full' | 'partial' for a (uiCat, ref, ts) row
   function rowState(uiCat, ref, ts) {
-    const comps = getCompetitors(uiCity, uiCat, null, country)
+    const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
     const vals  = comps.map(c => entries[priceKey(uiCat, ref.id, ts.label, c)] ?? '')
     const filled = vals.filter(v => v !== '' && !isNaN(parseFloat(v)))
     if (filled.length === 0)          return 'empty'
@@ -360,7 +360,7 @@ export default function DataEntry() {
 
   // ── Build rows to insert ───────────────────────────────
   function buildRows(uiCat, ref, ts) {
-    const comps = getCompetitors(uiCity, uiCat, null, country)
+    const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
     const { year, week } = getISOYearWeek(date)
     const rush = isRushHour(ts.start_time?.slice(0, 5), dbCity) ?? false
     return comps.map(comp => {
@@ -379,7 +379,7 @@ export default function DataEntry() {
   function buildInsertPayload(r) {
     const base = {
       city:                   dbCity,
-      category:               resolveDbParams(uiCity, r.uiCat, null, country).dbCategory,
+      category:               resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory,
       competition_name:       r.comp,
       observed_date:          date,
       observed_time:          r.ts.start_time?.slice(0, 5),
@@ -414,7 +414,7 @@ export default function DataEntry() {
 
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps   = getCompetitors(uiCity, uiCat, null, country)
+      const comps   = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
       for (const ref of catRefs) {
         for (const ts of timeslots) {
           const state = rowState(uiCat, ref, ts)
@@ -447,7 +447,7 @@ export default function DataEntry() {
 
     // Group by (dbCat, ts) for targeted delete
     const combos = new Set(
-      rowsToInsert.map(r => `${resolveDbParams(uiCity, r.uiCat, null, country).dbCategory}|${r.ts.start_time?.slice(0, 5)}`)
+      rowsToInsert.map(r => `${resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory}|${r.ts.start_time?.slice(0, 5)}`)
     )
     for (const combo of combos) {
       const [cat, time] = combo.split('|')
@@ -547,7 +547,7 @@ export default function DataEntry() {
     let n = 0
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps   = getCompetitors(uiCity, uiCat, null, country)
+      const comps   = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
       n += catRefs.length * timeslots.length * comps.length
     }
     return n
@@ -657,7 +657,7 @@ export default function DataEntry() {
         <>
           {categories.map(uiCat => {
             const catRefs  = refsByUICat[uiCat] || []
-            const comps    = getCompetitors(uiCity, uiCat, null, country)
+            const comps    = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
             const colors   = CAT_COLORS[uiCat] || CAT_COLORS['Corp']
             const totalRows = catRefs.length * timeslots.length
 
