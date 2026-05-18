@@ -15,7 +15,8 @@
     "test:weights-cascade": "node scripts/test-weights-cascade.mjs",
     "test:format": "node scripts/test-format.mjs",
     "test:normalize-competitor": "node scripts/test-normalize-competitor.mjs",
-    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config && npm run test:catalogs && npm run test:weights-cascade && npm run test:format && npm run test:normalize-competitor"
+    "test:ingestion-corp": "node scripts/test-ingestion-corp.mjs",
+    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config && npm run test:catalogs && npm run test:weights-cascade && npm run test:format && npm run test:normalize-competitor && npm run test:ingestion-corp"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

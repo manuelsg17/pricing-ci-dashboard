@@ -94,11 +94,16 @@ const BRACKET_NORMALIZE = {
   'Very Long':  'very_long',
 }
 
-// Normalización de nombres de competidor
-const COMPETITOR_NORMALIZE = {
+// Normalización de nombres de competidor. Mismo split que en
+// ingestionFilters.js: fixes de casing siempre aplican; el aplastado
+// "Yango-master" (Premier/Comfort+ → Yango) sólo fuera de Corp donde
+// Premier y Comfort+ son sub-variantes de Yango. En Corp son competidores
+// legítimos separados — aplastarlos perdió 1190 filas históricas (mig 69).
+const COMPETITOR_CASING_FIXES = {
   'Indrive':         'InDrive',
   'DiDi':            'Didi',
-  // Legacy: YangoPremier y YangoComfort+ ya no existen — colapsan a Yango
+}
+const COMPETITOR_YANGO_MASTER_FLATTEN = {
   'Yango premier':   'Yango',
   'Yango  premier':  'Yango',
   'YangoPremier':    'Yango',
@@ -258,7 +263,13 @@ function parseRows(sheetData, city) {
 
     // Normalizar categorías, competidores y bracket a nombres canónicos en BD
     if (obj.category)          obj.category          = CATEGORY_NORMALIZE[obj.category]          ?? obj.category
-    if (obj.competition_name)  obj.competition_name  = COMPETITOR_NORMALIZE[obj.competition_name] ?? obj.competition_name
+    if (obj.competition_name) {
+      let legacy = COMPETITOR_CASING_FIXES[obj.competition_name] ?? obj.competition_name
+      if (obj.city !== 'Corp') {
+        legacy = COMPETITOR_YANGO_MASTER_FLATTEN[legacy] ?? legacy
+      }
+      obj.competition_name = legacy
+    }
     if (obj.distance_bracket)  obj.distance_bracket  = BRACKET_NORMALIZE[obj.distance_bracket]   ?? normalizeBracket(obj.distance_bracket)
 
     return obj

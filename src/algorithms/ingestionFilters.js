@@ -7,7 +7,9 @@
 // se descarta y cómo se normaliza, para que el dashboard nunca vea data
 // inconsistente independientemente de cómo entró.
 
-import { normalizeCompetitorName, normalizeBracket } from '../lib/normalize'
+// Import con extensión explícita para que tests Node ESM (sin Vite) puedan
+// resolver el módulo. Vite resuelve sin extensión, Node puro no.
+import { normalizeCompetitorName, normalizeBracket } from '../lib/normalize.js'
 
 // Diccionarios públicos — duplicados de Upload.jsx para que ambos pipelines
 // los compartan. Mantén estos como única fuente de verdad para la
@@ -21,13 +23,34 @@ export const CATEGORY_NORMALIZE = {
   'Comfort':          'Comfort+',
 }
 
-export const COMPETITOR_NORMALIZE = {
+// Atención: este diccionario hace dos cosas distintas y es la fuente del
+// bug histórico de Corp:
+//   1. Fixes de casing/typos (Indrive→InDrive, DiDi→Didi)  ← SIEMPRE aplican.
+//   2. "Aplastado" Yango-master (Premier/Comfort+ → Yango)  ← solo aplica
+//      en categorías E/C donde 'Premier'/'Comfort+' NO son competidores
+//      separados sino sub-variantes que se agregan al promedio de Yango.
+//      En **Corp**, en cambio, Premier y Comfort+ son competidores
+//      legítimos (ver competitorsByDbCityCategory.Corp.Corp). Aplastarlos
+//      perdió 1190 filas históricas en Corp (mig 69 las borra para que el
+//      admin re-suba el Excel limpio).
+//
+// Por eso ahora hay DOS dicts y la lógica en normalizeRow decide cuál
+// aplicar según city='Corp' o no.
+const COMPETITOR_CASING_FIXES = {
   'Indrive':         'InDrive',
   'DiDi':            'Didi',
+}
+const COMPETITOR_YANGO_MASTER_FLATTEN = {
   'Yango premier':   'Yango',
   'Yango  premier':  'Yango',
   'YangoPremier':    'Yango',
   'YangoComfort+':   'Yango',
+}
+// Compat: callers externos pueden seguir leyendo el dict combinado en
+// contexto NO-Corp. NO mutar.
+export const COMPETITOR_NORMALIZE = {
+  ...COMPETITOR_CASING_FIXES,
+  ...COMPETITOR_YANGO_MASTER_FLATTEN,
 }
 
 export const BRACKET_NORMALIZE = {
@@ -71,11 +94,14 @@ export function normalizeRow(rawRow) {
   const row = { ...rawRow }
   if (row.category)         row.category         = CATEGORY_NORMALIZE[row.category]         ?? row.category
   if (row.competition_name) {
-    // Primero el diccionario legacy (COMPETITOR_NORMALIZE) por compat;
-    // después normalizeCompetitorName context-aware por city para que
-    // city='Corp' colapse 'YangoEconomy'→'Yango Economy' (canónico Corp
-    // usa espacios) mientras que en E/C 'YangoComfort' queda intacto.
-    const legacy = COMPETITOR_NORMALIZE[row.competition_name] ?? row.competition_name
+    // (1) Fixes de casing siempre (Indrive→InDrive, DiDi→Didi).
+    let legacy = COMPETITOR_CASING_FIXES[row.competition_name] ?? row.competition_name
+    // (2) "Aplastado" Yango-master (Premier/Comfort+ → Yango) sólo fuera
+    //     de Corp. En Corp son competidores legítimos separados.
+    if (row.city !== 'Corp') {
+      legacy = COMPETITOR_YANGO_MASTER_FLATTEN[legacy] ?? legacy
+    }
+    // (3) Canonical context-aware (toma city para resolver Corp vs E/C).
     row.competition_name = normalizeCompetitorName(legacy, { city: row.city })
   }
   if (row.distance_bracket) {
