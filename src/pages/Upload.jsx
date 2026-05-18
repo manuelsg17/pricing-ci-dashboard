@@ -17,6 +17,7 @@ import BotFreshnessBadge      from '../components/ui/BotFreshnessBadge'
 import { usePriceRules }      from '../hooks/usePriceRules'
 import { useRushHourConfig }  from '../hooks/useRushHourConfig'
 import { sanitizeBatch }      from '../algorithms/ingestionFilters'
+import { normalizeCompetitorName } from '../lib/normalize'
 import { useToast }           from '../components/ui/Toast'
 import '../styles/upload.css'
 
@@ -506,8 +507,14 @@ export default function Upload() {
 
     // ── Paso 2: Pre-computar campos calculados en cada fila ────────────────
     const finalRows = rowsToInsert.map(r => {
+      // Normalizar competition_name context-aware. En city='Corp' colapsa
+      // 'YangoEconomy' → 'Yango Economy' (el canónico del dashboard usa
+      // espacios en Corp); en el resto deja 'YangoComfort' intacto (es
+      // sub-variante legítima en E/C). Ver src/lib/normalize.js.
+      const competition_name = normalizeCompetitorName(r.competition_name, { city: r.city })
       let row = {
         ...r,
+        competition_name,
         country,
         data_source:     'manual',
         upload_batch_id: batchId,

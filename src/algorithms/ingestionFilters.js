@@ -7,6 +7,8 @@
 // se descarta y cómo se normaliza, para que el dashboard nunca vea data
 // inconsistente independientemente de cómo entró.
 
+import { normalizeCompetitorName } from '../lib/normalize'
+
 // Diccionarios públicos — duplicados de Upload.jsx para que ambos pipelines
 // los compartan. Mantén estos como única fuente de verdad para la
 // normalización de strings.
@@ -68,7 +70,14 @@ function findThreshold(rules, city, category, competitor) {
 export function normalizeRow(rawRow) {
   const row = { ...rawRow }
   if (row.category)         row.category         = CATEGORY_NORMALIZE[row.category]         ?? row.category
-  if (row.competition_name) row.competition_name = COMPETITOR_NORMALIZE[row.competition_name] ?? row.competition_name
+  if (row.competition_name) {
+    // Primero el diccionario legacy (COMPETITOR_NORMALIZE) por compat;
+    // después normalizeCompetitorName context-aware por city para que
+    // city='Corp' colapse 'YangoEconomy'→'Yango Economy' (canónico Corp
+    // usa espacios) mientras que en E/C 'YangoComfort' queda intacto.
+    const legacy = COMPETITOR_NORMALIZE[row.competition_name] ?? row.competition_name
+    row.competition_name = normalizeCompetitorName(legacy, { city: row.city })
+  }
   if (row.distance_bracket) {
     row.distance_bracket = BRACKET_NORMALIZE[row.distance_bracket]
                         ?? String(row.distance_bracket).toLowerCase().replace(/\s+/g, '_')

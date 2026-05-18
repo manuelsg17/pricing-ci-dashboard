@@ -70,3 +70,104 @@ export function ciEqual(a, b) {
   if (a == null || b == null) return false
   return stripAccents(String(a)).toLowerCase() === stripAccents(String(b)).toLowerCase()
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// normalizeCompetitorName — única fuente de verdad para competition_name
+// en pricing_observations.
+//
+// La ingesta llegó por varios canales históricamente (Excel manual, bot,
+// data entry) y cada uno emite un sub-dialecto distinto: 'uber' vs 'Uber',
+// 'YangoEconomy' vs 'Yango Economy'. Esa heterogeneidad rompe el lookup
+// por city/category en el dashboard (ver competitorsByDbCityCategory en
+// constants.js — espera nombres canónicos exactos).
+//
+// La normalización tiene que ser CONTEXT-AWARE por city porque para
+// city='Corp' (categoría B2B en Perú) el canónico usa nombres con espacios
+// ('Yango Comfort', 'Cabify Extra Comfort') mientras que en el resto de
+// las categorías ('Economy/Comfort', 'Comfort+', etc.) el canónico es
+// pegado ('YangoComfort'). Aplicar el mapeo Corp fuera de Corp rompería
+// data legítima.
+// ════════════════════════════════════════════════════════════════════════
+
+// Casing universal — se aplica en TODA city. Acá viven sólo nombres que
+// son inequívocos (no chocan con sub-variantes). 'yango' → 'Yango' es OK
+// porque el canónico de Yango en Economy/Comfort es 'Yango'; las variantes
+// como 'YangoComfort' nunca llegan en minúsculas a este diccionario.
+const UNIVERSAL_CASING = {
+  uber:    'Uber',
+  yango:   'Yango',
+  didi:    'Didi',
+  indrive: 'InDrive',
+  cabify:  'Cabify',
+}
+
+// Aliases válidos sólo para city='Corp'. Las claves son la versión
+// "fingerprint" (lowercase + sin espacios) para tolerar todas las
+// variantes de input. Si agregás un destino nuevo, sumá fingerprints
+// de TODAS las variantes plausibles (con/sin espacio, +/plus).
+const CORP_ALIAS_FINGERPRINTS = {
+  // Yango — Corp usa nombres con espacios; el bot/Excel mandó pegado
+  yangoeconomy:           'Yango Economy',
+  yangocomfort:           'Yango Comfort',
+  'yangocomfort+':        'Yango Comfort+',
+  yangocomfortplus:       'Yango Comfort+',
+  yangoplus:              'Yango Comfort+',   // HIPÓTESIS — ver TODO abajo
+  yangopremier:           'Yango Premier',
+  yangoxl:                'Yango XL',
+  // Cabify — mismas variantes
+  cabifylite:             'Cabify Lite',
+  cabifyextracomfort:     'Cabify Extra Comfort',
+  cabifyxl:               'Cabify XL',
+  // TODO(stakeholder): confirmar que 'YangoPlus' representa Yango Comfort+
+  // (y no Yango Premier). Tenemos ~102 filas con ese valor en Perú/Corp;
+  // por convención de naming "Plus" suele significar Comfort+ pero hay
+  // riesgo de que sea Premier. Validar con product owner antes de cerrar.
+}
+
+/**
+ * Devuelve el "fingerprint" de un nombre: lowercase, sin espacios.
+ * Sólo para matching interno — nunca se persiste.
+ */
+function fingerprint(s) {
+  return String(s).toLowerCase().replace(/\s+/g, '').trim()
+}
+
+/**
+ * Normaliza competition_name a forma canónica. Idempotente y tolerante
+ * a variantes (case, espacios). Es CONTEXT-AWARE por city porque en
+ * city='Corp' la convención canónica usa nombres con espacios
+ * ('Yango Comfort', 'Cabify Extra Comfort'), mientras que en el resto
+ * de categorías el canónico es pegado ('YangoComfort').
+ *
+ * Es la ÚNICA fuente de verdad para qué string termina en
+ * pricing_observations.competition_name. Llamar SIEMPRE antes de INSERT.
+ *
+ * Ejemplos:
+ *   normalizeCompetitorName('uber') === 'Uber'
+ *   normalizeCompetitorName('yangoeconomy', { city: 'Corp' }) === 'Yango Economy'
+ *   normalizeCompetitorName('YangoComfort', { city: 'Lima' }) === 'YangoComfort'  // no toca
+ *   normalizeCompetitorName('YangoComfort', { city: 'Corp' }) === 'Yango Comfort'
+ *   normalizeCompetitorName('YangoPlus', { city: 'Corp' }) === 'Yango Comfort+'   // HIPÓTESIS
+ */
+export function normalizeCompetitorName(raw, { city } = {}) {
+  if (raw == null) return raw
+  const trimmed = String(raw).trim()
+  if (trimmed === '') return trimmed
+
+  // (1) Casing universal — sólo si el lowercase trim matchea exacto.
+  // No afecta a sub-variantes como 'YangoComfort' (lowercase 'yangocomfort'
+  // ≠ 'yango').
+  const lc = trimmed.toLowerCase()
+  if (UNIVERSAL_CASING[lc]) return UNIVERSAL_CASING[lc]
+
+  // (2) Corp aliases. Sólo cuando city es exactamente 'Corp' — no podemos
+  // tocar 'YangoComfort' en city='Lima' (es un valor legítimo distinto).
+  if (city === 'Corp') {
+    const fp = fingerprint(trimmed)
+    if (CORP_ALIAS_FINGERPRINTS[fp]) return CORP_ALIAS_FINGERPRINTS[fp]
+  }
+
+  // (3) Nada matcheó — devolver tal cual. No inventamos canonicalizaciones
+  // para evitar regresiones en data legítima desconocida.
+  return trimmed === raw ? raw : trimmed
+}

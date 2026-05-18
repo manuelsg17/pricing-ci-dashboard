@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb }               from '../lib/supabase'
 import { useAuth }          from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, COMPETITOR_COLORS, getCountryConfig, getCompetitors, resolveDbParams } from '../lib/constants'
+import { normalizeCompetitorName } from '../lib/normalize'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots }    from '../hooks/useCITimeslots'
@@ -380,7 +381,11 @@ export default function DataEntry() {
     const base = {
       city:                   dbCity,
       category:               resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory,
-      competition_name:       r.comp,
+      // Normalización context-aware: en city='Corp' el canónico usa
+      // espacios ('Yango Comfort'), en E/C es pegado ('YangoComfort').
+      // r.comp viene del catálogo getCompetitors() que ya tiene el canónico,
+      // pero pasamos por normalize por defensa-en-profundidad (idempotente).
+      competition_name:       normalizeCompetitorName(r.comp, { city: dbCity }),
       observed_date:          date,
       observed_time:          r.ts.start_time?.slice(0, 5),
       rush_hour:              r.rush,

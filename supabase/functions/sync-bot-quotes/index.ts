@@ -69,6 +69,44 @@ const COMPETITOR_NORMALIZE: Record<string, string> = {
   'YangoComfort+':   'Yango',
 }
 
+// ── Normalización context-aware de competition_name ─────────────────────
+// DUPLICACIÓN INTENCIONAL de src/lib/normalize.js (normalizeCompetitorName).
+// Este archivo corre en Deno y no puede importar módulos del bundle React,
+// así que mantenemos el diccionario inline. Si modificás uno, modificá el
+// otro. Test de paridad: scripts/test-normalize-competitor.mjs documenta
+// los inputs/outputs esperados.
+const UNIVERSAL_CASING: Record<string, string> = {
+  uber:    'Uber',
+  yango:   'Yango',
+  didi:    'Didi',
+  indrive: 'InDrive',
+  cabify:  'Cabify',
+}
+const CORP_ALIAS_FINGERPRINTS: Record<string, string> = {
+  yangoeconomy:        'Yango Economy',
+  yangocomfort:        'Yango Comfort',
+  'yangocomfort+':     'Yango Comfort+',
+  yangocomfortplus:    'Yango Comfort+',
+  yangoplus:           'Yango Comfort+',   // HIPÓTESIS — validar
+  yangopremier:        'Yango Premier',
+  yangoxl:             'Yango XL',
+  cabifylite:          'Cabify Lite',
+  cabifyextracomfort:  'Cabify Extra Comfort',
+  cabifyxl:            'Cabify XL',
+}
+function normalizeCompetitorName(raw: unknown, city: string | null): string | null {
+  if (raw == null) return null as any
+  const trimmed = String(raw).trim()
+  if (trimmed === '') return trimmed
+  const lc = trimmed.toLowerCase()
+  if (UNIVERSAL_CASING[lc]) return UNIVERSAL_CASING[lc]
+  if (city === 'Corp') {
+    const fp = lc.replace(/\s+/g, '')
+    if (CORP_ALIAS_FINGERPRINTS[fp]) return CORP_ALIAS_FINGERPRINTS[fp]
+  }
+  return trimmed
+}
+
 // ── Reglas del bot — data-driven desde tabla bot_rules en Supabase.
 //     Cada país tiene su propio set de reglas. La función las carga
 //     en cada invocación filtrando por country (loadBotRules).
@@ -341,6 +379,10 @@ Deno.serve(async (req) => {
       let competition_name = rule.name
       // Aplicar normalización adicional (por si el bot manda "Comfort" legacy)
       if (raw.category) category = CATEGORY_NORMALIZE[String(raw.category)] ?? category
+      // Context-aware: en city='Corp' colapsa 'YangoEconomy' → 'Yango Economy'
+      // (canónico Corp con espacios). En E/C es no-op para los valores que
+      // ya vienen del catálogo bot_rules (idempotente).
+      competition_name = normalizeCompetitorName(competition_name, dbCity) || competition_name
 
       const recommended_price       = num(raw.price_recommended)
       const price_with_discount     = num(raw.price_with_discount)
