@@ -160,11 +160,11 @@ function buildCityXlsx(rows, city, countryConfig) {
  *   ok:      object[]  — filas válidas (para chequeo de outliers en el caller)
  * }}
  */
-export function convertBotToExcel(rawRows, country = 'Peru') {
-  const config = getCountryConfig(country)
-  
+export function convertBotToExcel(rawRows, country = 'Peru', dbConfigs = null) {
+  const config = getCountryConfig(country, dbConfigs)
+
   // 1. Normalizar y filtrar calidad (mapBotRows ya hace todo el trabajo duro)
-  const { ok, skipped } = mapBotRows(rawRows, country)
+  const { ok, skipped } = mapBotRows(rawRows, country, dbConfigs)
 
   // 2. Filtrar solo los competidores del scope actual
   const inScope           = ok.filter(r => INCLUDE_COMPETITORS.has(r.competition_name))

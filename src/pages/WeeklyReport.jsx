@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { sb }              from '../lib/supabase'
 import { useAuth }         from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
+import { normalizeCompetitorName } from '../lib/normalize'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useI18n }       from '../context/LanguageContext'
 import '../styles/weekly-report.css'
@@ -33,7 +34,10 @@ function fmtPct(n) {
 function aggregate(rows) {
   const result = {}
   for (const row of (rows || [])) {
-    const comp    = row.competition_name
+    // Defense-in-depth: normalizar competition_name al agrupar para que
+    // data legacy con variantes pegadas (YangoEconomy en city=Corp) caiga
+    // en la misma bucket que el canónico del catálogo.
+    const comp    = normalizeCompetitorName(row.competition_name, { city: row.city }) || row.competition_name
     const bracket = row.distance_bracket
     if (!result[comp]) result[comp] = {}
     if (!result[comp][bracket]) result[comp][bracket] = { sum: 0, count: 0 }

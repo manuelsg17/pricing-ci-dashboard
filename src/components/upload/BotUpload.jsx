@@ -9,7 +9,7 @@ import OutlierReview from './OutlierReview'
 const BATCH_SIZE = 500
 
 export default function BotUpload() {
-  const { country } = useCountry()
+  const { country, dbConfigs } = useCountry()
   const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
   const [rows,      setRows]      = useState([])  // mapped rows OK
   const [skipped,   setSkipped]   = useState([])  // skipped rows with reason
@@ -33,7 +33,7 @@ export default function BotUpload() {
       const ws     = wb.Sheets[wb.SheetNames[0]]
       const raw    = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
-      const { ok, skipped: skip } = mapBotRows(raw, country)
+      const { ok, skipped: skip } = mapBotRows(raw, country, dbConfigs)
 
       // Filtrar filas sin precio en columna de salida:
       // · No-InDrive: necesita price_without_discount

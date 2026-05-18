@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import { CATALOG_CATEGORIES, CATALOG_COMPETITORS, getBotRulesTemplate } from '../../lib/catalogs'
-import { stripAccents } from '../../lib/normalize'
+import { stripAccents, toDbKey } from '../../lib/normalize'
 import { useConfirm } from '../ui/ConfirmDialog'
 import SaveStatusBanner from './SaveStatusBanner'
 
@@ -122,14 +122,11 @@ export default function CountryWizard({ onClose, onCreated }) {
       cities[idx] = { ...cities[idx], [field]: val }
       // Auto-sugerir dbName y botKey desde uiName si están vacíos.
       // dbName preserva el case original ("Bogotá Norte" → "Bogota_Norte")
-      // porque las dbCities históricas son CapCase. botKey es siempre
-      // lowercase porque el bot manda strings ya lowercase.
-      // stripAccents() centraliza el NFD + regex de combining marks
-      // — ver src/lib/normalize.js.
+      // porque las dbCities históricas son CapCase. botKey usa toDbKey
+      // (lowercase + sin acentos + snake_case) que es lo que el bot manda.
       if (field === 'uiName' && val) {
-        const noAccents = stripAccents(val).replace(/[\s-]+/g, '_')
-        if (!cities[idx].dbName) cities[idx].dbName = noAccents
-        if (!cities[idx].botKey) cities[idx].botKey = noAccents.toLowerCase()
+        if (!cities[idx].dbName) cities[idx].dbName = stripAccents(val).replace(/[\s-]+/g, '_')
+        if (!cities[idx].botKey) cities[idx].botKey = toDbKey(val)
       }
       return { ...d, cities }
     })
@@ -354,7 +351,42 @@ export default function CountryWizard({ onClose, onCreated }) {
         if (rhErr) throw rhErr
       }
 
-      // 8. Validar setup
+      // 8. indrive_config — adjustment_pct=0 por (country, city, category)
+      // para que `apply_indrive_bot_prices` tenga filas sobre las cuales
+      // aplicar el override. Sin esto, los precios InDrive del bot llegan
+      // sin ajuste configurable y el admin tiene que crear cada fila a
+      // mano antes de poder afinar. Best-effort: si falla, no rompe el
+      // wizard (el admin puede sembrar después manualmente).
+      try {
+        const indriveRows = []
+        for (const c of draft.cities) {
+          const cityName = c.dbName || c.uiName
+          if (!cityName) continue
+          for (const cat of (c.categories || [])) {
+            const catName = cat.dbName || cat.name
+            if (!catName) continue
+            indriveRows.push({
+              country: draft.country_key,
+              city: cityName,
+              category: catName,
+              adjustment_pct: 0,
+            })
+          }
+        }
+        if (indriveRows.length > 0) {
+          await sb.from('indrive_config')
+            .upsert(indriveRows, { onConflict: 'country,city,category' })
+        }
+      } catch (e) {
+        // No tiramos — el admin puede configurarlo después
+        console.warn('[wizard] indrive_config seed skipped:', e?.message || e)
+      }
+
+      // 9. ci_timeslots es global (sin country) y ya tiene defaults desde
+      // la mig 10 (Mañana 08-10, Tarde 13-15, Noche 18-20). Nada que
+      // hacer acá; lo dejamos documentado.
+
+      // 10. Validar setup
       const { data: vData } = await sb.rpc('validate_country_setup', { p_country: draft.country_key })
       setValidation(vData || [])
 

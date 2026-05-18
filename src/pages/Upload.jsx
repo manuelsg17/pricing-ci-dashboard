@@ -17,7 +17,7 @@ import BotFreshnessBadge      from '../components/ui/BotFreshnessBadge'
 import { usePriceRules }      from '../hooks/usePriceRules'
 import { useRushHourConfig }  from '../hooks/useRushHourConfig'
 import { sanitizeBatch }      from '../algorithms/ingestionFilters'
-import { normalizeCompetitorName } from '../lib/normalize'
+import { normalizeCompetitorName, normalizeBracket, toSnakeCase } from '../lib/normalize'
 import { useToast }           from '../components/ui/Toast'
 import '../styles/upload.css'
 
@@ -259,7 +259,7 @@ function parseRows(sheetData, city) {
     // Normalizar categorías, competidores y bracket a nombres canónicos en BD
     if (obj.category)          obj.category          = CATEGORY_NORMALIZE[obj.category]          ?? obj.category
     if (obj.competition_name)  obj.competition_name  = COMPETITOR_NORMALIZE[obj.competition_name] ?? obj.competition_name
-    if (obj.distance_bracket)  obj.distance_bracket  = BRACKET_NORMALIZE[obj.distance_bracket]   ?? obj.distance_bracket.toLowerCase().replace(/\s+/g, '_')
+    if (obj.distance_bracket)  obj.distance_bracket  = BRACKET_NORMALIZE[obj.distance_bracket]   ?? normalizeBracket(obj.distance_bracket)
 
     return obj
   })
@@ -323,12 +323,30 @@ const SHEET_CITY_MAP = {
   airport:                      'Lima_Airport',
 }
 
-function detectCity(sheetName) {
-  const key = sheetName.toLowerCase().replace(/[\s-]/g, '_')
+// `countryConfig` viene de useCountry() y ya respeta el override DB →
+// países onboardeados via wizard funcionan sin tocar este archivo. El
+// SHEET_CITY_MAP hardcoded queda como fallback Peru-específico (cubre
+// sufijos legacy como `_pricing_ci_final` que el bot no envía).
+function detectCity(sheetName, countryConfig) {
+  const key = toSnakeCase(sheetName)
+
+  // (1) Data-driven: cada ciudad del país activo tiene botKey definido en
+  //     country_config.cities (jsonb). Tolera prefijo/sufijo.
+  const botCityMap = countryConfig?.botCityMap || {}
+  for (const [botKey, dbCity] of Object.entries(botCityMap)) {
+    if (!botKey) continue
+    if (key === botKey || key.startsWith(botKey + '_') || key.endsWith('_' + botKey) || key.includes('_' + botKey + '_')) {
+      return dbCity
+    }
+  }
+
+  // (2) Fallback Peru: el bot histórico envía pestañas con sufijo
+  //     `_pricing_ci_final` que no caen en (1) porque no son botKey puro.
   for (const [pattern, city] of Object.entries(SHEET_CITY_MAP)) {
     if (key.includes(pattern.replace(/_/g, '')) || key === pattern) return city
   }
-  // Fallback por palabras clave (corp antes de lima; airport combinado con ciudad antes que plano)
+
+  // (3) Heurísticas por keyword (Peru/Colombia legacy)
   const lowerPattern = key.toLowerCase()
   const hasAirport = lowerPattern.includes('airport') || lowerPattern.includes('aero')
   if (lowerPattern.includes('corp'))      return 'Corp'
@@ -338,7 +356,7 @@ function detectCity(sheetName) {
   if (lowerPattern.includes('lima'))      return 'Lima'
   if (lowerPattern.includes('tru') || lowerPattern.includes('trujillo')) return 'Trujillo'
   if (lowerPattern.includes('arq') || lowerPattern.includes('arequipa')) return 'Arequipa'
-  if (hasAirport)                         return 'Lima_Airport' // legacy default
+  if (hasAirport)                         return 'Lima_Airport'
   if (lowerPattern.includes('bog'))       return 'Bogota'
   if (lowerPattern.includes('med'))       return 'Medellin'
   if (lowerPattern.includes('cali'))      return 'Cali'
@@ -370,7 +388,7 @@ export default function Upload() {
     const wb  = XLSX.read(buf, { type: 'array', cellDates: false })
 
     // Para CSV el sheet name suele ser "Sheet1" — usar nombre de archivo como contexto
-    const fileCity = detectCity(file.name.replace(/\.[^.]+$/, ''))
+    const fileCity = detectCity(file.name.replace(/\.[^.]+$/, ''), config)
 
     const dataSheets = wb.SheetNames.filter(n => {
       const lower = n.toLowerCase()
@@ -384,7 +402,7 @@ export default function Upload() {
     const parsed = []
     for (const sheetName of dataSheets) {
       // Ciudad: primero intenta por nombre de pestaña, luego por nombre de archivo
-      let city = detectCity(sheetName) ?? fileCity
+      let city = detectCity(sheetName, config) ?? fileCity
       // Forzar que la ciudad detectada pertenezca al país activo
       if (city && !config.dbCities.includes(city)) {
           city = config.dbCities[0] 

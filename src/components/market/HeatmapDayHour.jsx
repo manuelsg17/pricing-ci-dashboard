@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { COMPETITOR_COLORS } from '../../lib/constants'
+import { normalizeCompetitorName } from '../../lib/normalize'
 
 const TIME_SLOTS = [
   { key: 'early_morning', label: 'Madrugada' },
@@ -57,7 +58,7 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
   const cells = useMemo(() => {
     const map = {}
     for (const r of rawRows) {
-      const comp = r.competition_name
+      const comp = normalizeCompetitorName(r.competition_name, { city: filters.dbCity }) || r.competition_name
       const dow  = Number(r.dow)
       const tod  = r.time_of_day
       if (!comp || !dow || !tod) continue

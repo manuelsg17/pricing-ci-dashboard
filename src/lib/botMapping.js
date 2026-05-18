@@ -101,13 +101,18 @@ function resolveByRules(rules, { appKey, vcRaw, ovcRaw, dbCity }) {
  * Transforma rows del CSV del bot → formato pricing_observations.
  *
  * @param {object[]} rows - filas parseadas del CSV del bot
- * @param {string} activeCountry - "Peru" | "Colombia"
+ * @param {string} activeCountry - cualquier country_key activo
+ * @param {object?} dbConfigs - map { country_key: internalConfig } desde
+ *   useCountry().dbConfigs. Si se pasa y contiene activeCountry, override
+ *   del COUNTRY_CONFIG hardcoded → permite que países onboardeados vía
+ *   wizard funcionen sin redeploy. El test corre sin dbConfigs (legacy
+ *   path) para validar la matriz hardcoded de Peru.
  * @returns {{ ok: object[], skipped: { row: object, reason: string }[] }}
  */
-export function mapBotRows(rows, activeCountry = 'Peru') {
+export function mapBotRows(rows, activeCountry = 'Peru', dbConfigs = null) {
   const ok      = []
   const skipped = []
-  const config = getCountryConfig(activeCountry)
+  const config = getCountryConfig(activeCountry, dbConfigs)
   const maxPrice = config.maxPrice || 300
   const botCityMap = config.botCityMap || {}
   const botRules = Array.isArray(config.botRules) ? config.botRules : null

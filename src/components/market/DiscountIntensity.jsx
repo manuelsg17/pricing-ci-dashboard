@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { COMPETITOR_COLORS } from '../../lib/constants'
+import { normalizeCompetitorName } from '../../lib/normalize'
 
 export default function DiscountIntensity({ filters, currency = '' }) {
   const [rawRows, setRawRows] = useState([])
@@ -43,7 +44,8 @@ export default function DiscountIntensity({ filters, currency = '' }) {
         const withDisc = Number(r.with_discount || 0)
         const discountPct = listAvg > 0 ? ((finalAvg - listAvg) / listAvg) * 100 : 0
         const pctWithDisc = obs > 0 ? (withDisc / obs) * 100 : 0
-        return { comp: r.competition_name, listAvg, finalAvg, discountPct, obs, pctWithDisc }
+        const comp = normalizeCompetitorName(r.competition_name, { city: filters.dbCity }) || r.competition_name
+        return { comp, listAvg, finalAvg, discountPct, obs, pctWithDisc }
       })
     return out.sort((a, b) => a.discountPct - b.discountPct)
   }, [rawRows])

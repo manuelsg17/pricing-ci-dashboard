@@ -7,6 +7,7 @@ import {
 import { sb }                      from '../lib/supabase'
 import { useAuth }                 from '../lib/auth'
 import { COMPETITOR_COLORS, getCompetitors, getCountryConfig, resolveDbParams } from '../lib/constants'
+import { normalizeCompetitorName } from '../lib/normalize'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses }     from '../hooks/useCompetitorBonuses'
@@ -94,9 +95,12 @@ export default function DriverEarnings() {
       .eq('year',  refYear)
       .eq('week',  refWeek)
       .not('price_without_discount', 'is', null)
+    // Defense-in-depth: normalizar al competition_name al agregar para que
+    // data legacy con variantes pegadas no quede en buckets fantasma fuera
+    // del catálogo (ver getCompetitors abajo).
     const grouped = {}
     for (const row of (data || [])) {
-      const comp = row.competition_name
+      const comp = normalizeCompetitorName(row.competition_name, { city: dbCity }) || row.competition_name
       if (!grouped[comp]) grouped[comp] = { sum: 0, count: 0 }
       grouped[comp].sum   += parseFloat(row.price_without_discount)
       grouped[comp].count += 1

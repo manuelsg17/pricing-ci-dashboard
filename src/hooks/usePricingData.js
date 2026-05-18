@@ -4,6 +4,7 @@ import { BRACKETS, BRACKET_LABELS, DEFAULT_WEIGHTS } from '../lib/constants'
 import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAverage'
 import { computeDelta, getSemaforoClass } from '../algorithms/semaforo'
 import { getISOYearWeek as getYearWeek } from '../lib/dateUtils'
+import { normalizeCompetitorName, toSnakeCase } from '../lib/normalize'
 
 const ALL_TIME_SLOTS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
 
@@ -136,13 +137,17 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
   }, [frozenRows])
 
   // ── Índice de datos congelados: comp → periodKey → bracket → {avg_price, count} ──
+  // Defense-in-depth: normalizar competition_name al indexar. Si data
+  // legacy quedó en DB con variantes pegadas-sin-espacio para Corp, el
+  // lookup posterior con nombres canónicos sigue matcheando.
   const frozenNested = useMemo(() => {
     const idx = {}
     for (const r of frozenRows) {
+      const comp = normalizeCompetitorName(r.competition_name, { city: r.city }) || r.competition_name
       const pk = `${r.year}-W${String(r.week).padStart(2, '0')}`
-      if (!idx[r.competition_name]) idx[r.competition_name] = {}
-      if (!idx[r.competition_name][pk]) idx[r.competition_name][pk] = {}
-      idx[r.competition_name][pk][r.distance_bracket] = {
+      if (!idx[comp]) idx[comp] = {}
+      if (!idx[comp][pk]) idx[comp][pk] = {}
+      idx[comp][pk][r.distance_bracket] = {
         avgPrice: Number(r.avg_price),
         count:    Number(r.observation_count),
       }
@@ -207,16 +212,18 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       // ante datos legados con formato inconsistente ('Short' vs 'short').
       const nested = {}
       const CANONICAL_BRACKETS = new Set(['very_short', 'short', 'median', 'average', 'long', 'very_long'])
+      // Wrapper local: toSnakeCase del helper centralizado + strip de
+      // sufijos zone-aware específicos del bot (Colombia subdivide brackets
+      // por zona urbana, ej: short_zona_sur, short_a). Lógica de dominio
+      // que NO vive en el helper genérico.
       const normalizeBracket = (b) => {
         if (b == null) return null
-        let s = String(b).toLowerCase().replace(/[\s-]+/g, '_')
+        let s = toSnakeCase(b)
         s = s.replace(/^airport_/, '')
         s = s.replace(/_(madrid|funza|mosquera|cota|chia|soacha|cajica|tenjo|sopo|sibate)$/, '')
         s = s.replace(/_(zona_sur|zona_norte|zona_centro|zona_este|zona_oeste|sur|norte|centro|este|oeste)$/, '')
         s = s.replace(/_(a|b)$/, '')
         if (s === 'medium')     s = 'median'
-        if (s === 'very short') s = 'very_short'
-        if (s === 'very long')  s = 'very_long'
         if (CANONICAL_BRACKETS.has(s)) return s
         for (const c of ['very_short', 'very_long', 'short', 'median', 'average', 'long']) {
           if (s.startsWith(c)) return c
@@ -232,15 +239,19 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         const bracketKey = normalizeBracket(row.distance_bracket)
         if (!bracketKey) { droppedNullBracket++; continue }
 
-        if (!nested[row.competition_name]) nested[row.competition_name] = {}
-        if (!nested[row.competition_name][periodKey]) nested[row.competition_name][periodKey] = {}
+        // Defense-in-depth: normalizar competition_name al indexar para que
+        // data legacy con variantes pegadas (YangoEconomy en city=Corp) siga
+        // matcheando el lookup canónico de competitorsByDbCityCategory.
+        const comp = normalizeCompetitorName(row.competition_name, { city: row.city }) || row.competition_name
+        if (!nested[comp]) nested[comp] = {}
+        if (!nested[comp][periodKey]) nested[comp][periodKey] = {}
 
-        const existing = nested[row.competition_name][periodKey][bracketKey]
+        const existing = nested[comp][periodKey][bracketKey]
         const newPrice = Number(row.avg_price)
         const newCount = Number(row.observation_count)
 
         if (!existing) {
-          nested[row.competition_name][periodKey][bracketKey] = {
+          nested[comp][periodKey][bracketKey] = {
             avgPrice: newPrice,
             count:    newCount,
           }
@@ -249,7 +260,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
           const mergedAvg = totalCount > 0
             ? (existing.avgPrice * existing.count + newPrice * newCount) / totalCount
             : existing.avgPrice
-          nested[row.competition_name][periodKey][bracketKey] = {
+          nested[comp][periodKey][bracketKey] = {
             avgPrice: mergedAvg,
             count:    totalCount,
           }

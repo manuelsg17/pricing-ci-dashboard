@@ -152,7 +152,7 @@ export default function App() {
           {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
           {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}
           {activeTab === 'market'    && canAccess('market')    && <Market dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
-          {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage />}
+          {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
           {activeTab === 'events'    && canAccess('events')    && <MarketEvents />}
           {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
           {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}

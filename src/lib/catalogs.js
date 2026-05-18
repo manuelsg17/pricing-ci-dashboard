@@ -1,3 +1,8 @@
+// Import con extensión explícita para que `node scripts/test-catalogs.mjs`
+// (Node ESM strict, sin Vite/bundler) pueda resolver el módulo. Vite
+// resuelve sin extensión, pero Node puro requiere la extensión.
+import { toSnakeCase } from './normalize.js'
+
 // Catálogos canónicos — fuente de verdad para dropdowns en /config y wizard
 // de nuevo país. Previene typos (Economi → Economy, Indrive → InDrive, etc.).
 //
@@ -67,13 +72,15 @@ const COMPETITOR_BY_ALIAS = (() => {
  */
 export function normalizeCategory(input) {
   if (input == null) return null
-  const key = String(input).trim().toLowerCase().replace(/[\s-]+/g, '_')
-  return CATEGORY_BY_ALIAS.get(key) || null
+  return CATEGORY_BY_ALIAS.get(toSnakeCase(input)) || null
 }
 
 /**
  * Devuelve el nombre canónico para un competidor, o null si no se reconoce.
  * Ej: 'indrive' → 'InDrive', 'Indrive' → 'InDrive', 'DiDi' → 'Didi'.
+ *
+ * Nota: NO usa toSnakeCase porque las claves del catálogo conservan espacios
+ * (ej: "yango economy"). Solo colapsa whitespace y dashes en underscores.
  */
 export function normalizeCompetitor(input) {
   if (input == null) return null

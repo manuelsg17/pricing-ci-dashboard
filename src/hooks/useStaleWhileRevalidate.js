@@ -70,13 +70,23 @@ export function useStaleWhileRevalidate({
   const fetcherRef = useRef(fetcher)
   useEffect(() => { fetcherRef.current = fetcher }, [fetcher])
 
+  // dataRef permite leer el `data` actual desde `load()` sin meterlo en
+  // las deps del useCallback. Si lo metiéramos en deps, cada fresh data
+  // recrearía `load` y re-suscribiría el listener `config:changed` de
+  // live-sync (efecto cascada en cada update silencioso). dataRef
+  // rompe esa cadena y mantiene la identidad estable del callback.
+  const dataRef = useRef(data)
+  useEffect(() => { dataRef.current = data }, [data])
+
   const load = useCallback(async () => {
     if (!enabled || !key) return
     setError(null)
-    if (data == null) setLoading(true)
+    if (dataRef.current == null) setLoading(true)
     try {
       const fresh = await fetcherRef.current()
-      // Skip setState si nada cambió → evita re-renders downstream
+      // Skip setState si nada cambió → evita re-renders downstream.
+      // El deepEqual JSON.stringify mantiene la referencia previa
+      // cuando el server devuelve los mismos datos.
       setData(prev => deepEqual(prev, fresh) ? prev : fresh)
       writeCache(key, fresh)
     } catch (e) {
@@ -84,7 +94,7 @@ export function useStaleWhileRevalidate({
     } finally {
       setLoading(false)
     }
-  }, [key, enabled, data])
+  }, [key, enabled])
 
   // Initial load + reload cuando cambia la key (ej: cambio de país)
   useEffect(() => {

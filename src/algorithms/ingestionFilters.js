@@ -7,7 +7,7 @@
 // se descarta y cómo se normaliza, para que el dashboard nunca vea data
 // inconsistente independientemente de cómo entró.
 
-import { normalizeCompetitorName } from '../lib/normalize'
+import { normalizeCompetitorName, normalizeBracket } from '../lib/normalize'
 
 // Diccionarios públicos — duplicados de Upload.jsx para que ambos pipelines
 // los compartan. Mantén estos como única fuente de verdad para la
@@ -80,7 +80,7 @@ export function normalizeRow(rawRow) {
   }
   if (row.distance_bracket) {
     row.distance_bracket = BRACKET_NORMALIZE[row.distance_bracket]
-                        ?? String(row.distance_bracket).toLowerCase().replace(/\s+/g, '_')
+                        ?? normalizeBracket(row.distance_bracket)
   }
   return row
 }

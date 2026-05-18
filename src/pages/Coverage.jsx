@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import { sb } from '../lib/supabase'
+import { useState } from 'react'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { useI18n } from '../context/LanguageContext'
 import { usePricingData } from '../hooks/usePricingData'
@@ -9,19 +8,16 @@ import CoverageReport from '../components/market/CoverageReport'
 import BracketMix from '../components/market/BracketMix'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 
-function CoverageContent() {
+function CoverageContent({ dbWeights, dbSemaforo }) {
   const { filters } = useFilterContext()
   const { t, locale } = useI18n()
   const [filterBarVisible, setFilterBarVisible] = useState(true)
 
-  // Cargar pesos/semáforo solo para que usePricingData funcione
-  const [dbWeights,  setDbWeights]  = useState([])
-  const [dbSemaforo, setDbSemaforo] = useState([])
-  useEffect(() => {
-    sb.from('bracket_weights').select('*').then(({ data }) => setDbWeights(data || []))
-    sb.from('semaforo_config').select('*').order('band').order('min_pct').then(({ data }) => setDbSemaforo(data || []))
-  }, [])
-
+  // dbWeights/dbSemaforo vienen como props desde App.jsx, que ya los
+  // mantiene cacheados via useStaleWhileRevalidate (mismo cache que
+  // comparten Dashboard y Market). Antes Coverage los re-fetcheaba en
+  // mount; eso fue eliminado para evitar 2 round-trips redundantes a
+  // Supabase en cada navegación al tab.
   const {
     loading, error,
     sampleMatrix, periods,
@@ -95,11 +91,11 @@ function CoverageContent() {
   )
 }
 
-export default function Coverage() {
+export default function Coverage({ dbWeights = [], dbSemaforo = [] }) {
   // Sin key={country} — ver Dashboard.jsx.
   return (
     <FilterProvider>
-      <CoverageContent />
+      <CoverageContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
     </FilterProvider>
   )
 }

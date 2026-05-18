@@ -5,6 +5,7 @@ import { useCountry } from '../context/CountryContext'
 import { ALL_SECTIONS, SECTION_LABELS } from '../hooks/useAccessControl'
 import { useI18n }    from '../context/LanguageContext'
 import { COUNTRIES }  from '../lib/constants'
+import { toSnakeCase } from '../lib/normalize'
 import { useToast }   from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import EmptyState     from '../components/ui/EmptyState'
@@ -294,7 +295,7 @@ function RolesTab({ availableCountries }) {
     if (!newName.trim() || !newLabel.trim()) return
     setSaving(true)
     const { error } = await sb.from('roles').insert({
-      name:        newName.trim().toLowerCase().replace(/\s+/g, '_'),
+      name:        toSnakeCase(newName),
       label:       newLabel.trim(),
       permissions: { sections: ['dashboard'], countries: ['all'] },
     })

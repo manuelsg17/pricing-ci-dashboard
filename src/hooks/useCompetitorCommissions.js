@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
+import { normalizeCompetitorName } from '../lib/normalize'
 
 export function useCompetitorCommissions(city, country) {
   const [allRows, setAllRows] = useState([])
@@ -23,17 +24,23 @@ export function useCompetitorCommissions(city, country) {
 
   useEffect(() => { load() }, [load])
 
-  // Returns commission_pct for a competitor, preferring city-specific over global (city=null)
+  // Returns commission_pct for a competitor, preferring city-specific over global (city=null).
+  // Defense-in-depth: el nombre del competidor en competitor_commissions
+  // tiene que matchear el de pricing_observations al hacer commissions[comp].
+  // Si en la tabla quedó un nombre legacy ('YangoEconomy' vs 'Yango Economy'),
+  // ambos lados (lookup en DriverEarnings y este map) terminan con el mismo
+  // canónico y la búsqueda funciona.
   const commissions = useMemo(() => {
     const result = {}
     for (const row of allRows) {
-      const name = row.competitor_name
+      const name = normalizeCompetitorName(row.competitor_name, { city: row.city }) || row.competitor_name
       if (row.city === null || row.city === undefined) {
         if (result[name] === undefined) result[name] = row.commission_pct
       }
     }
     for (const row of allRows) {
-      if (row.city === city) result[row.competitor_name] = row.commission_pct
+      const name = normalizeCompetitorName(row.competitor_name, { city: row.city }) || row.competitor_name
+      if (row.city === city) result[name] = row.commission_pct
     }
     return result
   }, [allRows, city])

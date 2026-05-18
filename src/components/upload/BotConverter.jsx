@@ -13,7 +13,7 @@ export default function BotConverter() {
   const [showSkip,  setShowSkip]  = useState(false)
   const inputRef = useRef()
 
-  const { country, countryConfig } = useCountry()
+  const { country, countryConfig, dbConfigs } = useCountry()
   const { checkOutliers } = usePriceRules(country)
 
   async function processFile(file) {
@@ -29,7 +29,7 @@ export default function BotConverter() {
       const ws   = wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(ws, { defval: null })
 
-      const converted = convertBotToExcel(rows, country)
+      const converted = convertBotToExcel(rows, country, dbConfigs)
       setResult(converted)
 
       // Chequear precios contra límites configurados

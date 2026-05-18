@@ -87,18 +87,25 @@ para entender el modelo:
 
 ---
 
-## Cómo configurar un país nuevo
+## Cómo agregar un país
 
-1. Agregar entrada a `COUNTRY_CONFIG` en [src/lib/constants.js](src/lib/constants.js)
-   con: `cities`, `dbCities`, `categoriesByCity`, `categoryDbMap`,
-   `competitorsByDbCityCategory`, `botCityMap`, `outlierThreshold`, `maxPrice`.
-2. Si querés que el bot ingiera, agregar `botRules` (mapping de
-   `app/vc/ovc → competition_name/category`).
-3. Insertar `country_config` en Supabase (alternativamente al hardcoded —
-   ver [supabase/27_country_isolation_schema.sql](supabase/27_country_isolation_schema.sql)).
-4. Insertar `bracket_weights`, `distance_thresholds`, `price_validation_rules`
-   para el país nuevo.
-5. Configurar permisos en `AccessManagement` para que los usuarios lo vean.
+El flujo es enteramente self-service desde la UI (sin tocar código ni redeploy):
+
+1. **Andá a `Config → Países`** y clickeá **"Nuevo país"** para abrir el wizard
+   ([src/components/config/CountryWizard.jsx](src/components/config/CountryWizard.jsx)).
+2. **Completá el wizard** con:
+   - `uiName` / `dbName` (cómo se llama en la UI y en `pricing_observations.country`).
+   - Ciudades + `botKey` por ciudad (la clave que usa el scraper para identificar la ciudad).
+   - Categorías por ciudad (`Economy`, `Comfort`, `ComfortPlus`, etc.).
+   - Competidores por ciudad+categoría (Uber, Didi, InDrive, Cabify, …).
+3. **El wizard siembra automáticamente** las siguientes tablas en Supabase:
+   `country_config`, `bracket_weights`, `semaforo_config`, `bot_rules`,
+   `rush_hour_windows`, `distance_thresholds`, `indrive_config`, `ci_timeslots`.
+4. **Activá el país**: marcá `status = 'active'` en `Config → Países` para que
+   aparezca en el selector global del topbar y en el workflow de
+   GitHub Actions del bot.
+5. **(Opcional)** Configurá permisos en `Config → Accesos` si querés restringir
+   qué usuarios pueden ver el país nuevo.
 
 ---
 
@@ -143,50 +150,33 @@ para entender el modelo:
 
 ---
 
-## Roadmap — Self-service config (planificado)
+## Self-service config — estado actual
 
-Hoy la mayoría de la config (cities, categorías, competidores, botRules,
-botCityMap, weights por defecto) vive en `src/lib/constants.js` →
-`COUNTRY_CONFIG`. Esto exige tocar código + redeploy para añadir un país,
-ciudad, categoría o competidor nuevo.
+El wizard de onboarding (`Config → Países → Nuevo país`) ya cubre el flujo
+completo descrito en la sección "Cómo agregar un país" más arriba. Las
+siguientes tablas se siembran automáticamente al completar el wizard:
 
-Tablas DB que ya soportan multi-país (no requieren código):
-- `bracket_weights` — UI: Config > Pesos
-- `distance_thresholds` — UI: Config > Distancias
-- `price_validation_rules` — UI: Config > Límites Precio
-- `semaforo_config` — UI: Config > Semáforo
-- `commission_rules`, `bonus_config`, `rush_hour_config` — todas tienen UI
-- `bot_rules` — DB lista (ver `supabase/37_bot_rules_table.sql`), **falta UI**
-- `country_config` (jsonb cities/categories/competitors) — DB lista, **UI parcial** en
-  [src/components/config/CountriesConfig.jsx](src/components/config/CountriesConfig.jsx)
+| Tabla                  | UI dedicada                       |
+|------------------------|-----------------------------------|
+| `country_config`       | Config > Países                   |
+| `bracket_weights`      | Config > Pesos                    |
+| `distance_thresholds`  | Config > Distancias               |
+| `price_validation_rules` | Config > Límites Precio         |
+| `semaforo_config`      | Config > Semáforo                 |
+| `bot_rules`            | (siembra automática del wizard)   |
+| `rush_hour_windows`    | (siembra automática del wizard)   |
+| `indrive_config`       | (siembra automática del wizard)   |
+| `ci_timeslots`         | (siembra automática del wizard)   |
 
-Bloqueo actual de self-service: cualquier país que esté hardcoded en
-`COUNTRY_CONFIG` queda 🔒 read-only en `CountriesConfig.jsx` (ver línea 99).
+Peru y Colombia están sembrados en `country_config` desde la mig 67. El
+selector de país en el topbar y la matriz dinámica del workflow
+`bot-sync.yml` se construyen 100% desde `country_config` con `status='active'`.
 
-### Plan en 3 fases
+### Pendiente menor
 
-**Fase 1 — Quick win (Colombia ya migrada hoy):**
-- ✅ Mover el array `COUNTRY_CONFIG.Colombia.botRules` a la tabla `bot_rules`
-  (script `supabase/45_colombia_setup.sql`).
-- ✅ Hacer `bot_sync_push.py` y la edge function `sync-bot-quotes` cargar
-  `bot_rules` desde Supabase en cada corrida (data-driven).
-
-**Fase 2 — Self-service de bot rules y countries (próxima sprint):**
-- Crear `BotRulesConfig.jsx` (~150 LOC, mirror de `CountriesConfig.jsx`):
-  CRUD sobre `bot_rules` con dropdown de country, app, vc, ovc, name,
-  category, cities[]. Una pestaña nueva en Config.
-- Migrar `COUNTRY_CONFIG.Peru` y `Colombia` a la tabla `country_config`,
-  borrar las entradas hardcoded en `constants.js` (mantener Nepal, Bolivia,
-  Venezuela, Zambia hardcoded mientras no se necesiten).
-- Cambiar el lock de `CountriesConfig.jsx:99` a "DB overrides constants"
-  con un botón "Promover a DB" para cualquier país read-only.
-
-**Fase 3 — UX completo de onboarding de país (futuro):**
-- Wizard guiado "Agregar país nuevo" en `Config > Países` que:
-  1. Crea fila en `country_config` (cities, categories, competitors)
-  2. Inserta `bracket_weights` defaults
-  3. Inserta `distance_thresholds` defaults (copiando de un país-template)
-  4. Inserta `bot_rules` con plantilla común (yango/uber/indrive/didi)
-  5. Inserta `price_validation_rules` con tope estimado (currency-aware)
-  6. Marca el país como activo y aparece en el dropdown del topbar
-- Estimación: ~1 semana de trabajo. ROI alto cuando expandan a más países.
+- `constants.js` aún tiene `COUNTRY_CONFIG.Nepal/Bolivia/Venezuela/Zambia`
+  hardcoded para mantener compatibilidad. Cuando alguno se onboardee de
+  verdad, el wizard los promueve a DB y se puede limpiar.
+- `botMapping.js` y `Upload.detectCity()` consumen `country_config.cities`
+  con fallback a Peru/Colombia hardcoded — mismo patrón que el SQL
+  `sync_bot_quotes` (mig 64).

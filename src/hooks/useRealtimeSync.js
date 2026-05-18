@@ -74,9 +74,17 @@ export function useRealtimeSync({ myEmail, enabled = true, onForeignChange }) {
   useEffect(() => { callbackRef.current = onForeignChange }, [onForeignChange])
   useEffect(() => { myEmailRef.current  = myEmail },        [myEmail])
 
+  // Debounce de despacho `config:changed` por tabla: un bulk INSERT del bot
+  // genera N audit_log rows que llegan en cascada. Sin debounce cada hook
+  // suscrito refetchea N veces. Coalescemos eventos por tabla con timer
+  // de 500ms — el toast sí se muestra inmediato (eventos visibles al user
+  // no se deben demorar).
+  const debounceRef = useRef(new Map())
+
   useEffect(() => {
     if (!enabled) return
 
+    const timers = debounceRef.current
     const channel = sb
       .channel('audit-log-sync')
       .on(
@@ -98,14 +106,19 @@ export function useRealtimeSync({ myEmail, enabled = true, onForeignChange }) {
             !!userEmail &&
             userEmail.toLowerCase() === myEmailRef.current.toLowerCase()
 
-          // Despachar evento para hooks que escuchen (CountryContext, etc.)
+          // Despachar evento debounced por tabla (coalesce de bulk inserts)
           if (REFETCHABLE_TABLES.has(table)) {
-            window.dispatchEvent(new CustomEvent('config:changed', {
-              detail: { table, action, country, userEmail, isSameSession }
-            }))
+            const prev = timers.get(table)
+            if (prev) clearTimeout(prev)
+            timers.set(table, setTimeout(() => {
+              timers.delete(table)
+              window.dispatchEvent(new CustomEvent('config:changed', {
+                detail: { table, action, country, userEmail, isSameSession }
+              }))
+            }, 500))
           }
 
-          // Toast solo si NO es mi sesión Y la tabla justifica notificación
+          // Toast inmediato si NO es mi sesión Y la tabla justifica notificación
           if (!isSameSession && TOAST_WORTHY_TABLES.has(table)) {
             callbackRef.current?.({
               table, action, country, userEmail, sameUser, isSameSession,
@@ -123,6 +136,8 @@ export function useRealtimeSync({ myEmail, enabled = true, onForeignChange }) {
 
     return () => {
       sb.removeChannel(channel)
+      timers.forEach(t => clearTimeout(t))
+      timers.clear()
     }
   }, [enabled])
 }
