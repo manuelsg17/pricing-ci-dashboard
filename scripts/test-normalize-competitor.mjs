@@ -22,40 +22,44 @@ const cases = [
   ['casing: CABIFY → Cabify',       'CABIFY',   undefined,        'Cabify'],
 
   // ── Corp: Yango (cada variante × al menos 2 inputs) ──────────────────
-  ['Corp: yangoeconomy',            'yangoeconomy',     { city: 'Corp' }, 'Yango Economy'],
-  ['Corp: YangoEconomy',            'YangoEconomy',     { city: 'Corp' }, 'Yango Economy'],
-  ['Corp: yango economy',           'yango economy',    { city: 'Corp' }, 'Yango Economy'],
+  // Output PEGADO sin espacios — convención adoptada 2026-05-19. Acepta
+  // input con espacios (legacy de uploads viejos) y los convierte al
+  // canónico pegado.
+  ['Corp: yangoeconomy',            'yangoeconomy',     { city: 'Corp' }, 'YangoEconomy'],
+  ['Corp: YangoEconomy idempotente','YangoEconomy',     { city: 'Corp' }, 'YangoEconomy'],
+  ['Corp: yango economy → pegado',  'yango economy',    { city: 'Corp' }, 'YangoEconomy'],
+  ['Corp: Yango Economy → pegado',  'Yango Economy',    { city: 'Corp' }, 'YangoEconomy'],
 
-  ['Corp: YangoComfort',            'YangoComfort',     { city: 'Corp' }, 'Yango Comfort'],
-  ['Corp: yangocomfort',            'yangocomfort',     { city: 'Corp' }, 'Yango Comfort'],
-  ['Corp: yango comfort',           'yango comfort',    { city: 'Corp' }, 'Yango Comfort'],
+  ['Corp: YangoComfort idempotente','YangoComfort',     { city: 'Corp' }, 'YangoComfort'],
+  ['Corp: yangocomfort',            'yangocomfort',     { city: 'Corp' }, 'YangoComfort'],
+  ['Corp: Yango Comfort → pegado',  'Yango Comfort',    { city: 'Corp' }, 'YangoComfort'],
 
-  ['Corp: YangoComfort+',           'YangoComfort+',    { city: 'Corp' }, 'Yango Comfort+'],
-  ['Corp: yangocomfort+',           'yangocomfort+',    { city: 'Corp' }, 'Yango Comfort+'],
-  ['Corp: yangocomfortplus',        'yangocomfortplus', { city: 'Corp' }, 'Yango Comfort+'],
-  ['Corp: yango comfort plus',      'yango comfort plus', { city: 'Corp' }, 'Yango Comfort+'],
-  ['Corp: YangoPlus (hipótesis)',   'YangoPlus',        { city: 'Corp' }, 'Yango Comfort+'],
+  ['Corp: YangoComfort+ idempot.',  'YangoComfort+',    { city: 'Corp' }, 'YangoComfort+'],
+  ['Corp: yangocomfort+',           'yangocomfort+',    { city: 'Corp' }, 'YangoComfort+'],
+  ['Corp: yangocomfortplus',        'yangocomfortplus', { city: 'Corp' }, 'YangoComfort+'],
+  ['Corp: Yango Comfort+ → pegado', 'Yango Comfort+',   { city: 'Corp' }, 'YangoComfort+'],
+  ['Corp: YangoPlus (hipótesis)',   'YangoPlus',        { city: 'Corp' }, 'YangoComfort+'],
 
-  ['Corp: yangopremier',            'yangopremier',     { city: 'Corp' }, 'Yango Premier'],
-  ['Corp: YangoPremier',            'YangoPremier',     { city: 'Corp' }, 'Yango Premier'],
-  ['Corp: yango premier',           'yango premier',    { city: 'Corp' }, 'Yango Premier'],
+  ['Corp: yangopremier',            'yangopremier',     { city: 'Corp' }, 'YangoPremier'],
+  ['Corp: YangoPremier idempot.',   'YangoPremier',     { city: 'Corp' }, 'YangoPremier'],
+  ['Corp: Yango Premier → pegado',  'Yango Premier',    { city: 'Corp' }, 'YangoPremier'],
 
-  ['Corp: yangoxl',                 'yangoxl',          { city: 'Corp' }, 'Yango XL'],
-  ['Corp: YangoXL',                 'YangoXL',          { city: 'Corp' }, 'Yango XL'],
-  ['Corp: yango xl',                'yango xl',         { city: 'Corp' }, 'Yango XL'],
+  ['Corp: yangoxl',                 'yangoxl',          { city: 'Corp' }, 'YangoXL'],
+  ['Corp: YangoXL idempotente',     'YangoXL',          { city: 'Corp' }, 'YangoXL'],
+  ['Corp: Yango XL → pegado',       'Yango XL',         { city: 'Corp' }, 'YangoXL'],
 
   // ── Corp: Cabify ────────────────────────────────────────────────────
-  ['Corp: cabifylite',              'cabifylite',          { city: 'Corp' }, 'Cabify Lite'],
-  ['Corp: CabifyLite',              'CabifyLite',          { city: 'Corp' }, 'Cabify Lite'],
-  ['Corp: cabify lite',             'cabify lite',         { city: 'Corp' }, 'Cabify Lite'],
+  ['Corp: cabifylite',              'cabifylite',          { city: 'Corp' }, 'CabifyLite'],
+  ['Corp: CabifyLite idempotente',  'CabifyLite',          { city: 'Corp' }, 'CabifyLite'],
+  ['Corp: Cabify Lite → pegado',    'Cabify Lite',         { city: 'Corp' }, 'CabifyLite'],
 
-  ['Corp: cabifyextracomfort',      'cabifyextracomfort',  { city: 'Corp' }, 'Cabify Extra Comfort'],
-  ['Corp: CabifyExtraComfort',      'CabifyExtraComfort',  { city: 'Corp' }, 'Cabify Extra Comfort'],
-  ['Corp: cabify extra comfort',    'cabify extra comfort',{ city: 'Corp' }, 'Cabify Extra Comfort'],
+  ['Corp: cabifyextracomfort',      'cabifyextracomfort',  { city: 'Corp' }, 'CabifyExtraComfort'],
+  ['Corp: CabifyExtraComfort idem', 'CabifyExtraComfort',  { city: 'Corp' }, 'CabifyExtraComfort'],
+  ['Corp: Cabify Extra Comfort→peg','Cabify Extra Comfort',{ city: 'Corp' }, 'CabifyExtraComfort'],
 
-  ['Corp: cabifyxl',                'cabifyxl',            { city: 'Corp' }, 'Cabify XL'],
-  ['Corp: CabifyXL',                'CabifyXL',            { city: 'Corp' }, 'Cabify XL'],
-  ['Corp: cabify xl',               'cabify xl',           { city: 'Corp' }, 'Cabify XL'],
+  ['Corp: cabifyxl',                'cabifyxl',            { city: 'Corp' }, 'CabifyXL'],
+  ['Corp: CabifyXL idempotente',    'CabifyXL',            { city: 'Corp' }, 'CabifyXL'],
+  ['Corp: Cabify XL → pegado',      'Cabify XL',           { city: 'Corp' }, 'CabifyXL'],
 
   // ── E/C (no-Corp): YangoComfort se queda intacto ─────────────────────
   // Esto es lo crítico: en Lima/Trujillo/Arequipa 'YangoComfort' es el
@@ -78,7 +82,7 @@ const cases = [
   ['edge: unknown name passthrough','Beat',       undefined,        'Beat'],
   ['edge: unknown en Corp passthrough','SomeNewApp', { city: 'Corp' }, 'SomeNewApp'],
   ['edge: trim conserva canónico',  '  uber  ',   undefined,        'Uber'],
-  ['edge: Corp trim',               '  YangoComfort  ', { city: 'Corp' }, 'Yango Comfort'],
+  ['edge: Corp trim',               '  YangoComfort  ', { city: 'Corp' }, 'YangoComfort'],
 ]
 
 let pass = 0, fail = 0

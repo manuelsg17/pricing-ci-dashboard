@@ -150,20 +150,24 @@ function fingerprint(s) {
 
 /**
  * Normaliza competition_name a forma canónica. Idempotente y tolerante
- * a variantes (case, espacios). Es CONTEXT-AWARE por city porque en
- * city='Corp' la convención canónica usa nombres con espacios
- * ('Yango Comfort', 'Cabify Extra Comfort'), mientras que en el resto
- * de categorías el canónico es pegado ('YangoComfort').
+ * a variantes (case, espacios). CONTEXT-AWARE por city: ambas
+ * convenciones canónicas son pegadas, pero los catálogos difieren:
+ *   - Corp: YangoEconomy, YangoComfort, YangoComfort+, YangoPremier, YangoXL,
+ *           Cabify, CabifyLite, CabifyExtraComfort, CabifyXL.
+ *   - Lima E/C: Yango, YangoComfort, Uber, Didi, InDrive, Cabify (sub-variante
+ *           YangoComfort agrega al WA, NO Premier ni Comfort+ — esos
+ *           se aplastan en el flujo de ingesta).
  *
  * Es la ÚNICA fuente de verdad para qué string termina en
  * pricing_observations.competition_name. Llamar SIEMPRE antes de INSERT.
  *
  * Ejemplos:
  *   normalizeCompetitorName('uber') === 'Uber'
- *   normalizeCompetitorName('yangoeconomy', { city: 'Corp' }) === 'Yango Economy'
- *   normalizeCompetitorName('YangoComfort', { city: 'Lima' }) === 'YangoComfort'  // no toca
- *   normalizeCompetitorName('YangoComfort', { city: 'Corp' }) === 'Yango Comfort'
- *   normalizeCompetitorName('YangoPlus', { city: 'Corp' }) === 'Yango Comfort+'   // HIPÓTESIS
+ *   normalizeCompetitorName('yangoeconomy', { city: 'Corp' })       === 'YangoEconomy'
+ *   normalizeCompetitorName('Yango Economy', { city: 'Corp' })      === 'YangoEconomy'
+ *   normalizeCompetitorName('YangoComfort', { city: 'Lima' })       === 'YangoComfort' (no toca)
+ *   normalizeCompetitorName('YangoComfort', { city: 'Corp' })       === 'YangoComfort'
+ *   normalizeCompetitorName('YangoPlus', { city: 'Corp' })          === 'YangoComfort+' (legacy)
  */
 export function normalizeCompetitorName(raw, { city } = {}) {
   if (raw == null) return raw
@@ -186,4 +190,26 @@ export function normalizeCompetitorName(raw, { city } = {}) {
   // (3) Nada matcheó — devolver tal cual. No inventamos canonicalizaciones
   // para evitar regresiones en data legítima desconocida.
   return trimmed === raw ? raw : trimmed
+}
+
+/**
+ * Devuelve la forma "amigable" de un competidor para mostrar en la UI
+ * (headers de matriz, leyendas, tooltips, PDF). Inversa de
+ * normalizeCompetitorName SOLO para Corp: 'YangoEconomy' → 'Yango Economy',
+ * 'CabifyExtraComfort' → 'Cabify Extra Comfort'. El resto de los
+ * competidores se devuelven tal cual.
+ *
+ * NUNCA usar para construir filtros / keys / inserts — el storage canónico
+ * es pegado.
+ *
+ * Ejemplos:
+ *   prettyCompetitor('YangoPremier')        === 'Yango Premier'
+ *   prettyCompetitor('CabifyExtraComfort')  === 'Cabify Extra Comfort'
+ *   prettyCompetitor('Cabify')              === 'Cabify'  (sin cambio)
+ *   prettyCompetitor('Yango')               === 'Yango'   (sin cambio)
+ *   prettyCompetitor(null)                  === null
+ */
+export function prettyCompetitor(canonical) {
+  if (canonical == null) return canonical
+  return CORP_DISPLAY_NAMES[canonical] || canonical
 }

@@ -134,8 +134,14 @@ export const COUNTRY_CONFIG = {
         XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
       Corp: {
-        Corp: ['Yango Economy', 'Yango Comfort', 'Yango Comfort+', 'Yango Premier', 'Yango XL',
-               'Cabify', 'Cabify Lite', 'Cabify Extra Comfort', 'Cabify XL'],
+        // Pegados sin espacio: matchea exactamente la columna "Competition
+        // Name" del Excel original. Antes usábamos versiones con espacios
+        // ("Yango Premier") como canónico, lo que requería normalizar en el
+        // cliente Y en el trigger DB — fragilidad innecesaria que generó el
+        // bug de Premier/Comfort+ aplastados a 'Yango'. Para display con
+        // espacios en la UI, usar prettyCompetitor() de src/lib/normalize.js.
+        Corp: ['YangoEconomy', 'YangoComfort', 'YangoComfort+', 'YangoPremier', 'YangoXL',
+               'Cabify', 'CabifyLite', 'CabifyExtraComfort', 'CabifyXL'],
       },
     },
 
@@ -146,7 +152,7 @@ export const COUNTRY_CONFIG = {
       Lima_Airport:     { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', Premier: 'Yango', XL: 'Yango' },
       Trujillo_Airport: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
       Arequipa_Airport: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
-      Corp:             { Corp: 'Yango Economy' },
+      Corp:             { Corp: 'YangoEconomy' },
     },
 
     weightCities: ['all', 'Lima', 'Trujillo', 'Arequipa', 'Lima_Airport', 'Trujillo_Airport', 'Arequipa_Airport', 'Corp'],

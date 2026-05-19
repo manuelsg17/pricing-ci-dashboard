@@ -16,23 +16,30 @@ function assert(cond, label) {
 console.log('\n══ Ingestion Corp tests ══')
 
 // ── Corp: Premier y Comfort+ NO se aplastan a 'Yango' ──────────────────
+// Convención canónica (2026-05-19): PEGADO sin espacios para Corp,
+// matcheando el Excel original. Sin transformaciones intermedias.
 {
-  console.log('\n[1] Corp city: Premier/Comfort+ preservan identidad')
+  console.log('\n[1] Corp city: Premier/Comfort+ preservan identidad pegada')
   const r1 = normalizeRow({ city: 'Corp', category: 'Corp', competition_name: 'YangoPremier' })
-  assert(r1.competition_name === 'Yango Premier',
-    `YangoPremier en Corp → Yango Premier (got: ${r1.competition_name})`)
+  assert(r1.competition_name === 'YangoPremier',
+    `YangoPremier en Corp → YangoPremier (got: ${r1.competition_name})`)
 
   const r2 = normalizeRow({ city: 'Corp', category: 'Corp', competition_name: 'YangoComfort+' })
-  assert(r2.competition_name === 'Yango Comfort+',
-    `YangoComfort+ en Corp → Yango Comfort+ (got: ${r2.competition_name})`)
+  assert(r2.competition_name === 'YangoComfort+',
+    `YangoComfort+ en Corp → YangoComfort+ (got: ${r2.competition_name})`)
 
   const r3 = normalizeRow({ city: 'Corp', category: 'Corp', competition_name: 'YangoEconomy' })
-  assert(r3.competition_name === 'Yango Economy',
-    `YangoEconomy en Corp → Yango Economy (got: ${r3.competition_name})`)
+  assert(r3.competition_name === 'YangoEconomy',
+    `YangoEconomy en Corp → YangoEconomy (got: ${r3.competition_name})`)
 
   const r4 = normalizeRow({ city: 'Corp', category: 'Corp', competition_name: 'YangoComfort' })
-  assert(r4.competition_name === 'Yango Comfort',
-    `YangoComfort en Corp → Yango Comfort (got: ${r4.competition_name})`)
+  assert(r4.competition_name === 'YangoComfort',
+    `YangoComfort en Corp → YangoComfort (got: ${r4.competition_name})`)
+
+  // Si llegan con espacios (legacy), también convergen a pegado
+  const r5 = normalizeRow({ city: 'Corp', category: 'Corp', competition_name: 'Yango Premier' })
+  assert(r5.competition_name === 'YangoPremier',
+    `Yango Premier (legacy) en Corp → YangoPremier (got: ${r5.competition_name})`)
 }
 
 // ── Fuera de Corp: comportamiento legacy preservado ────────────────────
@@ -64,9 +71,9 @@ console.log('\n══ Ingestion Corp tests ══')
 // ── Idempotencia ───────────────────────────────────────────────────────
 {
   console.log('\n[4] Idempotencia')
-  const r1 = normalizeRow({ city: 'Corp', competition_name: 'Yango Premier' })
-  assert(r1.competition_name === 'Yango Premier',
-    `Yango Premier canónico se queda igual en Corp (got: ${r1.competition_name})`)
+  const r1 = normalizeRow({ city: 'Corp', competition_name: 'YangoPremier' })
+  assert(r1.competition_name === 'YangoPremier',
+    `YangoPremier canónico se queda igual en Corp (got: ${r1.competition_name})`)
 
   const r2 = normalizeRow({ city: 'Lima', competition_name: 'Yango' })
   assert(r2.competition_name === 'Yango',
