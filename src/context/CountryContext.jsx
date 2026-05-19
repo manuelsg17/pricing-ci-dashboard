@@ -9,7 +9,12 @@ const CountryContext = createContext(null)
 // getCountryConfig cae al fallback de Peru aunque el usuario tenga
 // localStorage.country='Bolivia'. TTL de 24h porque la config cambia
 // poco y el costo de cache stale es bajo (siguiente fetch lo refresca).
-const CACHE_KEY = 'cc.dbConfigs.v1'
+// IMPORTANTE: bumpear este version key cuando cambie el shape interno
+// devuelto por dbConfigToInternal (constants.js). Sin bump, los browsers
+// con cache previa siguen leyendo el shape viejo hasta que expire (24h).
+// v2 (2026-05-19): convención Corp pasó de espacios a pegado en
+// competitorsByDbCityCategory. Mig 72 alineó la DB.
+const CACHE_KEY = 'cc.dbConfigs.v2'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 function readCache() {
