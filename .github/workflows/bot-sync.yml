@@ -118,6 +118,12 @@ jobs:
     # dashboard, no este archivo.
     strategy:
       fail-fast: false
+      # Serializa por país. helioho.st (BD del bot) tiene max_connections
+      # muy bajo en shared hosting y rechaza con "remaining connection
+      # slots are reserved for non-replication superuser connections"
+      # cuando Peru+Colombia abren conexiones en paralelo. Con max-parallel=1
+      # solo hay 1 conexión a helioho a la vez. Cuesta ~1 min extra por país.
+      max-parallel: 1
       matrix:
         country: ${{ fromJson(needs.discover-countries.outputs.countries) }}
 

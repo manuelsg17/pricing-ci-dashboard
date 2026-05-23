@@ -6,14 +6,36 @@ import EmptyState from '../ui/EmptyState'
 import { SkeletonTable } from '../ui/Skeleton'
 import { useConfirm } from '../ui/ConfirmDialog'
 
-// Mapa de razones que emite scripts/bot-sync/bot_sync_push.py a un pill
-// legible. Legacy: corridas anteriores no tienen reason → '—'.
+// Mapa de razones que emite scripts/bot-sync/bot_sync_push.py.
+// label  = texto del pill en la tabla (corto, español).
+// hint   = tooltip al hover (explica QUÉ pasó).
+// action = qué hacer si la fila es buena y querés recuperarla.
 const REASON_PILLS = {
-  no_rule:      { label: 'no_rule',      bg: '#fee2e2', fg: '#991b1b', hint: 'No matchea ningún bot_rule. Agregá la combinación si es válida.' },
-  no_price:     { label: 'no_price',     bg: '#fef3c7', fg: '#78350f', hint: 'Sin price_regular_value ni price_discounted_value en el bot.' },
-  incomplete:   { label: 'incomplete',   bg: '#fef3c7', fg: '#78350f', hint: 'Sin city normalizable o sin app.' },
-  no_timestamp: { label: 'no_timestamp', bg: '#fef3c7', fg: '#78350f', hint: 'Sin timestamp_utc — fila inutilizable.' },
-  outlier:      { label: 'outlier',      bg: '#e0e7ff', fg: '#3730a3', hint: 'Precio supera el max_price de price_validation_rules. Revisá si el threshold está bien.' },
+  no_rule:      {
+    label: 'sin regla', bg: '#fee2e2', fg: '#991b1b',
+    hint:   'La combinación (app, vc, ovc, ciudad) no existe en Bot Rules. El sync no sabe cómo categorizarla, así que la tira.',
+    action: 'Si es data válida, agregá esta combo en Config → Bot Rules.',
+  },
+  no_price:     {
+    label: 'sin precio', bg: '#fef3c7', fg: '#78350f',
+    hint:   'El bot no devolvió ningún precio (ni regular ni con descuento). Suele pasar cuando el competidor no respondió.',
+    action: 'Nada que hacer — es ruido del bot, no se puede recuperar.',
+  },
+  incomplete:   {
+    label: 'incompleta', bg: '#fef3c7', fg: '#78350f',
+    hint:   'Le falta la ciudad o el nombre de la app — no se puede mapear a una ciudad del dashboard.',
+    action: 'Si la ciudad existe pero el bot la escribe distinto, agregala al mapeo de ciudades.',
+  },
+  no_timestamp: {
+    label: 'sin fecha', bg: '#fef3c7', fg: '#78350f',
+    hint:   'La fila no trae timestamp_utc. Sin fecha no se puede insertar.',
+    action: 'Caso raro — avisanos si aparece seguido.',
+  },
+  outlier:      {
+    label: 'precio fuera de rango', bg: '#e0e7ff', fg: '#3730a3',
+    hint:   'El precio supera el máximo definido en Price Rules para esa ciudad/categoría/competidor. Se asume error del bot.',
+    action: 'Si el precio es real (subió la oferta del mercado), subí el max_price en Config → Price Rules.',
+  },
 }
 
 function renderReason(reason) {
@@ -21,15 +43,38 @@ function renderReason(reason) {
   if (!p) return <span style={{ color: '#94a3b8' }}>—</span>
   return (
     <span
-      title={p.hint}
+      title={`${p.hint}\n\n👉 ${p.action}`}
       style={{
-        padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600,
-        background: p.bg, color: p.fg, whiteSpace: 'nowrap',
+        padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+        background: p.bg, color: p.fg, whiteSpace: 'nowrap', cursor: 'help',
       }}
     >
       {p.label}
     </span>
   )
+}
+
+// Agrupa el array dropped_combos por razón y suma filas. Devuelve
+// [{ reason, total, pct, hint, action }] ordenado por total desc.
+// Sirve para el summary arriba de la tabla — "tus 900 descartes son 100% sin regla"
+// es info accionable; "tabla de 1 fila con jerga" no.
+function summarizeReasons(combos) {
+  const total = combos.reduce((s, c) => s + (c.n || 0), 0)
+  if (total === 0) return { total: 0, byReason: [] }
+  const map = {}
+  for (const c of combos) {
+    const k = c.reason || 'unknown'
+    map[k] = (map[k] || 0) + (c.n || 0)
+  }
+  const byReason = Object.entries(map)
+    .map(([reason, n]) => ({
+      reason,
+      n,
+      pct: Math.round((n / total) * 100),
+      info: REASON_PILLS[reason] || { label: reason, hint: '', action: '' },
+    }))
+    .sort((a, b) => b.n - a.n)
+  return { total, byReason }
 }
 
 export default function BotDbSync() {
@@ -250,30 +295,45 @@ export default function BotDbSync() {
           </label>
         </div>
 
-        {/* Dropped combos — filas que el sync NO insertó, agrupadas por razón */}
-        {droppedCombos.length > 0 && (
+        {/* Dropped combos — filas que el sync NO insertó, con breakdown por razón */}
+        {droppedCombos.length > 0 && (() => {
+          const { total, byReason } = summarizeReasons(droppedCombos)
+          return (
           <div style={{
             marginBottom: 16, padding: 12, borderRadius: 8,
             background: '#fef3c7', border: '1px solid #f59e0b',
           }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#78350f', marginBottom: 6 }}>
-              ⚠ Top {Math.min(droppedCombos.length, 30)} combinaciones que el sync descartó en la última corrida
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 8 }}>
+              ⚠ El sync descartó {total.toLocaleString()} filas en la última corrida
             </div>
-            <div style={{ fontSize: 11, color: '#92400e', marginBottom: 8 }}>
-              Revisá cada fila: si es data buena que se está escapando, agregá la combinación en{' '}
-              <strong>Config → Bot Rules</strong> (o ajustá el threshold en <strong>Price Rules</strong> si es <code>outlier</code>)
-              y corré <strong>↺ Re-sync 30d</strong> para re-procesar el histórico. Si es ruido, dejala — no ensucia la métrica.
+
+            {/* Breakdown por razón — la info más accionable */}
+            <div style={{ fontSize: 11, color: '#78350f', marginBottom: 10 }}>
+              <div style={{ marginBottom: 6, fontWeight: 600 }}>¿Por qué?</div>
+              <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+                {byReason.map(r => (
+                  <li key={r.reason}>
+                    <strong>{r.n.toLocaleString()} filas ({r.pct}%)</strong> — {r.info.label}.{' '}
+                    <span style={{ color: '#92400e' }}>{r.info.hint}</span>{' '}
+                    <em>{r.info.action}</em>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={{ fontSize: 11, color: '#92400e', marginBottom: 8, fontWeight: 600 }}>
+              Detalle por combinación (top {Math.min(droppedCombos.length, 30)}):
             </div>
             <div style={{ maxHeight: 240, overflowY: 'auto' }}>
               <table className="config-table" style={{ fontSize: 11 }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left' }}>razón</th>
-                    <th style={{ textAlign: 'left' }}>app</th>
-                    <th style={{ textAlign: 'left' }}>vc</th>
-                    <th style={{ textAlign: 'left' }}>ovc</th>
-                    <th style={{ textAlign: 'left' }}>db_city</th>
-                    <th style={{ textAlign: 'right' }}>n</th>
+                    <th style={{ textAlign: 'left' }} title="Por qué la fila fue descartada">razón</th>
+                    <th style={{ textAlign: 'left' }} title="Nombre de la app como la reporta el bot (ej. yango_api, indrive_api)">app (bot)</th>
+                    <th style={{ textAlign: 'left' }} title="vehicle_category — categoría que declara el competidor (ej. economy, comfort, premium)">cat. declarada</th>
+                    <th style={{ textAlign: 'left' }} title="observed_vehicle_category — categoría que el bot deduce mirando el vehículo realmente ofrecido. Suele ser más precisa.">cat. observada</th>
+                    <th style={{ textAlign: 'left' }}>ciudad</th>
+                    <th style={{ textAlign: 'right' }} title="Cantidad de filas con esta combinación descartadas en la última corrida">filas</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -290,8 +350,13 @@ export default function BotDbSync() {
                 </tbody>
               </table>
             </div>
+
+            <div style={{ fontSize: 10, color: '#92400e', marginTop: 8, fontStyle: 'italic' }}>
+              Hovereá el pill de la razón para ver qué hacer en cada caso. Después de cambiar reglas, corré <strong>↺ Re-sync 30d</strong> para re-procesar el histórico.
+            </div>
           </div>
-        )}
+          )
+        })()}
 
         {/* Log de corridas */}
         <h3 style={{ fontSize: 14, marginBottom: 6 }}>Últimas corridas</h3>
