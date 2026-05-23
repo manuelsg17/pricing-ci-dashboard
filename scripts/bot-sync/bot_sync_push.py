@@ -56,6 +56,7 @@ import sys
 import json
 import argparse
 import datetime as dt
+from collections import Counter
 
 try:
     import psycopg2
@@ -297,6 +298,30 @@ def get_price_rules(country):
     return res.json() if res.ok else []
 
 
+def _build_dropped_combos(tracker, top_n=30):
+    """Convierte el Counter en la lista top-N que consume el UI.
+
+    Shape esperada por src/components/upload/BotDbSync.jsx:
+        [{ reason, app, vc, ovc, db_city, n }, ...]
+
+    El UI ya renderea esa sección amarilla cuando notes.dropped_combos
+    tiene filas, así que el user puede ver QUÉ se está descartando y
+    decidir si querer agregarlo a bot_rules. El filtro NO cambia — esto
+    es solo visibilidad.
+    """
+    return [
+        {
+            'reason':  reason,
+            'app':     app,
+            'vc':      vc,
+            'ovc':     ovc,
+            'db_city': db_city,
+            'n':       n,
+        }
+        for (reason, app, vc, ovc, db_city), n in tracker.most_common(top_n)
+    ]
+
+
 def find_threshold(rules, city, category, comp):
     for r in rules:
         if r['city'] == city and r['category'] == category and r['competition'] == comp:
@@ -371,6 +396,15 @@ def main():
 
     inserted = 0
     stats = {'read': 0, 'dropped': 0, 'outliers': 0}
+    # Tracker de combos descartados: key=(reason, app, vc, ovc, db_city) → n.
+    # Va a notes.dropped_combos al final para que el UI muestre QUÉ se tiró.
+    # Reasons posibles:
+    #   no_timestamp — sin timestamp_utc (no se puede watermarkear)
+    #   incomplete   — sin city normalizable o sin app
+    #   no_rule      — (app, vc, ovc, db_city) no matchea ningún bot_rule
+    #   no_price     — ni price_regular_value ni price_discounted_value
+    #   outlier      — supera max_price de price_validation_rules (no es dropped en stats pero lo logueamos igual)
+    dropped_tracker: Counter = Counter()
 
     try:
         # Filtros de la query: status='ok' + business_unit='ridehailing' +
@@ -405,17 +439,28 @@ def main():
         max_created = '1970-01-01T00:00:00+00:00'
 
         for raw in rows:
+            # Lowercase de keys para tracker — coincide con lo que el UI
+            # muestra cuando el user va a agregar la combo a bot_rules.
+            raw_app = (raw.get('app') or '').strip().lower()
+            raw_vc  = (raw.get('vehicle_category') or '').strip().lower()
+            raw_ovc = (raw.get('observed_vehicle_category') or '').strip().lower()
+
             # Watermark: timestamp_utc es la columna de incremento del bot
             ts_utc = raw.get('timestamp_utc')
             if ts_utc is None:
-                stats['dropped'] += 1; continue
+                stats['dropped'] += 1
+                dropped_tracker[('no_timestamp', raw_app, raw_vc, raw_ovc, '')] += 1
+                continue
             ts_str = ts_utc.isoformat() if hasattr(ts_utc, 'isoformat') else str(ts_utc)
             if ts_str > max_created:
                 max_created = ts_str
 
             db_city = normalize_city(raw.get('city'))
             if not db_city or not raw.get('app'):
-                stats['dropped'] += 1; continue
+                stats['dropped'] += 1
+                dropped_tracker[('incomplete', raw_app, raw_vc, raw_ovc,
+                                 db_city or (raw.get('city') or ''))] += 1
+                continue
 
             # Resolver regla del bot
             name, category = resolve_rule(
@@ -425,18 +470,24 @@ def main():
                 db_city,
             )
             if not name:
-                stats['dropped'] += 1; continue
+                stats['dropped'] += 1
+                dropped_tracker[('no_rule', raw_app, raw_vc, raw_ovc, db_city)] += 1
+                continue
 
             # Precios — el bot usa price_regular_value y price_discounted_value
             rec = raw.get('price_regular_value')      # precio sin descuento
             pwd = raw.get('price_discounted_value')   # precio con descuento (puede ser NULL)
             eff = rec if rec is not None else pwd
             if eff is None:
-                stats['dropped'] += 1; continue
+                stats['dropped'] += 1
+                dropped_tracker[('no_price', raw_app, raw_vc, raw_ovc, db_city)] += 1
+                continue
 
             threshold = find_threshold(price_rules, db_city, category, name)
             if threshold is not None and float(eff) > float(threshold):
-                stats['outliers'] += 1; continue
+                stats['outliers'] += 1
+                dropped_tracker[('outlier', raw_app, raw_vc, raw_ovc, db_city)] += 1
+                continue
 
             # observed_date / observed_time: convertir timestamp_utc a la
             # zona horaria local del registro para obtener la fecha/hora
@@ -517,18 +568,21 @@ def main():
         if not (args.date_from and args.date_to) and stats['read'] > 0:
             upsert_watermark(country, max_created)
 
+        notes['dropped_combos'] = _build_dropped_combos(dropped_tracker)
         update_log(log_id,
                    status='ok',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
                    read_count=stats['read'],
                    inserted_count=inserted,
                    dropped_count=stats['dropped'],
-                   outlier_count=stats['outliers'])
+                   outlier_count=stats['outliers'],
+                   notes=notes)
         print(f'OK · read={stats["read"]} inserted={inserted} '
               f'dropped={stats["dropped"]} outliers={stats["outliers"]} '
               f'watermark={max_created}')
 
     except Exception as e:
+        notes['dropped_combos'] = _build_dropped_combos(dropped_tracker)
         update_log(log_id,
                    status='error',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
@@ -536,7 +590,8 @@ def main():
                    read_count=stats['read'],
                    inserted_count=inserted,
                    dropped_count=stats['dropped'],
-                   outlier_count=stats['outliers'])
+                   outlier_count=stats['outliers'],
+                   notes=notes)
         print(f'ERROR: {e}', file=sys.stderr)
         sys.exit(1)
     finally:

@@ -6,6 +6,32 @@ import EmptyState from '../ui/EmptyState'
 import { SkeletonTable } from '../ui/Skeleton'
 import { useConfirm } from '../ui/ConfirmDialog'
 
+// Mapa de razones que emite scripts/bot-sync/bot_sync_push.py a un pill
+// legible. Legacy: corridas anteriores no tienen reason → '—'.
+const REASON_PILLS = {
+  no_rule:      { label: 'no_rule',      bg: '#fee2e2', fg: '#991b1b', hint: 'No matchea ningún bot_rule. Agregá la combinación si es válida.' },
+  no_price:     { label: 'no_price',     bg: '#fef3c7', fg: '#78350f', hint: 'Sin price_regular_value ni price_discounted_value en el bot.' },
+  incomplete:   { label: 'incomplete',   bg: '#fef3c7', fg: '#78350f', hint: 'Sin city normalizable o sin app.' },
+  no_timestamp: { label: 'no_timestamp', bg: '#fef3c7', fg: '#78350f', hint: 'Sin timestamp_utc — fila inutilizable.' },
+  outlier:      { label: 'outlier',      bg: '#e0e7ff', fg: '#3730a3', hint: 'Precio supera el max_price de price_validation_rules. Revisá si el threshold está bien.' },
+}
+
+function renderReason(reason) {
+  const p = REASON_PILLS[reason]
+  if (!p) return <span style={{ color: '#94a3b8' }}>—</span>
+  return (
+    <span
+      title={p.hint}
+      style={{
+        padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600,
+        background: p.bg, color: p.fg, whiteSpace: 'nowrap',
+      }}
+    >
+      {p.label}
+    </span>
+  )
+}
+
 export default function BotDbSync() {
   const { country } = useCountry()
   const toast = useToast()
@@ -224,23 +250,25 @@ export default function BotDbSync() {
           </label>
         </div>
 
-        {/* Dropped combos — filas que NO matchearon reglas */}
+        {/* Dropped combos — filas que el sync NO insertó, agrupadas por razón */}
         {droppedCombos.length > 0 && (
           <div style={{
             marginBottom: 16, padding: 12, borderRadius: 8,
             background: '#fef3c7', border: '1px solid #f59e0b',
           }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#78350f', marginBottom: 6 }}>
-              ⚠ {droppedCombos.length} combinaciones (app, vc, ovc, city) NO matchearon ninguna regla en la última corrida
+              ⚠ Top {Math.min(droppedCombos.length, 30)} combinaciones que el sync descartó en la última corrida
             </div>
             <div style={{ fontSize: 11, color: '#92400e', marginBottom: 8 }}>
-              Si querés que estas filas se incluyan, andá a <strong>Config → Bot Rules</strong> y agregalas.
-              Después usá <strong>↺ Re-sync 30d</strong> para re-procesar el histórico.
+              Revisá cada fila: si es data buena que se está escapando, agregá la combinación en{' '}
+              <strong>Config → Bot Rules</strong> (o ajustá el threshold en <strong>Price Rules</strong> si es <code>outlier</code>)
+              y corré <strong>↺ Re-sync 30d</strong> para re-procesar el histórico. Si es ruido, dejala — no ensucia la métrica.
             </div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 240, overflowY: 'auto' }}>
               <table className="config-table" style={{ fontSize: 11 }}>
                 <thead>
                   <tr>
+                    <th style={{ textAlign: 'left' }}>razón</th>
                     <th style={{ textAlign: 'left' }}>app</th>
                     <th style={{ textAlign: 'left' }}>vc</th>
                     <th style={{ textAlign: 'left' }}>ovc</th>
@@ -251,6 +279,7 @@ export default function BotDbSync() {
                 <tbody>
                   {droppedCombos.slice(0, 30).map((c, i) => (
                     <tr key={i}>
+                      <td>{renderReason(c.reason)}</td>
                       <td><code>{c.app || '∅'}</code></td>
                       <td><code>{c.vc || '∅'}</code></td>
                       <td><code>{c.ovc || '*'}</code></td>
