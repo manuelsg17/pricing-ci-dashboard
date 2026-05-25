@@ -56,17 +56,19 @@
 --     (`uq_po_bot_natural_key`, partial bot), que NO está en la lista.
 --
 -- NOTA DE TRANSACCIÓN:
---   Esta migración NO usa BEGIN/COMMIT por diseño. `DROP INDEX CONCURRENTLY`
---   no puede ejecutarse dentro de un bloque transaccional (PG ≥ 9.2).
---   CONCURRENTLY evita el AccessExclusive lock sobre la tabla; solo toma
---   un ShareUpdateExclusive (compatible con SELECT/INSERT/UPDATE/DELETE).
---   Si Supabase aplica las migraciones envueltas en BEGIN automáticamente,
---   ejecutar este archivo manualmente desde el SQL Editor (o con
---   `supabase db push --include-all` que respeta el modo non-tx por archivo).
+--   Originalmente esta mig usaba `DROP INDEX CONCURRENTLY` para evitar
+--   AccessExclusive lock, pero Supabase SQL Editor envuelve TODO en una
+--   transacción automática y PostgreSQL rechaza CONCURRENTLY dentro de
+--   un BEGIN/COMMIT (error 25001). Cambiamos a `DROP INDEX` plano.
+--
+--   Impacto del lock: AccessExclusive sobre pricing_observations durante
+--   el DROP. Para índices secundarios de columnas no-clave (sin tuplas
+--   pendientes a limpiar) el DROP es prácticamente instantáneo (<100ms)
+--   — un blip imperceptible que no debería afectar al sync ni al dashboard.
 --
 -- ROLLBACK:
 --   Si algún query degrada tras este drop, recrear el índice puntual:
---     CREATE INDEX CONCURRENTLY idx_po_category ON pricing_observations(category);
+--     CREATE INDEX idx_po_category ON pricing_observations(category);
 --   (idem para los otros). Los CREATE de las migs originales (01, 07, 17)
 --   están versionados y se pueden re-ejecutar.
 --
@@ -78,19 +80,19 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── 1. idx_po_category — single-col en `category` (mig 01) ──────────────
-DROP INDEX CONCURRENTLY IF EXISTS idx_po_category;
+DROP INDEX IF EXISTS idx_po_category;
 
 -- ── 2. idx_po_bracket — single-col en `distance_bracket` (mig 01) ──────
-DROP INDEX CONCURRENTLY IF EXISTS idx_po_bracket;
+DROP INDEX IF EXISTS idx_po_bracket;
 
 -- ── 3. pricing_observations_country — single-col en `country` (mig 17) ─
 --    Safety: confirmado NO PK (PK = `id`), NO UNIQUE, NO REPLICA IDENTITY.
-DROP INDEX CONCURRENTLY IF EXISTS pricing_observations_country;
+DROP INDEX IF EXISTS pricing_observations_country;
 
 -- ── 4. idx_po_source — single-col en `data_source` (mig 07) ────────────
 --    Subsumido por idx_po_country_source (mig 87, country liderando +
 --    data_source segunda columna).
-DROP INDEX CONCURRENTLY IF EXISTS idx_po_source;
+DROP INDEX IF EXISTS idx_po_source;
 
 -- ── Resumen via NOTICE ────────────────────────────────────────────────
 DO $$
