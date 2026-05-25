@@ -23,6 +23,7 @@ import { useCountry }      from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
 import EmptyState           from '../components/ui/EmptyState'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
+import { humanizeError } from '../lib/humanizeError'
 import '../styles/dashboard.css'
 
 function DashboardContent({ dbWeights, dbSemaforo = [] }) {
@@ -494,7 +495,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
       {loading && periods.length === 0 && <SkeletonDashboard />}
 
       {error && (
-        <div className="state-box state-box--error">{t('app.error')}: {error}</div>
+        <div className="state-box state-box--error">{t('app.error')}: {humanizeError(error)}</div>
       )}
 
       {!loading && !error && periods.length === 0 && (
@@ -561,6 +562,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
                   loading={loading}
                   viewMode={filters.viewMode}
                   categoryLabel={filters.dbCategory}
+                  defaultCollapsed={bracket !== '_wa'}
                 />
               </SectionErrorBoundary>
             </div>

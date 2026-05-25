@@ -7,6 +7,7 @@ import { useCountry }        from './context/CountryContext'
 import Topbar                from './components/layout/Topbar'
 import LoginScreen     from './components/layout/LoginScreen'
 import ErrorBoundary   from './components/ui/ErrorBoundary'
+import { SkeletonDashboard } from './components/ui/Skeleton'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Config = lazy(() => import('./pages/Config'))
 const Upload = lazy(() => import('./pages/Upload'))
@@ -140,13 +141,7 @@ export default function App() {
       />
 
       <ErrorBoundary key={activeTab}>
-        <Suspense fallback={
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 50px)', fontSize: 13, color: '#888'
-          }}>
-            Cargando vista…
-          </div>
-        }>
+        <Suspense fallback={<SkeletonDashboard />}>
           {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
           {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
           {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}

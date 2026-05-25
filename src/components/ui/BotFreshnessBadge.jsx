@@ -48,7 +48,20 @@ export default function BotFreshnessBadge({ variant = 'compact' }) {
     return () => { clearInterval(tick); clearInterval(refresh) }
   }, [reload])
 
-  if (loading && !lastSync) return null
+  // Mientras carga el primer fetch, renderizamos un placeholder con la misma
+  // forma del badge final para evitar layout shift en la topbar y dar señal
+  // visual de "estado desconocido" en lugar de aparecer/desaparecer.
+  if (loading && !lastSync) {
+    const phStyle = variant === 'pill'
+      ? { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: '#f1f5f9', color: '#94a3b8', fontSize: 11, fontWeight: 600, border: '1px solid #e2e8f0' }
+      : { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 4, background: '#f1f5f9', color: '#94a3b8', fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap' }
+    return (
+      <span title="Cargando estado del bot…" style={phStyle} aria-busy="true">
+        <span style={{ width: variant === 'pill' ? 7 : 6, height: variant === 'pill' ? 7 : 6, borderRadius: '50%', background: '#cbd5e1' }} />
+        Bot —
+      </span>
+    )
+  }
 
   const startedAt = lastSync?.started_at ? new Date(lastSync.started_at) : null
   const minutes = startedAt ? Math.floor((Date.now() - startedAt.getTime()) / 60000) : null

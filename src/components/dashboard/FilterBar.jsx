@@ -77,6 +77,22 @@ export default function FilterBar({ className = '' }) {
     ? t('filter.time_all')
     : TIME_SLOTS.filter(s => timeOfDay.includes(s.key)).map(s => s.label).join(', ')
 
+  // Conteo de filtros "no-default" (zona/surge/source/timeOfDay).
+  // city/category/viewMode/weekStart no se cuentan porque siempre tienen
+  // valor — no hay un "neutro" para ellos.
+  const activeFiltersCount =
+    (filters.zone && filters.zone !== 'All' ? 1 : 0) +
+    (filters.surge !== null && filters.surge !== undefined ? 1 : 0) +
+    (filters.dataSource ? 1 : 0) +
+    (allSelected ? 0 : 1)
+
+  function handleResetFilters() {
+    setZone('All')
+    setSurge(null)
+    setDataSource(null)
+    setTimeOfDay(ALL_TIME_SLOTS)
+  }
+
   // dbConfigs cubre países onboardeados via wizard (no en constants.js).
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
@@ -442,6 +458,37 @@ export default function FilterBar({ className = '' }) {
           </div>
         )}
       </div>
+
+      {/* Restablecer filtros + chip de conteo */}
+      {activeFiltersCount > 0 && (
+        <>
+          <div className="filter-bar__divider" />
+          <div className="filter-bar__group" style={{ gap: 6 }}>
+            <span style={{
+              background: '#E53935', color: '#fff',
+              borderRadius: 10, fontSize: 10, fontWeight: 700,
+              padding: '2px 8px', lineHeight: '14px',
+            }} title={t('filter.active_count') || 'Filtros activos'}>
+              {activeFiltersCount} {(t('filter.active_short') || 'activos')}
+            </span>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              style={{
+                fontSize: 12, padding: '4px 10px',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'transparent',
+                color: 'var(--color-muted)',
+                cursor: 'pointer',
+              }}
+              title={t('filter.reset_title') || 'Restablecer filtros a valores neutros'}
+            >
+              ↺ {t('filter.reset') || 'Limpiar'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

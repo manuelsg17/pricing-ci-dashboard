@@ -19,6 +19,7 @@ import { useRushHourConfig }  from '../hooks/useRushHourConfig'
 import { sanitizeBatch }      from '../algorithms/ingestionFilters'
 import { normalizeCompetitorName, normalizeBracket, toSnakeCase } from '../lib/normalize'
 import { useToast }           from '../components/ui/Toast'
+import { useConfirm }         from '../components/ui/ConfirmDialog'
 import '../styles/upload.css'
 
 // Mapa: nombre de columna en Excel/CSV → nombre en BD
@@ -397,6 +398,7 @@ import { useCountry } from '../context/CountryContext'
 export default function Upload() {
   const { country, countryConfig: config } = useCountry()
   const toast = useToast()
+  const confirm = useConfirm()
   const [sheets,    setSheets]    = useState([])
   const [preview,   setPreview]   = useState([])
   const [allRows,   setAllRows]   = useState([])
@@ -536,11 +538,8 @@ export default function Upload() {
 
   const handleIngest = async (rowsToInsert) => {
     if (!rowsToInsert?.length) return
-    setProgress({ current: 0, total: rowsToInsert.length, done: false, error: null })
 
-    const batchId = crypto.randomUUID()
-
-    // ── Paso 1: Calcular rangos fecha+ciudad para el DELETE ────────────────
+    // ── Paso 0: Calcular rangos fecha+ciudad (también necesarios para el DELETE) ──
     const cityDateRanges = {}
     for (const r of rowsToInsert) {
       if (!r.city || !r.observed_date) continue
@@ -548,6 +547,25 @@ export default function Upload() {
       if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
       if (r.observed_date > cityDateRanges[r.city].max) cityDateRanges[r.city].max = r.observed_date
     }
+
+    // ── Confirmación destructiva: la ingesta hace DELETE+INSERT por (ciudad, rango) ──
+    const summary = Object.entries(cityDateRanges).map(([city, { min, max }]) =>
+      `${city}: ${min === max ? min : `${min} → ${max}`}`
+    ).join(' · ')
+    const ok = await confirm({
+      title: 'Confirmar ingesta',
+      message:
+        `Se reemplazarán las filas manuales existentes en ${country} para:\n\n${summary}\n\n` +
+        `Total a insertar: ${rowsToInsert.length} filas. Esta acción no se puede deshacer automáticamente.`,
+      confirmText: `Reemplazar e insertar`,
+      cancelText:  'Cancelar',
+      danger: true,
+    })
+    if (!ok) return
+
+    setProgress({ current: 0, total: rowsToInsert.length, done: false, error: null })
+
+    const batchId = crypto.randomUUID()
     const cityRanges = Object.entries(cityDateRanges).map(([city, { min, max }]) =>
       ({ city, min_date: min, max_date: max })
     )

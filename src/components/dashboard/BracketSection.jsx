@@ -111,6 +111,7 @@ function BracketSection({
   loading = false,
   viewMode = 'weekly',
   categoryLabel = '',
+  defaultCollapsed = false,
 }) {
   const key = bracket
   const { t } = useI18n()
@@ -122,7 +123,7 @@ function BracketSection({
   const tableRef     = useRef(null)
 
   const [showSamples,  setShowSamples]  = useState(false)
-  const [collapsed,    setCollapsed]    = useState(false)
+  const [collapsed,    setCollapsed]    = useState(defaultCollapsed)
   const [chartType,    setChartType]    = useState('line')
   const [hiddenComps,  setHiddenComps]  = useState(new Set())
   const [sortConfig,   setSortConfig]   = useState(null)

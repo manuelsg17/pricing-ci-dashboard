@@ -77,7 +77,7 @@ export function ConfirmProvider({ children }) {
               {state.danger && <span aria-hidden="true">⚠</span>}
               {state.title}
             </h3>
-            <p style={{ fontSize: 13, color: '#475569', margin: 0, marginBottom: 18, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 13, color: '#475569', margin: 0, marginBottom: 18, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
               {state.message}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

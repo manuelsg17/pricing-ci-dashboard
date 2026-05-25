@@ -78,3 +78,23 @@ input, select {
   from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
+
+/* Focus visible global. Restituye el a11y baseline aunque alguna regla
+   por-página haya hecho `outline:none`. Solo aplica con foco-keyboard
+   (no mouse) por la pseudo-clase :focus-visible. */
+:focus-visible {
+  outline: 2px solid var(--color-yango) !important;
+  outline-offset: 2px !important;
+  border-radius: var(--radius-sm);
+}
+
+/* Respeta la preferencia del SO de reducir movimiento. Mantiene la app
+   utilizable para usuarios con sensibilidad vestibular. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

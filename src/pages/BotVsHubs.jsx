@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
+import { humanizeError } from '../lib/humanizeError'
 import { useI18n } from '../context/LanguageContext'
 import { getCountryConfig, getCityLabel } from '../lib/constants'
 
@@ -166,7 +167,7 @@ export default function BotVsHubs() {
 
       {error && (
         <div style={{ padding: 14, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: 13, marginBottom: 16 }}>
-          ⚠ {error}
+          ⚠ {humanizeError(error)}
           {error.includes('does not exist') && (
             <div style={{ marginTop: 8, fontSize: 12 }}>
               Ejecuta <code>supabase/20_bot_vs_hubs_rpc.sql</code> en tu Supabase para activar esta funcionalidad.

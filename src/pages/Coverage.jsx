@@ -7,6 +7,7 @@ import CollapsibleSection from '../components/market/CollapsibleSection'
 import CoverageReport from '../components/market/CoverageReport'
 import BracketMix from '../components/market/BracketMix'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
+import { humanizeError } from '../lib/humanizeError'
 
 function CoverageContent({ dbWeights, dbSemaforo }) {
   const { filters } = useFilterContext()
@@ -43,7 +44,7 @@ function CoverageContent({ dbWeights, dbSemaforo }) {
       </div>
 
       {error && (
-        <div className="state-box state-box--error">{t('app.error_prefix')}{error}</div>
+        <div className="state-box state-box--error">{t('app.error_prefix')}{humanizeError(error)}</div>
       )}
 
       {loading && (!periods || periods.length === 0) ? (

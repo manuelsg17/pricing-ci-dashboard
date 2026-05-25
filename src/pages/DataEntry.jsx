@@ -305,6 +305,51 @@ export default function DataEntry() {
     setMsg(null)
   }, [date])
 
+  // ── Autosave a localStorage (draft) ────────────────────
+  // Clave por (country, uiCity, date). Restaura al cambiar a una clave con
+  // borrador existente; persiste cada cambio con debounce 2s; limpia tras
+  // guardado exitoso a Supabase (ver handleSave / handleSaveProgress).
+  const draftKey = `de:draft:${country}:${uiCity}:${date}`
+  const draftHydratedRef = useRef(false)
+
+  useEffect(() => {
+    draftHydratedRef.current = false
+    try {
+      const raw = localStorage.getItem(draftKey)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed.entries && Object.keys(parsed.entries).length > 0) {
+          setEntries(parsed.entries)
+          setIndriveExtra(parsed.indriveExtra || {})
+          setMsg({ type: 'ok', text: `📝 Borrador restaurado (${Object.keys(parsed.entries).length} celdas).` })
+        }
+      }
+    } catch { /* ignore corrupt draft */ }
+    // Marcar hidratado en el siguiente tick para evitar que el effect de save
+    // dispare con el estado vacío inicial antes de que cargue el draft.
+    const id = setTimeout(() => { draftHydratedRef.current = true }, 0)
+    return () => clearTimeout(id)
+  }, [draftKey])
+
+  useEffect(() => {
+    if (!draftHydratedRef.current) return
+    const id = setTimeout(() => {
+      try {
+        const hasData = Object.keys(entries).length > 0 || Object.keys(indriveExtra).length > 0
+        if (hasData) {
+          localStorage.setItem(draftKey, JSON.stringify({ entries, indriveExtra, savedAt: Date.now() }))
+        } else {
+          localStorage.removeItem(draftKey)
+        }
+      } catch { /* quota / disabled */ }
+    }, 2000)
+    return () => clearTimeout(id)
+  }, [entries, indriveExtra, draftKey])
+
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(draftKey) } catch {}
+  }, [draftKey])
+
   // ── Group refs by UI category + bracket ───────────────
   const refsByUICat = useMemo(() => {
     const result = {}
@@ -501,6 +546,8 @@ export default function DataEntry() {
       setMsg({ type: 'ok', text: `✓ ${payloads.length} registros guardados. Puedes seguir completando.` })
     }
 
+    // Guardado exitoso → el borrador local ya no es necesario
+    clearDraft()
     setSaving(false)
     return true
   }

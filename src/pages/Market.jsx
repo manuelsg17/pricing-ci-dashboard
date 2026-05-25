@@ -12,6 +12,7 @@ import Volatility from '../components/market/Volatility'
 import RushVsValley from '../components/market/RushVsValley'
 import DiscountIntensity from '../components/market/DiscountIntensity'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
+import { humanizeError } from '../lib/humanizeError'
 
 function MarketContent({ dbWeights, dbSemaforo }) {
   const { countryConfig } = useCountry()
@@ -50,7 +51,7 @@ function MarketContent({ dbWeights, dbSemaforo }) {
       </div>
 
       {error && (
-        <div className="state-box state-box--error">{t('app.error_prefix')}{error}</div>
+        <div className="state-box state-box--error">{t('app.error_prefix')}{humanizeError(error)}</div>
       )}
 
       {loading && (!periods || periods.length === 0) ? (
