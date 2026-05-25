@@ -98,14 +98,14 @@ CREATE TRIGGER airport_markers_updated_at
 -- (el matching del Python también lowercasea ambos lados).
 INSERT INTO public.airport_markers (country, base_city, city_from, city_to, keywords)
 VALUES
-  ('Peru', 'Lima',     'Lima_AeroFrom',     'Lima_AeroTo',
+  ('Peru', 'Lima',     'Lima_Airport_A',     'Lima_Airport_B',
    ARRAY['jorge chavez', 'jorge chávez', 'aicc', 'lim airport',
          'aeropuerto internacional jorge', 'callao 07031']),
-  ('Peru', 'Trujillo', 'Trujillo_AeroFrom', 'Trujillo_AeroTo',
+  ('Peru', 'Trujillo', 'Trujillo_Airport_A', 'Trujillo_Airport_B',
    ARRAY['aeropuerto de trujillo', 'aeropuerto trujillo',
          'martinez de pinillos', 'martínez de pinillos',
          'carlos martinez de pinillos']),
-  ('Peru', 'Arequipa', 'Arequipa_AeroFrom', 'Arequipa_AeroTo',
+  ('Peru', 'Arequipa', 'Arequipa_Airport_A', 'Arequipa_Airport_B',
    ARRAY['aeropuerto de arequipa', 'aeropuerto arequipa',
          'rodriguez ballon', 'rodríguez ballón'])
 ON CONFLICT (country, base_city) DO NOTHING;

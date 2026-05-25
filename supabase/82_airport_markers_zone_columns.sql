@@ -7,7 +7,7 @@
 --   devuelve "Av. Faucett 123" en vez de "Jorge Chávez", no matchea.
 --
 --   El bot del usuario YA tiene un campo `zone` que puede etiquetar
---   explícitamente "AeroportFrom" / "AeroportTo". Si lo usamos como
+--   explícitamente "Airport_A" / "Airport_B". Si lo usamos como
 --   source-of-truth primario eliminamos toda la adivinanza.
 --
 -- DISEÑO:
@@ -25,7 +25,7 @@
 --   y va directo a keywords. Backward compat total.
 --
 -- SEED:
---   Pre-cargamos 'AeroportFrom' / 'AeroportTo' para los 3 markers de Peru,
+--   Pre-cargamos 'Airport_A' / 'Airport_B' para los 3 markers de Peru,
 --   asumiendo que el usuario los configurará en su bot con esos valores.
 --   Si usa otros valores, los puede editar en /config → Aeropuertos.
 -- ════════════════════════════════════════════════════════════════════════
@@ -43,8 +43,8 @@ COMMENT ON COLUMN public.airport_markers.zone_to_value IS
 
 -- Seed Peru (pre-llenamos con convención sugerida; usuario puede editar)
 UPDATE public.airport_markers
-SET zone_from_value = COALESCE(zone_from_value, 'AeroportFrom'),
-    zone_to_value   = COALESCE(zone_to_value,   'AeroportTo')
+SET zone_from_value = COALESCE(zone_from_value, 'Airport_A'),
+    zone_to_value   = COALESCE(zone_to_value,   'Airport_B')
 WHERE country = 'Peru';
 
 COMMIT;
@@ -53,5 +53,5 @@ COMMIT;
 -- VERIFICACIÓN
 --   SELECT base_city, zone_from_value, zone_to_value
 --   FROM airport_markers WHERE country='Peru';
---   → 3 filas con 'AeroportFrom' / 'AeroportTo'.
+--   → 3 filas con 'Airport_A' / 'Airport_B'.
 -- ════════════════════════════════════════════════════════════════════════

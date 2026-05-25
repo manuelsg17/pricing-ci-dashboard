@@ -6,9 +6,9 @@
 -- CAMBIOS:
 --   1. Reemplaza las 3 cities virtuales legacy (Lima_Airport,
 --      Trujillo_Airport, Arequipa_Airport) por 6 nuevas:
---        Lima_AeroFrom, Lima_AeroTo
---        Trujillo_AeroFrom, Trujillo_AeroTo
---        Arequipa_AeroFrom, Arequipa_AeroTo
+--        Lima_Airport_A, Lima_Airport_B
+--        Trujillo_Airport_A, Trujillo_Airport_B
+--        Arequipa_Airport_A, Arequipa_Airport_B
 --      Las legacy se DEPRECAN — la mig 80 migra el histórico antes de
 --      que esta entrada las desaparezca del UI.
 --
@@ -18,14 +18,14 @@
 --      enrutado del Python las reglas dejarían de matchear.
 --
 -- CATEGORÍAS:
---   - Lima_AeroFrom / Lima_AeroTo:        Economy/Comfort, Comfort+, Premier, XL
---   - Trujillo_AeroFrom / Trujillo_AeroTo: Economy/Comfort, Comfort+, XL
---   - Arequipa_AeroFrom / Arequipa_AeroTo: Economy/Comfort, Comfort+, XL
+--   - Lima_Airport_A / Lima_Airport_B:        Economy/Comfort, Comfort+, Premier, XL
+--   - Trujillo_Airport_A / Trujillo_Airport_B: Economy/Comfort, Comfort+, XL
+--   - Arequipa_Airport_A / Arequipa_Airport_B: Economy/Comfort, Comfort+, XL
 --
 -- ORDEN VISUAL EN LAS TABS (sort por uiName):
---   Lima · Trujillo · Arequipa · Lima_AeroFrom · Lima_AeroTo ·
---   Trujillo_AeroFrom · Trujillo_AeroTo · Arequipa_AeroFrom ·
---   Arequipa_AeroTo · Corp
+--   Lima · Trujillo · Arequipa · Lima_Airport_A · Lima_Airport_B ·
+--   Trujillo_Airport_A · Trujillo_Airport_B · Arequipa_Airport_A ·
+--   Arequipa_Airport_B · Corp
 -- ════════════════════════════════════════════════════════════════════════
 
 BEGIN;
@@ -74,9 +74,9 @@ SET cities = $cities$
     ]
   },
   {
-    "uiName": "Lima_AeroFrom",
-    "dbName": "Lima_AeroFrom",
-    "botKey": "lima_aerofrom",
+    "uiName": "Lima_Airport_A",
+    "dbName": "Lima_Airport_A",
+    "botKey": "lima_airport_a",
     "isVirtual": true,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
@@ -86,9 +86,9 @@ SET cities = $cities$
     ]
   },
   {
-    "uiName": "Lima_AeroTo",
-    "dbName": "Lima_AeroTo",
-    "botKey": "lima_aeroto",
+    "uiName": "Lima_Airport_B",
+    "dbName": "Lima_Airport_B",
+    "botKey": "lima_airport_b",
     "isVirtual": true,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
@@ -98,9 +98,9 @@ SET cities = $cities$
     ]
   },
   {
-    "uiName": "Trujillo_AeroFrom",
-    "dbName": "Trujillo_AeroFrom",
-    "botKey": "trujillo_aerofrom",
+    "uiName": "Trujillo_Airport_A",
+    "dbName": "Trujillo_Airport_A",
+    "botKey": "trujillo_airport_a",
     "isVirtual": true,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
@@ -109,9 +109,9 @@ SET cities = $cities$
     ]
   },
   {
-    "uiName": "Trujillo_AeroTo",
-    "dbName": "Trujillo_AeroTo",
-    "botKey": "trujillo_aeroto",
+    "uiName": "Trujillo_Airport_B",
+    "dbName": "Trujillo_Airport_B",
+    "botKey": "trujillo_airport_b",
     "isVirtual": true,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
@@ -120,9 +120,9 @@ SET cities = $cities$
     ]
   },
   {
-    "uiName": "Arequipa_AeroFrom",
-    "dbName": "Arequipa_AeroFrom",
-    "botKey": "arequipa_aerofrom",
+    "uiName": "Arequipa_Airport_A",
+    "dbName": "Arequipa_Airport_A",
+    "botKey": "arequipa_airport_a",
     "isVirtual": true,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
@@ -131,9 +131,9 @@ SET cities = $cities$
     ]
   },
   {
-    "uiName": "Arequipa_AeroTo",
-    "dbName": "Arequipa_AeroTo",
-    "botKey": "arequipa_aeroto",
+    "uiName": "Arequipa_Airport_B",
+    "dbName": "Arequipa_Airport_B",
+    "botKey": "arequipa_airport_b",
     "isVirtual": true,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
@@ -164,13 +164,13 @@ WHERE country_key = 'Peru';
 -- también los nuevos splits. Idempotente: si ya están, el DISTINCT no duplica.
 --
 -- Esto preserva el comportamiento actual y agrega cobertura nueva. Si
--- mañana querés que una regla aplique SOLO al AeroFrom (no al Lima_Airport
--- legacy y no al AeroTo), la editás manualmente en /config.
+-- mañana querés que una regla aplique SOLO al Airport_A (no al Lima_Airport
+-- legacy y no al Airport_B), la editás manualmente en /config.
 
 UPDATE public.bot_rules br
 SET cities = ARRAY(
   SELECT DISTINCT c
-  FROM unnest(br.cities || ARRAY['Lima_AeroFrom','Lima_AeroTo']) AS c
+  FROM unnest(br.cities || ARRAY['Lima_Airport_A','Lima_Airport_B']) AS c
 )
 WHERE br.country = 'Peru'
   AND 'Lima_Airport' = ANY(br.cities);
@@ -178,7 +178,7 @@ WHERE br.country = 'Peru'
 UPDATE public.bot_rules br
 SET cities = ARRAY(
   SELECT DISTINCT c
-  FROM unnest(br.cities || ARRAY['Trujillo_AeroFrom','Trujillo_AeroTo']) AS c
+  FROM unnest(br.cities || ARRAY['Trujillo_Airport_A','Trujillo_Airport_B']) AS c
 )
 WHERE br.country = 'Peru'
   AND 'Trujillo_Airport' = ANY(br.cities);
@@ -186,7 +186,7 @@ WHERE br.country = 'Peru'
 UPDATE public.bot_rules br
 SET cities = ARRAY(
   SELECT DISTINCT c
-  FROM unnest(br.cities || ARRAY['Arequipa_AeroFrom','Arequipa_AeroTo']) AS c
+  FROM unnest(br.cities || ARRAY['Arequipa_Airport_A','Arequipa_Airport_B']) AS c
 )
 WHERE br.country = 'Peru'
   AND 'Arequipa_Airport' = ANY(br.cities);
@@ -203,5 +203,5 @@ COMMIT;
 --   2. Bot rules expandidas:
 --      SELECT app, vc, ovc, cities FROM bot_rules
 --      WHERE country='Peru' AND 'Lima_Airport' = ANY(cities);
---      -> Cada fila ahora debe incluir también Lima_AeroFrom y Lima_AeroTo.
+--      -> Cada fila ahora debe incluir también Lima_Airport_A y Lima_Airport_B.
 -- ════════════════════════════════════════════════════════════════════════

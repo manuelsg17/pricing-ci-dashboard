@@ -211,7 +211,7 @@ export default function AirportMarkersTable({ country }) {
                       type="text"
                       value={r.city_from || ''}
                       onChange={e => updateRow(r.id, 'city_from', e.target.value)}
-                      placeholder="Lima_AeroFrom"
+                      placeholder="Lima_Airport_A"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
                   </td>
@@ -220,7 +220,7 @@ export default function AirportMarkersTable({ country }) {
                       type="text"
                       value={r.city_to || ''}
                       onChange={e => updateRow(r.id, 'city_to', e.target.value)}
-                      placeholder="Lima_AeroTo"
+                      placeholder="Lima_Airport_B"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
                   </td>
@@ -229,7 +229,7 @@ export default function AirportMarkersTable({ country }) {
                       type="text"
                       value={r.zone_from_value || ''}
                       onChange={e => updateRow(r.id, 'zone_from_value', e.target.value)}
-                      placeholder="AeroportFrom"
+                      placeholder="Airport_A"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
                   </td>
@@ -238,7 +238,7 @@ export default function AirportMarkersTable({ country }) {
                       type="text"
                       value={r.zone_to_value || ''}
                       onChange={e => updateRow(r.id, 'zone_to_value', e.target.value)}
-                      placeholder="AeroportTo"
+                      placeholder="Airport_B"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
                   </td>
