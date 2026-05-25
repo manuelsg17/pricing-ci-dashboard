@@ -221,7 +221,7 @@ def load_airport_markers(country):
             params={
                 'country': f'eq.{country}',
                 'active':  'eq.true',
-                'select':  'base_city,city_from,city_to,keywords',
+                'select':  'base_city,city_from,city_to,keywords,zone_from_value,zone_to_value',
             },
             timeout=20,
         )
@@ -238,28 +238,33 @@ def load_airport_markers(country):
     for r in rows:
         kws = [k.lower() for k in (r.get('keywords') or []) if k]
         markers.append({
-            'base_city':  r.get('base_city'),
-            'city_from':  r.get('city_from'),
-            'city_to':    r.get('city_to'),
-            'keywords':   kws,
+            'base_city':        r.get('base_city'),
+            'city_from':        r.get('city_from'),
+            'city_to':          r.get('city_to'),
+            'keywords':         kws,
+            # zone_from/zone_to son opcionales (mig 82). Si NULL → solo keywords.
+            'zone_from_value':  (r.get('zone_from_value') or '').strip() or None,
+            'zone_to_value':    (r.get('zone_to_value')   or '').strip() or None,
         })
     return markers
 
 
-def resolve_airport_route(db_city, point_a, point_b):
+def resolve_airport_route(db_city, point_a, point_b, raw_zone=None):
     """
-    Decide si una observación debe re-rutearse a city_from / city_to
-    basándose en la presencia de keywords de aeropuerto en point_a/point_b.
+    Decide si una observación debe re-rutearse a city_from / city_to.
 
-    Reglas (en orden):
-      1. Si db_city no matchea ningún marker (ni como base_city ni como
-         legacy "<base_city>_Airport") → retorna db_city sin cambios.
-      2. Si keywords están en point_a (con o sin point_b)   → city_from.
-         (Tie-break para casos donde están en ambos: gana origen.)
-      3. Si keywords solo en point_b                        → city_to.
-      4. Si NO matchea ningún keyword:
-           - db_city era legacy "<base>_Airport" → fallback base_city.
-           - db_city ya era la base_city         → sin cambios.
+    SOURCE-OF-TRUTH (en este orden):
+      1. raw.zone == marker.zone_from_value  → city_from   (NUEVO, mig 82)
+      2. raw.zone == marker.zone_to_value    → city_to     (NUEVO, mig 82)
+      3. keyword en point_a                  → city_from   (fallback)
+      4. keyword solo en point_b             → city_to     (fallback)
+      5. Sin match:
+           - db_city era legacy "<base>_Airport" → base_city
+           - db_city ya era base_city            → sin cambios
+
+    El chequeo de zone permite que el bot etiquete explícitamente sus
+    viajes de aeropuerto en lugar de adivinar por substring del address.
+    Más confiable, menos brittle a cambios de formato del geocoder.
     """
     if not AIRPORT_MARKERS or not db_city:
         return db_city
@@ -277,6 +282,15 @@ def resolve_airport_route(db_city, point_a, point_b):
     if marker is None:
         return db_city
 
+    # 1-2. Zone-based (source of truth si el bot lo emite)
+    if raw_zone:
+        z = str(raw_zone).strip()
+        if marker.get('zone_from_value') and z == marker['zone_from_value']:
+            return marker['city_from']
+        if marker.get('zone_to_value') and z == marker['zone_to_value']:
+            return marker['city_to']
+
+    # 3-4. Keyword-based fallback
     pa = (point_a or '').lower()
     pb = (point_b or '').lower()
     hit_a = any(k in pa for k in marker['keywords']) if pa else False
@@ -286,7 +300,8 @@ def resolve_airport_route(db_city, point_a, point_b):
         return marker['city_from']
     if hit_b:
         return marker['city_to']
-    # Sin keyword match: legacy → base; ya-base → sin cambios.
+
+    # 5. Sin match: legacy → base; ya-base → sin cambios.
     return marker['base_city'] if is_legacy else db_city
 
 
@@ -568,7 +583,11 @@ def main():
             # Re-rutear si es viaje de aeropuerto. Devuelve db_city sin
             # cambios si AIRPORT_MARKERS está vacío (backward compat) o si
             # el viaje no tiene rastro de aeropuerto.
-            db_city = resolve_airport_route(db_city, point_a, point_b)
+            # Pasamos raw.zone para zone-based detection (mig 82) — si el
+            # bot etiqueta explícitamente, tiene precedencia sobre keywords.
+            db_city = resolve_airport_route(
+                db_city, point_a, point_b, raw.get('zone')
+            )
 
             # Resolver regla del bot
             name, category = resolve_rule(

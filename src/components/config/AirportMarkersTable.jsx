@@ -46,14 +46,16 @@ export default function AirportMarkersTable({ country }) {
     const tempId = `new_${Date.now()}_${Math.random()}`
     setMsg(null)
     setRows(prev => [...prev, {
-      id:         tempId,
+      id:               tempId,
       country,
-      base_city:  '',
-      city_from:  '',
-      city_to:    '',
-      keywords:   [],
-      active:     true,
-      _new:       true,
+      base_city:        '',
+      city_from:        '',
+      city_to:          '',
+      keywords:         [],
+      zone_from_value:  '',
+      zone_to_value:    '',
+      active:           true,
+      _new:             true,
     }])
   }
 
@@ -62,10 +64,12 @@ export default function AirportMarkersTable({ country }) {
     const orig = original.find(o => o.id === r.id)
     if (!orig) return true
     return (
-      r.base_city !== orig.base_city ||
-      r.city_from !== orig.city_from ||
-      r.city_to   !== orig.city_to   ||
-      r.active    !== orig.active    ||
+      r.base_city       !== orig.base_city       ||
+      r.city_from       !== orig.city_from       ||
+      r.city_to         !== orig.city_to         ||
+      (r.zone_from_value || '') !== (orig.zone_from_value || '') ||
+      (r.zone_to_value   || '') !== (orig.zone_to_value   || '') ||
+      r.active          !== orig.active          ||
       JSON.stringify(r.keywords || []) !== JSON.stringify(orig.keywords || [])
     )
   }
@@ -96,11 +100,14 @@ export default function AirportMarkersTable({ country }) {
     setMsg(null)
     const payload = {
       country,
-      base_city: row.base_city.trim(),
-      city_from: row.city_from.trim(),
-      city_to:   row.city_to.trim(),
-      keywords:  (row.keywords || []).map(k => k.toLowerCase().trim()).filter(Boolean),
-      active:    !!row.active,
+      base_city:        row.base_city.trim(),
+      city_from:        row.city_from.trim(),
+      city_to:          row.city_to.trim(),
+      keywords:         (row.keywords || []).map(k => k.toLowerCase().trim()).filter(Boolean),
+      // zone_from/to: NULL si vienen vacíos (PG distingue NULL de '')
+      zone_from_value:  (row.zone_from_value || '').trim() || null,
+      zone_to_value:    (row.zone_to_value   || '').trim() || null,
+      active:           !!row.active,
     }
     let err
     if (row._new) {
@@ -156,9 +163,13 @@ export default function AirportMarkersTable({ country }) {
         Cada marker mapea <code>(country, base_city)</code> a dos ciudades virtuales:
         <code>city_from</code> (viajes <strong>desde</strong> el aeropuerto) y
         <code>city_to</code> (viajes <strong>hacia</strong> el aeropuerto).
-        El bot lee esta tabla en cada corrida y reasigna <code>db_city</code> cuando
-        encuentra alguno de los <code>keywords</code> en <code>point_a</code> o <code>point_b</code>.
-        Keywords se guardan en lowercase y el matching es substring (no necesitan ser exactos).
+        <br />
+        El bot detecta en este orden: <strong>(1)</strong> si <code>raw.zone</code> matchea
+        <code>zone_from_value</code> o <code>zone_to_value</code> (source-of-truth si tu bot etiqueta);
+        <strong>(2)</strong> fallback a substring match de <code>keywords</code> en
+        <code>point_a</code>/<code>point_b</code>.
+        <br />
+        Zone match es exacto y case-sensitive; keywords es substring case-insensitive (no necesitan ser exactos).
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -172,9 +183,11 @@ export default function AirportMarkersTable({ country }) {
           <thead>
             <tr>
               <th>BASE CITY</th>
-              <th>CITY FROM (origen=aeropuerto)</th>
-              <th>CITY TO (destino=aeropuerto)</th>
-              <th>KEYWORDS (coma-separado)</th>
+              <th>CITY FROM</th>
+              <th>CITY TO</th>
+              <th>ZONE FROM<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
+              <th>ZONE TO<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
+              <th>KEYWORDS<br /><small style={{ fontWeight: 400 }}>(coma-separado, fallback)</small></th>
               <th>ACTIVA</th>
               <th></th>
             </tr>
@@ -212,6 +225,24 @@ export default function AirportMarkersTable({ country }) {
                     />
                   </td>
                   <td>
+                    <input
+                      type="text"
+                      value={r.zone_from_value || ''}
+                      onChange={e => updateRow(r.id, 'zone_from_value', e.target.value)}
+                      placeholder="AeroportFrom"
+                      style={dirty ? dirtyCellStyle : undefined}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={r.zone_to_value || ''}
+                      onChange={e => updateRow(r.id, 'zone_to_value', e.target.value)}
+                      placeholder="AeroportTo"
+                      style={dirty ? dirtyCellStyle : undefined}
+                    />
+                  </td>
+                  <td>
                     <textarea
                       rows={2}
                       value={keywordsToString(r.keywords)}
@@ -219,7 +250,7 @@ export default function AirportMarkersTable({ country }) {
                       placeholder="jorge chavez, aicc, lim airport"
                       style={{
                         width:    '100%',
-                        minWidth: 280,
+                        minWidth: 240,
                         resize:   'vertical',
                         ...(dirty ? dirtyCellStyle : {}),
                       }}
@@ -253,7 +284,7 @@ export default function AirportMarkersTable({ country }) {
               )
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: 16 }}>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: 16 }}>
                 No hay aeropuertos configurados para este país. Agregá uno con el botón de arriba.
               </td></tr>
             )}
