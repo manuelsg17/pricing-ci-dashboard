@@ -73,15 +73,6 @@ export const COUNTRY_CONFIG = {
       Arequipa_Airport_B:  ['Economy/Comfort', 'Comfort+', 'XL'],
     },
 
-    // Superset (retrocompatibilidad con consumidores que aún leen el campo plano)
-    aeropuertoSubcategories: ['Economy/Comfort', 'Comfort+', 'Premier', 'XL'],
-    // Por ciudad: Lima tiene Premier, Trujillo/Arequipa no
-    aeropuertoSubcategoriesByCity: {
-      Lima:     ['Economy/Comfort', 'Comfort+', 'Premier', 'XL'],
-      Trujillo: ['Economy/Comfort', 'Comfort+', 'XL'],
-      Arequipa: ['Economy/Comfort', 'Comfort+', 'XL'],
-    },
-
     // categoryDbMap: clave "uiName|||categoryName" → {dbCity, dbCategory}.
     // Post mig 79+84+85 los airport cities son top-level (no más subtab
     // "Aeropuerto" anidado bajo Lima/Trujillo/Arequipa).
@@ -256,8 +247,6 @@ export const COUNTRY_CONFIG = {
       Kathmandu: ['Economy'],
     },
 
-    aeropuertoSubcategories: [],
-
     categoryDbMap: {
       'Kathmandu|||Economy': { dbCity: 'Kathmandu', dbCategory: 'Economy' },
     },
@@ -291,8 +280,6 @@ export const COUNTRY_CONFIG = {
     categoriesByCity: {
       'Santa Cruz': ['Economy'],
     },
-
-    aeropuertoSubcategories: [],
 
     categoryDbMap: {
       'Santa Cruz|||Economy': { dbCity: 'Santa Cruz', dbCategory: 'Economy' },
@@ -328,8 +315,6 @@ export const COUNTRY_CONFIG = {
       Caracas: ['Economy'],
     },
 
-    aeropuertoSubcategories: [],
-
     categoryDbMap: {
       'Caracas|||Economy': { dbCity: 'Caracas', dbCategory: 'Economy' },
     },
@@ -363,8 +348,6 @@ export const COUNTRY_CONFIG = {
     categoriesByCity: {
       Lusaka: ['Economy'],
     },
-
-    aeropuertoSubcategories: [],
 
     categoryDbMap: {
       'Lusaka|||Economy': { dbCity: 'Lusaka', dbCategory: 'Economy' },
@@ -404,8 +387,6 @@ export const COUNTRY_CONFIG = {
       'Cali':         ['Economy', 'Bike', 'Comfort'],
       'Barranquilla': ['Economy', 'Bike', 'Comfort'],
     },
-
-    aeropuertoSubcategories: [],
 
     categoryDbMap: {
       'Bogotá|||Economy':       { dbCity: 'Bogota',       dbCategory: 'Economy' },
@@ -493,7 +474,6 @@ export const CITY_DISPLAY_NAMES = {
   Lima:         'Lima',
   Trujillo:     'Trujillo',
   Arequipa:     'Arequipa',
-  Airport:      'Aeropuerto',
   Corp:         'Corp',
   'Bogotá':     'Bogotá',
   'Medellín':   'Medellín',
@@ -533,21 +513,8 @@ export const COUNTRY_ISO = {
 // Fix: Venezuela = 've' (el 'vg' de arriba es British Virgin Islands — error)
 COUNTRY_ISO.Venezuela = 've'
 
-export const COUNTRY_NATIVE_LABEL = {
-  Peru:      'Perú',
-  Colombia:  'Colombia',
-  Nepal:     'Nepal',
-  Bolivia:   'Bolivia',
-  Venezuela: 'Venezuela',
-  Zambia:    'Zambia',
-}
-
 export function getCountryIso(country) {
   return COUNTRY_ISO[country] || 'pe'
-}
-
-export function getCountryNativeLabel(country) {
-  return COUNTRY_NATIVE_LABEL[country] || country
 }
 
 // ── Helper functions ──────────────────────────────────────
@@ -619,19 +586,9 @@ export function dbConfigToInternal(row) {
     botCityMap[key] = city.dbName
   })
 
-  // Mig 58: botRules y airport subcategorías persistidos en row JSONB.
-  // Si la migración no se aplicó, los campos vienen undefined y caemos
-  // a [] / {} sin romper.
-  const botRules                      = Array.isArray(row.bot_rules) ? row.bot_rules : []
-  const aeropuertoSubcategoriesByCity = (row.airport_subcategories_by_city && typeof row.airport_subcategories_by_city === 'object')
-    ? row.airport_subcategories_by_city
-    : {}
-
-  // Computar aeropuertoSubcategories como unión de todas las ciudades
-  // (mantenemos retrocompat con código que lee este campo).
-  const aeropuertoSubcategories = Array.from(new Set(
-    Object.values(aeropuertoSubcategoriesByCity).flat()
-  ))
+  // Mig 58: botRules persistido en row JSONB. Si la migración no se aplicó,
+  // viene undefined y caemos a [] sin romper.
+  const botRules = Array.isArray(row.bot_rules) ? row.bot_rules : []
 
   return {
     label:                        row.label,
@@ -643,8 +600,6 @@ export function dbConfigToInternal(row) {
     cities:                       uiCities,
     dbCities,
     categoriesByCity,
-    aeropuertoSubcategories,
-    aeropuertoSubcategoriesByCity,
     categoryDbMap,
     competitorsByDbCityCategory,
     yangoDisplayName,
@@ -663,10 +618,6 @@ export function dbConfigToInternal(row) {
 // si no se pasa, se preserva el comportamiento legacy.
 export function resolveDbParams(uiCity, uiCategory, subCategory, country, dbConfigs = null) {
   const config = getCountryConfig(country, dbConfigs)
-  if (uiCategory === 'Aeropuerto' && subCategory) {
-    const key = `${uiCity}|||${uiCategory}|||${subCategory}`
-    return config.categoryDbMap[key] || { dbCity: 'Airport', dbCategory: subCategory }
-  }
   const key = `${uiCity}|||${uiCategory}`
   return config.categoryDbMap[key] || { dbCity: uiCity, dbCategory: uiCategory }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { sb } from '../../lib/supabase'
+import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -10,31 +11,71 @@ import { useConfirm } from '../ui/ConfirmDialog'
 // que aparezcan en point_a/point_b.
 //
 // Patrón visual: espejo simplificado de BotRulesTable.
+//
+// Live-sync: useStaleWhileRevalidate da render instantáneo desde cache
+// + refetch silencioso cuando OTRA sesión guarda cambios (audit_log →
+// 'config:changed' → SWR refetchea). Cuando llega data fresca, sólo
+// sincronizamos `rows`/`original` para filas NO dirty: si el usuario
+// está editando una fila, su trabajo en progreso no se pisa.
 export default function AirportMarkersTable({ country }) {
   const confirm = useConfirm()
 
+  const { data: serverRows, loading, reload } = useStaleWhileRevalidate({
+    key: `cfg.airport_markers.${country}`,
+    enabled: !!country,
+    liveSyncTable: 'airport_markers',
+    fetcher: async () => {
+      const { data, error } = await sb.from('airport_markers')
+        .select('*')
+        .eq('country', country)
+        .order('base_city')
+      if (error) throw error
+      return data || []
+    },
+  })
+
   const [rows,     setRows]     = useState([])
   const [original, setOriginal] = useState([])
-  const [loading,  setLoading]  = useState(true)
   const [saving,   setSaving]   = useState(false)
   const [msg,      setMsg]      = useState(null)
 
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [country])
+  // Helper de dirty-check contra un snapshot dado. Lo usa tanto el render
+  // (vs `original`) como el sync effect (vs el `original` previo al merge).
+  function isRowDirtyAgainst(r, snapshot) {
+    if (r._new) return true
+    const orig = snapshot.find(o => o.id === r.id)
+    if (!orig) return true
+    return (
+      r.base_city       !== orig.base_city       ||
+      r.city_from       !== orig.city_from       ||
+      r.city_to         !== orig.city_to         ||
+      (r.zone_from_value || '') !== (orig.zone_from_value || '') ||
+      (r.zone_to_value   || '') !== (orig.zone_to_value   || '') ||
+      r.active          !== orig.active          ||
+      JSON.stringify(r.keywords || []) !== JSON.stringify(orig.keywords || [])
+    )
+  }
 
+  // Sincronizar server → state local cuando llega data fresca.
+  // Preservamos filas dirty (_new o con cambios sin guardar) para no
+  // pisar trabajo del usuario si otra sesión escribe mientras edita.
+  // Las filas no-dirty se reemplazan con la versión del server.
+  useEffect(() => {
+    if (!serverRows) return
+    setRows(prev => {
+      const dirtyRows = prev.filter(r => isRowDirtyAgainst(r, original))
+      const dirtyIds = new Set(dirtyRows.map(r => r.id))
+      const cleanFromServer = serverRows.filter(s => !dirtyIds.has(s.id))
+      return [...cleanFromServer, ...dirtyRows]
+    })
+    setOriginal(serverRows.map(r => ({ ...r, keywords: [...(r.keywords || [])] })))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverRows])
+
+  // Después de un save/delete local, forzamos refetch para reflejar
+  // los cambios en el state (y disparar el sync effect arriba).
   async function load() {
-    setLoading(true)
-    const { data, error } = await sb.from('airport_markers')
-      .select('*')
-      .eq('country', country)
-      .order('base_city')
-    if (error) {
-      setMsg({ type: 'err', text: 'Error al cargar markers: ' + error.message })
-      setRows([]); setOriginal([])
-    } else {
-      setRows(data || [])
-      setOriginal((data || []).map(r => ({ ...r, keywords: [...(r.keywords || [])] })))
-    }
-    setLoading(false)
+    await reload()
   }
 
   function updateRow(id, field, val) {
@@ -59,20 +100,7 @@ export default function AirportMarkersTable({ country }) {
     }])
   }
 
-  const isRowDirty = (r) => {
-    if (r._new) return true
-    const orig = original.find(o => o.id === r.id)
-    if (!orig) return true
-    return (
-      r.base_city       !== orig.base_city       ||
-      r.city_from       !== orig.city_from       ||
-      r.city_to         !== orig.city_to         ||
-      (r.zone_from_value || '') !== (orig.zone_from_value || '') ||
-      (r.zone_to_value   || '') !== (orig.zone_to_value   || '') ||
-      r.active          !== orig.active          ||
-      JSON.stringify(r.keywords || []) !== JSON.stringify(orig.keywords || [])
-    )
-  }
+  const isRowDirty = (r) => isRowDirtyAgainst(r, original)
 
   // Las keywords se editan como texto coma-separado. Lowercaseamos al
   // guardar para que el matching del script Python sea consistente
@@ -121,6 +149,12 @@ export default function AirportMarkersTable({ country }) {
       setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
     } else {
       setMsg({ type: 'ok', text: `Marker guardado: ${payload.base_city} → ${payload.city_from} / ${payload.city_to}` })
+      // Sacar la fila local recién guardada para que el sync effect
+      // tras el reload la reemplace por la versión canónica del server
+      // (con id real si era _new, con timestamps actualizados, etc.).
+      // Sin esto, el dirty-tracking detectaría la fila local como
+      // todavía dirty y la dejaría duplicada / con _new=true.
+      setRows(prev => prev.filter(r => r.id !== row.id))
       await load()
     }
     setSaving(false)

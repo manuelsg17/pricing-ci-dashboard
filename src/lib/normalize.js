@@ -60,17 +60,6 @@ export function normalizeBracket(input) {
   return s || null
 }
 
-/**
- * Compara dos strings ignorando case y acentos. Útil para matches de
- * usuario (city, category) que pueden venir con typos de encoding.
- *   ciEqual('Bogotá', 'bogota') → true
- *   ciEqual('Lima', 'lima')     → true
- */
-export function ciEqual(a, b) {
-  if (a == null || b == null) return false
-  return stripAccents(String(a)).toLowerCase() === stripAccents(String(b)).toLowerCase()
-}
-
 // ════════════════════════════════════════════════════════════════════════
 // normalizeCompetitorName — única fuente de verdad para competition_name
 // en pricing_observations.

@@ -19,7 +19,7 @@ const TIME_SLOT_KEYS = [
 export default function FilterBar({ className = '' }) {
   const {
     filters, zones, country,
-    setCity, setCategory, setSubCategory, setZone, setSurge, setDataSource,
+    setCity, setCategory, setZone, setSurge, setDataSource,
     setCompareVs, setViewMode, setWeekStart,
     setDailyStart,
     setHistoricFrom, setHistoricTo,
@@ -83,7 +83,6 @@ export default function FilterBar({ className = '' }) {
   const { city, category, subCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
   const categories  = config.categoriesByCity[city] || []
   const competitors = getCompetitors(city, category, subCategory, country, dbConfigs)
-  const showSubCategory = category === 'Aeropuerto'
 
   // Forzar que weekStart siempre sea lunes
   const handleWeekStart = (e) => {
@@ -114,19 +113,6 @@ export default function FilterBar({ className = '' }) {
           {categories.map(c => <option key={c}>{c}</option>)}
         </select>
       </div>
-
-      {/* Sub-categoría (solo Aeropuerto) */}
-      {showSubCategory && (
-        <>
-          <div className="filter-bar__divider" />
-          <div className="filter-bar__group">
-            <span className="filter-bar__label">{t('filter.subcategory')}</span>
-            <select value={subCategory || ''} onChange={e => setSubCategory(e.target.value)}>
-              {(config.aeropuertoSubcategoriesByCity?.[city] || config.aeropuertoSubcategories || []).map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-        </>
-      )}
 
       <div className="filter-bar__divider" />
 

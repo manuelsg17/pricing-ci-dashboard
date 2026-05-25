@@ -41,6 +41,7 @@ const REFETCHABLE_TABLES = new Set([
   'indrive_config',
   'distance_references',
   'ci_timeslots',
+  'airport_markers',
 ])
 
 // Tablas que SIEMPRE muestran toast (cambios visibles inmediatamente al

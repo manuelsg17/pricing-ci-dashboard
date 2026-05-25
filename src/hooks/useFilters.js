@@ -41,8 +41,6 @@ export function useFilters(country) {
   )
   const CITIES              = countryConfig.cities
   const CATEGORIES_BY_CITY  = countryConfig.categoriesByCity
-  const AEROPUERTO_BY_CITY  = countryConfig.aeropuertoSubcategoriesByCity || {}
-  const aeropuertoSubs = (c) => AEROPUERTO_BY_CITY[c] || countryConfig.aeropuertoSubcategories || []
 
   // Parse URL hash once on first render to restore saved state
   const H = useRef(readHash())
@@ -70,13 +68,11 @@ export function useFilters(country) {
     const cats = CATEGORIES_BY_CITY[initialCity] || []
     return h && cats.includes(h) ? h : (cats[0] || '')
   })
-  // Misma lógica defensiva para subCategory: si no aplica al país, null.
-  const [subCategory, setSubCategory] = useState(() => {
-    const h = H.current['sub']
-    if (!h) return null
-    const subs = AEROPUERTO_BY_CITY[initialCity] || countryConfig.aeropuertoSubcategories || []
-    return subs.includes(h) ? h : null
-  })
+  // subCategory: legacy state kept for filter shape compatibility (preset
+  // payloads, getCompetitors/resolveDbParams signatures). Post airport-as-
+  // top-level-city migration, the UI no longer surfaces a sub-category
+  // picker, so this stays null in practice.
+  const [subCategory, setSubCategory] = useState(null)
   const [zone,        setZone]        = useState(() => H.current['zone'] || 'All')
   const [surge,       setSurge]       = useState(() => {
     const h = H.current['surge']
@@ -181,26 +177,11 @@ export function useFilters(country) {
   useEffect(() => {
     if (suppressCascades.current) return
     setZone('All')
-    const subs = aeropuertoSubs(city)
-    if (category === 'Aeropuerto') {
-      setSubCategory(prev => (prev && subs.includes(prev)) ? prev : subs[0])
-    } else {
-      setSubCategory(null)
-    }
-    const comps = getCompetitors(city, category, category === 'Aeropuerto' ? aeropuertoSubs(city)[0] : null, country, dbConfigsRef.current)
+    setSubCategory(null)
+    const comps = getCompetitors(city, category, null, country, dbConfigsRef.current)
     setCompareVs(comps[0] || 'Yango')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city, category, country])
-
-  // subCategory → update compareVs
-  useEffect(() => {
-    if (suppressCascades.current) return
-    if (category === 'Aeropuerto' && subCategory) {
-      const comps = getCompetitors(city, category, subCategory, country, dbConfigsRef.current)
-      setCompareVs(comps[0] || 'Yango')
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city, category, subCategory, country])
 
   // Enable cascades after initial mount effects have run
   useEffect(() => { suppressCascades.current = false }, [])
@@ -228,7 +209,7 @@ export function useFilters(country) {
   }, [country, dbCity, dbCategory])
 
   // Calcular rango de semanas
-  const weekColumns = useMemo(() => {
+  const weekColumnsRaw = useMemo(() => {
     if (viewMode === 'historic') {
       const from  = new Date(historicFrom + 'T00:00:00')
       const to    = new Date(historicTo   + 'T00:00:00')
@@ -248,10 +229,22 @@ export function useFilters(country) {
     })
   }, [viewMode, weekStart, historicFrom, historicTo])
 
-  const competitors = useMemo(
+  // Estabilizar referencia: el contenido (fechas ISO) cambia raramente, pero
+  // el array se reconstruye en cada cambio de cualquier dep. Usamos join('|')
+  // sobre las fechas ISO para mantener la misma ref mientras el contenido no
+  // cambie — evita invalidar memos downstream (usePricingData matrix, etc).
+  const weekColumnsKey = weekColumnsRaw.map(d => d.toISOString()).join('|')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const weekColumns = useMemo(() => weekColumnsRaw, [weekColumnsKey])
+
+  const competitorsRaw = useMemo(
     () => getCompetitors(city, category, subCategory, country, dbConfigs),
     [city, category, subCategory, country, dbConfigs]
   )
+  // Misma estabilización de referencia para competitors.
+  const competitorsKey = competitorsRaw.join('|')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const competitors = useMemo(() => competitorsRaw, [competitorsKey])
 
   const filters = useMemo(() => ({
     country,

@@ -52,6 +52,18 @@ export default function RawData() {
   const [dateTo,      setDateTo]      = useState(getInitialState('dateTo', ''))
   const [searchA,     setSearchA]     = useState(getInitialState('searchA', ''))
   const [searchB,     setSearchB]     = useState(getInitialState('searchB', ''))
+  // Debounced versions (300ms) — feed to useRawData so we don't refetch on
+  // every keystroke. UI inputs bind to searchA/searchB for immediate feedback.
+  const [debouncedSearchA, setDebouncedSearchA] = useState(searchA)
+  const [debouncedSearchB, setDebouncedSearchB] = useState(searchB)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchA(searchA), 300)
+    return () => clearTimeout(t)
+  }, [searchA])
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchB(searchB), 300)
+    return () => clearTimeout(t)
+  }, [searchB])
   const [dataSource,  setDataSource]  = useState(getInitialState('dataSource', ''))
   const [outlierOnly, setOutlierOnly] = useState(() => sessionStorage.getItem('rawData_outlierOnly') === 'true')
 
@@ -99,8 +111,8 @@ export default function RawData() {
     bracket,
     dateFrom,
     dateTo,
-    searchA,
-    searchB,
+    searchA: debouncedSearchA,
+    searchB: debouncedSearchB,
     dataSource,
     outlierOnly,
     country,

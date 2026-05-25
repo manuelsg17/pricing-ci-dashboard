@@ -53,6 +53,23 @@
 
 BEGIN;
 
+-- ── Guard de dependencia: mig 82 debe correr antes ─────────────────────
+-- Esta mig referencia airport_markers.zone_from_value / zone_to_value que
+-- crea mig 82. Sin guard, un fresh deploy aplicando 78→79→80→81 falla
+-- con "column does not exist". Salimos limpio con un mensaje claro.
+DO $guard$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'airport_markers'
+      AND column_name  = 'zone_from_value'
+  ) THEN
+    RAISE EXCEPTION 'Mig 81 requiere las columnas zone_from_value/zone_to_value de airport_markers. Aplicá mig 82 antes y reintentá.';
+  END IF;
+END
+$guard$;
+
 DO $migration$
 DECLARE
   m              record;

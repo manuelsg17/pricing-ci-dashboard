@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import { CATALOG_CATEGORIES, CATALOG_COMPETITORS } from '../../lib/catalogs'
+import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -11,6 +12,14 @@ import { useConfirm } from '../ui/ConfirmDialog'
 //
 // Patrón visual: espejo de PriceRulesTable. Sin framework de forms;
 // dirty tracking por comparación con `original`.
+//
+// Live-sync: bot_rules pasa por useStaleWhileRevalidate → render
+// instantáneo desde cache + refetch silencioso al editar desde otra
+// sesión (audit_log → 'config:changed'). El sync effect preserva filas
+// dirty del usuario actual para no pisar trabajo en progreso.
+// `unmatched` (RPC list_unmatched_combos) se sigue cargando manualmente
+// porque NO es config — es agregación de observaciones recientes y no
+// se beneficia del cache estable.
 export default function BotRulesTable({ country }) {
   const config = getCountryConfig(country)
   const confirm = useConfirm()
@@ -35,31 +44,78 @@ export default function BotRulesTable({ country }) {
     return Array.from(comps).sort()
   }, [config])
 
+  const { data: serverRules, loading, reload: reloadRules } = useStaleWhileRevalidate({
+    key: `cfg.bot_rules.${country}`,
+    enabled: !!country,
+    liveSyncTable: 'bot_rules',
+    fetcher: async () => {
+      const { data, error } = await sb.from('bot_rules')
+        .select('*')
+        .eq('country', country)
+        .order('app').order('vc').order('ovc')
+      if (error) throw error
+      return data || []
+    },
+  })
+
   const [rules,    setRules]    = useState([])
   const [original, setOriginal] = useState([])
-  const [loading,  setLoading]  = useState(true)
   const [saving,   setSaving]   = useState(false)
   const [msg,      setMsg]      = useState(null)
   // Combos no matcheados del último sync ok — sirven como sugerencias
-  // click-to-add. Vienen de bot_sync_log.notes->dropped_combos.
+  // click-to-add. Vienen de bot_sync_log.notes->dropped_combos. Se
+  // cargan aparte del SWR de rules: es data observacional (no config)
+  // y queremos refrescarla cada vez que el usuario abra la página.
   const [unmatched, setUnmatched] = useState([])
   const [showUnmatched, setShowUnmatched] = useState(false)
 
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [country])
+  // Helper de dirty-check contra un snapshot dado. Lo usa tanto el render
+  // (vs `original`) como el sync effect (vs el `original` previo al merge).
+  function isRowDirtyAgainst(r, snapshot) {
+    if (r._new) return true
+    const orig = snapshot.find(o => o.id === r.id)
+    if (!orig) return true
+    return (
+      r.app              !== orig.app ||
+      r.vc               !== orig.vc ||
+      r.ovc              !== orig.ovc ||
+      r.competition_name !== orig.competition_name ||
+      r.category         !== orig.category ||
+      r.active           !== orig.active ||
+      JSON.stringify(r.cities || []) !== JSON.stringify(orig.cities || [])
+    )
+  }
 
+  // Sincronizar server → state local cuando llega data fresca.
+  // Preservamos filas dirty (_new o con cambios sin guardar) para no
+  // pisar trabajo del usuario si otra sesión escribe mientras edita.
+  useEffect(() => {
+    if (!serverRules) return
+    setRules(prev => {
+      const dirtyRows = prev.filter(r => isRowDirtyAgainst(r, original))
+      const dirtyIds = new Set(dirtyRows.map(r => r.id))
+      const cleanFromServer = serverRules.filter(s => !dirtyIds.has(s.id))
+      return [...cleanFromServer, ...dirtyRows]
+    })
+    setOriginal(serverRules.map(r => ({ ...r })))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverRules])
+
+  // Fetch de unmatched combos en mount y al cambiar de país.
+  useEffect(() => {
+    let cancel = false
+    ;(async () => {
+      const { data: combos } = await sb.rpc('list_unmatched_combos', { p_country: country, p_days: 7 })
+      if (!cancel) setUnmatched(combos || [])
+    })()
+    return () => { cancel = true }
+  }, [country])
+
+  // Después de un save/delete local, refrescamos rules (SWR) y unmatched.
   async function load() {
-    setLoading(true)
-    const [{ data: rulesData }, { data: combos }] = await Promise.all([
-      sb.from('bot_rules')
-        .select('*')
-        .eq('country', country)
-        .order('app').order('vc').order('ovc'),
-      sb.rpc('list_unmatched_combos', { p_country: country, p_days: 7 }),
-    ])
-    setRules(rulesData || [])
-    setOriginal((rulesData || []).map(r => ({ ...r })))
+    await reloadRules()
+    const { data: combos } = await sb.rpc('list_unmatched_combos', { p_country: country, p_days: 7 })
     setUnmatched(combos || [])
-    setLoading(false)
   }
 
   function updateRule(id, field, val) {
@@ -109,20 +165,7 @@ export default function BotRulesTable({ country }) {
     })
   }
 
-  const isRowDirty = (r) => {
-    if (r._new) return true
-    const orig = original.find(o => o.id === r.id)
-    if (!orig) return true
-    return (
-      r.app              !== orig.app ||
-      r.vc               !== orig.vc ||
-      r.ovc              !== orig.ovc ||
-      r.competition_name !== orig.competition_name ||
-      r.category         !== orig.category ||
-      r.active           !== orig.active ||
-      JSON.stringify(r.cities || []) !== JSON.stringify(orig.cities || [])
-    )
-  }
+  const isRowDirty = (r) => isRowDirtyAgainst(r, original)
 
   async function saveRule(rule) {
     if (!rule.app || !rule.vc || !rule.competition_name || !rule.category) {
@@ -153,6 +196,11 @@ export default function BotRulesTable({ country }) {
       setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
     } else {
       setMsg({ type: 'ok', text: `Regla guardada: ${payload.app} / ${payload.vc} / ${payload.ovc} → ${payload.competition_name} / ${payload.category}` })
+      // Sacar la fila local recién guardada para que el sync effect
+      // tras el reload la reemplace por la versión canónica del server
+      // (con id real si era _new, updated_at fresco, etc.). Sin esto,
+      // el dirty-tracking la dejaría marcada como dirty/duplicada.
+      setRules(prev => prev.filter(r => r.id !== rule.id))
       await load()
     }
     setSaving(false)

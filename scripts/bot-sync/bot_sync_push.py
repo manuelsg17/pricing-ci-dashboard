@@ -685,13 +685,22 @@ def main():
                 'data_source':            'bot',
             })
 
-        # Insert en lotes
+        # Insert en lotes — UPSERT idempotente vía el UNIQUE INDEX parcial
+        # `ux_po_bot_natural_key` (mig 90). Si el bot reintenta o el watermark
+        # se rebobina, PostgREST hace MERGE en lugar de duplicar filas.
+        # Las columnas del on_conflict deben matchear EXACTO el orden del
+        # índice; ver supabase/90_pricing_observations_unique_for_bot.sql.
+        BOT_ON_CONFLICT = (
+            'country,city,observed_date,observed_time,'
+            'category,competition_name,distance_bracket,surge,data_source'
+        )
         BATCH = 500
         for i in range(0, len(accepted), BATCH):
             chunk = accepted[i:i + BATCH]
             res = requests.post(
-                f'{SUPABASE_URL}/rest/v1/pricing_observations',
-                headers=sb_headers({'Prefer': 'return=minimal'}),
+                f'{SUPABASE_URL}/rest/v1/pricing_observations'
+                f'?on_conflict={BOT_ON_CONFLICT}',
+                headers=sb_headers({'Prefer': 'resolution=merge-duplicates,return=minimal'}),
                 json=chunk,
                 timeout=60,
             )
