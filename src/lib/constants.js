@@ -53,13 +53,24 @@ export const COUNTRY_CONFIG = {
     currency: 'S/',
     locale:   'es-PE',
 
-    cities:   ['Lima', 'Trujillo', 'Arequipa'],
-    dbCities: ['Lima', 'Trujillo', 'Arequipa', 'Lima_Airport', 'Trujillo_Airport', 'Arequipa_Airport', 'Corp'],
+    // Fallback estático (solo se usa si DB falla). Mantenemos sincronizado
+    // con country_config.cities en DB (mig 79 + 84 + 85). Source-of-truth
+    // real = DB; este bloque está para que la app no se rompa offline.
+    cities:   ['Lima', 'Trujillo', 'Arequipa', 'Lima_Airport_A', 'Lima_Airport_B',
+               'Trujillo_Airport_A', 'Trujillo_Airport_B', 'Arequipa_Airport_A', 'Arequipa_Airport_B'],
+    dbCities: ['Lima', 'Trujillo', 'Arequipa', 'Lima_Airport_A', 'Lima_Airport_B',
+               'Trujillo_Airport_A', 'Trujillo_Airport_B', 'Arequipa_Airport_A', 'Arequipa_Airport_B', 'Corp'],
 
     categoriesByCity: {
-      Lima:     ['Economy/Comfort', 'Comfort+', 'Premier', 'XL', 'TukTuk', 'Aeropuerto', 'Corp'],
-      Trujillo: ['Economy/Comfort', 'Comfort+', 'XL', 'Aeropuerto'],
-      Arequipa: ['Economy/Comfort', 'Comfort+', 'XL', 'Aeropuerto'],
+      Lima:                ['Economy/Comfort', 'Comfort+', 'Premier', 'XL', 'TukTuk', 'Corp'],
+      Trujillo:            ['Economy/Comfort', 'Comfort+', 'XL'],
+      Arequipa:            ['Economy/Comfort', 'Comfort+', 'XL'],
+      Lima_Airport_A:      ['Economy/Comfort', 'Comfort+', 'Premier', 'XL'],
+      Lima_Airport_B:      ['Economy/Comfort', 'Comfort+', 'Premier', 'XL'],
+      Trujillo_Airport_A:  ['Economy/Comfort', 'Comfort+', 'XL'],
+      Trujillo_Airport_B:  ['Economy/Comfort', 'Comfort+', 'XL'],
+      Arequipa_Airport_A:  ['Economy/Comfort', 'Comfort+', 'XL'],
+      Arequipa_Airport_B:  ['Economy/Comfort', 'Comfort+', 'XL'],
     },
 
     // Superset (retrocompatibilidad con consumidores que aún leen el campo plano)
@@ -71,29 +82,42 @@ export const COUNTRY_CONFIG = {
       Arequipa: ['Economy/Comfort', 'Comfort+', 'XL'],
     },
 
+    // categoryDbMap: clave "uiName|||categoryName" → {dbCity, dbCategory}.
+    // Post mig 79+84+85 los airport cities son top-level (no más subtab
+    // "Aeropuerto" anidado bajo Lima/Trujillo/Arequipa).
     categoryDbMap: {
-      'Lima|||Economy/Comfort':   { dbCity: 'Lima',     dbCategory: 'Economy/Comfort' },
-      'Lima|||Comfort+':          { dbCity: 'Lima',     dbCategory: 'Comfort+'        },
-      'Lima|||Premier':           { dbCity: 'Lima',     dbCategory: 'Premier'         },
-      'Lima|||XL':                { dbCity: 'Lima',     dbCategory: 'XL'              },
-      'Lima|||TukTuk':            { dbCity: 'Lima',     dbCategory: 'TukTuk'          },
-      'Lima|||Corp':              { dbCity: 'Corp',     dbCategory: 'Corp'            },
-      'Lima|||Aeropuerto|||Economy/Comfort': { dbCity: 'Lima_Airport', dbCategory: 'Economy/Comfort' },
-      'Lima|||Aeropuerto|||Comfort+':        { dbCity: 'Lima_Airport', dbCategory: 'Comfort+'        },
-      'Lima|||Aeropuerto|||Premier':         { dbCity: 'Lima_Airport', dbCategory: 'Premier'         },
-      'Lima|||Aeropuerto|||XL':              { dbCity: 'Lima_Airport', dbCategory: 'XL'              },
-      'Trujillo|||Economy/Comfort': { dbCity: 'Trujillo', dbCategory: 'Economy/Comfort' },
-      'Trujillo|||Comfort+':        { dbCity: 'Trujillo', dbCategory: 'Comfort+'        },
-      'Trujillo|||XL':              { dbCity: 'Trujillo', dbCategory: 'XL'              },
-      'Trujillo|||Aeropuerto|||Economy/Comfort': { dbCity: 'Trujillo_Airport', dbCategory: 'Economy/Comfort' },
-      'Trujillo|||Aeropuerto|||Comfort+':        { dbCity: 'Trujillo_Airport', dbCategory: 'Comfort+'        },
-      'Trujillo|||Aeropuerto|||XL':              { dbCity: 'Trujillo_Airport', dbCategory: 'XL'              },
-      'Arequipa|||Economy/Comfort': { dbCity: 'Arequipa', dbCategory: 'Economy/Comfort' },
-      'Arequipa|||Comfort+':        { dbCity: 'Arequipa', dbCategory: 'Comfort+'        },
-      'Arequipa|||XL':              { dbCity: 'Arequipa', dbCategory: 'XL'              },
-      'Arequipa|||Aeropuerto|||Economy/Comfort': { dbCity: 'Arequipa_Airport', dbCategory: 'Economy/Comfort' },
-      'Arequipa|||Aeropuerto|||Comfort+':        { dbCity: 'Arequipa_Airport', dbCategory: 'Comfort+'        },
-      'Arequipa|||Aeropuerto|||XL':              { dbCity: 'Arequipa_Airport', dbCategory: 'XL'              },
+      'Lima|||Economy/Comfort':                   { dbCity: 'Lima',                dbCategory: 'Economy/Comfort' },
+      'Lima|||Comfort+':                          { dbCity: 'Lima',                dbCategory: 'Comfort+'        },
+      'Lima|||Premier':                           { dbCity: 'Lima',                dbCategory: 'Premier'         },
+      'Lima|||XL':                                { dbCity: 'Lima',                dbCategory: 'XL'              },
+      'Lima|||TukTuk':                            { dbCity: 'Lima',                dbCategory: 'TukTuk'          },
+      'Lima|||Corp':                              { dbCity: 'Corp',                dbCategory: 'Corp'            },
+      'Trujillo|||Economy/Comfort':               { dbCity: 'Trujillo',            dbCategory: 'Economy/Comfort' },
+      'Trujillo|||Comfort+':                      { dbCity: 'Trujillo',            dbCategory: 'Comfort+'        },
+      'Trujillo|||XL':                            { dbCity: 'Trujillo',            dbCategory: 'XL'              },
+      'Arequipa|||Economy/Comfort':               { dbCity: 'Arequipa',            dbCategory: 'Economy/Comfort' },
+      'Arequipa|||Comfort+':                      { dbCity: 'Arequipa',            dbCategory: 'Comfort+'        },
+      'Arequipa|||XL':                            { dbCity: 'Arequipa',            dbCategory: 'XL'              },
+      'Lima_Airport_A|||Economy/Comfort':         { dbCity: 'Lima_Airport_A',      dbCategory: 'Economy/Comfort' },
+      'Lima_Airport_A|||Comfort+':                { dbCity: 'Lima_Airport_A',      dbCategory: 'Comfort+'        },
+      'Lima_Airport_A|||Premier':                 { dbCity: 'Lima_Airport_A',      dbCategory: 'Premier'         },
+      'Lima_Airport_A|||XL':                      { dbCity: 'Lima_Airport_A',      dbCategory: 'XL'              },
+      'Lima_Airport_B|||Economy/Comfort':         { dbCity: 'Lima_Airport_B',      dbCategory: 'Economy/Comfort' },
+      'Lima_Airport_B|||Comfort+':                { dbCity: 'Lima_Airport_B',      dbCategory: 'Comfort+'        },
+      'Lima_Airport_B|||Premier':                 { dbCity: 'Lima_Airport_B',      dbCategory: 'Premier'         },
+      'Lima_Airport_B|||XL':                      { dbCity: 'Lima_Airport_B',      dbCategory: 'XL'              },
+      'Trujillo_Airport_A|||Economy/Comfort':     { dbCity: 'Trujillo_Airport_A',  dbCategory: 'Economy/Comfort' },
+      'Trujillo_Airport_A|||Comfort+':            { dbCity: 'Trujillo_Airport_A',  dbCategory: 'Comfort+'        },
+      'Trujillo_Airport_A|||XL':                  { dbCity: 'Trujillo_Airport_A',  dbCategory: 'XL'              },
+      'Trujillo_Airport_B|||Economy/Comfort':     { dbCity: 'Trujillo_Airport_B',  dbCategory: 'Economy/Comfort' },
+      'Trujillo_Airport_B|||Comfort+':            { dbCity: 'Trujillo_Airport_B',  dbCategory: 'Comfort+'        },
+      'Trujillo_Airport_B|||XL':                  { dbCity: 'Trujillo_Airport_B',  dbCategory: 'XL'              },
+      'Arequipa_Airport_A|||Economy/Comfort':     { dbCity: 'Arequipa_Airport_A',  dbCategory: 'Economy/Comfort' },
+      'Arequipa_Airport_A|||Comfort+':            { dbCity: 'Arequipa_Airport_A',  dbCategory: 'Comfort+'        },
+      'Arequipa_Airport_A|||XL':                  { dbCity: 'Arequipa_Airport_A',  dbCategory: 'XL'              },
+      'Arequipa_Airport_B|||Economy/Comfort':     { dbCity: 'Arequipa_Airport_B',  dbCategory: 'Economy/Comfort' },
+      'Arequipa_Airport_B|||Comfort+':            { dbCity: 'Arequipa_Airport_B',  dbCategory: 'Comfort+'        },
+      'Arequipa_Airport_B|||XL':                  { dbCity: 'Arequipa_Airport_B',  dbCategory: 'XL'              },
     },
 
     // Orden canónico Perú: Yango, YangoComfort, Uber, Didi, InDrive, Cabify.
@@ -117,18 +141,34 @@ export const COUNTRY_CONFIG = {
         'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
         XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
-      Lima_Airport: {
+      Lima_Airport_A: {
         'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
         'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
         Premier:           ['Yango', 'Uber', 'Cabify'],
         XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
-      Trujillo_Airport: {
+      Lima_Airport_B: {
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        Premier:           ['Yango', 'Uber', 'Cabify'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
+      },
+      Trujillo_Airport_A: {
         'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
         'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
         XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
       },
-      Arequipa_Airport: {
+      Trujillo_Airport_B: {
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
+      },
+      Arequipa_Airport_A: {
+        'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
+        'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
+        XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
+      },
+      Arequipa_Airport_B: {
         'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
         'Comfort+':        ['Yango', 'Uber', 'InDrive', 'Cabify'],
         XL:                ['Yango', 'Uber', 'InDrive', 'Cabify'],
@@ -149,28 +189,37 @@ export const COUNTRY_CONFIG = {
       Lima:             { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', Premier: 'Yango', XL: 'Yango', TukTuk: 'Yango' },
       Trujillo:         { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
       Arequipa:         { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
-      Lima_Airport:     { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', Premier: 'Yango', XL: 'Yango' },
-      Trujillo_Airport: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
-      Arequipa_Airport: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
+      Lima_Airport_A:     { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', Premier: 'Yango', XL: 'Yango' },
+      Lima_Airport_B:     { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', Premier: 'Yango', XL: 'Yango' },
+      Trujillo_Airport_A: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
+      Trujillo_Airport_B: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
+      Arequipa_Airport_A: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
+      Arequipa_Airport_B: { 'Economy/Comfort': 'Yango', 'Comfort+': 'Yango', XL: 'Yango' },
       Corp:             { Corp: 'YangoEconomy' },
     },
 
-    weightCities: ['all', 'Lima', 'Trujillo', 'Arequipa', 'Lima_Airport', 'Trujillo_Airport', 'Arequipa_Airport', 'Corp'],
+    weightCities: ['all', 'Lima', 'Trujillo', 'Arequipa',
+                   'Lima_Airport_A', 'Lima_Airport_B',
+                   'Trujillo_Airport_A', 'Trujillo_Airport_B',
+                   'Arequipa_Airport_A', 'Arequipa_Airport_B', 'Corp'],
     outlierThreshold: 100,
     maxPrice: 300,
     botCityMap: {
-      'lima':              'Lima',
-      'trujillo':          'Trujillo',
-      'arequipa':          'Arequipa',
-      'lima_airport':      'Lima_Airport',
-      'trujillo_airport':  'Trujillo_Airport',
-      'arequipa_airport':  'Arequipa_Airport',
+      'lima':                'Lima',
+      'trujillo':            'Trujillo',
+      'arequipa':            'Arequipa',
+      'lima_airport_a':      'Lima_Airport_A',
+      'lima_airport_b':      'Lima_Airport_B',
+      'trujillo_airport_a':  'Trujillo_Airport_A',
+      'trujillo_airport_b':  'Trujillo_Airport_B',
+      'arequipa_airport_a':  'Arequipa_Airport_A',
+      'arequipa_airport_b':  'Arequipa_Airport_B',
     },
 
     // Reglas del bot → (competition_name, category).
     // Se resuelven contra (app, vehicle_category, observed_vehicle_category).
     // ovc = '*' coincide con cualquier observed_vehicle_category.
-    // cities (opcional) restringe la regla a ciertos dbCity (Lima_Airport usa "Airport" implícito).
+    // cities (opcional) restringe la regla a ciertos dbCity (incluye splits *_Airport_A/B).
     botRules: [
       // Economy/Comfort
       { app: 'yango',   vc: 'economy', ovc: 'economy',  name: 'Yango',        category: 'Economy/Comfort' },
@@ -182,9 +231,9 @@ export const COUNTRY_CONFIG = {
       { app: 'yango',   vc: 'comfort', ovc: 'comfort+', name: 'Yango',        category: 'Comfort+' },
       { app: 'uber',    vc: 'comfort', ovc: 'comfort',  name: 'Uber',         category: 'Comfort+' },
       { app: 'indrive', vc: 'comfort', ovc: 'confort',  name: 'InDrive',      category: 'Comfort+' },
-      // Premier — solo Lima y Lima_Airport
-      { app: 'yango',   vc: 'premium', ovc: 'premier',  name: 'Yango',        category: 'Premier', cities: ['Lima', 'Lima_Airport'] },
-      { app: 'uber',    vc: 'premium', ovc: 'black',    name: 'Uber',         category: 'Premier', cities: ['Lima', 'Lima_Airport'] },
+      // Premier — solo Lima y splits del aeropuerto de Lima
+      { app: 'yango',   vc: 'premium', ovc: 'premier',  name: 'Yango',        category: 'Premier', cities: ['Lima', 'Lima_Airport_A', 'Lima_Airport_B'] },
+      { app: 'uber',    vc: 'premium', ovc: 'black',    name: 'Uber',         category: 'Premier', cities: ['Lima', 'Lima_Airport_A', 'Lima_Airport_B'] },
       // XL — todas las ciudades (regular + airport)
       { app: 'yango',   vc: 'xl',      ovc: 'xl',       name: 'Yango',        category: 'XL' },
       { app: 'uber',    vc: 'xl',      ovc: 'xl',       name: 'Uber',         category: 'XL' },

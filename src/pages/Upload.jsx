@@ -313,7 +313,22 @@ function parseRows(sheetData, city) {
   return { rows, droppedNoDate, droppedNoCompetitor }
 }
 
-// Detecta la ciudad a partir del nombre de la pestaña o archivo
+// Detecta la ciudad a partir del nombre de la pestaña o archivo.
+//
+// NOTA SOBRE AIRPORT (post mig 78-85):
+//   Los nombres legacy Lima_Airport / Trujillo_Airport / Arequipa_Airport
+//   ya NO existen como cities — fueron reemplazados por Lima_Airport_A /
+//   Lima_Airport_B (origen vs destino aeropuerto). La clasificación A/B
+//   ya no se hace por sheet name — se hace por la columna `Zone` del
+//   Excel + el trigger BEFORE INSERT (mig 83) que lee zone y rutea.
+//
+//   Para upload Excel de aeropuerto:
+//     - Sheet nombrada "lima_airport_*"  → detecta como 'Lima'
+//     - Cada fila DEBE tener columna `Zone` = 'Airport_A' o 'Airport_B'
+//     - Trigger reasigna city correctamente al INSERT
+//
+//   Si la fila NO tiene Zone, el trigger intenta detectar por keyword en
+//   point_a/point_b (mig 78). Si tampoco matchea, queda en city base.
 const SHEET_CITY_MAP = {
   lima_pricing_ci_corp_final:   'Corp',
   lima_pricing_ci_corp:         'Corp',
@@ -323,15 +338,16 @@ const SHEET_CITY_MAP = {
   trujillo:                     'Trujillo',
   arq_pricing_ci_final:         'Arequipa',
   arequipa:                     'Arequipa',
-  lima_airport_ci_final:        'Lima_Airport',
-  lima_airport:                 'Lima_Airport',
-  tru_airport_ci_final:         'Trujillo_Airport',
-  trujillo_airport:             'Trujillo_Airport',
-  arq_airport_ci_final:         'Arequipa_Airport',
-  arequipa_airport:             'Arequipa_Airport',
-  // Legacy (Excel viejos donde "airport" = Lima)
-  airport_ci_final:             'Lima_Airport',
-  airport:                      'Lima_Airport',
+  // Airport sheets → base city. Zone column + trigger hace la clasificación.
+  lima_airport_ci_final:        'Lima',
+  lima_airport:                 'Lima',
+  tru_airport_ci_final:         'Trujillo',
+  trujillo_airport:             'Trujillo',
+  arq_airport_ci_final:         'Arequipa',
+  arequipa_airport:             'Arequipa',
+  // Legacy (Excel viejos donde "airport" = Lima sin city explícita)
+  airport_ci_final:             'Lima',
+  airport:                      'Lima',
 }
 
 // `countryConfig` viene de useCountry() y ya respeta el override DB →
@@ -357,17 +373,19 @@ function detectCity(sheetName, countryConfig) {
     if (key.includes(pattern.replace(/_/g, '')) || key === pattern) return city
   }
 
-  // (3) Heurísticas por keyword (Peru/Colombia legacy)
+  // (3) Heurísticas por keyword (Peru/Colombia legacy).
+  // Airport detection ya NO mapea a Lima_Airport/Trujillo_Airport/Arequipa_Airport
+  // (cities legacy retiradas en mig 79+84). Las filas de aeropuerto se rutean
+  // por la columna Zone del Excel + trigger BEFORE INSERT (mig 83) — acá
+  // simplemente caemos a la base city y dejamos que el trigger haga la
+  // clasificación A/B.
   const lowerPattern = key.toLowerCase()
-  const hasAirport = lowerPattern.includes('airport') || lowerPattern.includes('aero')
   if (lowerPattern.includes('corp'))      return 'Corp'
-  if (hasAirport && (lowerPattern.includes('tru') || lowerPattern.includes('trujillo'))) return 'Trujillo_Airport'
-  if (hasAirport && (lowerPattern.includes('arq') || lowerPattern.includes('arequipa'))) return 'Arequipa_Airport'
-  if (hasAirport && lowerPattern.includes('lima')) return 'Lima_Airport'
   if (lowerPattern.includes('lima'))      return 'Lima'
   if (lowerPattern.includes('tru') || lowerPattern.includes('trujillo')) return 'Trujillo'
   if (lowerPattern.includes('arq') || lowerPattern.includes('arequipa')) return 'Arequipa'
-  if (hasAirport)                         return 'Lima_Airport'
+  // Fallback Lima si dice "airport" sin city específica
+  if (lowerPattern.includes('airport') || lowerPattern.includes('aero')) return 'Lima'
   if (lowerPattern.includes('bog'))       return 'Bogota'
   if (lowerPattern.includes('med'))       return 'Medellin'
   if (lowerPattern.includes('cali'))      return 'Cali'

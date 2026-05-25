@@ -139,12 +139,25 @@ AIRPORT_MARKERS = []
 
 # botCityMap de respaldo. Si la tabla country_config existe en Supabase,
 # se prefiere ese; si no, este dict cubre los casos conocidos.
+#
+# NOTA aeropuerto (post mig 78-85): los nombres legacy *_Airport ya NO
+# son cities válidas. Si el scraper aún envía city='lima_airport', lo
+# mapeamos a 'Lima' (base) y dejamos que resolve_airport_route() rutee
+# por raw.zone o keywords. El trigger BEFORE INSERT (mig 83) es red de
+# seguridad si algo se cuela.
 BOT_CITY_MAP = {
     # Perú
     'lima': 'Lima', 'trujillo': 'Trujillo', 'arequipa': 'Arequipa',
-    'lima_airport': 'Lima_Airport',
-    'trujillo_airport': 'Trujillo_Airport',
-    'arequipa_airport': 'Arequipa_Airport',
+    'lima_airport': 'Lima',         # → trigger/resolve_airport_route rutea a A/B
+    'trujillo_airport': 'Trujillo',
+    'arequipa_airport': 'Arequipa',
+    # Splits directos (si el scraper los emite con A/B)
+    'lima_airport_a': 'Lima_Airport_A',
+    'lima_airport_b': 'Lima_Airport_B',
+    'trujillo_airport_a': 'Trujillo_Airport_A',
+    'trujillo_airport_b': 'Trujillo_Airport_B',
+    'arequipa_airport_a': 'Arequipa_Airport_A',
+    'arequipa_airport_b': 'Arequipa_Airport_B',
     # Colombia
     'bogota': 'Bogota', 'bogotá': 'Bogota',
     'cali': 'Cali',
