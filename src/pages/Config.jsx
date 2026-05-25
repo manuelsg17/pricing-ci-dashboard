@@ -11,6 +11,7 @@ import BonusesConfig         from '../components/config/BonusesConfig'
 import InDriveConfig         from '../components/config/InDriveConfig'
 import CountriesConfig       from '../components/config/CountriesConfig'
 import BotRulesTable         from '../components/config/BotRulesTable'
+import AirportMarkersTable   from '../components/config/AirportMarkersTable'
 import SnapshotsManager      from '../components/config/SnapshotsManager'
 import AuditLogViewer        from '../components/config/AuditLogViewer'
 import { useI18n }           from '../context/LanguageContext'
@@ -36,6 +37,7 @@ export default function Config() {
       { id: 'bonuses',     label: t('config.bonuses') },
       { id: 'indrive',     label: t('config.indrive') },
       { id: 'botrules',    label: t('config.botrules') },
+      { id: 'airports',    label: t('config.airports') },
       { id: 'snapshots',   label: t('config.snapshots') },
       { id: 'countries',   label: t('config.countries') },
     ]
@@ -111,6 +113,7 @@ export default function Config() {
       {activeTab === 'bonuses'     && <BonusesConfig country={country} />}
       {activeTab === 'indrive'     && <InDriveConfig country={country} />}
       {activeTab === 'botrules'    && <BotRulesTable country={country} />}
+      {activeTab === 'airports'    && <AirportMarkersTable country={country} />}
       {activeTab === 'snapshots'   && <SnapshotsManager country={country} />}
       {activeTab === 'countries'   && <CountriesConfig />}
       {activeTab === 'audit'       && isAdmin && <AuditLogViewer />}

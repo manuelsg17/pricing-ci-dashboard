@@ -131,6 +131,12 @@ CATEGORY_NORMALIZE = {
 # El array global se llena en main() después de leer BOT_SYNC_COUNTRY.
 BOT_RULES = []
 
+# AIRPORT_MARKERS se carga desde la tabla airport_markers (mig 78). Cada
+# marker mapea (country, base_city) → (city_from, city_to, keywords[]) y
+# es lo que permite separar viajes desde-aeropuerto y hacia-aeropuerto en
+# pricing_observations. Se popula en main() después de BOT_RULES.
+AIRPORT_MARKERS = []
+
 # botCityMap de respaldo. Si la tabla country_config existe en Supabase,
 # se prefiere ese; si no, este dict cubre los casos conocidos.
 BOT_CITY_MAP = {
@@ -197,6 +203,91 @@ def normalize_city(c):
         return None
     k = c.lower().replace(' ', '_').replace('-', '_')
     return BOT_CITY_MAP.get(k, c)
+
+
+def load_airport_markers(country):
+    """
+    Carga airport_markers desde Supabase (mig 78). Retorna lista de dicts
+    {base_city, city_from, city_to, keywords:[lowercased]}.
+
+    Si la tabla aún no existe (mig 78 sin aplicar) o no hay markers para
+    el país, retorna []. La detección de aeropuerto queda desactivada y
+    el sync funciona como antes — backward compatible.
+    """
+    try:
+        res = requests.get(
+            f'{SUPABASE_URL}/rest/v1/airport_markers',
+            headers=sb_headers(),
+            params={
+                'country': f'eq.{country}',
+                'active':  'eq.true',
+                'select':  'base_city,city_from,city_to,keywords',
+            },
+            timeout=20,
+        )
+        # 404/406 = tabla no existe todavía — silencioso
+        if res.status_code in (404, 406):
+            return []
+        res.raise_for_status()
+        rows = res.json() or []
+    except Exception as e:
+        print(f"[load_airport_markers] error: {e}", file=sys.stderr)
+        return []
+
+    markers = []
+    for r in rows:
+        kws = [k.lower() for k in (r.get('keywords') or []) if k]
+        markers.append({
+            'base_city':  r.get('base_city'),
+            'city_from':  r.get('city_from'),
+            'city_to':    r.get('city_to'),
+            'keywords':   kws,
+        })
+    return markers
+
+
+def resolve_airport_route(db_city, point_a, point_b):
+    """
+    Decide si una observación debe re-rutearse a city_from / city_to
+    basándose en la presencia de keywords de aeropuerto en point_a/point_b.
+
+    Reglas (en orden):
+      1. Si db_city no matchea ningún marker (ni como base_city ni como
+         legacy "<base_city>_Airport") → retorna db_city sin cambios.
+      2. Si keywords están en point_a (con o sin point_b)   → city_from.
+         (Tie-break para casos donde están en ambos: gana origen.)
+      3. Si keywords solo en point_b                        → city_to.
+      4. Si NO matchea ningún keyword:
+           - db_city era legacy "<base>_Airport" → fallback base_city.
+           - db_city ya era la base_city         → sin cambios.
+    """
+    if not AIRPORT_MARKERS or not db_city:
+        return db_city
+
+    marker = None
+    is_legacy = False
+    for m in AIRPORT_MARKERS:
+        if db_city == m['base_city']:
+            marker = m
+            break
+        if db_city == f"{m['base_city']}_Airport":
+            marker = m
+            is_legacy = True
+            break
+    if marker is None:
+        return db_city
+
+    pa = (point_a or '').lower()
+    pb = (point_b or '').lower()
+    hit_a = any(k in pa for k in marker['keywords']) if pa else False
+    hit_b = any(k in pb for k in marker['keywords']) if pb else False
+
+    if hit_a:
+        return marker['city_from']
+    if hit_b:
+        return marker['city_to']
+    # Sin keyword match: legacy → base; ya-base → sin cambios.
+    return marker['base_city'] if is_legacy else db_city
 
 
 def resolve_rule(app, vc, ovc, db_city):
@@ -350,7 +441,7 @@ def main():
     fq_table = f'"{schema}"."{table}"'
 
     # Cargar BOT_RULES desde Supabase (data-driven multi-país)
-    global BOT_RULES
+    global BOT_RULES, AIRPORT_MARKERS
     BOT_RULES = load_bot_rules(country)
     if not BOT_RULES:
         print(f"⚠ No hay bot_rules activas para country={country}. "
@@ -358,6 +449,12 @@ def main():
               file=sys.stderr)
         sys.exit(3)
     print(f"✓ Loaded {len(BOT_RULES)} bot rules for country={country}", file=sys.stderr)
+
+    # Cargar AIRPORT_MARKERS (mig 78). Si no hay, el sync sigue funcionando
+    # como antes — la detección de aeropuerto queda inactiva.
+    AIRPORT_MARKERS = load_airport_markers(country)
+    print(f"✓ Loaded {len(AIRPORT_MARKERS)} airport markers for country={country}",
+          file=sys.stderr)
 
     conn = psycopg2.connect(
         host=os.environ['LOCAL_PG_HOST'],
@@ -462,6 +559,17 @@ def main():
                                  db_city or (raw.get('city') or ''))] += 1
                 continue
 
+            # Direcciones (necesitamos antes de resolve_rule para detectar
+            # aeropuerto). Preferimos start_address/end_address (descriptivos
+            # con nombre + dirección); fallback a observed_* (geocodificadas).
+            point_a = raw.get('start_address') or raw.get('observed_start_address')
+            point_b = raw.get('end_address')   or raw.get('observed_end_address')
+
+            # Re-rutear si es viaje de aeropuerto. Devuelve db_city sin
+            # cambios si AIRPORT_MARKERS está vacío (backward compat) o si
+            # el viaje no tiene rastro de aeropuerto.
+            db_city = resolve_airport_route(db_city, point_a, point_b)
+
             # Resolver regla del bot
             name, category = resolve_rule(
                 raw.get('app'),
@@ -523,12 +631,6 @@ def main():
                     distance_km = float(distance_km)
                 except (TypeError, ValueError):
                     distance_km = None
-
-            # Direcciones: preferimos start_address/end_address (más ricos —
-            # incluyen nombre + dirección). Si vienen vacíos, caemos a las
-            # versiones observed_* que son la versión geocodificada.
-            point_a = raw.get('start_address') or raw.get('observed_start_address')
-            point_b = raw.get('end_address')   or raw.get('observed_end_address')
 
             accepted.append({
                 'country':                country,
