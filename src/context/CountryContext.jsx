@@ -14,7 +14,11 @@ const CountryContext = createContext(null)
 // con cache previa siguen leyendo el shape viejo hasta que expire (24h).
 // v2 (2026-05-19): convención Corp pasó de espacios a pegado en
 // competitorsByDbCityCategory. Mig 72 alineó la DB.
-const CACHE_KEY = 'cc.dbConfigs.v2'
+// v3 (2026-05-24): airport split (mig 79+84+85). Cities Lima_Airport_A/B,
+// Trujillo_Airport_A/B, Arequipa_Airport_A/B aparecen con isVirtual=false
+// → cambia el shape de uiCities / categoriesByCity. Sin bump, browsers
+// viejos no ven las nuevas tabs en el Dashboard.
+const CACHE_KEY = 'cc.dbConfigs.v3'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 function readCache() {

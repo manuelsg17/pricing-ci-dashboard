@@ -77,7 +77,7 @@ SET cities = $cities$
     "uiName": "Lima_Airport_A",
     "dbName": "Lima_Airport_A",
     "botKey": "lima_airport_a",
-    "isVirtual": true,
+    "isVirtual": false,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
       {"name": "Comfort+",        "dbName": "Comfort+",        "competitors": ["Yango","Uber","InDrive","Cabify"],                       "yangoDisplayName": "Yango"},
@@ -89,7 +89,7 @@ SET cities = $cities$
     "uiName": "Lima_Airport_B",
     "dbName": "Lima_Airport_B",
     "botKey": "lima_airport_b",
-    "isVirtual": true,
+    "isVirtual": false,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
       {"name": "Comfort+",        "dbName": "Comfort+",        "competitors": ["Yango","Uber","InDrive","Cabify"],                       "yangoDisplayName": "Yango"},
@@ -101,7 +101,7 @@ SET cities = $cities$
     "uiName": "Trujillo_Airport_A",
     "dbName": "Trujillo_Airport_A",
     "botKey": "trujillo_airport_a",
-    "isVirtual": true,
+    "isVirtual": false,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
       {"name": "Comfort+",        "dbName": "Comfort+",        "competitors": ["Yango","Uber","InDrive","Cabify"],                       "yangoDisplayName": "Yango"},
@@ -112,7 +112,7 @@ SET cities = $cities$
     "uiName": "Trujillo_Airport_B",
     "dbName": "Trujillo_Airport_B",
     "botKey": "trujillo_airport_b",
-    "isVirtual": true,
+    "isVirtual": false,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
       {"name": "Comfort+",        "dbName": "Comfort+",        "competitors": ["Yango","Uber","InDrive","Cabify"],                       "yangoDisplayName": "Yango"},
@@ -123,7 +123,7 @@ SET cities = $cities$
     "uiName": "Arequipa_Airport_A",
     "dbName": "Arequipa_Airport_A",
     "botKey": "arequipa_airport_a",
-    "isVirtual": true,
+    "isVirtual": false,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
       {"name": "Comfort+",        "dbName": "Comfort+",        "competitors": ["Yango","Uber","InDrive","Cabify"],                       "yangoDisplayName": "Yango"},
@@ -134,7 +134,7 @@ SET cities = $cities$
     "uiName": "Arequipa_Airport_B",
     "dbName": "Arequipa_Airport_B",
     "botKey": "arequipa_airport_b",
-    "isVirtual": true,
+    "isVirtual": false,
     "categories": [
       {"name": "Economy/Comfort", "dbName": "Economy/Comfort", "competitors": ["Yango","YangoComfort","Uber","Didi","InDrive","Cabify"], "yangoDisplayName": "Yango"},
       {"name": "Comfort+",        "dbName": "Comfort+",        "competitors": ["Yango","Uber","InDrive","Cabify"],                       "yangoDisplayName": "Yango"},
