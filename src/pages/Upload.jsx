@@ -450,7 +450,7 @@ export default function Upload() {
         ? file.name.replace(/\.[^.]+$/, '')
         : sheetName
 
-      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, rows })
+      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, rows, included: true })
     }
     return parsed
   }
@@ -485,12 +485,42 @@ export default function Upload() {
     })))
   }
 
+  // Recomputa allRows + preview a partir del estado de sheets (respeta `included`)
+  const syncFromSheets = (updatedSheets) => {
+    const included = updatedSheets.filter(s => s.included !== false)
+    const flat = included.flatMap(s => s.rows)
+    setAllRows(flat)
+    setPreview(flat.slice(0, 20).map(r => ({
+      ...r,
+      _bracket_computed: r.distance_bracket || '(auto BD)',
+      _effective_price:  computeEffectivePrice(r)?.toFixed(2) ?? null,
+    })))
+  }
+
   const updateSheetCity = (idx, newCity) => {
     setSheets(prev => {
       const updated = prev.map((s, i) =>
         i === idx ? { ...s, city: newCity, rows: s.rows.map(r => ({ ...r, city: newCity })) } : s
       )
-      setAllRows(updated.flatMap(s => s.rows))
+      syncFromSheets(updated)
+      return updated
+    })
+  }
+
+  const toggleSheetIncluded = (idx) => {
+    setSheets(prev => {
+      const updated = prev.map((s, i) =>
+        i === idx ? { ...s, included: s.included === false } : s
+      )
+      syncFromSheets(updated)
+      return updated
+    })
+  }
+
+  const setAllSheetsIncluded = (included) => {
+    setSheets(prev => {
+      const updated = prev.map(s => ({ ...s, included }))
+      syncFromSheets(updated)
       return updated
     })
   }
@@ -716,10 +746,31 @@ export default function Upload() {
       {/* Resumen de archivos detectados */}
       {sheets.length > 0 && (
         <div className="config-section" style={{ marginBottom: 12 }}>
-          <h2>Archivos detectados — verifica la ciudad asignada</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+            <h2 style={{ margin: 0 }}>Archivos detectados — verifica la ciudad asignada</h2>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => setAllSheetsIncluded(true)}
+                style={{ fontSize: 12, padding: '5px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                title="Marcar todas las pestañas como incluidas"
+              >
+                ✓ Incluir todas
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllSheetsIncluded(false)}
+                style={{ fontSize: 12, padding: '5px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                title="Saltar todas — después incluís solo las que querés"
+              >
+                ✕ Saltar todas
+              </button>
+            </div>
+          </div>
           <table className="config-table">
             <thead>
               <tr>
+                <th style={{ width: 60 }}>Incluir</th>
                 <th style={{ textAlign: 'left' }}>Archivo / Pestaña</th>
                 <th style={{ textAlign: 'left' }}>Ciudad detectada</th>
                 <th># Filas válidas</th>
@@ -729,13 +780,26 @@ export default function Upload() {
             <tbody>
               {sheets.map((s, i) => {
                 const dropped = (s.droppedNoDate || 0) + (s.droppedNoCompetitor || 0)
+                const isIncluded = s.included !== false
                 return (
-                  <tr key={i}>
-                    <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>{s.name}</td>
+                  <tr key={i} style={isIncluded ? undefined : { opacity: 0.45 }}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={isIncluded}
+                        onChange={() => toggleSheetIncluded(i)}
+                        title={isIncluded ? 'Click para saltar esta pestaña' : 'Click para incluirla'}
+                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                      />
+                    </td>
+                    <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11, textDecoration: isIncluded ? 'none' : 'line-through' }}>
+                      {s.name}
+                    </td>
                     <td>
                       <select
                         value={s.city}
                         onChange={e => updateSheetCity(i, e.target.value)}
+                        disabled={!isIncluded}
                         style={{ fontSize: 12, padding: '2px 4px' }}
                       >
                         {config.dbCities.map(c => <option key={c} value={c}>{c}</option>)}
@@ -751,13 +815,22 @@ export default function Upload() {
                 )
               })}
               <tr style={{ background: '#f9fbe7', fontWeight: 700 }}>
-                <td style={{ textAlign: 'left' }}>TOTAL</td>
+                <td></td>
+                <td style={{ textAlign: 'left' }}>
+                  TOTAL ({sheets.filter(s => s.included !== false).length} de {sheets.length} pestañas)
+                </td>
                 <td></td>
                 <td style={{ textAlign: 'right' }}>{allRows.length.toLocaleString()}</td>
                 <td></td>
               </tr>
             </tbody>
           </table>
+        </div>
+      )}
+
+      {sheets.length > 0 && allRows.length === 0 && (
+        <div className="upload-error" style={{ marginBottom: 10 }}>
+          ⚠ Todas las pestañas están saltadas. Incluí al menos una para poder insertar.
         </div>
       )}
 
