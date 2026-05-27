@@ -306,15 +306,23 @@ function parseRows(sheetData, city) {
   let droppedNoDate = 0
   let droppedNoCompetitor = 0
   let droppedNoCategory = 0
+  let droppedCorpYango = 0
   const rows = filled.filter(r => {
     if (!r) return false
     if (!r.observed_date)    { droppedNoDate++;       return false }
     if (!r.competition_name) { droppedNoCompetitor++; return false }
     if (!r.category)         { droppedNoCategory++;   return false }
+    // Mig 71: Corp rechaza 'Yango' anónimo (debe ser YangoEconomy/YangoComfort/
+    // YangoComfort+/YangoPremier/YangoXL). Si el Excel trae bare 'Yango' para
+    // Corp, lo dropeamos acá en lugar de dejar que la DB tire 23514 al final.
+    if (r.city === 'Corp' && r.competition_name === 'Yango') {
+      droppedCorpYango++
+      return false
+    }
     return true
   })
 
-  return { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory }
+  return { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory, droppedCorpYango }
 }
 
 // Detecta la ciudad a partir del nombre de la pestaña o archivo.
@@ -445,15 +453,15 @@ export default function Upload() {
 
       const sheet = wb.Sheets[sheetName]
       const raw   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
-      const { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory } = parseRows(raw, city)
-      if (rows.length === 0 && droppedNoDate === 0 && droppedNoCompetitor === 0 && droppedNoCategory === 0) continue
+      const { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory, droppedCorpYango } = parseRows(raw, city)
+      if (rows.length === 0 && droppedNoDate === 0 && droppedNoCompetitor === 0 && droppedNoCategory === 0 && droppedCorpYango === 0) continue
 
       // Etiqueta legible: usar nombre de archivo para CSV (una sola hoja)
       const label = wb.SheetNames.length === 1
         ? file.name.replace(/\.[^.]+$/, '')
         : sheetName
 
-      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, droppedNoCategory, rows, included: true })
+      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, droppedNoCategory, droppedCorpYango, rows, included: true })
     }
     return parsed
   }
@@ -785,11 +793,13 @@ export default function Upload() {
                 const dDate = s.droppedNoDate || 0
                 const dComp = s.droppedNoCompetitor || 0
                 const dCat  = s.droppedNoCategory || 0
-                const dropped = dDate + dComp + dCat
+                const dCorp = s.droppedCorpYango || 0
+                const dropped = dDate + dComp + dCat + dCorp
                 const parts = []
                 if (dDate > 0) parts.push(`${dDate} sin fecha`)
                 if (dComp > 0) parts.push(`${dComp} sin competidor`)
                 if (dCat  > 0) parts.push(`${dCat} sin categoría`)
+                if (dCorp > 0) parts.push(`${dCorp} Corp con "Yango" anónimo`)
                 const isIncluded = s.included !== false
                 return (
                   <tr key={i} style={isIncluded ? undefined : { opacity: 0.45 }}>
