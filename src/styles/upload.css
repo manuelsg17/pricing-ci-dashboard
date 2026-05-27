@@ -35,6 +35,47 @@
   color: #78350f;
 }
 
+.outlier-review__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.outlier-review__search {
+  flex: 1 1 260px;
+  min-width: 220px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fff;
+}
+.outlier-review__search:focus {
+  border-color: var(--color-yango, #ef3022);
+}
+.outlier-review__bulk {
+  display: flex;
+  gap: 6px;
+}
+.outlier-review__bulk-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-text, #1f2937);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.outlier-review__bulk-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
 .outlier-review__table-wrap {
   overflow-x: auto;
   max-height: 320px;

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 /**
  * OutlierReview — muestra filas con precios sospechosos antes del insert.
@@ -18,6 +18,7 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
     })
     return init
   })
+  const [search, setSearch] = useState('')
 
   function setPrice(idx, val) {
     setEdits(prev => ({ ...prev, [idx]: { ...prev[idx], price: val } }))
@@ -25,6 +26,24 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
   function toggleExclude(idx) {
     setEdits(prev => ({ ...prev, [idx]: { ...prev[idx], exclude: !prev[idx].exclude } }))
   }
+  function setAllExclude(exclude) {
+    setEdits(prev => {
+      const next = { ...prev }
+      for (const s of suspects) {
+        next[s.idx] = { ...next[s.idx], exclude }
+      }
+      return next
+    })
+  }
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return suspects
+    return suspects.filter(s => {
+      const hay = `${s.row.city||''} ${s.row.category||''} ${s.row.competition_name||''} ${s.row.observed_date||''} ${s.row.distance_bracket||''}`.toLowerCase()
+      return hay.includes(q)
+    })
+  }, [suspects, search])
 
   const toInclude  = suspects.filter(s => !edits[s.idx]?.exclude).length
   const toExclude  = suspects.filter(s =>  edits[s.idx]?.exclude).length
@@ -39,6 +58,34 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
             {suspects.length} {suspects.length === 1 ? 'fila supera' : 'filas superan'} el límite configurado.
             Corrige el valor o marca "Excluir" para no insertarla.
           </div>
+        </div>
+      </div>
+
+      <div className="outlier-review__toolbar">
+        <input
+          type="search"
+          className="outlier-review__search"
+          placeholder="🔍 Filtrar (ciudad, categoría, competidor, fecha…)"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <div className="outlier-review__bulk">
+          <button
+            type="button"
+            className="outlier-review__bulk-btn"
+            onClick={() => setAllExclude(true)}
+            title="Marcar todas las filas como excluidas"
+          >
+            ✕ Excluir todas
+          </button>
+          <button
+            type="button"
+            className="outlier-review__bulk-btn"
+            onClick={() => setAllExclude(false)}
+            title="Desmarcar todas (incluir todas con su precio actual)"
+          >
+            ✓ Incluir todas
+          </button>
         </div>
       </div>
 
@@ -58,7 +105,14 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
             </tr>
           </thead>
           <tbody>
-            {suspects.map(s => {
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={9} style={{ textAlign:'center', padding:'24px 12px', color:'var(--color-muted)' }}>
+                  Sin filas que coincidan con "{search}"
+                </td>
+              </tr>
+            )}
+            {filtered.map(s => {
               const edit = edits[s.idx]
               return (
                 <tr key={s.idx} className={edit.exclude ? 'outlier-row--excluded' : ''}>
