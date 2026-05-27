@@ -267,7 +267,12 @@ function parseRows(sheetData, city) {
     if (obj.category)          obj.category          = CATEGORY_NORMALIZE[obj.category]          ?? obj.category
     if (obj.competition_name) {
       let legacy = COMPETITOR_CASING_FIXES[obj.competition_name] ?? obj.competition_name
-      if (obj.city !== 'Corp') {
+      // El flatten YangoPremier/YangoComfort+ → Yango sólo aplica fuera de
+      // contextos Corp. Verificamos AMBOS: city='Corp' (archivo corp) Y
+      // category='Corp' (filas con categoría corporativa dentro de city
+      // distinta). Sin el chequeo por category se perdían sub-marcas en
+      // archivos mal detectados (ej. "corp lima (1)" detectado como Lima).
+      if (obj.city !== 'Corp' && obj.category !== 'Corp') {
         legacy = COMPETITOR_YANGO_MASTER_FLATTEN[legacy] ?? legacy
       }
       obj.competition_name = legacy
@@ -314,8 +319,11 @@ function parseRows(sheetData, city) {
     if (!r.category)         { droppedNoCategory++;   return false }
     // Mig 71: Corp rechaza 'Yango' anónimo (debe ser YangoEconomy/YangoComfort/
     // YangoComfort+/YangoPremier/YangoXL). Si el Excel trae bare 'Yango' para
-    // Corp, lo dropeamos acá en lugar de dejar que la DB tire 23514 al final.
-    if (r.city === 'Corp' && r.competition_name === 'Yango') {
+    // Corp (en cualquier casing o con espacios), lo dropeamos acá en lugar de
+    // dejar que la DB tire 23514 al final. La DB normaliza 'yango'/'YANGO'/'Yango '
+    // a 'Yango' canónico y luego el guard lo rechaza, así que el match acá es
+    // sobre el lowercase trim.
+    if (r.city === 'Corp' && (r.competition_name || '').trim().toLowerCase() === 'yango') {
       droppedCorpYango++
       return false
     }
@@ -368,6 +376,13 @@ const SHEET_CITY_MAP = {
 // sufijos legacy como `_pricing_ci_final` que el bot no envía).
 function detectCity(sheetName, countryConfig) {
   const key = toSnakeCase(sheetName)
+  const lowerPattern = key.toLowerCase()
+
+  // (0) Keywords semánticamente específicas que ganan sobre cualquier nombre
+  //     de ciudad embebido. Ejemplo: "corp lima (1)" debe detectar como
+  //     'Corp', NO como 'Lima' (lima aparece como substring pero corp es
+  //     la categoría real del archivo).
+  if (lowerPattern.includes('corp')) return 'Corp'
 
   // (1) Data-driven: cada ciudad del país activo tiene botKey definido en
   //     country_config.cities (jsonb). Tolera prefijo/sufijo.
@@ -391,8 +406,7 @@ function detectCity(sheetName, countryConfig) {
   // por la columna Zone del Excel + trigger BEFORE INSERT (mig 83) — acá
   // simplemente caemos a la base city y dejamos que el trigger haga la
   // clasificación A/B.
-  const lowerPattern = key.toLowerCase()
-  if (lowerPattern.includes('corp'))      return 'Corp'
+  // ('corp' ya fue chequeado en paso (0) — gana sobre nombres de ciudad embebidos)
   if (lowerPattern.includes('lima'))      return 'Lima'
   if (lowerPattern.includes('tru') || lowerPattern.includes('trujillo')) return 'Trujillo'
   if (lowerPattern.includes('arq') || lowerPattern.includes('arequipa')) return 'Arequipa'

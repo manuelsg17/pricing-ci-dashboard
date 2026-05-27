@@ -98,7 +98,10 @@ export function normalizeRow(rawRow) {
     let legacy = COMPETITOR_CASING_FIXES[row.competition_name] ?? row.competition_name
     // (2) "Aplastado" Yango-master (Premier/Comfort+ → Yango) sólo fuera
     //     de Corp. En Corp son competidores legítimos separados.
-    if (row.city !== 'Corp') {
+    //     Chequeamos AMBOS city y category — sin chequear category se
+    //     perdían sub-marcas cuando un archivo Corp era mal detectado
+    //     como Lima/Trujillo/Arequipa pero category venía como 'Corp'.
+    if (row.city !== 'Corp' && row.category !== 'Corp') {
       legacy = COMPETITOR_YANGO_MASTER_FLATTEN[legacy] ?? legacy
     }
     // (3) Canonical context-aware (toma city para resolver Corp vs E/C).
