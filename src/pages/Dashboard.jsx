@@ -16,6 +16,7 @@ import DashboardLegend     from '../components/dashboard/DashboardLegend'
 import WowCallouts         from '../components/dashboard/WowCallouts'
 import WhatIfSimulator     from '../components/dashboard/WhatIfSimulator'
 import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
+import { prettyCompetitor }  from '../lib/normalize'
 import { useI18n }         from '../context/LanguageContext'
 import { FilterProvider, useFilterContext } from '../context/FilterContext'
 import { BRACKETS } from '../lib/constants'
@@ -451,7 +452,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
           </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
             <div className="kpi-card__label">{t('dashboard.kpi.market_leader')}</div>
-            <div className="kpi-card__value">{kpis.leader ? kpis.leader.comp : '—'}</div>
+            <div className="kpi-card__value">{kpis.leader ? prettyCompetitor(kpis.leader.comp) : '—'}</div>
             <div className="kpi-card__sub">
               {kpis.leader ? `${currency} ${kpis.leader.wa.toFixed(2)}` : ''}
             </div>

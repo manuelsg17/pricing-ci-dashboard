@@ -130,6 +130,26 @@ const CORP_DISPLAY_NAMES = {
 }
 
 /**
+ * Convierte un nombre canónico de competidor (pegado: 'YangoEconomy',
+ * 'CabifyLite') a su versión display con espacios ('Yango Economy',
+ * 'Cabify Lite'). Si el nombre ya viene con espacios o no está en el
+ * mapa, lo devuelve tal cual.
+ *
+ * Usar SOLO para render. NUNCA para storage o comparación interna —
+ * comparar contra el canónico pegado siempre.
+ *
+ * Ejemplos:
+ *   prettyCompetitor('YangoEconomy') === 'Yango Economy'
+ *   prettyCompetitor('Cabify')       === 'Cabify'         // no cambia
+ *   prettyCompetitor('Uber')         === 'Uber'           // no cambia
+ *   prettyCompetitor(null)           === null
+ */
+export function prettyCompetitor(comp) {
+  if (comp == null) return comp
+  return CORP_DISPLAY_NAMES[comp] ?? comp
+}
+
+/**
  * Devuelve el "fingerprint" de un nombre: lowercase, sin espacios.
  * Sólo para matching interno — nunca se persiste.
  */

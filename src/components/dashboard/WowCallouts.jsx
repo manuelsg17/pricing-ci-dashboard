@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { COMPETITOR_COLORS } from '../../lib/constants'
+import { prettyCompetitor } from '../../lib/normalize'
 
 const THRESHOLD = 5
 
@@ -53,7 +54,7 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
           return (
             <span
               key={m.comp}
-              title={`${m.comp}: ${m.prev.toFixed(2)} → ${m.cur.toFixed(2)}`}
+              title={`${prettyCompetitor(m.comp)}: ${m.prev.toFixed(2)} → ${m.cur.toFixed(2)}`}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 padding: '2px 8px', borderRadius: 4,
@@ -65,7 +66,7 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
                 width: 8, height: 8, borderRadius: '50%',
                 background: COMPETITOR_COLORS[m.comp] || '#64748b',
               }} />
-              {m.comp}
+              {prettyCompetitor(m.comp)}
               <span style={{ color: up ? '#b91c1c' : '#15803d' }}>
                 {up ? '↑' : '↓'} {up ? '+' : ''}{m.pct.toFixed(1)}%
               </span>

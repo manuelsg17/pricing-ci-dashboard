@@ -3,23 +3,33 @@
 // ============================================================
 
 // ── Colores de competidores (globales) ────────────────────
+// Convención canónica desde mig 72/96: nombres concat sin espacios para
+// Corp ('YangoEconomy', 'CabifyLite', etc.). Las claves con espacios se
+// mantienen como retrocompat de pre-mig 72 (legacy reports/PDFs).
 export const COMPETITOR_COLORS = {
   Yango:               '#E53935',
-  YangoPremier:        '#B71C1C',
-  YangoComfort:        '#EF5350',
+  // Formato canónico CONCAT (post mig 72) — el que el Dashboard usa hoy
+  YangoEconomy:        '#E53935',
+  YangoComfort:        '#EF9A9A',
   'YangoComfort+':     '#FF5722',
+  YangoPremier:        '#B71C1C',
+  YangoXL:             '#D32F2F',
+  CabifyLite:          '#AB47BC',
+  CabifyExtraComfort:  '#6A1B9A',
+  CabifyXL:            '#4A148C',
+  // Formato legacy con espacios — retrocompat para reports/snapshots viejos
   'Yango Economy':     '#E53935',
   'Yango Comfort':     '#EF9A9A',
   'Yango Comfort+':    '#FF5722',
   'Yango Premier':     '#B71C1C',
   'Yango XL':          '#D32F2F',
+  'Cabify Lite':       '#AB47BC',
+  'Cabify Extra Comfort': '#6A1B9A',
+  'Cabify XL':         '#4A148C',
   Uber:                '#276EF1',
   Didi:                '#FF6D00',
   InDrive:             '#2E7D32',
   Cabify:              '#7B1FA2',
-  'Cabify Lite':       '#AB47BC',
-  'Cabify Extra Comfort': '#6A1B9A',
-  'Cabify XL':         '#4A148C',
   Beat:                '#00B4D8',
   Bolt:                '#34D399',
   Rappi:               '#FF5B26',

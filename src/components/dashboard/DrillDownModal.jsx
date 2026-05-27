@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { useFilterContext } from '../../context/FilterContext'
 import { useI18n } from '../../context/LanguageContext'
 import { formatPrice, formatCurrency } from '../../lib/format.js'
+import { prettyCompetitor } from '../../lib/normalize'
 
 function getWeekDateRange(periodKey) {
   const [yearStr, weekStr] = periodKey.split('-W')
@@ -97,7 +98,7 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
               {t('dashboard.drill.title')}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>
-              {comp} · {bracket === '_wa' ? 'WA (todos los brackets)' : bracket} · {periodKey}
+              {prettyCompetitor(comp)} · {bracket === '_wa' ? 'WA (todos los brackets)' : bracket} · {periodKey}
             </div>
           </div>
           <button

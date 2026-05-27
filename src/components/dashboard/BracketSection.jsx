@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
 import { formatPrice } from '../../lib/format.js'
+import { prettyCompetitor } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
 import DrillDownModal from './DrillDownModal'
 
@@ -216,7 +217,7 @@ function BracketSection({
         fontWeight: 700, fontSize: 11,
         whiteSpace: 'nowrap', letterSpacing: 0.2,
       }}>
-        {comp}
+        {prettyCompetitor(comp)}
       </span>
     )
   }
@@ -344,7 +345,7 @@ function BracketSection({
                     }}
                   >
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: COMPETITOR_COLORS[comp] || '#64748b' }} />
-                    {comp}: <strong style={{ color: sampleColor(n) }}>{n}</strong>
+                    {prettyCompetitor(comp)}: <strong style={{ color: sampleColor(n) }}>{n}</strong>
                   </span>
                 )
               })}
