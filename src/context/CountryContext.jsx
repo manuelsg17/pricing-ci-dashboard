@@ -18,7 +18,9 @@ const CountryContext = createContext(null)
 // Trujillo_Airport_A/B, Arequipa_Airport_A/B aparecen con isVirtual=false
 // → cambia el shape de uiCities / categoriesByCity. Sin bump, browsers
 // viejos no ven las nuevas tabs en el Dashboard.
-const CACHE_KEY = 'cc.dbConfigs.v3'
+// v4 (2026-05-26): mig 95 flipea Corp.isVirtual a false en country_config
+// Peru. uiCities/categoriesByCity/categoryDbMap ahora incluyen Corp.
+const CACHE_KEY = 'cc.dbConfigs.v4'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 function readCache() {

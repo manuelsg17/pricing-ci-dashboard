@@ -57,7 +57,7 @@ export const COUNTRY_CONFIG = {
     // con country_config.cities en DB (mig 79 + 84 + 85). Source-of-truth
     // real = DB; este bloque está para que la app no se rompa offline.
     cities:   ['Lima', 'Trujillo', 'Arequipa', 'Lima_Airport_A', 'Lima_Airport_B',
-               'Trujillo_Airport_A', 'Trujillo_Airport_B', 'Arequipa_Airport_A', 'Arequipa_Airport_B'],
+               'Trujillo_Airport_A', 'Trujillo_Airport_B', 'Arequipa_Airport_A', 'Arequipa_Airport_B', 'Corp'],
     dbCities: ['Lima', 'Trujillo', 'Arequipa', 'Lima_Airport_A', 'Lima_Airport_B',
                'Trujillo_Airport_A', 'Trujillo_Airport_B', 'Arequipa_Airport_A', 'Arequipa_Airport_B', 'Corp'],
 
@@ -71,6 +71,7 @@ export const COUNTRY_CONFIG = {
       Trujillo_Airport_B:  ['Economy/Comfort', 'Comfort+', 'XL'],
       Arequipa_Airport_A:  ['Economy/Comfort', 'Comfort+', 'XL'],
       Arequipa_Airport_B:  ['Economy/Comfort', 'Comfort+', 'XL'],
+      Corp:                ['Corp'],
     },
 
     // categoryDbMap: clave "uiName|||categoryName" → {dbCity, dbCategory}.
@@ -109,6 +110,7 @@ export const COUNTRY_CONFIG = {
       'Arequipa_Airport_B|||Economy/Comfort':     { dbCity: 'Arequipa_Airport_B',  dbCategory: 'Economy/Comfort' },
       'Arequipa_Airport_B|||Comfort+':            { dbCity: 'Arequipa_Airport_B',  dbCategory: 'Comfort+'        },
       'Arequipa_Airport_B|||XL':                  { dbCity: 'Arequipa_Airport_B',  dbCategory: 'XL'              },
+      'Corp|||Corp':                              { dbCity: 'Corp',                dbCategory: 'Corp'            },
     },
 
     // Orden canónico Perú: Yango, YangoComfort, Uber, Didi, InDrive, Cabify.

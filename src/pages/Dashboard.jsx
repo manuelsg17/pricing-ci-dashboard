@@ -562,7 +562,6 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
                   loading={loading}
                   viewMode={filters.viewMode}
                   categoryLabel={filters.dbCategory}
-                  defaultCollapsed={bracket !== '_wa'}
                 />
               </SectionErrorBoundary>
             </div>
