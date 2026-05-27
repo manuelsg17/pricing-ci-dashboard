@@ -206,6 +206,25 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
     const yangoComp = filters.compareVs
     const yangoWA   = priceMatrix[yangoComp]?.[latestKey]?.['_wa'] ?? null
 
+    // Sample size + bracket coverage del WA actual de Yango — para advertir
+    // cuando la KPI proviene de pocos datos. sampleMatrix tiene counts por
+    // bracket; un bracket "cubierto" es uno con count>0 Y price válido (>1).
+    const latestPrices  = priceMatrix[yangoComp]?.[latestKey] || {}
+    const latestSamples = sampleMatrix[yangoComp]?.[latestKey] || {}
+    let yangoSampleN = 0
+    let yangoCoverage = 0
+    const yangoEmptyBrackets = []
+    for (const b of BRACKETS) {
+      const price = latestPrices[b]
+      const count = Number(latestSamples[b] || 0)
+      yangoSampleN += count
+      if (count > 0 && price != null && Number(price) > 1) {
+        yangoCoverage++
+      } else {
+        yangoEmptyBrackets.push(b)
+      }
+    }
+
     const compPrices = filters.competitors
       .map(c => ({ comp: c, wa: priceMatrix[c]?.[latestKey]?.['_wa'] ?? null }))
       .filter(x => x.wa != null)
@@ -242,8 +261,9 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
     return {
       yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel, wowDelta,
       yangoLeaderPct, yangoComparablePeriods,
+      yangoSampleN, yangoCoverage, yangoEmptyBrackets,
     }
-  }, [periods, priceMatrix, filters.compareVs, filters.competitors])
+  }, [periods, priceMatrix, sampleMatrix, filters.compareVs, filters.competitors])
 
   // ── Outlier count from recent bot_sync_log runs ──────────────────────
   const [outlierTotal, setOutlierTotal] = useState(null)
@@ -399,6 +419,35 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
               {/* #19 — WoW badge animado */}
               <AnimatedWowBadge target={kpis?.wowDelta ?? null} />
             </div>
+            {kpis?.yangoWA != null && (() => {
+              const lowN = kpis.yangoSampleN < 30
+              const lowCoverage = kpis.yangoCoverage < 4
+              const warn = lowN || lowCoverage
+              const emptyLabel = kpis.yangoEmptyBrackets?.length
+                ? ` · sin data: ${kpis.yangoEmptyBrackets.join(', ')}`
+                : ''
+              return (
+                <div
+                  className="kpi-card__sub"
+                  style={{
+                    marginTop: 4,
+                    fontSize: 11,
+                    color: warn ? '#b45309' : 'var(--color-muted, #6b7280)',
+                    fontWeight: warn ? 600 : 400,
+                  }}
+                  title={
+                    `Promedio Ponderado calculado con ${kpis.yangoSampleN} observación${kpis.yangoSampleN === 1 ? '' : 'es'} ` +
+                    `repartidas en ${kpis.yangoCoverage}/6 brackets.${emptyLabel}\n\n` +
+                    (lowN ? 'Sample size bajo (<30) — el WA tiene varianza alta semana a semana.\n' : '') +
+                    (lowCoverage ? 'Cobertura baja (<4/6 brackets) — el WA refleja solo parte del rango de distancia, no es comparable directo con competidores de cobertura distinta.\n' : '') +
+                    (!warn ? 'Sample size y cobertura adecuados.' : '')
+                  }
+                >
+                  {warn && '⚠ '}
+                  n={kpis.yangoSampleN} · {kpis.yangoCoverage}/6 brackets
+                </div>
+              )
+            })()}
           </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
             <div className="kpi-card__label">{t('dashboard.kpi.market_leader')}</div>

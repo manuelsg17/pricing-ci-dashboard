@@ -149,8 +149,11 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     <div className="config-section">
       <h2>Pesos para Promedio Ponderado (%)</h2>
       <p style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
-        Cada (ciudad × categoría) puede tener pesos distintos. La suma debe ser 100%.
-        Categoría <strong>'all'</strong> aplica como fallback si no hay pesos específicos para esa categoría.
+        Cada (ciudad × categoría) puede tener pesos distintos.
+        La suma ideal es 100%, pero podés guardar con cualquier total — el WA
+        re-normaliza usando solo los brackets con data. Lo que importa es la
+        proporción entre brackets, no el total absoluto.
+        Categoría <strong>'all'</strong> aplica como fallback si no hay pesos específicos.
       </p>
 
       <div className="city-tabs" style={{ marginBottom: 6 }}>
@@ -244,14 +247,15 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
               </tr>
             )
           })}
-          <tr style={{ background: totalOk ? '#f0fdf4' : '#fef2f2' }}>
+          <tr style={{ background: totalOk ? '#f0fdf4' : '#fffbeb' }}>
             <td style={{ fontWeight: 700 }}>Total</td>
             <td>
               <span style={{
                 fontWeight: 700,
-                color: totalOk ? '#15803d' : '#b91c1c',
+                color: totalOk ? '#15803d' : '#b45309',
               }}>
-                {totalPct.toFixed(2)}% {totalOk ? '' : '(debe ser 100%)'}
+                {totalPct.toFixed(2)}%
+                {totalOk ? '' : ' (no es 100% — el WA re-normaliza al guardar)'}
               </span>
             </td>
           </tr>
@@ -263,10 +267,10 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
         <button
           className="btn-save"
           onClick={handleSaveNoSnapshot}
-          disabled={saving || !hasUnsavedChanges || !totalOk}
+          disabled={saving || !hasUnsavedChanges}
           title={
             !hasUnsavedChanges ? 'No hay cambios para guardar'
-          : !totalOk ? 'La suma debe ser exactamente 100%'
+          : !totalOk ? `Total = ${totalPct.toFixed(1)}% (no es 100%). El WA re-normaliza con los brackets disponibles — guardás de todos modos.`
           : 'Aplica los nuevos pesos sin crear snapshot. Los promedios históricos se recalculan en vivo.'
           }
         >
@@ -275,11 +279,11 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
         {/* Secundario: con snapshot — para cambios que afectan data histórica significativa */}
         <button
           onClick={handleSave}
-          disabled={saving || !hasUnsavedChanges || !totalOk}
+          disabled={saving || !hasUnsavedChanges}
           style={{
             padding: '8px 14px', borderRadius: 6, fontSize: 13,
             border: '1px solid #cbd5e1', background: '#fff',
-            cursor: saving || !hasUnsavedChanges || !totalOk ? 'not-allowed' : 'pointer',
+            cursor: saving || !hasUnsavedChanges ? 'not-allowed' : 'pointer',
             color: '#475569',
           }}
           title="Crea snapshot (hard copy) antes de guardar. Útil cuando el cambio afecta data histórica significativa que no querés que se recalcule."
