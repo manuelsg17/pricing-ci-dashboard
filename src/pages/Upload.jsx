@@ -24,8 +24,11 @@ import '../styles/upload.css'
 
 // Mapa: nombre de columna en Excel/CSV → nombre en BD
 // Incluye variantes con "(for pivot)" usadas en ARQ, TRU, AIRPORT
+// NOTA (mig 94): 'Year' y 'Week'/'Week (for pivot)' deliberadamente NO se mapean
+// — son derivados de observed_date vía el trigger trg_assign_computed_fields.
+// Antes los Excel del campo traían WEEKNUM con offset distinto al ISO 8601 y
+// contaminaban la columna week con valores -1 del real.
 const COL_MAP = {
-  'Year':                           'year',
   'Rush Hour':                      'rush_hour',
   'Rush hour':                      'rush_hour',
   'Point A':                        'point_a',
@@ -33,8 +36,6 @@ const COL_MAP = {
   'Travel Distance (Km)':           'distance_km',
   'Travel Distance (km)':           'distance_km',
   'Category':                       'category',
-  'Week':                           'week',
-  'Week (for pivot)':               'week',
   'Timeslot':                       'timeslot',
   'Timeslot (for pivot)':           'timeslot',
   'Distance bracket':               'distance_bracket',
@@ -304,14 +305,16 @@ function parseRows(sheetData, city) {
   // Contar descartadas para diagnóstico visible en la UI
   let droppedNoDate = 0
   let droppedNoCompetitor = 0
+  let droppedNoCategory = 0
   const rows = filled.filter(r => {
     if (!r) return false
     if (!r.observed_date)    { droppedNoDate++;       return false }
     if (!r.competition_name) { droppedNoCompetitor++; return false }
+    if (!r.category)         { droppedNoCategory++;   return false }
     return true
   })
 
-  return { rows, droppedNoDate, droppedNoCompetitor }
+  return { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory }
 }
 
 // Detecta la ciudad a partir del nombre de la pestaña o archivo.
@@ -442,15 +445,15 @@ export default function Upload() {
 
       const sheet = wb.Sheets[sheetName]
       const raw   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
-      const { rows, droppedNoDate, droppedNoCompetitor } = parseRows(raw, city)
-      if (rows.length === 0 && droppedNoDate === 0 && droppedNoCompetitor === 0) continue
+      const { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory } = parseRows(raw, city)
+      if (rows.length === 0 && droppedNoDate === 0 && droppedNoCompetitor === 0 && droppedNoCategory === 0) continue
 
       // Etiqueta legible: usar nombre de archivo para CSV (una sola hoja)
       const label = wb.SheetNames.length === 1
         ? file.name.replace(/\.[^.]+$/, '')
         : sheetName
 
-      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, rows, included: true })
+      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, droppedNoCategory, rows, included: true })
     }
     return parsed
   }
@@ -779,7 +782,14 @@ export default function Upload() {
             </thead>
             <tbody>
               {sheets.map((s, i) => {
-                const dropped = (s.droppedNoDate || 0) + (s.droppedNoCompetitor || 0)
+                const dDate = s.droppedNoDate || 0
+                const dComp = s.droppedNoCompetitor || 0
+                const dCat  = s.droppedNoCategory || 0
+                const dropped = dDate + dComp + dCat
+                const parts = []
+                if (dDate > 0) parts.push(`${dDate} sin fecha`)
+                if (dComp > 0) parts.push(`${dComp} sin competidor`)
+                if (dCat  > 0) parts.push(`${dCat} sin categoría`)
                 const isIncluded = s.included !== false
                 return (
                   <tr key={i} style={isIncluded ? undefined : { opacity: 0.45 }}>
@@ -807,9 +817,7 @@ export default function Upload() {
                     </td>
                     <td style={{ textAlign: 'right' }}>{s.rowCount.toLocaleString()}</td>
                     <td style={{ fontSize: 11, color: dropped > 0 ? '#dc2626' : '#9ca3af' }}>
-                      {dropped > 0
-                        ? `⚠ ${dropped} (${s.droppedNoDate} sin fecha · ${s.droppedNoCompetitor} sin competidor)`
-                        : '—'}
+                      {dropped > 0 ? `⚠ ${dropped} (${parts.join(' · ')})` : '—'}
                     </td>
                   </tr>
                 )
