@@ -20,7 +20,12 @@ const CountryContext = createContext(null)
 // viejos no ven las nuevas tabs en el Dashboard.
 // v4 (2026-05-26): mig 95 flipea Corp.isVirtual a false en country_config
 // Peru. uiCities/categoriesByCity/categoryDbMap ahora incluyen Corp.
-const CACHE_KEY = 'cc.dbConfigs.v4'
+// v5 (2026-05-27): mig 96 alinea country_config.cities[Corp].categories[Corp].
+// competitors con la convención concat (sin espacios) que ya vive en
+// pricing_observations desde mig 72. Sin bump, el cache servía la versión
+// con espacios y el Dashboard mostraba 0 en todos los Yango/Cabify variantes
+// (mismatch entre lookup y nombre real).
+const CACHE_KEY = 'cc.dbConfigs.v5'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 function readCache() {
