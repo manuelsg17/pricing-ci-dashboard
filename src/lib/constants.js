@@ -14,6 +14,7 @@ export const COMPETITOR_COLORS = {
   'YangoComfort+':     '#FF5722',
   YangoPremier:        '#B71C1C',
   YangoXL:             '#D32F2F',
+  YangoPlus:           '#C62828',   // tono entre Comfort+ y Premier (mig 97)
   CabifyLite:          '#AB47BC',
   CabifyExtraComfort:  '#6A1B9A',
   CabifyXL:            '#4A148C',
@@ -183,7 +184,7 @@ export const COUNTRY_CONFIG = {
         // cliente Y en el trigger DB — fragilidad innecesaria que generó el
         // bug de Premier/Comfort+ aplastados a 'Yango'. Para display con
         // espacios en la UI, usar prettyCompetitor() de src/lib/normalize.js.
-        Corp: ['YangoEconomy', 'YangoComfort', 'YangoComfort+', 'YangoPremier', 'YangoXL',
+        Corp: ['YangoEconomy', 'YangoComfort', 'YangoComfort+', 'YangoPremier', 'YangoXL', 'YangoPlus',
                'Cabify', 'CabifyLite', 'CabifyExtraComfort', 'CabifyXL'],
       },
     },

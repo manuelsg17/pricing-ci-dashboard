@@ -104,15 +104,14 @@ const CORP_ALIAS_FINGERPRINTS = {
   yangocomfort:           'YangoComfort',
   'yangocomfort+':        'YangoComfort+',
   yangocomfortplus:       'YangoComfort+',
-  yangoplus:              'YangoComfort+',   // HIPÓTESIS — ver TODO
+  // Mig 97 (2026-05-27): stakeholder confirma que YangoPlus es producto
+  // independiente, NO alias de Comfort+. Ahora se preserva su identidad.
+  yangoplus:              'YangoPlus',
   yangopremier:           'YangoPremier',
   yangoxl:                'YangoXL',
   cabifylite:             'CabifyLite',
   cabifyextracomfort:     'CabifyExtraComfort',
   cabifyxl:               'CabifyXL',
-  // TODO(stakeholder): confirmar que 'YangoPlus' = YangoComfort+ (no Premier).
-  // Por precios (~7-10 S/) parece Comfort+; si fuese Premier, corregir con
-  // UPDATE manual sobre las filas afectadas.
 }
 
 // Mapeo inverso: canónico pegado → display con espacios. Sólo para
@@ -123,6 +122,7 @@ const CORP_DISPLAY_NAMES = {
   'YangoComfort+':     'Yango Comfort+',
   YangoPremier:        'Yango Premier',
   YangoXL:             'Yango XL',
+  YangoPlus:           'Yango Plus',
   Cabify:              'Cabify',
   CabifyLite:          'Cabify Lite',
   CabifyExtraComfort:  'Cabify Extra Comfort',

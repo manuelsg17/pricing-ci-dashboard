@@ -25,7 +25,10 @@ const CountryContext = createContext(null)
 // pricing_observations desde mig 72. Sin bump, el cache servía la versión
 // con espacios y el Dashboard mostraba 0 en todos los Yango/Cabify variantes
 // (mismatch entre lookup y nombre real).
-const CACHE_KEY = 'cc.dbConfigs.v5'
+// v6 (2026-05-27): mig 97 promueve YangoPlus a competidor independiente
+// en Corp (antes era alias de YangoComfort+). El array competitors crece
+// de 9 a 10 entradas.
+const CACHE_KEY = 'cc.dbConfigs.v6'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 function readCache() {
