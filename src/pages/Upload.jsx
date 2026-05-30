@@ -62,13 +62,11 @@ const COL_MAP = {
   'Bid 1':                          'bid_1',
   'Bid 2':                          'bid_2',
   'Bid 3':                          'bid_3',
-  'Bid 4':                          'bid_4',
-  'Bid 5':                          'bid_5',
-  'Discount offer':                 'discount_offer',
-  'Discount Offer':                 'discount_offer',
-  'Diff(manualy calc)':             'diff',
-  'Diff (manually calc)':           'diff',
-  'Diff (manualy calc)':            'diff',
+  // Mig 98 (2026-05-30): columnas bid_4, bid_5, discount_offer, diff,
+  // for_pivot fueron eliminadas de pricing_observations (>99% NULL, sin
+  // uso real). Mandarlas en el INSERT rompe el schema cache de PostgREST.
+  // Las columnas del Excel quedan ignoradas — el dato no se persistía
+  // de todos modos para el WA / dashboard.
 }
 
 // Normalización de categorías del Excel legacy → nombre canónico en BD nuevo.
@@ -168,11 +166,12 @@ function parseExcelTime(val) {
   return null
 }
 
-// Columnas que deben ser números en la BD
+// Columnas que deben ser números en la BD.
+// Mig 98 dropeó bid_4/bid_5/discount_offer/diff de pricing_observations
+// (>99% NULL). Quitadas del set y de COL_MAP — el INSERT ya no las envía.
 const NUMERIC_COLS = new Set([
   'distance_km','travel_time_min','eta_min','recommended_price','minimal_bid',
   'price_with_discount','price_without_discount','bid_1','bid_2','bid_3',
-  'bid_4','bid_5','discount_offer','diff',
 ])
 
 // Columnas que deben ser enteros
@@ -643,9 +642,11 @@ export default function Upload() {
           : r.rush_hour,
       }
       // Para InDrive: calcular minimal_bid y price_without_discount desde bids
-      // si las fórmulas de Excel no fueron evaluadas (llegan como 0 o null)
+      // si las fórmulas de Excel no fueron evaluadas (llegan como 0 o null).
+      // Mig 98: bid_4/bid_5 dropeados (>99% NULL históricamente, marginales
+      // para el promedio). Quedan bid_1/bid_2/bid_3.
       if (row.competition_name === 'InDrive') {
-        const bidVals = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
+        const bidVals = [row.bid_1, row.bid_2, row.bid_3]
           .map(b => parseFloat(b)).filter(n => !isNaN(n) && n > 0)
         if (bidVals.length) {
           const curMin = parseFloat(row.minimal_bid)

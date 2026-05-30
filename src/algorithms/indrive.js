@@ -10,7 +10,8 @@
  */
 export function computeEffectivePrice(row) {
   if (row.competition_name === 'InDrive') {
-    const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
+    // Mig 98 (2026-05-30): bid_4/bid_5 dropeados (>99% NULL).
+    const bids = [row.bid_1, row.bid_2, row.bid_3]
       .map(b => Number(b) || 0)
       .filter(b => b > 0)
 

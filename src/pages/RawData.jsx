@@ -420,7 +420,7 @@ export default function RawData() {
               <th colSpan={3} className="col-bracket">Ruta</th>
               <th colSpan={2} className="col-point">Puntos</th>
               <th colSpan={4} className="col-price">Precios ({config.currency})</th>
-              <th colSpan={5} className="col-bid">Bids InDrive</th>
+              <th colSpan={3} className="col-bid">Bids InDrive</th>
               <th className="col-eta">ETA</th>
               <th className="col-actions"></th>
             </tr>
@@ -447,8 +447,6 @@ export default function RawData() {
               <th className="col-bid">Bid 1</th>
               <th className="col-bid">Bid 2</th>
               <th className="col-bid">Bid 3</th>
-              <th className="col-bid">Bid 4</th>
-              <th className="col-bid">Bid 5</th>
               <th className="col-eta">ETA (min)</th>
               <th className="col-actions"></th>
             </tr>
@@ -517,8 +515,6 @@ export default function RawData() {
                 <td className="col-bid">{renderEditable(r, 'bid_1')}</td>
                 <td className="col-bid">{renderEditable(r, 'bid_2')}</td>
                 <td className="col-bid">{renderEditable(r, 'bid_3')}</td>
-                <td className="col-bid">{renderEditable(r, 'bid_4')}</td>
-                <td className="col-bid">{renderEditable(r, 'bid_5')}</td>
                 <td className="col-eta">{fmt(r.eta_min, 1)}</td>
                 <td className="col-actions">
                   <button
