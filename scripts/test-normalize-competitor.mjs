@@ -38,7 +38,11 @@ const cases = [
   ['Corp: yangocomfort+',           'yangocomfort+',    { city: 'Corp' }, 'YangoComfort+'],
   ['Corp: yangocomfortplus',        'yangocomfortplus', { city: 'Corp' }, 'YangoComfort+'],
   ['Corp: Yango Comfort+ → pegado', 'Yango Comfort+',   { city: 'Corp' }, 'YangoComfort+'],
-  ['Corp: YangoPlus (hipótesis)',   'YangoPlus',        { city: 'Corp' }, 'YangoComfort+'],
+  // Mig 97 (2026-05-27): YangoPlus es competidor independiente, NO alias
+  // de YangoComfort+ como antes. Stakeholder confirmó productos distintos.
+  ['Corp: YangoPlus idempotente',   'YangoPlus',        { city: 'Corp' }, 'YangoPlus'],
+  ['Corp: yangoplus',               'yangoplus',        { city: 'Corp' }, 'YangoPlus'],
+  ['Corp: Yango Plus → pegado',     'Yango Plus',       { city: 'Corp' }, 'YangoPlus'],
 
   ['Corp: yangopremier',            'yangopremier',     { city: 'Corp' }, 'YangoPremier'],
   ['Corp: YangoPremier idempot.',   'YangoPremier',     { city: 'Corp' }, 'YangoPremier'],
