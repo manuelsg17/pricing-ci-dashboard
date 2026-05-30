@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:      # permite lanzar manualmente desde GitHub UI
 
+# Mig 100 (audit adversarial 2026-05-30): permisos mínimos necesarios.
+# - contents: read   → checkout
+# - pages: write     → deploy
+# - id-token: write  → OIDC para actions/deploy-pages
+# Cualquier otro scope queda implícitamente en `none`.
 permissions:
   contents: read
   pages: write

