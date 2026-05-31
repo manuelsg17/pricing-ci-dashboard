@@ -54,6 +54,9 @@ from __future__ import annotations
 import os
 import sys
 import json
+import time
+import random
+import functools
 import argparse
 import datetime as dt
 from collections import Counter
@@ -61,9 +64,50 @@ from collections import Counter
 try:
     import psycopg2
     import psycopg2.extras
+    from psycopg2 import OperationalError
 except ImportError:
     print("Falta dependencia: pip install psycopg2-binary", file=sys.stderr)
     sys.exit(2)
+
+
+# ── Retry helper para conexión a helioho (shared hosting con max_connections bajo) ──
+# Errores transitorios de exhaustion de slots: el script reintenta con
+# exponential backoff + jitter. Sin esto, un único timing colision con
+# otro tenant tumba la corrida entera.
+SLOT_EXHAUSTED_MARKERS = (
+    "remaining connection slots",
+    "too many connections",
+    "could not connect",
+    "server closed the connection",
+)
+
+
+def retry_on_pg_unavailable(retries: int = 5, base: float = 5.0, cap: float = 60.0):
+    """Decorator: reintenta OperationalError transitorios con backoff exponencial."""
+    def deco(fn):
+        @functools.wraps(fn)
+        def wrap(*args, **kwargs):
+            for attempt in range(retries):
+                try:
+                    result = fn(*args, **kwargs)
+                    if attempt > 0:
+                        print(f"[bot_sync] connected after {attempt} retries", flush=True)
+                    return result
+                except OperationalError as e:
+                    msg = str(e).lower()
+                    transient = any(m in msg for m in SLOT_EXHAUSTED_MARKERS)
+                    if not transient or attempt == retries - 1:
+                        raise
+                    delay = min(cap, base * (2 ** attempt))
+                    delay += random.uniform(0, delay * 0.3)  # jitter para desincronizar
+                    print(
+                        f"[bot_sync] retry {attempt+1}/{retries} pg unavailable, "
+                        f"sleeping {delay:.1f}s: {e}",
+                        flush=True,
+                    )
+                    time.sleep(delay)
+        return wrap
+    return deco
 
 try:
     import requests
@@ -468,6 +512,15 @@ def main():
     schema  = os.environ.get('LOCAL_PG_SCHEMA', 'public')
     fq_table = f'"{schema}"."{table}"'
 
+    # Anti-stampede: si corremos en GitHub Actions, agregamos 0-8s de jitter
+    # antes de tocar helioho. Como el cron */30 dispara TODAS las jobs al
+    # mismo segundo, desincronizar evita que Peru + Colombia + otros
+    # tenants choquen en el mismo connection slot.
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        jitter = random.uniform(0, 8)
+        print(f"[bot_sync] startup jitter {jitter:.1f}s", flush=True)
+        time.sleep(jitter)
+
     # Cargar BOT_RULES desde Supabase (data-driven multi-país)
     global BOT_RULES, AIRPORT_MARKERS
     BOT_RULES = load_bot_rules(country)
@@ -484,15 +537,33 @@ def main():
     print(f"✓ Loaded {len(AIRPORT_MARKERS)} airport markers for country={country}",
           file=sys.stderr)
 
-    conn = psycopg2.connect(
-        host=os.environ['LOCAL_PG_HOST'],
-        port=int(os.environ.get('LOCAL_PG_PORT', '5432')),
-        dbname=os.environ['LOCAL_PG_DATABASE'],
-        user=os.environ['LOCAL_PG_USER'],
-        password=os.environ['LOCAL_PG_PASSWORD'],
-        sslmode=os.environ.get('LOCAL_PG_SSLMODE', 'require'),  # helioho exige SSL
-        connect_timeout=15,
-    )
+    # Identificador de la conexión en pg_stat_activity del helioho — clave
+    # para debug cuando hay saturación de slots.
+    run_id = os.environ.get('GITHUB_RUN_ID', 'local')
+    app_name = f"bot_sync_push_{country.lower()}_{run_id}"
+
+    @retry_on_pg_unavailable(retries=5, base=5.0, cap=60.0)
+    def _connect():
+        return psycopg2.connect(
+            host=os.environ['LOCAL_PG_HOST'],
+            port=int(os.environ.get('LOCAL_PG_PORT', '5432')),
+            dbname=os.environ['LOCAL_PG_DATABASE'],
+            user=os.environ['LOCAL_PG_USER'],
+            password=os.environ['LOCAL_PG_PASSWORD'],
+            sslmode=os.environ.get('LOCAL_PG_SSLMODE', 'require'),  # helioho exige SSL
+            connect_timeout=10,
+            application_name=app_name,
+            # statement_timeout 60s previene queries colgadas que retienen slot.
+            # idle_in_transaction 30s mata transacciones abandonadas.
+            options="-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000",
+            # TCP keepalives: detecta conexiones zombi (NAT GitHub Actions ↔ helioho).
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=3,
+        )
+
+    conn = _connect()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     # ── PROBE ────────────────────────────────────────────────────────

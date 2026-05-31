@@ -75,6 +75,7 @@ jobs:
   # automáticamente.
   discover-countries:
     runs-on: ubuntu-latest
+    timeout-minutes: 3   # mig 103/recovery: si el discover queda colgado, no bloquea slots de helioho indefinidamente
     outputs:
       countries: ${{ steps.list.outputs.countries }}
     steps:
