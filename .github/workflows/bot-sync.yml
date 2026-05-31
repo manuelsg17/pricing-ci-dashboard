@@ -42,8 +42,10 @@
 name: Bot Sync
 on:
   schedule:
-    # Cada 30 min UTC
-    - cron: '*/30 * * * *'
+    # Cada 60 min UTC (bajado de */30 el 2026-05-31 — helioho saturando
+    # con cron más frecuente, sumado a otros tenants del shared hosting).
+    # Si helioho mejora capacidad, volver a '*/30 * * * *'.
+    - cron: '0 * * * *'
   # Permite disparo manual desde GitHub UI para testing
   workflow_dispatch:
     inputs:

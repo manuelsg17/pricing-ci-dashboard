@@ -542,7 +542,15 @@ def main():
     run_id = os.environ.get('GITHUB_RUN_ID', 'local')
     app_name = f"bot_sync_push_{country.lower()}_{run_id}"
 
-    @retry_on_pg_unavailable(retries=5, base=5.0, cap=60.0)
+    # Budget de retry configurable vía env vars (para tunear sin redeploy).
+    # Defaults: 8 retries, base 8s, cap 90s → wait total ~10 min worst case
+    # (geometric series 8+16+32+64+90+90+90+90 + jitter 30%).
+    # Si helioho recupera en ese rango, la corrida pasa transparente.
+    retries = int(os.environ.get('BOT_SYNC_RETRIES', '8'))
+    base    = float(os.environ.get('BOT_SYNC_RETRY_BASE', '8.0'))
+    cap     = float(os.environ.get('BOT_SYNC_RETRY_CAP', '90.0'))
+
+    @retry_on_pg_unavailable(retries=retries, base=base, cap=cap)
     def _connect():
         return psycopg2.connect(
             host=os.environ['LOCAL_PG_HOST'],
