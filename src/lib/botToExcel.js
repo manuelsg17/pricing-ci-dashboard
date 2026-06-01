@@ -10,6 +10,7 @@
 import * as XLSX from 'xlsx'
 import { mapBotRows } from './botMapping.js'
 import { getCountryConfig } from './constants.js'
+import { sanitizeForSpreadsheet } from './csvSafety.js'
 
 // Competidores a incluir en la salida (Cabify excluido en esta etapa)
 const INCLUDE_COMPETITORS = new Set([
@@ -73,19 +74,23 @@ function buildRow(row, city, countryConfig) {
   const surgeDisplay    = row.surge === true ? 'yes' : row.surge === false ? 'no' : null
   const isInDrive       = row.competition_name === 'InDrive'
 
+  // Sprint 3.5: sanitizeForSpreadsheet() en los strings free-text que
+  // vienen del bot (point_a / point_b son nombres de calles, vienen sin
+  // validar de helioho). Sin sanitize, un payload tipo "=HYPERLINK(...)"
+  // se ejecutaría como fórmula cuando el analista abre el .xlsx.
   return [
     deriveYear(row.observed_date),          // 1  Year
     deriveRushHour(row.observed_time),       // 2  Rush Hour
-    row.point_a ?? null,                     // 3  Point A
-    row.point_b ?? null,                     // 4  Point B
+    sanitizeForSpreadsheet(row.point_a ?? null), // 3  Point A (sanitize: free text bot)
+    sanitizeForSpreadsheet(row.point_b ?? null), // 4  Point B (sanitize: free text bot)
     null,                                    // 5  Travel Distance (Km) — bot no entrega
-    categoryDisplay,                         // 6  Category
+    categoryDisplay,                         // 6  Category (derivado de whitelist)
     deriveWeek(row.observed_date),           // 7  Week
     deriveTimeslot(row.observed_time),       // 8  Timeslot
-    bracketDisplay,                          // 9  Distance bracket
+    bracketDisplay,                          // 9  Distance bracket (whitelist)
     row.observed_date ?? null,               // 10 Date
     row.observed_time ?? null,               // 11 Time
-    row.competition_name ?? null,            // 12 Competition Name
+    sanitizeForSpreadsheet(row.competition_name ?? null), // 12 Competition (defensive)
     surgeDisplay,                            // 13 Surge
     null,                                    // 14 Travel Time (Min)
     row.eta_min ?? null,                     // 15 ETA (Min)

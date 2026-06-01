@@ -31,6 +31,7 @@ import { SkeletonDashboard } from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
+import { escapeCsvCell } from '../lib/csvSafety'
 import '../styles/dashboard.css'
 
 function DashboardContent() {
@@ -371,16 +372,15 @@ function DashboardContent() {
   }
 
   // ── Export CSV ────────────────────────────────────────────────────────
+  // Sprint 3.5: usa escapeCsvCell (lib/csvSafety.js) que además de RFC 4180
+  // (quoting + escape de comillas) prefija con ' los valores que arrancan
+  // con =/+/-/@/\t/\r → previene CSV formula injection si en el futuro
+  // algún campo libre (note, custom label) contiene payload.
   function handleExportCSV() {
     if (!periods.length || !priceMatrix) return
     const periodLabels = periods.map((p) => p.label || p.key)
     const csvRows = [['city', 'category', 'bracket', 'competitor', ...periodLabels].join(',')]
     const allBrackets = ['_wa', ...BRACKETS]
-    const escape = (v) => {
-      if (v == null) return ''
-      const s = String(v)
-      return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }
     for (const comp of filters.competitors) {
       for (const b of allBrackets) {
         const row = [filters.dbCity, filters.dbCategory, b, comp]
@@ -389,7 +389,7 @@ function DashboardContent() {
           const val = typeof cell === 'object' ? cell?.price : cell
           row.push(val != null ? Number(val).toFixed(2) : '')
         }
-        csvRows.push(row.map(escape).join(','))
+        csvRows.push(row.map(escapeCsvCell).join(','))
       }
     }
     const csv = csvRows.join('\n')
