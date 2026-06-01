@@ -21,6 +21,7 @@ import { useI18n } from '../context/LanguageContext'
 import { useFilterContext } from '../context/FilterContext'
 import { useConfigContext } from '../context/ConfigProvider'
 import HeadToHeadView from '../components/dashboard/HeadToHeadView'
+import AdvancedAnalyticsView from '../components/dashboard/AdvancedAnalyticsView'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '../components/ui/shadcn/sheet'
@@ -105,6 +106,9 @@ function DashboardContent() {
 
   // ── Sprint 2.5: Head-to-Head 1:1 sheet (Yango vs un competidor) ────
   const [h2hOpen, setH2hOpen] = useState(false)
+
+  // ── Sprint 2.6: Analytics avanzados sheet (Leadership + Position) ────
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
 
   const { priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, chartData, deltaChartData } =
     useMemo(() => {
@@ -626,6 +630,16 @@ function DashboardContent() {
           >
             ⚔ Head-to-Head
           </button>
+          {/* Sprint 2.6: Botón Analytics — abre Sheet con charts
+              analíticos (Leadership %, Position Timeline). */}
+          <button
+            className="kpi-export-btn"
+            onClick={() => setAnalyticsOpen(true)}
+            title="Ver análisis avanzados: % liderazgo por bracket, timeline de posición"
+            style={{ background: '#f0fdf4', borderColor: '#16a34a', color: '#15803d', fontWeight: 600 }}
+          >
+            📈 Analytics
+          </button>
           <button
             className="kpi-export-btn"
             onClick={() => setSimEnabled((s) => !s)}
@@ -807,6 +821,28 @@ function DashboardContent() {
                 competitors={filters.competitors}
                 compareVs={filters.compareVs}
                 currency={currency}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Sprint 2.6: Sheet de Analytics avanzados (Leadership + Position) */}
+      {!loading && priceMatrix && periods?.length > 0 && (
+        <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Analytics avanzados</SheetTitle>
+              <SheetDescription>
+                % liderazgo de Yango por bracket y evolución del ranking en el tiempo.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4">
+              <AdvancedAnalyticsView
+                priceMatrix={priceMatrix}
+                periods={periods}
+                competitors={filters.competitors}
+                compareVs={filters.compareVs}
               />
             </div>
           </SheetContent>
