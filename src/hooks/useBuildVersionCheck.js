@@ -22,7 +22,7 @@ import { useEffect, useRef } from 'react'
 //   comparar. El hook simplemente no hace nada en dev.
 // ════════════════════════════════════════════════════════════════════════
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000  // 5 min
+const POLL_INTERVAL_MS = 5 * 60 * 1000 // 5 min
 
 // Vite expone __BUILD_VERSION__ via vite.config.js → define.
 // eslint-disable-next-line no-undef
@@ -31,14 +31,20 @@ const LOCAL_VERSION = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION
 export function useBuildVersionCheck({ enabled = true, onNewVersion }) {
   const callbackRef = useRef(onNewVersion)
   const dismissedRef = useRef(false)
+  // Evita toasts duplicados: check() corre en el timer inicial (30s), cada
+  // 5 min y en cada visibilitychange. Sin este guard, cada detección de la
+  // MISMA versión nueva apilaba otro toast. Notificamos una sola vez por versión.
+  const notifiedRef = useRef(null)
 
-  useEffect(() => { callbackRef.current = onNewVersion }, [onNewVersion])
+  useEffect(() => {
+    callbackRef.current = onNewVersion
+  }, [onNewVersion])
 
   useEffect(() => {
     if (!enabled || !LOCAL_VERSION) return
 
     async function check() {
-      if (dismissedRef.current) return  // user dijo "Más tarde"
+      if (dismissedRef.current) return // user dijo "Más tarde"
       try {
         // cache: no-store → siempre pega al server, no usa cache del browser
         const baseUrl = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
@@ -51,10 +57,14 @@ export function useBuildVersionCheck({ enabled = true, onNewVersion }) {
         if (!version) return
         // El timestamp remoto > local → hay deploy nuevo
         if (version !== LOCAL_VERSION && Number(version) > Number(LOCAL_VERSION)) {
+          if (notifiedRef.current === version) return // ya avisamos por esta versión
+          notifiedRef.current = version
           callbackRef.current?.({
             localVersion: LOCAL_VERSION,
             remoteVersion: version,
-            dismiss: () => { dismissedRef.current = true },
+            dismiss: () => {
+              dismissedRef.current = true
+            },
           })
         }
       } catch {

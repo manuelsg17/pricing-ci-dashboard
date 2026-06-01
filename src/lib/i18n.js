@@ -259,16 +259,17 @@ export const TRANSLATIONS = {
     'config.airports': 'Aeropuertos',
     'config.snapshots': 'Snapshots',
     // Sprint 2.3 — Categorías top-level de Config (5 grupos)
-    'config.category.pricing':          'Reglas de Precio',
-    'config.category.pricing.desc':     'Umbrales, pesos y validaciones que rigen el cálculo de precios',
-    'config.category.timing':           'Horarios',
-    'config.category.timing.desc':      'Franjas rush hour y timeslots para captura de datos',
-    'config.category.competitors':      'Competidores',
+    'config.category.pricing': 'Reglas de Precio',
+    'config.category.pricing.desc':
+      'Umbrales, pesos y validaciones que rigen el cálculo de precios',
+    'config.category.timing': 'Horarios',
+    'config.category.timing.desc': 'Franjas rush hour y timeslots para captura de datos',
+    'config.category.competitors': 'Competidores',
     'config.category.competitors.desc': 'Comisiones, bonos y ajustes específicos por competidor',
-    'config.category.data':             'Bot y Datos',
-    'config.category.data.desc':        'Reglas del bot, mapeo de aeropuertos y snapshots históricos',
-    'config.category.admin':            'Administración',
-    'config.category.admin.desc':       'Países, control de acceso y auditoría',
+    'config.category.data': 'Bot y Datos',
+    'config.category.data.desc': 'Reglas del bot, mapeo de aeropuertos y snapshots históricos',
+    'config.category.admin': 'Administración',
+    'config.category.admin.desc': 'Países, control de acceso y auditoría',
     'config.wizard': '✨ Asistente',
     'config.advanced': 'Avanzado',
     'config.make_editable': '📥 Hacer editable',
@@ -341,7 +342,8 @@ export const TRANSLATIONS = {
 
     // ── Build version check ───────────────────────────────────────────
     'app.new_version_title': 'Hay una nueva versión disponible',
-    'app.new_version_body': 'Recargá para obtener las últimas mejoras.',
+    'app.new_version_body':
+      'Recargá para obtener las últimas mejoras. Si no ves los cambios, forzá un hard refresh: ⌘⇧R (Mac) · Ctrl+F5 (Windows).',
     'app.new_version_reload': 'Recargar ahora',
     'app.new_version_later': 'Más tarde',
 
@@ -687,16 +689,17 @@ export const TRANSLATIONS = {
     'config.airports': 'Airports',
     'config.snapshots': 'Snapshots',
     // Sprint 2.3 — Config top-level categories (5 groups)
-    'config.category.pricing':          'Pricing Rules',
-    'config.category.pricing.desc':     'Thresholds, weights and validations that drive price calculation',
-    'config.category.timing':           'Timing',
-    'config.category.timing.desc':      'Rush hour windows and CI capture timeslots',
-    'config.category.competitors':      'Competitors',
+    'config.category.pricing': 'Pricing Rules',
+    'config.category.pricing.desc':
+      'Thresholds, weights and validations that drive price calculation',
+    'config.category.timing': 'Timing',
+    'config.category.timing.desc': 'Rush hour windows and CI capture timeslots',
+    'config.category.competitors': 'Competitors',
     'config.category.competitors.desc': 'Commissions, bonuses and per-competitor adjustments',
-    'config.category.data':             'Bot & Data',
-    'config.category.data.desc':        'Bot rules, airport mapping and historical snapshots',
-    'config.category.admin':            'Admin',
-    'config.category.admin.desc':       'Countries, access control and audit log',
+    'config.category.data': 'Bot & Data',
+    'config.category.data.desc': 'Bot rules, airport mapping and historical snapshots',
+    'config.category.admin': 'Admin',
+    'config.category.admin.desc': 'Countries, access control and audit log',
     'config.wizard': '✨ Wizard',
     'config.advanced': 'Advanced',
     'config.make_editable': '📥 Make editable',
@@ -767,7 +770,8 @@ export const TRANSLATIONS = {
 
     // ── Build version check ───────────────────────────────────────────
     'app.new_version_title': 'A new version is available',
-    'app.new_version_body': 'Reload to get the latest improvements.',
+    'app.new_version_body':
+      'Reload to get the latest improvements. If the old version persists, force a hard refresh: ⌘⇧R (Mac) · Ctrl+F5 (Windows).',
     'app.new_version_reload': 'Reload now',
     'app.new_version_later': 'Later',
 
@@ -1110,16 +1114,16 @@ export const TRANSLATIONS = {
     'config.airports': 'Аэропорты',
     'config.snapshots': 'Снимки',
     // Sprint 2.3 — Верхнеуровневые категории Config (5 групп)
-    'config.category.pricing':          'Правила цен',
-    'config.category.pricing.desc':     'Пороги, веса и проверки, влияющие на расчёт цен',
-    'config.category.timing':           'Время',
-    'config.category.timing.desc':      'Окна часа пик и таймслоты для сбора данных',
-    'config.category.competitors':      'Конкуренты',
+    'config.category.pricing': 'Правила цен',
+    'config.category.pricing.desc': 'Пороги, веса и проверки, влияющие на расчёт цен',
+    'config.category.timing': 'Время',
+    'config.category.timing.desc': 'Окна часа пик и таймслоты для сбора данных',
+    'config.category.competitors': 'Конкуренты',
     'config.category.competitors.desc': 'Комиссии, бонусы и индивидуальные корректировки',
-    'config.category.data':             'Бот и Данные',
-    'config.category.data.desc':        'Правила бота, привязка аэропортов и снимки',
-    'config.category.admin':            'Администрирование',
-    'config.category.admin.desc':       'Страны, доступ и журнал аудита',
+    'config.category.data': 'Бот и Данные',
+    'config.category.data.desc': 'Правила бота, привязка аэропортов и снимки',
+    'config.category.admin': 'Администрирование',
+    'config.category.admin.desc': 'Страны, доступ и журнал аудита',
     'config.wizard': '✨ Мастер',
     'config.advanced': 'Расширенный',
     'config.make_editable': '📥 Сделать редактируемым',
@@ -1190,7 +1194,8 @@ export const TRANSLATIONS = {
 
     // ── Build version check ───────────────────────────────────────────
     'app.new_version_title': 'Доступна новая версия',
-    'app.new_version_body': 'Перезагрузите для получения последних улучшений.',
+    'app.new_version_body':
+      'Перезагрузите для получения последних улучшений. Если изменения не видны, выполните полную перезагрузку: ⌘⇧R (Mac) · Ctrl+F5 (Windows).',
     'app.new_version_reload': 'Перезагрузить',
     'app.new_version_later': 'Позже',
 
