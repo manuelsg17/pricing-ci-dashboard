@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useFilterContext } from '../context/FilterContext'
 import { useCountry } from '../context/CountryContext'
 import { useI18n } from '../context/LanguageContext'
+import { useConfigContext } from '../context/ConfigProvider'
 import { usePricingData } from '../hooks/usePricingData'
 import FilterBar from '../components/dashboard/FilterBar'
 import CollapsibleSection from '../components/market/CollapsibleSection'
@@ -14,12 +15,14 @@ import DiscountIntensity from '../components/market/DiscountIntensity'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
 
-function MarketContent({ dbWeights, dbSemaforo }) {
+function MarketContent() {
   const { countryConfig } = useCountry()
   const { filters } = useFilterContext()
   const { t, locale } = useI18n()
   const { currency } = countryConfig
   const [filterBarVisible, setFilterBarVisible] = useState(true)
+  // Sprint 2.4: weights/semaforo desde ConfigProvider en lugar de props.
+  const { weights: dbWeights, semaforo: dbSemaforo } = useConfigContext()
 
   const {
     loading, error,
@@ -169,6 +172,7 @@ function MarketContent({ dbWeights, dbSemaforo }) {
 }
 
 // FilterProvider ahora vive en App.jsx (ver Dashboard.jsx para el porqué).
-export default function Market({ dbWeights, dbSemaforo }) {
-  return <MarketContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
+// Sprint 2.4: weights/semaforo via ConfigProvider — sin props desde App.
+export default function Market() {
+  return <MarketContent />
 }

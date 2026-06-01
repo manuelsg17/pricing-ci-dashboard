@@ -19,6 +19,7 @@ import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
 import { prettyCompetitor } from '../lib/normalize'
 import { useI18n } from '../context/LanguageContext'
 import { useFilterContext } from '../context/FilterContext'
+import { useConfigContext } from '../context/ConfigProvider'
 import { BRACKETS } from '../lib/constants'
 import { useCountry } from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
@@ -27,9 +28,11 @@ import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
 import '../styles/dashboard.css'
 
-function DashboardContent({ dbWeights, dbSemaforo = [] }) {
+function DashboardContent() {
   const { countryConfig } = useCountry()
   const { filters } = useFilterContext()
+  // Sprint 2.4: configs read-only desde ConfigProvider (eliminado prop drilling)
+  const { weights: dbWeights, semaforo: dbSemaforo } = useConfigContext()
   const dashRef = useRef(null)
   const { t, locale } = useI18n()
   const { currency } = countryConfig
@@ -775,6 +778,8 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
 // filtros persisten entre cambios de tab (analista no pierde Lima/Comfort
 // al ir a Upload y volver). Las cascadas de useFilters dentro del provider
 // resetean filtros país-específicos cuando cambia country.
-export default function Dashboard({ dbWeights, dbSemaforo }) {
-  return <DashboardContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
+// Sprint 2.4: dbWeights/dbSemaforo ahora vienen de useConfigContext() (App
+// dejó de pasarlos como props).
+export default function Dashboard() {
+  return <DashboardContent />
 }

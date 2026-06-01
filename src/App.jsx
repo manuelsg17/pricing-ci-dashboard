@@ -1,8 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
 import { useAuth }           from './lib/auth'
-import { sb }                from './lib/supabase'
 import { useAccessControl }  from './hooks/useAccessControl'
-import { useStaleWhileRevalidate } from './hooks/useStaleWhileRevalidate'
 import { useCountry }        from './context/CountryContext'
 import { FilterProvider }    from './context/FilterContext'
 import Topbar                from './components/layout/Topbar'
@@ -24,35 +22,16 @@ const Market = lazy(() => import('./pages/Market'))
 const Coverage = lazy(() => import('./pages/Coverage'))
 
 export default function App() {
-  const { session, loading, signIn, signOut } = useAuth()
+  const { loading, signIn, signOut, session } = useAuth()
   const { country, setCountry, availableCountries } = useCountry()
   const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
 
-  // Pre-cargar pesos y semáforo con cache SWR. Cache hit → primer render
-  // instantáneo en navegaciones recurrentes. Live-sync (audit_log) refresca
-  // silenciosamente cuando otra sesión edita estas tablas.
-  const { data: dbWeights = [] } = useStaleWhileRevalidate({
-    key: 'cfg.bracket_weights.all',
-    enabled: !!session,
-    liveSyncTable: 'bracket_weights',
-    fetcher: async () => {
-      const { data, error } = await sb.from('bracket_weights').select('*')
-      if (error) throw error
-      return data || []
-    },
-  })
-  const { data: dbSemaforo = [] } = useStaleWhileRevalidate({
-    key: 'cfg.semaforo_config.all',
-    enabled: !!session,
-    liveSyncTable: 'semaforo_config',
-    fetcher: async () => {
-      const { data, error } = await sb.from('semaforo_config')
-        .select('*').order('band').order('min_pct')
-      if (error) throw error
-      return data || []
-    },
-  })
+  // Sprint 2.4: dbWeights/dbSemaforo ya NO viven acá — ConfigProvider
+  // los maneja globalmente (src/context/ConfigProvider.jsx). Dashboard,
+  // Market, Coverage y cualquier otra page los leen vía useConfigContext().
+  // Esto elimina prop drilling y le da acceso al cache a TODAS las pages
+  // (antes solo Dashboard/Market/Coverage los recibían como props).
 
   // Países permitidos según rol — usa availableCountries del context
   // (incluye los que viven solo en DB, no solo los hardcoded de constants.js)
@@ -151,12 +130,14 @@ export default function App() {
       <FilterProvider>
         <ErrorBoundary key={activeTab}>
           <Suspense fallback={<SkeletonDashboard />}>
-            {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
+            {/* Sprint 2.4: Sin props dbWeights/dbSemaforo — las pages los
+                leen vía useConfigContext() de src/context/ConfigProvider. */}
+            {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard />}
             {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
             {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
             {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}
-            {activeTab === 'market'    && canAccess('market')    && <Market dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
-            {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
+            {activeTab === 'market'    && canAccess('market')    && <Market />}
+            {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage />}
             {activeTab === 'events'    && canAccess('events')    && <MarketEvents />}
             {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
             {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}

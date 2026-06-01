@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useFilterContext } from '../context/FilterContext'
 import { useI18n } from '../context/LanguageContext'
+import { useConfigContext } from '../context/ConfigProvider'
 import { usePricingData } from '../hooks/usePricingData'
 import FilterBar from '../components/dashboard/FilterBar'
 import CollapsibleSection from '../components/market/CollapsibleSection'
@@ -9,16 +10,14 @@ import BracketMix from '../components/market/BracketMix'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
 
-function CoverageContent({ dbWeights, dbSemaforo }) {
+function CoverageContent() {
   const { filters } = useFilterContext()
   const { t, locale } = useI18n()
   const [filterBarVisible, setFilterBarVisible] = useState(true)
+  // Sprint 2.4: weights/semaforo desde ConfigProvider (cache compartido
+  // con Dashboard y Market — 1 sola fuente de verdad).
+  const { weights: dbWeights, semaforo: dbSemaforo } = useConfigContext()
 
-  // dbWeights/dbSemaforo vienen como props desde App.jsx, que ya los
-  // mantiene cacheados via useStaleWhileRevalidate (mismo cache que
-  // comparten Dashboard y Market). Antes Coverage los re-fetcheaba en
-  // mount; eso fue eliminado para evitar 2 round-trips redundantes a
-  // Supabase en cada navegación al tab.
   const {
     loading, error,
     sampleMatrix, periods,
@@ -93,6 +92,7 @@ function CoverageContent({ dbWeights, dbSemaforo }) {
 }
 
 // FilterProvider ahora vive en App.jsx (ver Dashboard.jsx).
-export default function Coverage({ dbWeights = [], dbSemaforo = [] }) {
-  return <CoverageContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
+// Sprint 2.4: configs via ConfigProvider — sin props desde App.
+export default function Coverage() {
+  return <CoverageContent />
 }

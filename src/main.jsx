@@ -4,6 +4,7 @@ import App from './App'
 import { LanguageProvider } from './context/LanguageContext'
 import { CountryProvider }  from './context/CountryContext'
 import { RealtimeSyncProvider } from './context/RealtimeSyncProvider'
+import { ConfigProvider }    from './context/ConfigProvider'
 import { ToastProvider }    from './components/ui/Toast'
 import { ConfirmProvider }  from './components/ui/ConfirmDialog'
 import ErrorBoundary        from './components/ui/ErrorBoundary'
@@ -21,6 +22,11 @@ import './styles/global.css'
 //   LanguageProvider → necesario para RealtimeSync (mensajes i18n).
 //   CountryProvider → necesario para que CountryContext escuche eventos
 //                     'config:changed' que dispara RealtimeSync.
+//   ConfigProvider → cache global de configs read-only (Sprint 2.4).
+//                    Dentro de CountryProvider para que el cambio de país
+//                    fluya hacia los consumers. Fuera de RealtimeSync
+//                    no importa: los eventos 'config:changed' viajan por
+//                    window.
 //   RealtimeSyncProvider → suscribe a audit_log. Tiene que estar DENTRO
 //                          de Toast/I18n/Country pero por arriba de App.
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -30,9 +36,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <ConfirmProvider>
           <LanguageProvider>
             <CountryProvider>
-              <RealtimeSyncProvider>
-                <App />
-              </RealtimeSyncProvider>
+              <ConfigProvider>
+                <RealtimeSyncProvider>
+                  <App />
+                </RealtimeSyncProvider>
+              </ConfigProvider>
             </CountryProvider>
           </LanguageProvider>
         </ConfirmProvider>
