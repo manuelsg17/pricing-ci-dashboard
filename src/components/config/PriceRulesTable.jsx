@@ -31,6 +31,17 @@ export default function PriceRulesTable({ country }) {
 
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [country])
 
+  // Live-sync: si otra sesión modifica price_validation_rules, recargamos
+  // preservando dirty rows. Mismo patrón que AirportMarkersTable.
+  useEffect(() => {
+    function onChange(e) {
+      if (e?.detail?.table === 'price_validation_rules') loadPreservingDirty()
+    }
+    window.addEventListener('config:changed', onChange)
+    return () => window.removeEventListener('config:changed', onChange)
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [country])
+
   async function load() {
     setLoading(true)
     const { data } = await sb
@@ -42,6 +53,25 @@ export default function PriceRulesTable({ country }) {
     setRules(data || [])
     setOriginal((data || []).map(r => ({ ...r })))
     setLoading(false)
+  }
+
+  // Recarga server pero preserva filas dirty (en edición o _new) para no
+  // pisar el trabajo del usuario cuando otra sesión escribe.
+  async function loadPreservingDirty() {
+    const { data } = await sb
+      .from('price_validation_rules')
+      .select('*')
+      .eq('country', country)
+      .in('city', config.dbCities)
+      .order('city').order('category').order('competition')
+    const fresh = data || []
+    setRules(prev => {
+      const dirtyRows = prev.filter(isRowDirty)
+      const dirtyIds = new Set(dirtyRows.map(r => r.id))
+      const cleanFromServer = fresh.filter(s => !dirtyIds.has(s.id))
+      return [...cleanFromServer, ...dirtyRows]
+    })
+    setOriginal(fresh.map(r => ({ ...r })))
   }
 
   function updateRule(id, field, val) {

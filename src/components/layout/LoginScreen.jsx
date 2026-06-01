@@ -23,7 +23,7 @@ export default function LoginScreen({ onLogin }) {
           <span className="login-card__logo-icon">Y</span>
           Pricing CI
         </div>
-        <div className="login-card__subtitle">Yango Peru — Inteligencia Competitiva</div>
+        <div className="login-card__subtitle">Yango LATAM — Inteligencia Competitiva</div>
 
         <label htmlFor="email">Correo</label>
         <input

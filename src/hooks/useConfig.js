@@ -43,6 +43,21 @@ export function useConfig(country) {
 
   useEffect(() => { load() }, [load])
 
+  // Live-sync: si otra sesión cambia distance_thresholds, bracket_weights o
+  // semaforo_config (audit_log → 'config:changed'), recargamos los 3 a la
+  // vez. Como los componentes (ThresholdsTable / WeightsTable / SemaforoEditor)
+  // mantienen sus edits en state local y comparan vs el snapshot `original`,
+  // el reload no pisa lo que el usuario está editando: solo refresca las
+  // filas/celdas que el usuario NO tocó.
+  useEffect(() => {
+    const SYNCED_TABLES = new Set(['distance_thresholds', 'bracket_weights', 'semaforo_config'])
+    function onChange(e) {
+      if (SYNCED_TABLES.has(e?.detail?.table)) load()
+    }
+    window.addEventListener('config:changed', onChange)
+    return () => window.removeEventListener('config:changed', onChange)
+  }, [load])
+
   // Guarda umbrales y dispara backfill inmediato en la BD para que los
   // brackets de pricing_observations queden alineados con la nueva config.
   // Devuelve { recomputedCount } con el número de filas re-clasificadas.

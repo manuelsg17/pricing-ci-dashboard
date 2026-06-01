@@ -18,7 +18,7 @@ import WhatIfSimulator     from '../components/dashboard/WhatIfSimulator'
 import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
 import { prettyCompetitor }  from '../lib/normalize'
 import { useI18n }         from '../context/LanguageContext'
-import { FilterProvider, useFilterContext } from '../context/FilterContext'
+import { useFilterContext } from '../context/FilterContext'
 import { BRACKETS } from '../lib/constants'
 import { useCountry }      from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
@@ -236,6 +236,20 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
       ? compPrices.findIndex(x => x.comp === yangoComp) + 1
       : null
 
+    // Delta de Yango vs promedio aritmético de los competidores (último período).
+    // Excluye a Yango del promedio para que la comparación sea real.
+    // > 0 → Yango está más caro que el promedio. < 0 → Yango está más barato.
+    const competitorWAs = compPrices
+      .filter(x => x.comp !== yangoComp && x.wa > 0)
+      .map(x => x.wa)
+    const compAvg = competitorWAs.length > 0
+      ? competitorWAs.reduce((s, v) => s + v, 0) / competitorWAs.length
+      : null
+    const yangoVsCompAvgPct = (yangoWA != null && compAvg != null && compAvg > 0)
+      ? ((yangoWA - compAvg) / compAvg) * 100
+      : null
+    const yangoVsCompCount = competitorWAs.length
+
     const lastPeriodLabel = periods[periods.length - 1]?.label || '—'
     const prevKey  = periods[periods.length - 2]?.key ?? null
     const prevWA   = prevKey ? (priceMatrix[yangoComp]?.[prevKey]?.['_wa'] ?? null) : null
@@ -263,6 +277,7 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
       yangoWA, leader, yangoRank, total: compPrices.length, lastPeriodLabel, wowDelta,
       yangoLeaderPct, yangoComparablePeriods,
       yangoSampleN, yangoCoverage, yangoEmptyBrackets,
+      yangoVsCompAvgPct, yangoVsCompCount, compAvg,
     }
   }, [periods, priceMatrix, sampleMatrix, filters.compareVs, filters.competitors])
 
@@ -450,6 +465,43 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
               )
             })()}
           </div>
+          {/* Yango vs Promedio Competencia — un solo número que responde
+              "¿estoy arriba o abajo del mercado y por cuánto?" */}
+          <div
+            className="kpi-card"
+            title={
+              kpis.yangoVsCompAvgPct != null
+                ? `Yango WA vs promedio de ${kpis.yangoVsCompCount} competidor${kpis.yangoVsCompCount === 1 ? '' : 'es'} ` +
+                  `(${currency} ${(kpis.compAvg ?? 0).toFixed(2)}) en el último período.\n\n` +
+                  `Positivo = Yango más caro. Negativo = Yango más barato.`
+                : 'Sin competidores comparables en el último período.'
+            }
+          >
+            <div className="kpi-card__label">{t('dashboard.kpi.vs_comp_avg') || 'Yango vs Competencia'}</div>
+            <div
+              className="kpi-card__value"
+              style={{
+                color:
+                  kpis.yangoVsCompAvgPct == null ? undefined
+                    : Math.abs(kpis.yangoVsCompAvgPct) < 0.5 ? 'var(--color-muted, #6b7280)'
+                    : kpis.yangoVsCompAvgPct > 0 ? 'var(--sem-red-fg)'
+                    : 'var(--sem-green-fg)',
+              }}
+            >
+              {kpis.yangoVsCompAvgPct == null
+                ? '—'
+                : `${kpis.yangoVsCompAvgPct > 0 ? '+' : ''}${kpis.yangoVsCompAvgPct.toFixed(1)}%`}
+            </div>
+            <div className="kpi-card__sub">
+              {kpis.yangoVsCompAvgPct == null
+                ? ''
+                : Math.abs(kpis.yangoVsCompAvgPct) < 0.5
+                  ? 'alineado al mercado'
+                  : kpis.yangoVsCompAvgPct > 0
+                    ? `más caro que el promedio (${kpis.yangoVsCompCount} comp.)`
+                    : `más barato que el promedio (${kpis.yangoVsCompCount} comp.)`}
+            </div>
+          </div>
           <div className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}>
             <div className="kpi-card__label">{t('dashboard.kpi.market_leader')}</div>
             <div className="kpi-card__value">{kpis.leader ? prettyCompetitor(kpis.leader.comp) : '—'}</div>
@@ -622,15 +674,10 @@ function DashboardContent({ dbWeights, dbSemaforo = [] }) {
   )
 }
 
+// FilterProvider ahora vive en App.jsx envolviendo TODAS las pages, así los
+// filtros persisten entre cambios de tab (analista no pierde Lima/Comfort
+// al ir a Upload y volver). Las cascadas de useFilters dentro del provider
+// resetean filtros país-específicos cuando cambia country.
 export default function Dashboard({ dbWeights, dbSemaforo }) {
-  // Sin key={country}: las cascadas de useFilters resetean los filtros
-  // país-específicos (city, category, subCategory, zone, compareVs) y el
-  // cancel flag de usePricingData previene race conditions. Esto preserva
-  // los filtros universales (viewMode, weekStart, timeOfDay) al cambiar
-  // de país — UX mucho más fluida.
-  return (
-    <FilterProvider>
-      <DashboardContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
-    </FilterProvider>
-  )
+  return <DashboardContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
 }

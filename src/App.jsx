@@ -4,6 +4,7 @@ import { sb }                from './lib/supabase'
 import { useAccessControl }  from './hooks/useAccessControl'
 import { useStaleWhileRevalidate } from './hooks/useStaleWhileRevalidate'
 import { useCountry }        from './context/CountryContext'
+import { FilterProvider }    from './context/FilterContext'
 import Topbar                from './components/layout/Topbar'
 import LoginScreen     from './components/layout/LoginScreen'
 import ErrorBoundary   from './components/ui/ErrorBoundary'
@@ -140,23 +141,32 @@ export default function App() {
         allowedCountries={allowedCountries}
       />
 
-      <ErrorBoundary key={activeTab}>
-        <Suspense fallback={<SkeletonDashboard />}>
-          {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
-          {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
-          {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
-          {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}
-          {activeTab === 'market'    && canAccess('market')    && <Market dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
-          {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
-          {activeTab === 'events'    && canAccess('events')    && <MarketEvents />}
-          {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
-          {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
-          {activeTab === 'config'    && canAccess('config')    && <Config />}
-          {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
-          {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
-          {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
-        </Suspense>
-      </ErrorBoundary>
+      {/* FilterProvider envuelve TODAS las pages — antes vivía adentro de
+          Dashboard/Market/Coverage individualmente y se remontaba en cada
+          cambio de tab, reseteando los filtros del usuario. Subido a este
+          nivel los filtros persisten entre navegaciones (ej: configurás
+          Lima/Comfort/Mayo en Dashboard, vas a Upload, volvés y siguen).
+          Las pages que NO usan filtros tampoco re-renderean porque no
+          llaman useFilterContext(). */}
+      <FilterProvider>
+        <ErrorBoundary key={activeTab}>
+          <Suspense fallback={<SkeletonDashboard />}>
+            {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
+            {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
+            {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
+            {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}
+            {activeTab === 'market'    && canAccess('market')    && <Market dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
+            {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage dbWeights={dbWeights} dbSemaforo={dbSemaforo} />}
+            {activeTab === 'events'    && canAccess('events')    && <MarketEvents />}
+            {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
+            {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
+            {activeTab === 'config'    && canAccess('config')    && <Config />}
+            {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
+            {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
+            {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
+          </Suspense>
+        </ErrorBoundary>
+      </FilterProvider>
     </>
   )
 }

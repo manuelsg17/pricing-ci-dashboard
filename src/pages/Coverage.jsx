@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FilterProvider, useFilterContext } from '../context/FilterContext'
+import { useFilterContext } from '../context/FilterContext'
 import { useI18n } from '../context/LanguageContext'
 import { usePricingData } from '../hooks/usePricingData'
 import FilterBar from '../components/dashboard/FilterBar'
@@ -92,11 +92,7 @@ function CoverageContent({ dbWeights, dbSemaforo }) {
   )
 }
 
+// FilterProvider ahora vive en App.jsx (ver Dashboard.jsx).
 export default function Coverage({ dbWeights = [], dbSemaforo = [] }) {
-  // Sin key={country} — ver Dashboard.jsx.
-  return (
-    <FilterProvider>
-      <CoverageContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
-    </FilterProvider>
-  )
+  return <CoverageContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
 }

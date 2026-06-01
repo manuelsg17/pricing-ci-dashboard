@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Pre-commit hook (Husky v9)
+# Corre lint-staged que aplica eslint --fix + prettier solo a los archivos
+# staged. Si lint encuentra errores que no puede auto-fix, el commit aborta.
+# Para skip (excepcional, no abuses): git commit --no-verify
+npx lint-staged

@@ -1,0 +1,10 @@
+dist
+build
+node_modules
+package-lock.json
+*.min.js
+*.min.css
+.husky
+supabase/**/*.sql
+scripts/bot-sync/**
+public

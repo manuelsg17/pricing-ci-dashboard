@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { TOAST_DURATION_MS } from '../../lib/timing'
 
 const ToastCtx = createContext(null)
 
@@ -33,7 +34,7 @@ export function ToastProvider({ children }) {
     const t = {
       id,
       type: 'info',
-      duration: 3500,
+      duration: TOAST_DURATION_MS.info,
       ...toast,
     }
     setToasts(prev => [...prev, t])
@@ -47,10 +48,10 @@ export function ToastProvider({ children }) {
   const api = {
     push,
     dismiss,
-    ok:   (text, opts) => push({ ...opts, type: 'ok',   text }),
-    err:  (text, opts) => push({ ...opts, type: 'err',  text, duration: opts?.duration ?? 6000 }),
-    warn: (text, opts) => push({ ...opts, type: 'warn', text, duration: opts?.duration ?? 5000 }),
-    info: (text, opts) => push({ ...opts, type: 'info', text }),
+    ok:   (text, opts) => push({ ...opts, type: 'ok',   text, duration: opts?.duration ?? TOAST_DURATION_MS.ok }),
+    err:  (text, opts) => push({ ...opts, type: 'err',  text, duration: opts?.duration ?? TOAST_DURATION_MS.err }),
+    warn: (text, opts) => push({ ...opts, type: 'warn', text, duration: opts?.duration ?? TOAST_DURATION_MS.warn }),
+    info: (text, opts) => push({ ...opts, type: 'info', text, duration: opts?.duration ?? TOAST_DURATION_MS.info }),
   }
 
   useEffect(() => () => {

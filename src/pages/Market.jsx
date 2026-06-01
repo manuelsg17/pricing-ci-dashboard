@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FilterProvider, useFilterContext } from '../context/FilterContext'
+import { useFilterContext } from '../context/FilterContext'
 import { useCountry } from '../context/CountryContext'
 import { useI18n } from '../context/LanguageContext'
 import { usePricingData } from '../hooks/usePricingData'
@@ -168,13 +168,7 @@ function MarketContent({ dbWeights, dbSemaforo }) {
   )
 }
 
+// FilterProvider ahora vive en App.jsx (ver Dashboard.jsx para el porqué).
 export default function Market({ dbWeights, dbSemaforo }) {
-  // Sin key={country} — ver comentario equivalente en Dashboard.jsx.
-  // Las cascadas de useFilters + cancel flag de usePricingData manejan
-  // el switch de país sin perder filtros universales (viewMode, etc.).
-  return (
-    <FilterProvider>
-      <MarketContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
-    </FilterProvider>
-  )
+  return <MarketContent dbWeights={dbWeights} dbSemaforo={dbSemaforo} />
 }

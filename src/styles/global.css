@@ -29,10 +29,12 @@
   --radius-md:  8px;
   --radius-lg:  12px;
 
-  /* Semáforo */
-  --sem-green-bg:   #d4edda;  --sem-green-fg:   #155724;
-  --sem-yellow-bg:  #fff3cd;  --sem-yellow-fg:  #856404;
-  --sem-red-bg:     #f8d7da;  --sem-red-fg:     #721c24;
+  /* Semáforo — contraste reforzado para WCAG AA (≥4.5:1) sobre el bg.
+     fg oscurecido vs versiones 2024 para que daltónicos + lectores con
+     monitores poco calibrados distingan el texto sin depender del color. */
+  --sem-green-bg:   #d4edda;  --sem-green-fg:   #0d4d26;
+  --sem-yellow-bg:  #fff3cd;  --sem-yellow-fg:  #5a3d00;
+  --sem-red-bg:     #f8d7da;  --sem-red-fg:     #5a1f1f;
   --sem-none-bg:    transparent; --sem-none-fg: var(--color-text);
 }
 

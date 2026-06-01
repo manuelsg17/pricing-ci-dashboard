@@ -17,6 +17,17 @@ export default function RushHourConfig({ country }) {
 
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [country])
 
+  // Live-sync: si otra sesión modifica rush_hour_windows, recargamos
+  // preservando dirty rows. Mismo patrón que AirportMarkersTable.
+  useEffect(() => {
+    function onChange(e) {
+      if (e?.detail?.table === 'rush_hour_windows') loadPreservingDirty()
+    }
+    window.addEventListener('config:changed', onChange)
+    return () => window.removeEventListener('config:changed', onChange)
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [country])
+
   async function load() {
     setLoading(true)
     const { data } = await sb
@@ -28,6 +39,24 @@ export default function RushHourConfig({ country }) {
     setWindows(data || [])
     setOriginal((data || []).map(r => ({ ...r })))
     setLoading(false)
+  }
+
+  // Recarga server pero preserva filas dirty para no pisar trabajo en curso.
+  async function loadPreservingDirty() {
+    const { data } = await sb
+      .from('rush_hour_windows')
+      .select('*')
+      .eq('country', country)
+      .in('city', allCities)
+      .order('city').order('start_time')
+    const fresh = data || []
+    setWindows(prev => {
+      const dirtyRows = prev.filter(isRowDirty)
+      const dirtyIds = new Set(dirtyRows.map(r => r.id))
+      const cleanFromServer = fresh.filter(s => !dirtyIds.has(s.id))
+      return [...cleanFromServer, ...dirtyRows]
+    })
+    setOriginal(fresh.map(r => ({ ...r })))
   }
 
   function update(id, field, val) {

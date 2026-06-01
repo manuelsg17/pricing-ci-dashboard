@@ -73,25 +73,59 @@ export default function InDriveConfig({ country }) {
   useEffect(() => { loadAnalysis() }, [loadAnalysis])
 
   // ── Cargar config guardada ────────────────────────────────────
+  const loadCfg = useCallback(async ({ preserveDirty = false } = {}) => {
+    const { data } = await sb.from('indrive_config').select('city, category, adjustment_pct, note')
+      .eq('country', country)
+    if (!data) { setCfgLoaded(true); return }
+    const freshMap = {}
+    data.forEach(r => {
+      freshMap[`${r.city}|${r.category}`] = { pct: r.adjustment_pct ?? 0, note: r.note ?? '' }
+    })
+    if (preserveDirty) {
+      // Mergear: por cada celda, si el user tenía dirty edit, conservar la
+      // versión del usuario. Si no, tomar la fresh del server. Mismo
+      // patrón que AirportMarkersTable adaptado a config-map.
+      setConfig(prev => {
+        const merged = { ...freshMap }
+        Object.keys(prev).forEach(key => {
+          const cur  = prev[key] ?? { pct: 0, note: '' }
+          const orig = original[key] ?? { pct: 0, note: '' }
+          const dirty = String(cur.pct ?? '') !== String(orig.pct ?? '') ||
+                        String(cur.note ?? '') !== String(orig.note ?? '')
+          if (dirty) merged[key] = cur
+        })
+        return merged
+      })
+    } else {
+      setConfig(freshMap)
+    }
+    setOriginal(JSON.parse(JSON.stringify(freshMap)))
+    setCfgLoaded(true)
+  }, [country, original])
+
   useEffect(() => {
     let cancelled = false
-    async function loadCfg() {
-      const { data } = await sb.from('indrive_config').select('city, category, adjustment_pct, note')
-        .eq('country', country)
+    ;(async () => {
+      await loadCfg()
       if (cancelled) return
-      if (data) {
-        const map = {}
-        data.forEach(r => {
-          map[`${r.city}|${r.category}`] = { pct: r.adjustment_pct ?? 0, note: r.note ?? '' }
-        })
-        setConfig(map)
-        setOriginal(JSON.parse(JSON.stringify(map)))
-      }
-      setCfgLoaded(true)
-    }
-    loadCfg()
+    })()
     return () => { cancelled = true }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [country])
+
+  // Live-sync: si otra sesión modifica indrive_config, recargamos
+  // preservando dirty edits del usuario. También refrescamos el análisis
+  // histórico porque el trigger DB recalcula precios efectivos del bot.
+  useEffect(() => {
+    function onChange(e) {
+      if (e?.detail?.table === 'indrive_config') {
+        loadCfg({ preserveDirty: true })
+        loadAnalysis()
+      }
+    }
+    window.addEventListener('config:changed', onChange)
+    return () => window.removeEventListener('config:changed', onChange)
+  }, [loadCfg, loadAnalysis])
 
   // summary y weekly ya vienen agregados del servidor (via RPC)
   // Solo calculamos pctDiff aquí ya que el RPC no lo incluye

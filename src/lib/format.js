@@ -44,17 +44,6 @@ export function formatCount(value) {
   return n.toLocaleString('en-US')
 }
 
-/**
- * Formatea un porcentaje con signo. Ej: 12.5 → "+12.5%", -3 → "-3.0%"
- */
-export function formatPercent(value, decimals = 1) {
-  if (value === null || value === undefined) return '—'
-  const n = Number(value)
-  if (!isFinite(n)) return '—'
-  const sign = n > 0 ? '+' : ''
-  return `${sign}${n.toFixed(decimals)}%`
-}
-
 // ── Currency-aware (Intl.NumberFormat) ────────────────────────────────────
 // Mapping de símbolos legacy del proyecto a códigos ISO 4217 (los que
 // Intl.NumberFormat acepta). 'S/' (Peru) y 'COP$' (Colombia) son cosméticos

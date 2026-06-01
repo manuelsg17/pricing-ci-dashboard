@@ -2,7 +2,7 @@
 // Tests para src/lib/format.js — separadores de miles y decimales.
 // Run: node scripts/test-format.mjs
 
-import { formatPrice, formatCurrency, formatCount, formatPercent } from '../src/lib/format.js'
+import { formatPrice, formatCurrency, formatCount } from '../src/lib/format.js'
 
 let pass = 0, fail = 0, failures = []
 function assert(cond, label) {
@@ -53,16 +53,6 @@ console.log('\n══ format.js tests ══')
   assert(formatCount(1000000) === '1,000,000','millón')
   assert(formatCount(0)       === '0',       '0 → 0')
   assert(formatCount(null)    === '—',       'null → —')
-}
-
-// — formatPercent
-{
-  console.log('\n[5] formatPercent — con signo')
-  assert(formatPercent(12.5)   === '+12.5%',  'positivo lleva +')
-  assert(formatPercent(-3)     === '-3.0%',   'negativo conserva -')
-  assert(formatPercent(0)      === '0.0%',    'cero sin signo')
-  assert(formatPercent(45.678, 0) === '+46%', 'decimals=0 redondea')
-  assert(formatPercent(null)   === '—',       'null → —')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

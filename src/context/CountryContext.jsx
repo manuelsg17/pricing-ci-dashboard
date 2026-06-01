@@ -9,27 +9,50 @@ const CountryContext = createContext(null)
 // getCountryConfig cae al fallback de Peru aunque el usuario tenga
 // localStorage.country='Bolivia'. TTL de 24h porque la config cambia
 // poco y el costo de cache stale es bajo (siguiente fetch lo refresca).
-// IMPORTANTE: bumpear este version key cuando cambie el shape interno
-// devuelto por dbConfigToInternal (constants.js). Sin bump, los browsers
-// con cache previa siguen leyendo el shape viejo hasta que expire (24h).
-// v2 (2026-05-19): convención Corp pasó de espacios a pegado en
-// competitorsByDbCityCategory. Mig 72 alineó la DB.
-// v3 (2026-05-24): airport split (mig 79+84+85). Cities Lima_Airport_A/B,
-// Trujillo_Airport_A/B, Arequipa_Airport_A/B aparecen con isVirtual=false
-// → cambia el shape de uiCities / categoriesByCity. Sin bump, browsers
-// viejos no ven las nuevas tabs en el Dashboard.
-// v4 (2026-05-26): mig 95 flipea Corp.isVirtual a false en country_config
-// Peru. uiCities/categoriesByCity/categoryDbMap ahora incluyen Corp.
-// v5 (2026-05-27): mig 96 alinea country_config.cities[Corp].categories[Corp].
-// competitors con la convención concat (sin espacios) que ya vive en
-// pricing_observations desde mig 72. Sin bump, el cache servía la versión
-// con espacios y el Dashboard mostraba 0 en todos los Yango/Cabify variantes
-// (mismatch entre lookup y nombre real).
-// v6 (2026-05-27): mig 97 promueve YangoPlus a competidor independiente
-// en Corp (antes era alias de YangoComfort+). El array competitors crece
-// de 9 a 10 entradas.
-const CACHE_KEY = 'cc.dbConfigs.v6'
+//
+// INVALIDACIÓN AUTOMÁTICA POR SHAPE:
+// Antes había que bumpear manualmente CACHE_KEY ('v1' → ... → 'v6')
+// cada vez que dbConfigToInternal cambiaba su shape interno (ya fueron
+// 6 bumps en pocas semanas: mig 72, 79, 84, 85, 95, 96, 97). Frágil y
+// propenso a olvidar — si alguien refactoreaba sin bumpear, los users
+// con cache viejo veían UI rota hasta 24h.
+//
+// Ahora el cache se INVALIDA AUTOMÁTICAMENTE si le faltan keys estructurales
+// que el código actual necesita (canary check). Esto cubre el 90% de los
+// casos: si dbConfigToInternal agrega/quita un field top-level o estructural,
+// el cache viejo no pasa la validación y se descarta silenciosamente.
+// REGLA: cuando agregues una key estructural nueva a dbConfigToInternal,
+// agregala también a REQUIRED_KEYS abajo. Eso es suficiente — NO necesitás
+// bumpear CACHE_VERSION para casos típicos.
+// El bump manual solo es necesario si el cambio es semántico SIN agregar/
+// quitar keys (ej: cambia el formato interno de competitorsByDbCityCategory
+// sin renombrar keys). En esos casos, bumpear como antes.
+const CACHE_VERSION = 'v6'
+const CACHE_KEY = `cc.dbConfigs.${CACHE_VERSION}`
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
+
+// Keys top-level que dbConfigToInternal SIEMPRE debe producir. Si el cache
+// no las tiene, fue escrito por una versión antigua y se descarta.
+const REQUIRED_KEYS = [
+  'uiCities',
+  'categoriesByCity',
+  'competitorsByDbCityCategory',
+  'currency',
+]
+
+function isCacheShapeValid(data) {
+  if (!data || typeof data !== 'object') return false
+  const countries = Object.keys(data)
+  if (countries.length === 0) return false
+  for (const cKey of countries) {
+    const cfg = data[cKey]
+    if (!cfg || typeof cfg !== 'object') return false
+    for (const k of REQUIRED_KEYS) {
+      if (!(k in cfg)) return false
+    }
+  }
+  return true
+}
 
 function readCache() {
   try {
@@ -37,6 +60,12 @@ function readCache() {
     if (!raw) return null
     const { ts, data } = JSON.parse(raw)
     if (!ts || (Date.now() - ts) > CACHE_TTL_MS) return null
+    if (!isCacheShapeValid(data)) {
+      // Shape incompatible (código actualizado entre escritura y lectura).
+      // Descartar silenciosamente — el fetch fresh poblará con shape actual.
+      localStorage.removeItem(CACHE_KEY)
+      return null
+    }
     return data
   } catch {
     return null

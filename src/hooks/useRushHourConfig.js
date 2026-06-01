@@ -6,7 +6,12 @@ import { useStaleWhileRevalidate } from './useStaleWhileRevalidate'
  * determinar si una hora/ciudad es rush. Cachea localmente y se refresca
  * automáticamente si otra sesión edita rush_hour_windows.
  */
-export function useRushHourConfig(country = 'Peru') {
+// `country` requerido — ver razonamiento en usePriceRules.js. Sin default
+// silencioso para evitar leer rush hours de Peru cuando estamos en Colombia.
+export function useRushHourConfig(country) {
+  if (import.meta.env?.DEV && !country) {
+    console.warn('[useRushHourConfig] llamado sin country — ventanas no se cargarán hasta recibir uno válido')
+  }
   const { data: windows = [], error } = useStaleWhileRevalidate({
     key: `cfg.rush_hour_windows.${country}`,
     enabled: !!country,

@@ -612,6 +612,7 @@ function BracketSection({
               data={chartData}
               competitors={competitors}
               compareVs={compareVs}
+              currency={currency}
               yFormatter={v => v.toFixed(1)}
               events={events}
               chartType={chartType}
@@ -627,6 +628,7 @@ function BracketSection({
               data={deltaChartData}
               competitors={competitors}
               compareVs={compareVs}
+              currency={currency}
               yFormatter={v => `${v.toFixed(0)}%`}
               isPercent
               events={events}
@@ -661,7 +663,7 @@ function BracketSection({
 // ── MiniChart ────────────────────────────────────────────────────────────────
 
 function MiniChart({
-  title, data, competitors, compareVs,
+  title, data, competitors, compareVs, currency = '',
   yFormatter, isPercent = false, events = [],
   chartType = 'line', hiddenComps, setHiddenComps,
   chartTypeToggle, greenBand, syncId,
@@ -765,10 +767,26 @@ function MiniChart({
               <Tooltip
                 contentStyle={{ fontSize: 11 }}
                 formatter={(v, name) => {
-                  if (v == null) return 'N/A'
-                  return [isPercent ? `${v.toFixed(0)}%` : formatPrice(v), name]
+                  // name viene como el raw competitor key (ej 'Yango', 'Cabify Lite').
+                  // Mostramos el display name + contexto (vs base / moneda) para que
+                  // se entienda el número sin tener que mirar la leyenda.
+                  if (v == null) return ['N/A', prettyCompetitor(name)]
+                  if (isPercent) {
+                    const sign = v > 0 ? '+' : ''
+                    const baseLabel = prettyCompetitor(compareVs)
+                    return [`${sign}${v.toFixed(1)}% vs ${baseLabel}`, prettyCompetitor(name)]
+                  }
+                  return [`${currency} ${formatPrice(v)}`, prettyCompetitor(name)]
                 }}
-                labelFormatter={label => `${t('dataentry.col_date')}: ${label}`}
+                labelFormatter={label => {
+                  // viewMode: 'daily' | 'weekly' | 'historic'
+                  const prefix = viewMode === 'daily'
+                    ? t('dataentry.col_date')
+                    : viewMode === 'historic'
+                      ? (t('dashboard.chart.period') || 'Período')
+                      : (t('dashboard.chart.week') || 'Semana')
+                  return `${prefix}: ${label}`
+                }}
               />
 
               {/* #12 — tolerance band */}

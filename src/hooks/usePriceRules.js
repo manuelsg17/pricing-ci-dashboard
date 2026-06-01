@@ -5,7 +5,15 @@ import { useStaleWhileRevalidate } from './useStaleWhileRevalidate'
  * Lee price_validation_rules para un país y devuelve un checker de outliers.
  * Cache local + live-sync vía useStaleWhileRevalidate.
  */
-export function usePriceRules(country = 'Peru') {
+// `country` es requerido — sin él, las reglas se cargan para el país
+// equivocado y un usuario de Colombia podría ver outliers calculados con
+// thresholds de Peru. Antes había un default='Peru' silencioso que ocultaba
+// este bug. Ahora pasamos null si el caller no tiene country aún (el hook
+// no fetchea con enabled=false) y advertimos en dev.
+export function usePriceRules(country) {
+  if (import.meta.env?.DEV && !country) {
+    console.warn('[usePriceRules] llamado sin country — no se cargarán reglas hasta recibir uno válido')
+  }
   const { data: rules = [], loading, error } = useStaleWhileRevalidate({
     key: `cfg.price_validation_rules.${country}`,
     enabled: !!country,
