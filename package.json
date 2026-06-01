@@ -24,13 +24,23 @@
     "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config && npm run test:catalogs && npm run test:weights-cascade && npm run test:format && npm run test:normalize-competitor && npm run test:ingestion-corp"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-popover": "^1.1.2",
+    "@radix-ui/react-select": "^2.1.2",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.1",
     "@supabase/supabase-js": "^2.39.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.0.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^0.460.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.10.0",
+    "tailwind-merge": "^2.5.4",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
