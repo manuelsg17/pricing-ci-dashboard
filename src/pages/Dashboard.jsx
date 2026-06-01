@@ -20,6 +20,10 @@ import { prettyCompetitor } from '../lib/normalize'
 import { useI18n } from '../context/LanguageContext'
 import { useFilterContext } from '../context/FilterContext'
 import { useConfigContext } from '../context/ConfigProvider'
+import HeadToHeadView from '../components/dashboard/HeadToHeadView'
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '../components/ui/shadcn/sheet'
 import { BRACKETS } from '../lib/constants'
 import { useCountry } from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
@@ -98,6 +102,9 @@ function DashboardContent() {
   // ── What-if simulator: aplica un % a Yango y recalcula deltas/charts ────
   const [simEnabled, setSimEnabled] = useState(false)
   const [simPct, setSimPct] = useState(0)
+
+  // ── Sprint 2.5: Head-to-Head 1:1 sheet (Yango vs un competidor) ────
+  const [h2hOpen, setH2hOpen] = useState(false)
 
   const { priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, chartData, deltaChartData } =
     useMemo(() => {
@@ -609,6 +616,16 @@ function DashboardContent() {
             </div>
             <div className="kpi-card__sub">{t('dashboard.kpi.outliers_sublabel')}</div>
           </div>
+          {/* Sprint 2.5: Botón Head-to-Head — abre Sheet lateral con
+              comparación 1:1 Yango vs un competidor específico. */}
+          <button
+            className="kpi-export-btn"
+            onClick={() => setH2hOpen(true)}
+            title="Comparar Yango vs un competidor específico, bracket por bracket"
+            style={{ background: '#e0f2fe', borderColor: '#0284c7', color: '#075985', fontWeight: 600 }}
+          >
+            ⚔ Head-to-Head
+          </button>
           <button
             className="kpi-export-btn"
             onClick={() => setSimEnabled((s) => !s)}
@@ -769,6 +786,31 @@ function DashboardContent() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Sprint 2.5: Sheet de Head-to-Head 1:1. Render condicional sólo
+          cuando hay data — evita errores en mount inicial sin filtros. */}
+      {!loading && priceMatrix && periods?.length > 0 && (
+        <Sheet open={h2hOpen} onOpenChange={setH2hOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Head-to-Head — Yango vs un competidor</SheetTitle>
+              <SheetDescription>
+                Compará Yango vs un competidor específico bracket por bracket.
+                Best/worst auto-resaltados.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4">
+              <HeadToHeadView
+                priceMatrix={priceMatrix}
+                periods={periods}
+                competitors={filters.competitors}
+                compareVs={filters.compareVs}
+                currency={currency}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   )

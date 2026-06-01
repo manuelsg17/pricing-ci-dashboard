@@ -1,0 +1,271 @@
+/**
+ * HeadToHeadView — Sprint 2.5 — Comparación 1:1 Yango vs un competidor.
+ *
+ * QUÉ RESUELVE (audit 09):
+ *   El selector "Compare vs" del dashboard confunde porque cambia la BASE
+ *   (frente a quién Yango se mide), no el TARGET. Si analista quiere ver
+ *   "Yango vs Cabify" tiene que ignorar mentalmente los otros competidores.
+ *
+ *   Acá: vista DEDICADA 1:1. Elegís 1 competidor, ves bracket-por-bracket
+ *   precio Yango / precio Competidor / Δ% / Diff$, con best/worst bracket
+ *   auto-resaltado y KPI "Yango líder en X / Y brackets vs este competidor".
+ *
+ * UX:
+ *   Se abre como Sheet lateral derecho desde un botón en el Dashboard. No
+ *   navega — el contexto del dashboard (city, category, period) se preserva.
+ *
+ * DATA:
+ *   Usa el priceMatrix del Dashboard (último período) — no hace fetch propio.
+ *   El Dashboard pasa todo lo necesario por props.
+ */
+import { useMemo, useState } from 'react'
+import { Combobox } from '../ui/shadcn/combobox'
+import { Badge } from '../ui/shadcn/badge'
+import { Card, CardContent } from '../ui/shadcn/card'
+import { prettyCompetitor } from '../../lib/normalize'
+import { BRACKETS } from '../../lib/constants'
+import { formatPrice } from '../../lib/format.js'
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+
+const BRACKET_LABELS = {
+  _wa:         'WA',
+  very_short:  'Very Short',
+  short:       'Short',
+  median:      'Median',
+  average:     'Average',
+  long:        'Long',
+  very_long:   'Very Long',
+}
+
+export default function HeadToHeadView({
+  priceMatrix,
+  periods,
+  competitors,
+  compareVs,
+  currency = '',
+}) {
+  const yangoComp = compareVs
+  const latestKey = periods?.[periods.length - 1]?.key
+  const latestLabel = periods?.[periods.length - 1]?.label
+
+  // Lista de competidores rivales (excluye Yango)
+  const rivalOptions = useMemo(
+    () =>
+      competitors
+        .filter((c) => c !== yangoComp)
+        .map((c) => ({ value: c, label: prettyCompetitor(c) })),
+    [competitors, yangoComp]
+  )
+
+  // Default: el primer rival disponible
+  const [selectedRival, setSelectedRival] = useState(rivalOptions[0]?.value || '')
+
+  // Computación de la matriz comparativa por bracket
+  const rows = useMemo(() => {
+    if (!latestKey || !selectedRival) return []
+    const yangoRow = priceMatrix?.[yangoComp]?.[latestKey] || {}
+    const rivalRow = priceMatrix?.[selectedRival]?.[latestKey] || {}
+    const allBrackets = ['_wa', ...BRACKETS]
+    return allBrackets.map((b) => {
+      const y = yangoRow[b]
+      const r = rivalRow[b]
+      const valid = y != null && r != null && y > 0 && r > 0
+      const deltaPct = valid ? ((y - r) / r) * 100 : null
+      const diff = valid ? y - r : null
+      return {
+        bracket: b,
+        label: BRACKET_LABELS[b],
+        yango: y,
+        rival: r,
+        deltaPct,
+        diff,
+        yangoLeads: valid && y <= r,
+      }
+    })
+  }, [priceMatrix, yangoComp, selectedRival, latestKey])
+
+  // KPIs: cuántos brackets lidera Yango + best/worst para Yango
+  const summary = useMemo(() => {
+    const valid = rows.filter((r) => r.deltaPct != null && r.bracket !== '_wa')
+    const leadCount = valid.filter((r) => r.yangoLeads).length
+    const total = valid.length
+    if (total === 0) return { leadCount: 0, total: 0, bestKey: null, worstKey: null, avgDelta: null }
+
+    // Best Yango: bracket donde Yango está MÁS barato (deltaPct más negativo)
+    // Worst Yango: bracket donde Yango está MÁS caro (deltaPct más positivo)
+    const sortedAsc = [...valid].sort((a, b) => a.deltaPct - b.deltaPct)
+    const bestKey = sortedAsc[0]?.bracket
+    const worstKey = sortedAsc[sortedAsc.length - 1]?.bracket
+    const avgDelta = valid.reduce((s, r) => s + r.deltaPct, 0) / total
+
+    return { leadCount, total, bestKey, worstKey, avgDelta }
+  }, [rows])
+
+  if (rivalOptions.length === 0) {
+    return (
+      <div className="p-6 text-sm text-muted">
+        No hay competidores comparables en este filtro. Cambiá city/category/período.
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4 p-2">
+      {/* Selector competidor + período actual */}
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-semibold uppercase text-muted">
+          Yango vs:
+        </label>
+        <Combobox
+          items={rivalOptions}
+          value={selectedRival}
+          onValueChange={setSelectedRival}
+          placeholder="Elegí un competidor…"
+          searchPlaceholder="Buscar competidor…"
+        />
+        <p className="text-xs text-muted">
+          Comparando el período <span className="font-semibold text-foreground">{latestLabel}</span> con moneda {currency}.
+        </p>
+      </div>
+
+      {/* KPI bar compacto */}
+      <Card>
+        <CardContent className="grid grid-cols-2 gap-3 p-4">
+          <div>
+            <div className="text-xs uppercase text-muted">Yango líder</div>
+            <div className="text-2xl font-bold text-foreground">
+              {summary.leadCount}
+              <span className="ml-1 text-base font-normal text-muted">
+                / {summary.total}
+              </span>
+            </div>
+            <div className="text-xs text-muted">brackets vs {prettyCompetitor(selectedRival)}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase text-muted">Δ promedio</div>
+            <div
+              className="text-2xl font-bold"
+              style={{
+                color:
+                  summary.avgDelta == null
+                    ? undefined
+                    : Math.abs(summary.avgDelta) < 0.5
+                      ? 'var(--color-muted)'
+                      : summary.avgDelta > 0
+                        ? 'var(--sem-red-fg)'
+                        : 'var(--sem-green-fg)',
+              }}
+            >
+              {summary.avgDelta == null
+                ? '—'
+                : `${summary.avgDelta > 0 ? '+' : ''}${summary.avgDelta.toFixed(1)}%`}
+            </div>
+            <div className="text-xs text-muted">
+              {summary.avgDelta == null
+                ? ''
+                : summary.avgDelta > 0
+                  ? `Yango más caro en promedio`
+                  : `Yango más barato en promedio`}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabla bracket × precio */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase text-muted">
+              <th className="py-2 pr-2">Bracket</th>
+              <th className="py-2 pr-2 text-right">Yango</th>
+              <th className="py-2 pr-2 text-right">{prettyCompetitor(selectedRival)}</th>
+              <th className="py-2 pr-2 text-right">Δ %</th>
+              <th className="py-2 pl-2 text-right">Diff {currency}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const isBest = r.bracket === summary.bestKey
+              const isWorst = r.bracket === summary.worstKey
+              const isWA = r.bracket === '_wa'
+              return (
+                <tr
+                  key={r.bracket}
+                  className={
+                    'border-b border-border/50 ' +
+                    (isWA ? 'bg-secondary/30 font-semibold ' : '')
+                  }
+                >
+                  <td className="py-2 pr-2">
+                    <div className="flex items-center gap-2">
+                      <span>{r.label}</span>
+                      {isBest && !isWA && (
+                        <Badge variant="success" className="gap-1 text-[10px]">
+                          <TrendingDown className="h-3 w-3" /> Best
+                        </Badge>
+                      )}
+                      {isWorst && !isWA && (
+                        <Badge variant="danger" className="gap-1 text-[10px]">
+                          <TrendingUp className="h-3 w-3" /> Worst
+                        </Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-2 pr-2 text-right tabular-nums">
+                    {r.yango != null ? formatPrice(r.yango) : '—'}
+                  </td>
+                  <td className="py-2 pr-2 text-right tabular-nums">
+                    {r.rival != null ? formatPrice(r.rival) : '—'}
+                  </td>
+                  <td
+                    className="py-2 pr-2 text-right tabular-nums"
+                    style={{
+                      color:
+                        r.deltaPct == null
+                          ? undefined
+                          : Math.abs(r.deltaPct) < 0.5
+                            ? 'var(--color-muted)'
+                            : r.deltaPct > 0
+                              ? 'var(--sem-red-fg)'
+                              : 'var(--sem-green-fg)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {r.deltaPct == null
+                      ? '—'
+                      : `${r.deltaPct > 0 ? '+' : ''}${r.deltaPct.toFixed(1)}%`}
+                  </td>
+                  <td
+                    className="py-2 pl-2 text-right tabular-nums"
+                    style={{
+                      color:
+                        r.diff == null
+                          ? undefined
+                          : Math.abs(r.diff) < 0.01
+                            ? 'var(--color-muted)'
+                            : r.diff > 0
+                              ? 'var(--sem-red-fg)'
+                              : 'var(--sem-green-fg)',
+                    }}
+                  >
+                    {r.diff == null
+                      ? '—'
+                      : `${r.diff > 0 ? '+' : ''}${formatPrice(r.diff)}`}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="text-xs text-muted">
+        <Minus className="inline h-3 w-3" />{' '}
+        <strong>Δ %</strong> = (Yango − {prettyCompetitor(selectedRival)}) / {prettyCompetitor(selectedRival)}.
+        Negativo (verde) = Yango más barato. Positivo (rojo) = Yango más caro.
+        <strong> Best</strong> = bracket donde Yango es más competitivo en precio.
+        <strong> Worst</strong> = bracket donde Yango está más caro.
+      </div>
+    </div>
+  )
+}
