@@ -1,0 +1,28 @@
+/* Tailwind CSS — directives base/components/utilities.
+ *
+ * `@tailwind base` está INCLUIDO pero sin preflight habilitado en
+ * tailwind.config.js, así que NO resetea estilos default. Solo agrega
+ * tokens de CSS variables que las utility classes usan.
+ *
+ * Importado en main.jsx ANTES de global.css para que global.css pueda
+ * override cualquier cosa que necesite.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Animaciones reutilizadas por componentes shadcn (acordeón, sheet, dialog).
+ * Vienen de tailwindcss-animate pero las inlineamos para evitar otra dep.
+ */
+@layer utilities {
+  @keyframes accordion-down {
+    from { height: 0; }
+    to   { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to   { height: 0; }
+  }
+  .animate-accordion-down { animation: accordion-down 0.2s ease-out; }
+  .animate-accordion-up   { animation: accordion-up   0.2s ease-out; }
+}

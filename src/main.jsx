@@ -7,6 +7,11 @@ import { RealtimeSyncProvider } from './context/RealtimeSyncProvider'
 import { ToastProvider }    from './components/ui/Toast'
 import { ConfirmProvider }  from './components/ui/ConfirmDialog'
 import ErrorBoundary        from './components/ui/ErrorBoundary'
+// Sprint 2.1: Tailwind ANTES de global.css. tailwind.css agrega utility
+// classes; global.css define tokens y overrides — el orden permite a
+// global.css ganar en caso de conflicto. Sin preflight (ver tailwind.config.js)
+// para no romper estilos de componentes existentes.
+import './styles/tailwind.css'
 import './styles/global.css'
 
 // Orden de los providers (de afuera hacia adentro):
