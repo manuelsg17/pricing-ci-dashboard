@@ -10,8 +10,9 @@ y polish.
 
 ## Estado actual
 
-**Última build estable**: commit `c8d6d77` en `main`. Todo Sprint 1+2+3
-mergeado y desplegado a GitHub Pages.
+**Última build estable**: cutover Mig 105 mergeado a `main` (2026-06-01) —
+el dashboard lee los RPC `_fast` (Materialized Views) y un pg_cron refresca
+las MVs cada hora (mig 106). Sprint 1+2+3 previos desplegados a GitHub Pages.
 
 **Working directory canónico**: `~/Projects/pricing-ci-dashboard`.
 La copia en ProtonDrive (`/Users/.../Library/CloudStorage/.../pricing-ci-dashboard`)
@@ -23,10 +24,12 @@ quedó obsoleta — fue útil hasta esta sesión pero no debe usarse más para d
 ## Sprints completados
 
 ### Sprint 1 — Quick Wins (10 items, 2 commits)
+
 - `1bac851` feat(sprint-1): quick wins UX/perf — live-sync, a11y, dead code, lint setup
 - `8079dbd` fix(sprint-1-hotfix): i18n key card + React key spread warning
 
 **Highlights**:
+
 - 4 componentes muertos eliminados (SampleMatrix/PriceMatrix/DeltaMatrix/BracketChart) — 349 LOC.
 - Live-sync con dirty-row preservation en ThresholdsTable/PriceRulesTable/RushHourConfig/InDriveConfig.
 - Iconos ✓⚠✗ en MatrixCell + contraste WCAG AA en tokens semáforo.
@@ -39,6 +42,7 @@ quedó obsoleta — fue útil hasta esta sesión pero no debe usarse más para d
 - CACHE_KEY auto-invalida con canary check (`REQUIRED_KEYS`).
 
 ### Sprint 2 — Tailwind + shadcn/ui + Reorg (6 sub-fases)
+
 - `b887550` feat(sprint-2.1): setup Tailwind 3.4 sin preflight
 - `54e2b9b` feat(sprint-2.2): shadcn/ui foundation — 7 primitives
 - `e6821c2` feat(sprint-2.3): reorganizar /config — 5 categorías top-level
@@ -51,6 +55,7 @@ romper componentes legacy. shadcn/ui copy-pasted al proyecto en
 `src/components/ui/shadcn/`.
 
 **shadcn primitives disponibles** (extender según necesidad):
+
 - `button.jsx`, `card.jsx`, `badge.jsx`, `input.jsx`, `select.jsx`
 - `tabs.jsx`, `sheet.jsx`, `popover.jsx`, `command.jsx`, `combobox.jsx`
 
@@ -58,6 +63,7 @@ romper componentes legacy. shadcn/ui copy-pasted al proyecto en
 `bg-muted`, `bg-primary/secondary/accent/destructive`. Ver `tailwind.config.js`.
 
 ### Sprint 3 — Hardening + Polish + Security (5 commits)
+
 - `8036510` feat(sprint-3.1): mig 105 — Materialized Views (infra-ready, sin cutover)
 - `b1ff43a` fix(sprint-3.3): a11y pass — contraste, semantic HTML, labels, scope
 - `c8d6d77` fix(sprint-3.5): CSV formula injection defense
@@ -77,28 +83,31 @@ romper componentes legacy. shadcn/ui copy-pasted al proyecto en
    alcanza para tipos.
 6. **NO refactor de URL hash vs FilterContext**. Funciona, hash share-link
    es feature útil. Defer hasta que cause un bug real.
-7. **Mig 106 (index InDrive + DEFAULT Peru) deferred**. El bug del DEFAULT
+7. **Index InDrive + DEFAULT Peru deferred**. El bug del DEFAULT
    'Peru' YA fue resuelto en mig 101 (verificado). El cambio de index es
-   marginal vs `idx_po_indrive_manual` existente.
+   marginal vs `idx_po_indrive_manual` existente. NOTA: el slot `106` lo
+   tomó el cron refresh (cutover Mig 105). Si este index se hace, sería `107`.
 
 ---
 
 ## Pendientes (orden recomendado)
 
 ### Alto leverage (deberías priorizar)
-1. **Cutover Mig 105** — cambiar `usePricingData.js` para llamar
-   `get_dashboard_data_weekly_fast` / `_daily_fast` (RPCs nuevos que leen
-   de MVs). Antes:
-   - Validar perf con `EXPLAIN ANALYZE` en SQL Editor.
-   - Confirmar resultados idénticos con la query del header de la mig.
-   - Agregar `SELECT refresh_dashboard_mv()` post-upload en Upload.jsx
-     o configurar pg_cron cada 10 min.
+
+1. ✅ **Cutover Mig 105 — HECHO (2026-06-01)**. `usePricingData.js` llama
+   `get_dashboard_data_weekly_fast` / `_daily_fast`. Parity garantizada por
+   construcción (defs de view regular ≡ defs de MV, carácter por carácter) +
+   EXPLAIN ANALYZE confirma read por request ~0.5-3s → ~50-100ms. Refresh
+   automático vía **pg_cron horario @ :10** (mig 106 `8faa992`), NO desde el
+   cliente: el rol `authenticated` tiene `statement_timeout` 8s ≪ refresh
+   completo ~70-120s. Cargas manuales se reflejan en ≤1h (próximo tick).
 2. **Refactor `Upload.jsx`** (921 LOC → 4 sub-componentes <250 LOC). Audit
    strategic #6. Necesita sesión dedicada — alto riesgo si hace mal.
 3. **Refactor `DataEntry.jsx`** (961 LOC → useReducer + hook + lib). Audit
    strategic #7. Mismo problema que Upload.
 
 ### Mediano leverage (cuando haya tiempo)
+
 4. **Reemplazar xlsx@0.18.5 por exceljs** (CVE-2023-30533 + xlsx no
    maintained). Depende de #2 y #3 — son los principales consumidores.
 5. **Polish visual KPI bar + FilterBar** con Tailwind utilities + shadcn
@@ -110,9 +119,11 @@ romper componentes legacy. shadcn/ui copy-pasted al proyecto en
    archivos JSX con strings hardcoded en ES. Migrar a `t()`.
 
 ### Bajo leverage (defer salvo motivación específica)
+
 8. **A11y completo** — outline:none cleanup, más aria-labels en botones-
    icono fuera de `/config`.
-9. **Mig 106** — index InDrive optimizado (marginal).
+9. **Mig 107** — index InDrive optimizado (marginal). (Era "106"; ese
+   número lo tomó el cron refresh del cutover Mig 105.)
 10. **Self-host Google Fonts + flagcdn** para eliminar dependencias externas
     y mejorar CSP. Audit L3.
 11. **Dark mode** si querés el look "Linear total".
@@ -190,6 +201,7 @@ package.json                         ← scripts: lint, format, prepare
 ## Convenciones del repo (importante para futuras sesiones)
 
 ### Para nuevos componentes
+
 - **Usar shadcn primitives** (`src/components/ui/shadcn/*`) en lugar de
   reinventar Button/Card/Tabs/Sheet.
 - **Tailwind utility classes** preferido sobre CSS inline.
@@ -200,12 +212,14 @@ package.json                         ← scripts: lint, format, prepare
   (ver `AirportMarkersTable.jsx` como canónico).
 
 ### Para nuevas migraciones DB
+
 - Numerar correlativamente: próxima sería `106_...`.
 - Header en comentario con CONTEXTO + APPROACH + VERIFICACIÓN.
 - Si toca RPCs con `require_country_access`, agregarlo al inicio del body.
 - `SET search_path = public, pg_temp` para SECURITY DEFINER (mig 100 pattern).
 
 ### Para commits
+
 - Mensaje: `tipo(scope): título corto` + body con CONTEXTO + QUÉ HACE.
 - Co-authored-by Claude.
 - Pre-commit hook corre `eslint --fix --max-warnings 0` + `prettier --write`.
