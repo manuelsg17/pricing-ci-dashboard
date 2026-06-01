@@ -615,7 +615,7 @@ export default function CountryWizard({ onClose, onCreated }) {
               Podés agregar pesos por (city, category) después en /config → Pesos.
             </p>
             <table className="config-table">
-              <thead><tr><th>Bracket</th><th>Peso %</th></tr></thead>
+              <thead><tr><th scope="col">Bracket</th><th scope="col">Peso %</th></tr></thead>
               <tbody>
                 {BRACKETS.map(b => (
                   <tr key={b}>
@@ -646,7 +646,7 @@ export default function CountryWizard({ onClose, onCreated }) {
             </p>
             <div style={{ maxHeight: 240, overflowY: 'auto' }}>
               <table className="config-table" style={{ fontSize: 11 }}>
-                <thead><tr><th>app</th><th>vc</th><th>ovc</th><th>Competidor</th><th>Categoría</th><th></th></tr></thead>
+                <thead><tr><th scope="col">app</th><th scope="col">vc</th><th scope="col">ovc</th><th scope="col">Competidor</th><th scope="col">Categoría</th><th scope="col"></th></tr></thead>
                 <tbody>
                   {draft.botRules.map((r, i) => (
                     <tr key={i}>

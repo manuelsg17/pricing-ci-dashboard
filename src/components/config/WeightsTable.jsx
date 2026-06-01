@@ -218,7 +218,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
         <thead>
           <tr>
             <th style={{ textAlign: 'left' }}>Bracket</th>
-            <th>Peso (%)</th>
+            <th scope="col">Peso (%)</th>
           </tr>
         </thead>
         <tbody>

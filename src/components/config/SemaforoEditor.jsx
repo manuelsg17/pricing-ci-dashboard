@@ -92,8 +92,8 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
         <thead>
           <tr>
             <th style={{ textAlign: 'left' }}>Color</th>
-            <th>Δ% mínimo</th>
-            <th>Δ% máximo</th>
+            <th scope="col">Δ% mínimo</th>
+            <th scope="col">Δ% máximo</th>
             <th style={{ textAlign: 'left' }}>Nota</th>
           </tr>
         </thead>

@@ -111,12 +111,12 @@ export default function CITimeslotsConfig() {
         <thead>
           <tr>
             <th style={{ width: 30 }}>#</th>
-            <th>Label</th>
-            <th>Inicio</th>
-            <th>Fin</th>
-            <th>Activo</th>
-            <th>Orden</th>
-            <th></th>
+            <th scope="col">Label</th>
+            <th scope="col">Inicio</th>
+            <th scope="col">Fin</th>
+            <th scope="col">Activo</th>
+            <th scope="col">Orden</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -177,7 +177,7 @@ export default function CITimeslotsConfig() {
                   >
                     {r._new ? 'Crear' : 'Guardar'}
                   </button>
-                  <button className="btn-delete-sm" onClick={() => deleteRow(r.id)}>✕</button>
+                  <button className="btn-delete-sm" aria-label="Eliminar" onClick={() => deleteRow(r.id)}>✕</button>
                 </td>
               </tr>
             )

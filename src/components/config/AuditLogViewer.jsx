@@ -194,14 +194,14 @@ export default function AuditLogViewer() {
           <table className="audit-table">
             <thead>
               <tr>
-                <th>{t('audit.col_ts')}</th>
-                <th>{t('audit.col_user')}</th>
-                <th>{t('audit.col_action')}</th>
-                <th>{t('audit.col_table')}</th>
-                <th>{t('audit.col_country')}</th>
-                <th>{t('audit.col_row_id')}</th>
-                <th>{t('audit.col_session')}</th>
-                <th>{t('audit.col_diff')}</th>
+                <th scope="col">{t('audit.col_ts')}</th>
+                <th scope="col">{t('audit.col_user')}</th>
+                <th scope="col">{t('audit.col_action')}</th>
+                <th scope="col">{t('audit.col_table')}</th>
+                <th scope="col">{t('audit.col_country')}</th>
+                <th scope="col">{t('audit.col_row_id')}</th>
+                <th scope="col">{t('audit.col_session')}</th>
+                <th scope="col">{t('audit.col_diff')}</th>
               </tr>
             </thead>
             <tbody>

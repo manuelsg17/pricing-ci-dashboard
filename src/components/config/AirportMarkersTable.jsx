@@ -216,14 +216,14 @@ export default function AirportMarkersTable({ country }) {
         <table className="config-table">
           <thead>
             <tr>
-              <th>BASE CITY</th>
-              <th>CITY FROM</th>
-              <th>CITY TO</th>
-              <th>ZONE FROM<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
-              <th>ZONE TO<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
-              <th>KEYWORDS<br /><small style={{ fontWeight: 400 }}>(coma-separado, fallback)</small></th>
-              <th>ACTIVA</th>
-              <th></th>
+              <th scope="col">BASE CITY</th>
+              <th scope="col">CITY FROM</th>
+              <th scope="col">CITY TO</th>
+              <th scope="col">ZONE FROM<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
+              <th scope="col">ZONE TO<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
+              <th scope="col">KEYWORDS<br /><small style={{ fontWeight: 400 }}>(coma-separado, fallback)</small></th>
+              <th scope="col">ACTIVA</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>

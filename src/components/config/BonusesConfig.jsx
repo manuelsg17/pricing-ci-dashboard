@@ -85,15 +85,15 @@ export default function BonusesConfig({ country }) {
         <table className="config-table">
           <thead>
             <tr>
-              <th>Competidor</th>
-              <th>Ciudad</th>
-              <th>Tipo</th>
-              <th>Umbral</th>
-              <th>Monto {config.currency}</th>
-              <th>Descripción</th>
-              <th>Activo</th>
-              <th>Orden</th>
-              <th></th>
+              <th scope="col">Competidor</th>
+              <th scope="col">Ciudad</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Umbral</th>
+              <th scope="col">Monto {config.currency}</th>
+              <th scope="col">Descripción</th>
+              <th scope="col">Activo</th>
+              <th scope="col">Orden</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>
@@ -187,7 +187,7 @@ export default function BonusesConfig({ country }) {
                     >
                       {isNew(row) ? 'Crear' : 'Guardar'}
                     </button>
-                    <button className="btn-delete-sm" onClick={() => handleDelete(row)}>✕</button>
+                    <button className="btn-delete-sm" aria-label="Eliminar" onClick={() => handleDelete(row)}>✕</button>
                   </td>
                 </tr>
               )

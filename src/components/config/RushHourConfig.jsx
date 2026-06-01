@@ -149,11 +149,11 @@ export default function RushHourConfig({ country }) {
       <table className="config-table" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th>Ciudad</th>
-            <th>Etiqueta</th>
-            <th>Desde</th>
-            <th>Hasta</th>
-            <th></th>
+            <th scope="col">Ciudad</th>
+            <th scope="col">Etiqueta</th>
+            <th scope="col">Desde</th>
+            <th scope="col">Hasta</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -204,7 +204,7 @@ export default function RushHourConfig({ country }) {
                   >
                     {w._new ? 'Crear' : 'Guardar'}
                   </button>
-                  <button className="btn-delete-sm" onClick={() => deleteWindow(w.id)}>✕</button>
+                  <button className="btn-delete-sm" aria-label="Eliminar" onClick={() => deleteWindow(w.id)}>✕</button>
                 </td>
               </tr>
             )

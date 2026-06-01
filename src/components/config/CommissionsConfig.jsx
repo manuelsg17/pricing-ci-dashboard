@@ -72,10 +72,10 @@ export default function CommissionsConfig({ country }) {
       <table className="config-table" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th>Competidor</th>
-            <th>Ciudad</th>
-            <th>Comisión %</th>
-            <th></th>
+            <th scope="col">Competidor</th>
+            <th scope="col">Ciudad</th>
+            <th scope="col">Comisión %</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -124,7 +124,7 @@ export default function CommissionsConfig({ country }) {
                   >
                     {isNew(row) ? 'Crear' : 'Guardar'}
                   </button>
-                  <button className="btn-delete-sm" onClick={() => handleDelete(row)}>✕</button>
+                  <button className="btn-delete-sm" aria-label="Eliminar" onClick={() => handleDelete(row)}>✕</button>
                 </td>
               </tr>
             )

@@ -10,7 +10,12 @@
   --color-border:      #e2e8f0;
   --color-border-soft: #edf2f7;
   --color-text:        #1a202c;
-  --color-muted:       #718096;
+  /* --color-muted oscurecido en Sprint 3.3: el valor previo #718096 dejaba
+     ~4.25:1 sobre blanco (FALLA WCAG AA que requiere ≥4.5:1). #475569 da
+     ~6.77:1 (PASS AA holgado, marginal AAA). Aplica a tooltips, sub-labels,
+     placeholders y cualquier "texto secundario" — ahora legible para
+     usuarios con visión reducida. */
+  --color-muted:       #475569;
   --color-subtle:      #a0aec0;
 
   /* Yango brand */

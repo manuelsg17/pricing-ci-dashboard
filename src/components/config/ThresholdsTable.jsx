@@ -244,7 +244,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         <thead>
           <tr>
             <th style={{ textAlign: 'left' }}>Bracket</th>
-            <th>Máx. km (≤)</th>
+            <th scope="col">Máx. km (≤)</th>
             <th style={{ textAlign: 'left', fontSize: 9 }}>Descripción</th>
           </tr>
         </thead>

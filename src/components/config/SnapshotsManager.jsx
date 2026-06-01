@@ -90,7 +90,7 @@ export default function SnapshotsManager({ country }) {
               <th style={{ textAlign: 'right' }}>Filas</th>
               <th style={{ textAlign: 'right' }}>Semanas</th>
               <th style={{ textAlign: 'right' }}>Ciudades</th>
-              <th></th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>

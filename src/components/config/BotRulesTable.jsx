@@ -271,8 +271,8 @@ export default function BotRulesTable({ country }) {
           <table className="config-table" style={{ fontSize: 11 }}>
             <thead>
               <tr>
-                <th>app</th><th>vc</th><th>ovc</th><th>db_city</th>
-                <th style={{ textAlign: 'right' }}>n</th><th></th>
+                <th scope="col">app</th><th scope="col">vc</th><th scope="col">ovc</th><th scope="col">db_city</th>
+                <th style={{ textAlign: 'right' }}>n</th><th scope="col"></th>
               </tr>
             </thead>
             <tbody>
@@ -296,14 +296,14 @@ export default function BotRulesTable({ country }) {
       <table className="config-table" style={{ marginTop: 4 }}>
         <thead>
           <tr>
-            <th>app</th>
-            <th>vc</th>
-            <th>ovc</th>
-            <th>Competidor</th>
-            <th>Categoría</th>
-            <th>Ciudades</th>
-            <th>Activa</th>
-            <th></th>
+            <th scope="col">app</th>
+            <th scope="col">vc</th>
+            <th scope="col">ovc</th>
+            <th scope="col">Competidor</th>
+            <th scope="col">Categoría</th>
+            <th scope="col">Ciudades</th>
+            <th scope="col">Activa</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -379,7 +379,7 @@ export default function BotRulesTable({ country }) {
                   >
                     {rule._new ? 'Crear' : 'Guardar'}
                   </button>
-                  <button className="btn-delete-sm" onClick={() => deleteRule(rule.id)}>✕</button>
+                  <button className="btn-delete-sm" aria-label="Eliminar" onClick={() => deleteRule(rule.id)}>✕</button>
                 </td>
               </tr>
             )

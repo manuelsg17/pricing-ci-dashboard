@@ -325,12 +325,12 @@ export default function InDriveConfig({ country }) {
                   <tr>
                     <th style={{ textAlign: 'left' }}>Ciudad</th>
                     <th style={{ textAlign: 'left' }}>Categoría</th>
-                    <th>Obs. con bids</th>
-                    <th>Avg rec.</th>
-                    <th>Rec. mín</th>
-                    <th>Rec. máx</th>
-                    <th>Avg bids</th>
-                    <th>Diferencia %</th>
+                    <th scope="col">Obs. con bids</th>
+                    <th scope="col">Avg rec.</th>
+                    <th scope="col">Rec. mín</th>
+                    <th scope="col">Rec. máx</th>
+                    <th scope="col">Avg bids</th>
+                    <th scope="col">Diferencia %</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -376,10 +376,10 @@ export default function InDriveConfig({ country }) {
                       <th style={{ textAlign: 'left' }}>Ciudad</th>
                       <th style={{ textAlign: 'left' }}>Categoría</th>
                       <th style={{ textAlign: 'left' }}>Semana</th>
-                      <th>Obs.</th>
-                      <th>Avg rec.</th>
-                      <th>Avg bids</th>
-                      <th>Diferencia %</th>
+                      <th scope="col">Obs.</th>
+                      <th scope="col">Avg rec.</th>
+                      <th scope="col">Avg bids</th>
+                      <th scope="col">Diferencia %</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -446,9 +446,9 @@ export default function InDriveConfig({ country }) {
                 <tr>
                   <th style={{ textAlign: 'left' }}>Ciudad</th>
                   <th style={{ textAlign: 'left' }}>Categoría</th>
-                  <th>% Ajuste</th>
+                  <th scope="col">% Ajuste</th>
                   <th style={{ textAlign: 'left', minWidth: 200 }}>Nota (opcional)</th>
-                  <th>Ref. histórica</th>
+                  <th scope="col">Ref. histórica</th>
                 </tr>
               </thead>
               <tbody>

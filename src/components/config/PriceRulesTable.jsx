@@ -169,11 +169,11 @@ export default function PriceRulesTable({ country }) {
       <table className="config-table" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th>Ciudad</th>
-            <th>Categoría</th>
-            <th>Competidor</th>
-            <th>Precio máx ({config.currency})</th>
-            <th></th>
+            <th scope="col">Ciudad</th>
+            <th scope="col">Categoría</th>
+            <th scope="col">Competidor</th>
+            <th scope="col">Precio máx ({config.currency})</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -227,7 +227,7 @@ export default function PriceRulesTable({ country }) {
                   >
                     {rule._new ? 'Crear' : 'Guardar'}
                   </button>
-                  <button className="btn-delete-sm" onClick={() => deleteRule(rule.id)}>✕</button>
+                  <button className="btn-delete-sm" aria-label="Eliminar" onClick={() => deleteRule(rule.id)}>✕</button>
                 </td>
               </tr>
             )
