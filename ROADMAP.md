@@ -85,8 +85,9 @@ romper componentes legacy. shadcn/ui copy-pasted al proyecto en
    es feature útil. Defer hasta que cause un bug real.
 7. **Index InDrive + DEFAULT Peru deferred**. El bug del DEFAULT
    'Peru' YA fue resuelto en mig 101 (verificado). El cambio de index es
-   marginal vs `idx_po_indrive_manual` existente. NOTA: el slot `106` lo
-   tomó el cron refresh (cutover Mig 105). Si este index se hace, sería `107`.
+   marginal vs `idx_po_indrive_manual` existente. NOTA: `106` lo tomó el cron
+   refresh (cutover Mig 105) y `107` el fix de `get_available_zones`. Si este
+   index se hace, sería la próxima libre (`108`).
 
 ---
 
@@ -122,8 +123,9 @@ romper componentes legacy. shadcn/ui copy-pasted al proyecto en
 
 8. **A11y completo** — outline:none cleanup, más aria-labels en botones-
    icono fuera de `/config`.
-9. **Mig 107** — index InDrive optimizado (marginal). (Era "106"; ese
-   número lo tomó el cron refresh del cutover Mig 105.)
+9. **Index InDrive optimizado** (marginal) — sería la próxima migración libre
+   (108). Los números 106 y 107 ya se usaron: 106 = cron refresh (mig 105),
+   107 = fix de `get_available_zones` (lee de la MV, fix timeout 8s).
 10. **Self-host Google Fonts + flagcdn** para eliminar dependencias externas
     y mejorar CSP. Audit L3.
 11. **Dark mode** si querés el look "Linear total".
