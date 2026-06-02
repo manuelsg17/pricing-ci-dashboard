@@ -18,6 +18,16 @@ import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
 import { useCountry } from '../context/CountryContext'
 import { useI18n } from '../context/LanguageContext'
+import {
+  DEFAULT_TOOLS_STATE,
+  YANGO_TOOLS,
+  YANGO_PARTNER_PCT,
+  MI_ZONA_MAX_PCT,
+  yangoBaseCommission,
+  yangoToolsExtra,
+  miZonaCommissionForRatio,
+  yangoScenarioCommission,
+} from '../lib/yangoTools'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
@@ -31,7 +41,8 @@ function formatWeekLabel(year, week) {
 // Yango vs competidores, con la ganancia encima de cada barra. Escala de viajes
 // configurable (segmentos + slider) y selector por viaje / por semana.
 // Reusa el motor de DriverEarnings (precios CI + competitor_commissions/bonuses).
-// Las herramientas Yango (Mi Zona/Mi Casa/Mis Destinos/Flex) llegan en Build 2.
+// Build 2: comisión de Yango apilable (base ciudad + partner + Mi Casa/Mis
+// Destinos/Flex/Mi Zona, ver lib/yangoTools.js) + matriz E1/E4 + notas de fórmulas.
 export default function Rentabilidad() {
   const { t } = useI18n()
   const { country, countryConfig, dbConfigs } = useCountry()
@@ -45,6 +56,7 @@ export default function Rentabilidad() {
   const [segments, setSegments] = useState([60, 90])
   const [liveTrips, setLiveTrips] = useState(70)
   const [metric, setMetric] = useState('trip') // 'trip' | 'week'
+  const [tools, setTools] = useState(DEFAULT_TOOLS_STATE) // herramientas Yango
 
   // dbCategory -> { comp -> { avg, count } }
   const [pricesByCat, setPricesByCat] = useState({})
@@ -77,6 +89,13 @@ export default function Rentabilidad() {
 
   const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity, country)
   const { bonuses } = useCompetitorBonuses(dbCity, country)
+
+  // ── Comisión total de Yango = base ciudad + partner(3%) + herramientas ──────
+  // Reemplaza el % plano del DB (Yango figura 20%): el modelo real es apilable.
+  const yangoBasePct = yangoBaseCommission(dbCity)
+  const yangoExtraPct = useMemo(() => yangoToolsExtra(tools), [tools])
+  const yangoCommission = yangoBasePct + YANGO_PARTNER_PCT + yangoExtraPct
+  const miZonaPct = tools.mi_zona.on ? miZonaCommissionForRatio(tools.mi_zona.ratio) : 0
 
   // ── Cargar precios de TODAS las categorías de la ciudad (1 query) ──────
   const loadPrices = useCallback(async () => {
@@ -207,11 +226,23 @@ export default function Rentabilidad() {
     (dbCategory, comp, trips) => {
       const pd = pricesByCat[dbCategory]?.[comp]
       if (!pd || !trips || isNaN(pd.avg)) return null
-      const comm = commissions[comp] ?? 20
+      // Yango: comisión apilable computada. Resto: % del DB.
+      const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
       const week = pd.avg * trips * (1 - comm / 100) + bonusFor(comp, trips)
       return metric === 'trip' ? week / trips : week
     },
-    [pricesByCat, commissions, bonusFor, metric]
+    [pricesByCat, commissions, bonusFor, metric, yangoCommission]
+  )
+
+  // Ganancia de Yango a una comisión arbitraria (para la matriz de escenarios).
+  const yangoNetAt = useCallback(
+    (dbCategory, trips, commPct) => {
+      const pd = pricesByCat[dbCategory]?.['Yango']
+      if (!pd || !trips || isNaN(pd.avg)) return null
+      const week = pd.avg * trips * (1 - commPct / 100) + bonusFor('Yango', trips)
+      return metric === 'trip' ? week / trips : week
+    },
+    [pricesByCat, bonusFor, metric]
   )
 
   // data para un valor de viajes: [{ tier, [comp]: value }]
@@ -236,6 +267,17 @@ export default function Rentabilidad() {
       { key: 'live', trips: liveTrips, live: true },
     ]
   }, [segments, liveTrips])
+
+  // Tier + competidor de referencia para la matriz E1/E4 (primer tier con data
+  // de Yango; primer rival visible).
+  const refTier = useMemo(
+    () => catMap.find(({ dbCategory }) => pricesByCat[dbCategory]?.['Yango']) || catMap[0],
+    [catMap, pricesByCat]
+  )
+  const refComp = useMemo(
+    () => visibleCompetitors.find((c) => !isYango(c)) || shownCompetitors.find((c) => !isYango(c)),
+    [visibleCompetitors, shownCompetitors]
+  )
 
   // ── Manejo de segmentos ────────────────────────────────────────────────
   function updateSegment(i, val) {
@@ -448,6 +490,105 @@ export default function Rentabilidad() {
         )}
       </div>
 
+      {/* ── Herramientas Yango (comisión apilable) ── */}
+      <div className="rent-panel" style={panelStyle}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginBottom: 10,
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 700 }}>{t('rentabilidad.yango_tools')}</span>
+          <span style={{ fontSize: 13 }}>
+            {t('rentabilidad.total_commission')}:{' '}
+            <strong style={{ color: 'var(--color-yango, #E53935)', fontSize: 15 }}>
+              {yangoCommission.toFixed(1)}%
+            </strong>
+            <span style={{ color: 'var(--color-muted)', marginLeft: 8, fontSize: 12 }}>
+              = {yangoBasePct}% {t('rentabilidad.base_city')} + {YANGO_PARTNER_PCT}% partner
+              {yangoExtraPct > 0
+                ? ` + ${yangoExtraPct.toFixed(1)}% ${t('rentabilidad.tools_extra')}`
+                : ''}
+            </span>
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <ToolToggle
+            active={tools.mi_casa}
+            onClick={() => setTools((s) => ({ ...s, mi_casa: !s.mi_casa }))}
+            label={`${YANGO_TOOLS.mi_casa.label} +${YANGO_TOOLS.mi_casa.pct}%`}
+          />
+          <ToolToggle
+            active={tools.mis_destinos}
+            onClick={() => setTools((s) => ({ ...s, mis_destinos: !s.mis_destinos }))}
+            label={`${YANGO_TOOLS.mis_destinos.label} +${YANGO_TOOLS.mis_destinos.pct}%`}
+          />
+          <ToolToggle
+            active={tools.flex}
+            onClick={() => setTools((s) => ({ ...s, flex: !s.flex }))}
+            label={`${YANGO_TOOLS.flex.label} +${YANGO_TOOLS.flex.pct}%`}
+            sub={t('rentabilidad.temporary')}
+          />
+          <ToolToggle
+            active={tools.mi_zona.on}
+            onClick={() =>
+              setTools((s) => ({ ...s, mi_zona: { ...s.mi_zona, on: !s.mi_zona.on } }))
+            }
+            label={`Mi Zona +${miZonaPct.toFixed(1)}%`}
+          />
+        </div>
+
+        {/* Mi Zona — slider de cobertura GMV (modelo B). Mini-mapa de zonas = Fase 3. */}
+        {tools.mi_zona.on && (
+          <div
+            style={{
+              marginTop: 12,
+              display: 'flex',
+              gap: 12,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--color-muted)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {t('rentabilidad.mi_zona_coverage')}
+            </span>
+            <input
+              type="range"
+              min="0.25"
+              max="1"
+              step="0.01"
+              value={tools.mi_zona.ratio}
+              onChange={(e) =>
+                setTools((s) => ({
+                  ...s,
+                  mi_zona: { ...s.mi_zona, ratio: Number(e.target.value) },
+                }))
+              }
+              style={{ flex: 1, maxWidth: 360, accentColor: 'var(--color-yango, #E53935)' }}
+            />
+            <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+              {Math.round(tools.mi_zona.ratio * 100)}% GMV →{' '}
+              <strong style={{ color: 'var(--color-yango, #E53935)' }}>
+                +{miZonaPct.toFixed(1)}%
+              </strong>{' '}
+              {t('rentabilidad.tools_extra').toLowerCase()}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* ── Gráficos (small multiples) ── */}
       {loading ? (
         <div style={emptyStyle}>{t('app.loading')}</div>
@@ -530,13 +671,158 @@ export default function Rentabilidad() {
         </div>
       )}
 
-      {/* ── Nota Build 2 ── */}
-      <div
-        style={{ marginTop: 16, fontSize: 12, color: 'var(--color-muted)', fontStyle: 'italic' }}
-      >
-        {t('rentabilidad.b2_note')}
+      {/* ── Matriz de escenarios Yango (E1 mejor / E4 peor) ── */}
+      {hasData && refTier && (
+        <div className="rent-panel" style={panelStyle}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 8,
+              marginBottom: 8,
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 700 }}>{t('rentabilidad.scenarios')}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+              {t('rentabilidad.ref_tier')}: <strong>{refTier.uiCat}</strong> · {liveTrips}{' '}
+              {t('rentabilidad.trips_week')} ·{' '}
+              {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')}
+            </span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={matrixTableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>{t('rentabilidad.col_scenario')}</th>
+                  <th style={thStyle}>Flex</th>
+                  <th style={thStyle}>Mi Zona</th>
+                  <th style={thStyle}>{t('rentabilidad.col_commission')}</th>
+                  <th style={thStyle}>{t('rentabilidad.col_net')}</th>
+                  <th style={thStyle}>vs {refComp || '—'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  {
+                    key: 'best',
+                    label: t('rentabilidad.scenario_best'),
+                    comm: yangoScenarioCommission(dbCity, 'best'),
+                    flex: '—',
+                    zona: '0%',
+                    accent: '#16A34A',
+                  },
+                  {
+                    key: 'current',
+                    label: t('rentabilidad.scenario_current'),
+                    comm: yangoCommission,
+                    flex: tools.flex ? `${YANGO_TOOLS.flex.pct}%` : '—',
+                    zona: tools.mi_zona.on ? `${miZonaPct.toFixed(1)}%` : '—',
+                    accent: 'var(--color-yango, #E53935)',
+                  },
+                  {
+                    key: 'worst',
+                    label: t('rentabilidad.scenario_worst'),
+                    comm: yangoScenarioCommission(dbCity, 'worst'),
+                    flex: `${YANGO_TOOLS.flex.pct}%`,
+                    zona: `${MI_ZONA_MAX_PCT}%`,
+                    accent: '#DC2626',
+                  },
+                ].map((row) => {
+                  const yNet = yangoNetAt(refTier.dbCategory, liveTrips, row.comm)
+                  const rNet = refComp ? netFor(refTier.dbCategory, refComp, liveTrips) : null
+                  const delta = yNet != null && rNet != null ? yNet - rNet : null
+                  return (
+                    <tr key={row.key}>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                        <span style={{ color: row.accent }}>●</span> {row.label}
+                      </td>
+                      <td style={tdStyle}>{row.flex}</td>
+                      <td style={tdStyle}>{row.zona}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>{row.comm.toFixed(1)}%</td>
+                      <td style={tdStyle}>{fmt(yNet)}</td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          color: delta == null ? 'inherit' : delta >= 0 ? '#16A34A' : '#DC2626',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {delta == null ? '—' : `${delta >= 0 ? '+' : ''}${fmt(delta)}`}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--color-muted)' }}>
+            {t('rentabilidad.scenarios_hint')}
+          </div>
+        </div>
+      )}
+
+      {/* ── Notas: fórmulas de cálculo ── */}
+      <div className="rent-panel" style={panelStyle}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+          {t('rentabilidad.formulas')}
+        </div>
+        <div style={formulaBoxStyle}>
+          <div style={{ marginBottom: 8 }}>
+            <strong>{t('rentabilidad.formula_competitor')}</strong>
+            <div>neto/semana = precio_prom × viajes × (1 − comisión%) + bonos</div>
+            <div>neto/viaje = neto/semana ÷ viajes</div>
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>Yango ({t('rentabilidad.formula_stacked')})</strong>
+            <div>comisión_total = base_ciudad + partner(3%) + Σ herramientas activas</div>
+            <div style={{ color: 'var(--color-yango, #E53935)' }}>
+              = {yangoBasePct}% ({dbCity}) + {YANGO_PARTNER_PCT}% + {yangoExtraPct.toFixed(1)}% ={' '}
+              <strong>{yangoCommission.toFixed(1)}%</strong>
+            </div>
+            <div>Mi Casa +5% · Mis Destinos +5% · Flex +6% · Mi Zona = 9·(1 − t^1.087)%</div>
+            <div style={{ color: 'var(--color-muted)' }}>
+              {' '}
+              t = (cobertura_GMV − 0.251) / 0.749 · cobertura 100% → 0% · ≤25% → 9%
+            </div>
+          </div>
+          <div style={{ color: 'var(--color-muted)' }}>{t('rentabilidad.formula_note')}</div>
+        </div>
+      </div>
+
+      {/* ── Nota Build 3 ── */}
+      <div style={{ marginTop: 4, fontSize: 12, color: 'var(--color-muted)', fontStyle: 'italic' }}>
+        {t('rentabilidad.b3_note')}
       </div>
     </div>
+  )
+}
+
+// Toggle de herramienta Yango (estilo botón pill).
+function ToolToggle({ active, onClick, label, sub }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 12px',
+        borderRadius: 8,
+        fontSize: 13,
+        cursor: 'pointer',
+        border:
+          '1px solid ' + (active ? 'var(--color-yango, #E53935)' : 'var(--color-border, #e2e8f0)'),
+        background: active ? 'var(--color-yango, #E53935)' : '#fff',
+        color: active ? '#fff' : 'var(--color-muted)',
+        fontWeight: active ? 600 : 400,
+      }}
+    >
+      <span>{active ? '☑' : '☐'}</span>
+      {label}
+      {sub && <span style={{ fontSize: 10, opacity: 0.85, fontStyle: 'italic' }}>· {sub}</span>}
+    </button>
   )
 }
 
@@ -564,6 +850,34 @@ const emptyStyle = {
   background: 'var(--color-panel, #fff)',
   border: '1px dashed var(--color-border, #e2e8f0)',
   borderRadius: 8,
+}
+const matrixTableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  fontSize: 13,
+}
+const thStyle = {
+  textAlign: 'left',
+  padding: '6px 10px',
+  borderBottom: '2px solid var(--color-border, #e2e8f0)',
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--color-muted)',
+  whiteSpace: 'nowrap',
+}
+const tdStyle = {
+  padding: '7px 10px',
+  borderBottom: '1px solid var(--color-border, #f1f5f9)',
+  whiteSpace: 'nowrap',
+}
+const formulaBoxStyle = {
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: 12,
+  lineHeight: 1.7,
+  background: 'var(--color-bg, #f8fafc)',
+  border: '1px solid var(--color-border, #e2e8f0)',
+  borderRadius: 6,
+  padding: '12px 14px',
 }
 const chipStyle = {
   display: 'inline-flex',
