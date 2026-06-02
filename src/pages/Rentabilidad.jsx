@@ -50,10 +50,14 @@ export default function Rentabilidad() {
   const [pricesByCat, setPricesByCat] = useState({})
   const [loading, setLoading] = useState(false)
 
-  // Reset ciudad cuando cambia el país
+  // Reset ciudad solo si la actual ya no existe en el país. Idempotente: así
+  // un re-fetch de config (mount o edición de otro usuario vía realtime) que
+  // cambia la identidad de countryConfig NO pisa la ciudad que el usuario eligió.
   useEffect(() => {
-    setUiCity(countryConfig.cities[0] || 'Lima')
-  }, [country, countryConfig])
+    if (!countryConfig.cities.includes(uiCity)) {
+      setUiCity(countryConfig.cities[0] || 'Lima')
+    }
+  }, [country, countryConfig, uiCity])
 
   // Categorías UI de la ciudad + mapeo a (dbCity, dbCategory)
   const categories = useMemo(
@@ -134,6 +138,57 @@ export default function Rentabilidad() {
     )
   }, [catMap, pricesByCat, commRows, uiCity, dbCity, country, dbConfigs])
 
+  // Solo los que tienen data real en la ciudad seleccionada: el union de arriba
+  // arrastra catálogos de otras dbCity (ej. Corp en Lima) que quedan siempre
+  // vacíos e inflan leyenda + barras fantasma. Si no hay nada, cae al catálogo
+  // completo para que la vista vacía siga mostrando el set esperado.
+  const shownCompetitors = useMemo(() => {
+    const withData = new Set()
+    for (const comps of Object.values(pricesByCat))
+      for (const c of Object.keys(comps)) withData.add(c)
+    const filtered = competitors.filter((c) => withData.has(c))
+    return filtered.length ? filtered : competitors
+  }, [competitors, pricesByCat])
+
+  // ── Selección de competidores (multiselect) ────────────────────────────
+  // null = automático (Yango + los 3 rivales con más data). Cuando el usuario
+  // toca un chip se vuelve una lista explícita. Se resetea a auto al cambiar
+  // ciudad/país para recalcular el default del nuevo mercado.
+  const [selectedComps, setSelectedComps] = useState(null)
+  useEffect(() => {
+    setSelectedComps(null)
+  }, [uiCity, country])
+
+  const compCounts = useMemo(() => {
+    const counts = {}
+    for (const comps of Object.values(pricesByCat))
+      for (const [c, pd] of Object.entries(comps)) counts[c] = (counts[c] || 0) + pd.count
+    return counts
+  }, [pricesByCat])
+
+  const defaultSelection = useMemo(() => {
+    const yangos = shownCompetitors.filter(isYango)
+    const others = shownCompetitors
+      .filter((c) => !isYango(c))
+      .sort((a, b) => (compCounts[b] || 0) - (compCounts[a] || 0))
+      .slice(0, 3)
+    return [...yangos, ...others]
+  }, [shownCompetitors, compCounts])
+
+  // Lo que realmente se grafica: respeta el orden de shownCompetitors (Yango
+  // primero) y descarta lo que ya no tiene data tras un cambio de semana.
+  const visibleCompetitors = useMemo(() => {
+    const base = selectedComps ?? defaultSelection
+    return shownCompetitors.filter((c) => base.includes(c))
+  }, [selectedComps, defaultSelection, shownCompetitors])
+
+  function toggleComp(c) {
+    setSelectedComps((prev) => {
+      const cur = prev ?? defaultSelection
+      return cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]
+    })
+  }
+
   // ── Cálculo de ganancia ─────────────────────────────────────────────────
   const bonusFor = useCallback(
     (comp, trips) => {
@@ -164,13 +219,13 @@ export default function Rentabilidad() {
     (trips) =>
       catMap.map(({ uiCat, dbCategory }) => {
         const point = { tier: uiCat }
-        for (const comp of competitors) {
+        for (const comp of visibleCompetitors) {
           const v = netFor(dbCategory, comp, trips)
           point[comp] = v != null ? Number(v.toFixed(2)) : null
         }
         return point
       }),
-    [catMap, competitors, netFor]
+    [catMap, visibleCompetitors, netFor]
   )
 
   // paneles: un small-multiple por segmento + uno "en vivo" (slider)
@@ -227,7 +282,10 @@ export default function Rentabilidad() {
               min="2020"
               max="2030"
               style={{ width: 76 }}
-              onChange={(e) => setRefYear(Number(e.target.value))}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (v) setRefYear(v)
+              }}
             />
           </Field>
           <Field label={t('earnings.week')}>
@@ -237,7 +295,10 @@ export default function Rentabilidad() {
               min="1"
               max="53"
               style={{ width: 64 }}
-              onChange={(e) => setRefWeek(Number(e.target.value))}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (v) setRefWeek(v)
+              }}
             />
           </Field>
           <Field label={t('earnings.hours_per_week')}>
@@ -247,7 +308,10 @@ export default function Rentabilidad() {
               min="1"
               max="80"
               style={{ width: 68 }}
-              onChange={(e) => setHoursPerWeek(Number(e.target.value))}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (v) setHoursPerWeek(v)
+              }}
             />
           </Field>
 
@@ -330,6 +394,58 @@ export default function Rentabilidad() {
           />
           <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>viajes/sem</span>
         </div>
+
+        {/* Selector de competidores — chips toggleables, label visible en cada barra */}
+        {shownCompetitors.length > 0 && (
+          <div
+            style={{
+              marginTop: 14,
+              display: 'flex',
+              gap: 6,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-muted)' }}>
+              {t('rentabilidad.competitors')}
+            </span>
+            {shownCompetitors.map((c) => {
+              const active = visibleCompetitors.includes(c)
+              const color = COMPETITOR_COLORS[c] || '#94a3b8'
+              return (
+                <button
+                  key={c}
+                  onClick={() => toggleComp(c)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '3px 9px',
+                    borderRadius: 999,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    border: '1px solid ' + (active ? color : 'var(--color-border, #e2e8f0)'),
+                    background: active ? color : '#fff',
+                    color: active ? '#fff' : 'var(--color-muted)',
+                    fontWeight: active ? 600 : 400,
+                    opacity: active ? 1 : 0.6,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 999,
+                      background: active ? '#fff' : color,
+                      display: 'inline-block',
+                    }}
+                  />
+                  {c}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Gráficos (small multiples) ── */}
@@ -385,7 +501,7 @@ export default function Rentabilidad() {
                       labelFormatter={(l) => l}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    {competitors.map((comp) => (
+                    {visibleCompetitors.map((comp) => (
                       <Bar
                         key={comp}
                         dataKey={comp}

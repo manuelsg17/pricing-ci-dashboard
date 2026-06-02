@@ -224,6 +224,7 @@ export const TRANSLATIONS = {
     'rentabilidad.subtitle':
       'Ganancia neta por tier — Yango vs competidores. Configurá la escala de viajes y compará por viaje o por semana.',
     'rentabilidad.metric': 'Métrica',
+    'rentabilidad.competitors': 'Competidores:',
     'rentabilidad.per_trip': 'Por viaje',
     'rentabilidad.per_week': 'Por semana',
     'rentabilidad.segments': 'Segmentos de viajes:',
@@ -670,6 +671,7 @@ export const TRANSLATIONS = {
     'rentabilidad.subtitle':
       'Net earnings per tier — Yango vs competitors. Configure the trip scale and compare per trip or per week.',
     'rentabilidad.metric': 'Metric',
+    'rentabilidad.competitors': 'Competitors:',
     'rentabilidad.per_trip': 'Per trip',
     'rentabilidad.per_week': 'Per week',
     'rentabilidad.segments': 'Trip segments:',
@@ -1109,6 +1111,7 @@ export const TRANSLATIONS = {
     'rentabilidad.subtitle':
       'Чистый доход по тарифам — Yango против конкурентов. Настройте шкалу поездок и сравните за поездку или за неделю.',
     'rentabilidad.metric': 'Метрика',
+    'rentabilidad.competitors': 'Конкуренты:',
     'rentabilidad.per_trip': 'За поездку',
     'rentabilidad.per_week': 'За неделю',
     'rentabilidad.segments': 'Сегменты поездок:',
