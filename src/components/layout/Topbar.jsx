@@ -9,41 +9,47 @@ import '../../styles/topbar.css'
 const getNav = (t) => [
   { id: 'dashboard', label: t('nav.dashboard'), direct: true },
   {
-    id: 'analisis', label: t('nav.analisis'), icon: '📈',
+    id: 'analisis',
+    label: t('nav.analisis'),
+    icon: '📈',
     children: [
-      { id: 'market',   label: t('nav.market')   },
+      { id: 'market', label: t('nav.market') },
       { id: 'earnings', label: t('nav.earnings') },
-      { id: 'report',   label: t('nav.report')   },
+      { id: 'rentabilidad', label: t('nav.rentabilidad') },
+      { id: 'report', label: t('nav.report') },
     ],
   },
   {
-    id: 'datos', label: t('nav.datos'), icon: '🗄️',
+    id: 'datos',
+    label: t('nav.datos'),
+    icon: '🗄️',
     children: [
-      { id: 'dataentry',  label: t('nav.dataentry')  },
-      { id: 'upload',     label: t('nav.upload')  },
-      { id: 'rawdata',    label: t('nav.rawdata')      },
-      { id: 'botvshubs',  label: t('nav.botvshubs')  },
-      { id: 'coverage',   label: t('nav.coverage')  },
+      { id: 'dataentry', label: t('nav.dataentry') },
+      { id: 'upload', label: t('nav.upload') },
+      { id: 'rawdata', label: t('nav.rawdata') },
+      { id: 'botvshubs', label: t('nav.botvshubs') },
+      { id: 'coverage', label: t('nav.coverage') },
     ],
   },
   {
-    id: 'config-group', label: t('nav.config_group'), icon: '⚙️',
+    id: 'config-group',
+    label: t('nav.config_group'),
+    icon: '⚙️',
     children: [
-      { id: 'events',    label: t('nav.events')         },
+      { id: 'events', label: t('nav.events') },
       { id: 'distances', label: t('nav.distances') },
-      { id: 'config',    label: t('nav.config')  },
-      { id: 'access',    label: t('nav.access')         },
+      { id: 'config', label: t('nav.config') },
+      { id: 'access', label: t('nav.access') },
     ],
   },
 ]
-
 
 function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
   const children = visibleChildren || item.children
-  const isActive = children.some(c => c.id === activeTab)
+  const isActive = children.some((c) => c.id === activeTab)
 
   // Close on outside click
   useEffect(() => {
@@ -63,7 +69,7 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
     <div className="topbar__dropdown" ref={ref}>
       <button
         className={`topbar__tab topbar__tab--group${isActive ? ' topbar__tab--active' : ''}`}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
         {item.label}
@@ -74,7 +80,7 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
 
       {open && (
         <div className="topbar__menu">
-          {children.map(child => (
+          {children.map((child) => (
             <button
               key={child.id}
               className={`topbar__menu-item${activeTab === child.id ? ' topbar__menu-item--active' : ''}`}
@@ -89,17 +95,26 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
   )
 }
 
-export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, canAccess = () => true, allowedCountries = COUNTRIES }) {
+export default function Topbar({
+  activeTab,
+  onTabChange,
+  userEmail,
+  onLogout,
+  canAccess = () => true,
+  allowedCountries = COUNTRIES,
+}) {
   const { lang, setLang, languages, t } = useI18n()
   const { country, setCountry, countryConfig } = useCountry()
   // Prioridad: countryConfig.iso2 / nativeLabel (de DB) → COUNTRY_CONFIG
   // hardcoded → fallback al país literal. Esto hace que países creados
   // vía wizard tengan su bandera y label correcto desde el primer render.
-  const iso2  = (countryConfig?.iso2 || getCountryIso(country) || '').toLowerCase()
-  const label = countryConfig?.nativeLabel || (() => {
-    const fromI18n = t(`country.${country}`)
-    return fromI18n === `country.${country}` ? country : fromI18n
-  })()
+  const iso2 = (countryConfig?.iso2 || getCountryIso(country) || '').toLowerCase()
+  const label =
+    countryConfig?.nativeLabel ||
+    (() => {
+      const fromI18n = t(`country.${country}`)
+      return fromI18n === `country.${country}` ? country : fromI18n
+    })()
 
   const navItems = getNav(t)
 
@@ -109,7 +124,10 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
         <div className="topbar__brand-icon">Y</div>
         <div className="topbar__brand-text">
           <span className="topbar__brand-title">{t('brand.title')}</span>
-          <span className="topbar__brand-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <span
+            className="topbar__brand-sub"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
             {iso2 && (
               <img
                 src={`https://flagcdn.com/w20/${iso2}.png`}
@@ -123,7 +141,7 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
       </div>
 
       <div className="topbar__tabs">
-        {navItems.map(item => {
+        {navItems.map((item) => {
           if (item.direct) {
             if (!canAccess(item.id)) return null
             return (
@@ -136,7 +154,7 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
               </button>
             )
           }
-          const visibleChildren = item.children.filter(c => canAccess(c.id))
+          const visibleChildren = item.children.filter((c) => canAccess(c.id))
           if (visibleChildren.length === 0) return null
           return (
             <DropdownMenu
@@ -166,16 +184,22 @@ export default function Topbar({ activeTab, onTabChange, userEmail, onLogout, ca
         <select
           className="topbar__lang-select"
           value={lang}
-          onChange={e => setLang(e.target.value)}
+          onChange={(e) => setLang(e.target.value)}
           title="Idioma / Language / Язык"
         >
-          {languages.map(l => (
-            <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+          {languages.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.flag} {l.label}
+            </option>
           ))}
         </select>
 
-        <span className="topbar__user" title={userEmail}>{userEmail}</span>
-        <button className="topbar__logout" onClick={onLogout}>{t('app.logout')}</button>
+        <span className="topbar__user" title={userEmail}>
+          {userEmail}
+        </span>
+        <button className="topbar__logout" onClick={onLogout}>
+          {t('app.logout')}
+        </button>
       </div>
     </nav>
   )

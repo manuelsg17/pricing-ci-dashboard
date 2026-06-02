@@ -29,6 +29,7 @@ export const TRANSLATIONS = {
     'nav.dashboard': '📊 Dashboard',
     'nav.analisis': 'Análisis',
     'nav.earnings': '💰 Ganancias',
+    'nav.rentabilidad': '🧮 Rentabilidad',
     'nav.report': '📄 Reporte',
     'nav.market': '🎯 Mercado',
     'nav.datos': 'Gestión de Datos',
@@ -219,6 +220,19 @@ export const TRANSLATIONS = {
 
     // ── Earnings ──────────────────────────────────────
     'earnings.title': 'Ganancias del Conductor',
+    'rentabilidad.title': 'Rentabilidad del Conductor',
+    'rentabilidad.subtitle':
+      'Ganancia neta por tier — Yango vs competidores. Configurá la escala de viajes y compará por viaje o por semana.',
+    'rentabilidad.metric': 'Métrica',
+    'rentabilidad.per_trip': 'Por viaje',
+    'rentabilidad.per_week': 'Por semana',
+    'rentabilidad.segments': 'Segmentos de viajes:',
+    'rentabilidad.add_segment': 'segmento',
+    'rentabilidad.live_trips': 'En vivo',
+    'rentabilidad.trips_week': 'viajes/sem',
+    'rentabilidad.no_data': 'Sin datos CI para',
+    'rentabilidad.b2_note':
+      'Próximo (Build 2): herramientas Yango (Mi Zona, Mi Casa, Mis Destinos, Flex) como comisión apilable + matriz de escenarios mejor/peor.',
     'earnings.week': 'Semana',
     'earnings.year': 'Año',
     'earnings.hours_per_week': 'Horas / semana',
@@ -467,6 +481,7 @@ export const TRANSLATIONS = {
     'nav.dashboard': '📊 Dashboard',
     'nav.analisis': 'Analysis',
     'nav.earnings': '💰 Earnings',
+    'nav.rentabilidad': '🧮 Profitability',
     'nav.report': '📄 Report',
     'nav.market': '🎯 Market',
     'nav.datos': 'Data Management',
@@ -651,6 +666,19 @@ export const TRANSLATIONS = {
     'dataentry.err_finish': 'To end the session, all rows must be filled.',
 
     'earnings.title': 'Driver Earnings',
+    'rentabilidad.title': 'Driver Profitability',
+    'rentabilidad.subtitle':
+      'Net earnings per tier — Yango vs competitors. Configure the trip scale and compare per trip or per week.',
+    'rentabilidad.metric': 'Metric',
+    'rentabilidad.per_trip': 'Per trip',
+    'rentabilidad.per_week': 'Per week',
+    'rentabilidad.segments': 'Trip segments:',
+    'rentabilidad.add_segment': 'segment',
+    'rentabilidad.live_trips': 'Live',
+    'rentabilidad.trips_week': 'trips/wk',
+    'rentabilidad.no_data': 'No CI data for',
+    'rentabilidad.b2_note':
+      'Next (Build 2): Yango tools (My Zone, My Home, My Destinations, Flex) as stackable commission + best/worst scenario matrix.',
     'earnings.week': 'Week',
     'earnings.year': 'Year',
     'earnings.hours_per_week': 'Hours / week',
@@ -892,6 +920,7 @@ export const TRANSLATIONS = {
     'nav.dashboard': '📊 Дашборд',
     'nav.analisis': 'Анализ',
     'nav.earnings': '💰 Доходы',
+    'nav.rentabilidad': '🧮 Рентабельность',
     'nav.report': '📄 Отчёт',
     'nav.market': '🎯 Рынок',
     'nav.datos': 'Управление данными',
@@ -1076,6 +1105,19 @@ export const TRANSLATIONS = {
     'dataentry.err_finish': 'Для завершения сессии все строки должны быть заполнены.',
 
     'earnings.title': 'Доходы водителей',
+    'rentabilidad.title': 'Рентабельность водителя',
+    'rentabilidad.subtitle':
+      'Чистый доход по тарифам — Yango против конкурентов. Настройте шкалу поездок и сравните за поездку или за неделю.',
+    'rentabilidad.metric': 'Метрика',
+    'rentabilidad.per_trip': 'За поездку',
+    'rentabilidad.per_week': 'За неделю',
+    'rentabilidad.segments': 'Сегменты поездок:',
+    'rentabilidad.add_segment': 'сегмент',
+    'rentabilidad.live_trips': 'Вживую',
+    'rentabilidad.trips_week': 'поездок/нед',
+    'rentabilidad.no_data': 'Нет данных CI для',
+    'rentabilidad.b2_note':
+      'Далее (Build 2): инструменты Yango (Моя зона, Мой дом, Мои направления, Flex) как накопительная комиссия + матрица сценариев лучший/худший.',
     'earnings.week': 'Неделя',
     'earnings.year': 'Год',
     'earnings.hours_per_week': 'Часов / неделю',

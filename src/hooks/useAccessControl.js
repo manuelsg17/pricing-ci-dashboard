@@ -4,38 +4,53 @@ import { useAuth } from '../lib/auth'
 
 // All known sections in the app
 export const ALL_SECTIONS = [
-  'dashboard', 'earnings', 'report', 'market',
-  'dataentry', 'upload', 'rawdata', 'botvshubs', 'coverage',
-  'events', 'distances', 'config', 'access',
+  'dashboard',
+  'earnings',
+  'rentabilidad',
+  'report',
+  'market',
+  'dataentry',
+  'upload',
+  'rawdata',
+  'botvshubs',
+  'coverage',
+  'events',
+  'distances',
+  'config',
+  'access',
 ]
 
 export const SECTION_LABELS = {
   dashboard: '📊 Dashboard',
-  earnings:  '💰 Ganancias',
-  report:    '📄 Reporte',
-  market:    '🎯 Mercado',
+  earnings: '💰 Ganancias',
+  rentabilidad: '🧮 Rentabilidad',
+  report: '📄 Reporte',
+  market: '🎯 Mercado',
   dataentry: '✏️ Ingresar CI',
-  upload:    '📤 Cargar Data',
-  rawdata:   '🗃 Data Raw',
+  upload: '📤 Cargar Data',
+  rawdata: '🗃 Data Raw',
   botvshubs: '📊 Bot vs Hubs',
-  coverage:  '🛡️ Cobertura',
-  events:    '📌 Eventos',
+  coverage: '🛡️ Cobertura',
+  events: '📌 Eventos',
   distances: '📍 Distancias Ref.',
-  config:    '⚙️ Configuración',
-  access:    '🔐 Gestión de Accesos',
+  config: '⚙️ Configuración',
+  access: '🔐 Gestión de Accesos',
 }
 
 export function useAccessControl() {
   const { session } = useAuth()
   const email = session?.user?.email || ''
 
-  const [profile,  setProfile]  = useState(null)
-  const [role,     setRole]     = useState(null)
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [role, setRole] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const loadProfile = useCallback(async () => {
-    if (!email) { setLoading(false); return }
+    if (!email) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     const { data: prof, error: e } = await sb
@@ -50,25 +65,42 @@ export function useAccessControl() {
     setLoading(false)
   }, [email])
 
-  useEffect(() => { loadProfile() }, [loadProfile])
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
 
   // Stable identity tied to `role` so consumers can safely add these to
   // useEffect deps without causing re-mount loops.
-  const canAccess = useCallback((section) => {
-    if (!role) return true          // No profile = unrestricted (backward compat)
-    const sections = role.permissions?.sections || []
-    if (sections.includes('all')) return true
-    return sections.includes(section)
-  }, [role])
+  const canAccess = useCallback(
+    (section) => {
+      if (!role) return true // No profile = unrestricted (backward compat)
+      const sections = role.permissions?.sections || []
+      if (sections.includes('all')) return true
+      return sections.includes(section)
+    },
+    [role]
+  )
 
-  const canAccessCountry = useCallback((country) => {
-    if (!role) return true
-    const countries = role.permissions?.countries || []
-    if (countries.includes('all')) return true
-    return countries.includes(country)
-  }, [role])
+  const canAccessCountry = useCallback(
+    (country) => {
+      if (!role) return true
+      const countries = role.permissions?.countries || []
+      if (countries.includes('all')) return true
+      return countries.includes(country)
+    },
+    [role]
+  )
 
   const isAdmin = role?.name === 'admin'
 
-  return { profile, role, loading, error, canAccess, canAccessCountry, isAdmin, reload: loadProfile }
+  return {
+    profile,
+    role,
+    loading,
+    error,
+    canAccess,
+    canAccessCountry,
+    isAdmin,
+    reload: loadProfile,
+  }
 }

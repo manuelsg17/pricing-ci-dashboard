@@ -1,11 +1,11 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
-import { useAuth }           from './lib/auth'
-import { useAccessControl }  from './hooks/useAccessControl'
-import { useCountry }        from './context/CountryContext'
-import { FilterProvider }    from './context/FilterContext'
-import Topbar                from './components/layout/Topbar'
-import LoginScreen     from './components/layout/LoginScreen'
-import ErrorBoundary   from './components/ui/ErrorBoundary'
+import { useAuth } from './lib/auth'
+import { useAccessControl } from './hooks/useAccessControl'
+import { useCountry } from './context/CountryContext'
+import { FilterProvider } from './context/FilterContext'
+import Topbar from './components/layout/Topbar'
+import LoginScreen from './components/layout/LoginScreen'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 import { SkeletonDashboard } from './components/ui/Skeleton'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Config = lazy(() => import('./pages/Config'))
@@ -14,6 +14,7 @@ const DistanceRefs = lazy(() => import('./pages/DistanceRefs'))
 const RawData = lazy(() => import('./pages/RawData'))
 const DataEntry = lazy(() => import('./pages/DataEntry'))
 const DriverEarnings = lazy(() => import('./pages/DriverEarnings'))
+const Rentabilidad = lazy(() => import('./pages/Rentabilidad'))
 const WeeklyReport = lazy(() => import('./pages/WeeklyReport'))
 const MarketEvents = lazy(() => import('./pages/MarketEvents'))
 const AccessManagement = lazy(() => import('./pages/AccessManagement'))
@@ -35,7 +36,7 @@ export default function App() {
 
   // Países permitidos según rol — usa availableCountries del context
   // (incluye los que viven solo en DB, no solo los hardcoded de constants.js)
-  const allowedCountries = availableCountries.filter(c => canAccessCountry(c))
+  const allowedCountries = availableCountries.filter((c) => canAccessCountry(c))
 
   // Si el país seleccionado no está permitido, forzar al primero disponible
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function App() {
     if (!allowedCountries.includes(country)) {
       setCountry(allowedCountries[0])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- corre solo al cargar auth; incluir country/setCountry pelearía con la selección del usuario
   }, [acLoading])
 
   // Si el tab activo no es accesible, redirigir a dashboard
@@ -81,10 +83,16 @@ export default function App() {
 
   if (loading || acLoading) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', fontSize: 13, color: '#888',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          fontSize: 13,
+          color: '#888',
+        }}
+      >
         Cargando…
       </div>
     )
@@ -96,13 +104,33 @@ export default function App() {
 
   if (profile && profile.is_active === false) {
     return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', gap: 16, textAlign: 'center', padding: 20
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          gap: 16,
+          textAlign: 'center',
+          padding: 20,
+        }}
+      >
         <h2 style={{ color: '#d32f2f' }}>Acceso Suspendido</h2>
-        <p style={{ color: '#555' }}>Tu cuenta ha sido desactivada. Por favor, contacta al administrador del sistema.</p>
-        <button onClick={signOut} style={{ padding: '8px 16px', background: '#d32f2f', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+        <p style={{ color: '#555' }}>
+          Tu cuenta ha sido desactivada. Por favor, contacta al administrador del sistema.
+        </p>
+        <button
+          onClick={signOut}
+          style={{
+            padding: '8px 16px',
+            background: '#d32f2f',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
           Cerrar sesión
         </button>
       </div>
@@ -134,17 +162,18 @@ export default function App() {
                 leen vía useConfigContext() de src/context/ConfigProvider. */}
             {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard />}
             {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
-            {activeTab === 'earnings'  && canAccess('earnings')  && <DriverEarnings />}
-            {activeTab === 'report'    && canAccess('report')    && <WeeklyReport />}
-            {activeTab === 'market'    && canAccess('market')    && <Market />}
-            {activeTab === 'coverage'  && canAccess('coverage')  && <Coverage />}
-            {activeTab === 'events'    && canAccess('events')    && <MarketEvents />}
-            {activeTab === 'rawdata'   && canAccess('rawdata')   && <RawData />}
+            {activeTab === 'earnings' && canAccess('earnings') && <DriverEarnings />}
+            {activeTab === 'rentabilidad' && canAccess('rentabilidad') && <Rentabilidad />}
+            {activeTab === 'report' && canAccess('report') && <WeeklyReport />}
+            {activeTab === 'market' && canAccess('market') && <Market />}
+            {activeTab === 'coverage' && canAccess('coverage') && <Coverage />}
+            {activeTab === 'events' && canAccess('events') && <MarketEvents />}
+            {activeTab === 'rawdata' && canAccess('rawdata') && <RawData />}
             {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
-            {activeTab === 'config'    && canAccess('config')    && <Config />}
-            {activeTab === 'upload'    && canAccess('upload')    && <Upload />}
+            {activeTab === 'config' && canAccess('config') && <Config />}
+            {activeTab === 'upload' && canAccess('upload') && <Upload />}
             {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
-            {activeTab === 'access'    && canAccess('access')    && <AccessManagement />}
+            {activeTab === 'access' && canAccess('access') && <AccessManagement />}
           </Suspense>
         </ErrorBoundary>
       </FilterProvider>
