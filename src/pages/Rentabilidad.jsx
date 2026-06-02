@@ -257,7 +257,7 @@ export default function Rentabilidad() {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="rent-page" style={{ padding: '16px 20px', maxWidth: 1400 }}>
+    <div className="rent-page" style={{ padding: '16px 20px', maxWidth: 1820 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>{t('rentabilidad.title')}</h1>
       <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 16 }}>
         {t('rentabilidad.subtitle')}
@@ -463,8 +463,10 @@ export default function Rentabilidad() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))',
-            gap: 16,
+            // ~2 paneles por fila en pantallas grandes (antes 3 muy angostos) y
+            // 1 a pantalla completa en monitores chicos → barras mucho más anchas.
+            gridTemplateColumns: 'repeat(auto-fit, minmax(680px, 1fr))',
+            gap: 18,
           }}
         >
           {panels.map((p) => (
@@ -483,7 +485,7 @@ export default function Rentabilidad() {
                   · {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')}
                 </span>
               </div>
-              <div style={{ width: '100%', height: 300 }}>
+              <div style={{ width: '100%', height: 340 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={chartDataFor(p.trips)}
@@ -513,7 +515,7 @@ export default function Rentabilidad() {
                           position="top"
                           formatter={(v) => (v != null ? v.toFixed(metric === 'trip' ? 1 : 0) : '')}
                           style={{
-                            fontSize: 9,
+                            fontSize: 10,
                             fontWeight: isYango(comp) ? 700 : 400,
                             fill: COMPETITOR_COLORS[comp] || '#64748b',
                           }}
