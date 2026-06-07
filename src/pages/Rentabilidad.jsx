@@ -406,7 +406,9 @@ export default function Rentabilidad() {
       if (!points) type = 'nodata'
       else if (flipN === null) type = startWin ? 'always' : 'never'
       else type = startWin ? 'until' : 'from'
-      return { comp, type, n: flipN }
+      // 'until': flipN es el primer n donde Yango YA pierde; el último n ganador
+      // es flipN-1. 'from': flipN es el primer n ganador (inclusivo, correcto).
+      return { comp, type, n: type === 'until' ? flipN - 1 : flipN }
     })
   }, [refTier, rivalCols, netPerTrip, yangoKeyFor])
 
