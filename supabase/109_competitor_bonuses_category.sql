@@ -1,0 +1,23 @@
+-- ============================================================
+-- 109 — competitor_bonuses.category (bono por categoría opcional)
+-- ============================================================
+-- CONTEXTO
+--   Hasta ahora un bono se cargaba por (competitor_name, city) y NO había forma
+--   de acotarlo a una categoría/tier. Para apps con un solo nombre (Uber, Didi,
+--   InDrive) un bono aplicaba a todos sus tiers sin poder restringirlo; para
+--   Yango/Cabify (nombre por categoría) había que repetir el bono.
+--
+-- APPROACH
+--   Columna `category` text NULLABLE en competitor_bonuses:
+--     - NULL            → el bono aplica a TODAS las categorías del competidor.
+--     - '<dbCategory>'  → el bono aplica SOLO a esa categoría (ej. 'Premier').
+--   El motor (DriverEarnings.calcCell, Rentabilidad.bonusFor) filtra:
+--     aplica si (category IS NULL OR category = <tier en pantalla>).
+--   Aditiva y retrocompatible: las filas existentes quedan con category NULL =
+--   comportamiento actual (todas las categorías).
+--
+-- VERIFICACIÓN
+--   information_schema confirma category text / is_nullable = YES.
+-- ============================================================
+
+alter table public.competitor_bonuses add column if not exists category text;

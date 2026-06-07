@@ -233,9 +233,10 @@ export default function Rentabilidad() {
 
   // ── Cálculo de ganancia ─────────────────────────────────────────────────
   const bonusFor = useCallback(
-    (comp, trips) => {
+    (comp, dbCategory, trips) => {
       let total = 0
       for (const b of bonuses[comp] || []) {
+        if (b.category && b.category !== dbCategory) continue // bono de otra categoría
         if (b.bonus_type === 'viajes' && trips >= b.threshold) total += b.bonus_amount
         else if (b.bonus_type === 'horas' && hoursPerWeek >= b.threshold) total += b.bonus_amount
         // 'zona': informativo (se modela en Build 2 vía herramientas Yango)
@@ -251,7 +252,7 @@ export default function Rentabilidad() {
       if (!pd || !trips || isNaN(pd.avg)) return null
       // Yango: comisión apilable computada. Resto: % del DB.
       const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
-      const week = pd.avg * trips * (1 - comm / 100) + bonusFor(comp, trips)
+      const week = pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips)
       return metric === 'trip' ? week / trips : week
     },
     [pricesByCat, commissions, bonusFor, metric, yangoCommission]
@@ -265,7 +266,7 @@ export default function Rentabilidad() {
       const yangoKey = getYangoDisplayName(country, dbCity, dbCategory)
       const pd = pricesByCat[dbCategory]?.[yangoKey]
       if (!pd || !trips || isNaN(pd.avg)) return null
-      const week = pd.avg * trips * (1 - commPct / 100) + bonusFor(yangoKey, trips)
+      const week = pd.avg * trips * (1 - commPct / 100) + bonusFor(yangoKey, dbCategory, trips)
       return metric === 'trip' ? week / trips : week
     },
     [pricesByCat, bonusFor, metric, country, dbCity]
@@ -283,7 +284,7 @@ export default function Rentabilidad() {
       const pd = pricesByCat[dbCategory]?.[comp]
       if (!pd || !n || isNaN(pd.avg)) return null
       const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
-      return pd.avg * (1 - comm / 100) + bonusFor(comp, n) / n
+      return pd.avg * (1 - comm / 100) + bonusFor(comp, dbCategory, n) / n
     },
     [pricesByCat, commissions, bonusFor, yangoCommission]
   )
