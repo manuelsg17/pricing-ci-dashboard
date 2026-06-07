@@ -50,28 +50,30 @@ export function miZonaCommissionForRatio(ratio) {
   return MI_ZONA_MAX_PCT * (1 - Math.pow(t, MI_ZONA_GAMMA))
 }
 
-// Estado inicial de las herramientas (todo apagado; Mi Zona con cobertura media
-// cuando se prenda, para que el efecto sea visible de entrada).
+// Estado inicial de las herramientas. mi_zona: en Lima se elige por mapa de
+// zonas (zones[]); en provincias hay un slider de cobertura (ratio) de respaldo.
 export const DEFAULT_TOOLS_STATE = {
   mi_casa: false,
   mis_destinos: false,
   flex: false,
-  mi_zona: { on: false, ratio: 0.5 },
+  mi_zona: { on: false, zones: [], ratio: 0.5 },
 }
 
-// Suma de comisión extra de las herramientas activas.
-export function yangoToolsExtra(state = DEFAULT_TOOLS_STATE) {
+// Suma de comisión extra de las herramientas activas. miZonaExtra = la comisión
+// de Mi Zona ya computada afuera (en Lima sale del mapa vía gmv_inside_ratio,
+// en provincias del slider) — se pasa como puntos %, default 0.
+export function yangoToolsExtra(state = DEFAULT_TOOLS_STATE, miZonaExtra = 0) {
   let extra = 0
   if (state.mi_casa) extra += YANGO_TOOLS.mi_casa.pct
   if (state.mis_destinos) extra += YANGO_TOOLS.mis_destinos.pct
   if (state.flex) extra += YANGO_TOOLS.flex.pct
-  if (state.mi_zona?.on) extra += miZonaCommissionForRatio(state.mi_zona.ratio)
+  extra += miZonaExtra
   return extra
 }
 
 // Comisión total de Yango para una ciudad + estado de herramientas.
-export function yangoTotalCommission(dbCity, state) {
-  return yangoBaseCommission(dbCity) + YANGO_PARTNER_PCT + yangoToolsExtra(state)
+export function yangoTotalCommission(dbCity, state, miZonaExtra = 0) {
+  return yangoBaseCommission(dbCity) + YANGO_PARTNER_PCT + yangoToolsExtra(state, miZonaExtra)
 }
 
 // Presets de la matriz de escenarios (decisión cerrada: solo mejor y peor).

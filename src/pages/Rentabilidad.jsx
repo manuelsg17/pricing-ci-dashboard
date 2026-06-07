@@ -33,6 +33,8 @@ import {
   miZonaCommissionForRatio,
   yangoScenarioCommission,
 } from '../lib/yangoTools'
+import { gmvInsideRatio, miZonaCommissionForSelection } from '../lib/limaZones'
+import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
@@ -98,9 +100,25 @@ export default function Rentabilidad() {
   // ── Comisión total de Yango = base ciudad + partner(3%) + herramientas ──────
   // Reemplaza el % plano del DB (Yango figura 20%): el modelo real es apilable.
   const yangoBasePct = yangoBaseCommission(dbCity)
-  const yangoExtraPct = useMemo(() => yangoToolsExtra(tools), [tools])
+  const isLima = dbCity === 'Lima'
+
+  // Mi Zona: en Lima la cobertura sale del mapa (gmv_inside_ratio de las zonas
+  // elegidas, mín. 2); en provincias del slider de respaldo.
+  const miZonaRatio = useMemo(() => {
+    if (!tools.mi_zona.on) return 1
+    if (isLima)
+      return tools.mi_zona.zones.length >= 2 ? (gmvInsideRatio(tools.mi_zona.zones) ?? 1) : 1
+    return tools.mi_zona.ratio
+  }, [tools.mi_zona, isLima])
+  const miZonaPct = useMemo(() => {
+    if (!tools.mi_zona.on) return 0
+    if (isLima)
+      return tools.mi_zona.zones.length >= 2 ? miZonaCommissionForSelection(tools.mi_zona.zones) : 0
+    return miZonaCommissionForRatio(tools.mi_zona.ratio)
+  }, [tools.mi_zona, isLima])
+
+  const yangoExtraPct = useMemo(() => yangoToolsExtra(tools, miZonaPct), [tools, miZonaPct])
   const yangoCommission = yangoBasePct + YANGO_PARTNER_PCT + yangoExtraPct
-  const miZonaPct = tools.mi_zona.on ? miZonaCommissionForRatio(tools.mi_zona.ratio) : 0
 
   // ── Cargar precios de TODAS las categorías de la ciudad (1 query) ──────
   const loadPrices = useCallback(async () => {
@@ -556,8 +574,65 @@ export default function Rentabilidad() {
           />
         </div>
 
-        {/* Mi Zona — slider de cobertura GMV (modelo B). Mini-mapa de zonas = Fase 3. */}
-        {tools.mi_zona.on && (
+        {/* Mi Zona — Lima: mapa de zonas clickeable (Fase 3); provincias: slider. */}
+        {tools.mi_zona.on && isLima && (
+          <div
+            style={{
+              marginTop: 12,
+              display: 'flex',
+              gap: 16,
+              flexWrap: 'wrap',
+              alignItems: 'flex-start',
+            }}
+          >
+            <div style={{ flex: '0 1 460px', minWidth: 280 }}>
+              <MiZonaMap
+                selected={tools.mi_zona.zones}
+                onToggle={(id) =>
+                  setTools((s) => {
+                    const set = new Set(s.mi_zona.zones)
+                    if (set.has(id)) set.delete(id)
+                    else set.add(id)
+                    return { ...s, mi_zona: { ...s.mi_zona, zones: [...set] } }
+                  })
+                }
+              />
+            </div>
+            <div style={{ fontSize: 13, minWidth: 200, flex: '1 1 200px' }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                {t('rentabilidad.mi_zona_select')}
+              </div>
+              <div style={{ color: 'var(--color-muted)' }}>
+                {tools.mi_zona.zones.length} {t('rentabilidad.zones_selected')}
+              </div>
+              {tools.mi_zona.zones.length < 2 ? (
+                <div style={{ color: '#DC2626', marginTop: 8 }}>
+                  {t('rentabilidad.mi_zona_min2')}
+                </div>
+              ) : (
+                <div style={{ marginTop: 8, lineHeight: 1.7 }}>
+                  {t('rentabilidad.gmv_inside')}:{' '}
+                  <strong>{Math.round((miZonaRatio ?? 1) * 100)}%</strong>
+                  <br />
+                  {t('rentabilidad.tools_extra')}:{' '}
+                  <strong style={{ color: 'var(--color-yango, #E53935)', fontSize: 15 }}>
+                    +{miZonaPct.toFixed(1)}%
+                  </strong>{' '}
+                  {t('rentabilidad.col_commission').toLowerCase()}
+                </div>
+              )}
+              {tools.mi_zona.zones.length > 0 && (
+                <button
+                  onClick={() => setTools((s) => ({ ...s, mi_zona: { ...s.mi_zona, zones: [] } }))}
+                  style={{ ...chipAddStyle, marginTop: 10 }}
+                >
+                  {t('rentabilidad.clear')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        {tools.mi_zona.on && !isLima && (
           <div
             style={{
               marginTop: 12,
@@ -595,8 +670,10 @@ export default function Rentabilidad() {
               {Math.round(tools.mi_zona.ratio * 100)}% GMV →{' '}
               <strong style={{ color: 'var(--color-yango, #E53935)' }}>
                 +{miZonaPct.toFixed(1)}%
-              </strong>{' '}
-              {t('rentabilidad.tools_extra').toLowerCase()}
+              </strong>
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--color-muted)', fontStyle: 'italic' }}>
+              {t('rentabilidad.mi_zona_lima_only')}
             </span>
           </div>
         )}
