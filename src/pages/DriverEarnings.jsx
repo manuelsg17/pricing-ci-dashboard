@@ -14,6 +14,7 @@ import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { COMPETITOR_COLORS, getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
+import { resolveBonusWeekly } from '../lib/competitorBonus'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
@@ -176,19 +177,14 @@ export default function DriverEarnings() {
     const commPct = commissions[comp] ?? 20
     const netRides = priceData.price * n * (1 - commPct / 100)
 
-    const compBonuses = (bonuses[comp] || []).filter((b) => !b.category || b.category === dbCat)
-    let totalBonus = 0
-    const appliedBonuses = []
-    for (const b of compBonuses) {
-      if (b.bonus_type === 'viajes' && n >= b.threshold) {
-        totalBonus += b.bonus_amount
-        appliedBonuses.push(b)
-      } else if (b.bonus_type === 'horas' && hoursPerWeek >= b.threshold) {
-        totalBonus += b.bonus_amount
-        appliedBonuses.push(b)
-      }
-      // zona: informational only
-    }
+    // Motor único (peldaño-máximo + mecanismos). Sustituye la suma plana anterior.
+    const { total: totalBonus, applied: appliedBonuses } = resolveBonusWeekly(bonuses[comp], {
+      trips: n,
+      hours: hoursPerWeek,
+      dbCategory: dbCat,
+      fare: priceData.price,
+      commPct,
+    })
     return {
       netRides,
       totalBonus,

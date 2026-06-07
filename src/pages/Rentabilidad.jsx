@@ -34,6 +34,7 @@ import {
   yangoScenarioCommission,
 } from '../lib/yangoTools'
 import { gmvInsideRatio, miZonaCommissionForSelection } from '../lib/limaZones'
+import { resolveBonusWeekly } from '../lib/competitorBonus'
 import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -232,18 +233,20 @@ export default function Rentabilidad() {
   }
 
   // ── Cálculo de ganancia ─────────────────────────────────────────────────
+  // Delega en el motor único (peldaño-máximo, sin el bug de suma). cash semanal.
   const bonusFor = useCallback(
-    (comp, dbCategory, trips) => {
-      let total = 0
-      for (const b of bonuses[comp] || []) {
-        if (b.category && b.category !== dbCategory) continue // bono de otra categoría
-        if (b.bonus_type === 'viajes' && trips >= b.threshold) total += b.bonus_amount
-        else if (b.bonus_type === 'horas' && hoursPerWeek >= b.threshold) total += b.bonus_amount
-        // 'zona': informativo (se modela en Build 2 vía herramientas Yango)
-      }
+    (comp, dbCategory, trips, fare) => {
+      const { total } = resolveBonusWeekly(bonuses[comp], {
+        trips,
+        hours: hoursPerWeek,
+        dbCategory,
+        fare,
+        commPct: commissions[comp] ?? 20,
+        // segment/sharePeak/streakDays: defaults F1 (arquetipo llega en F3)
+      })
       return total
     },
-    [bonuses, hoursPerWeek]
+    [bonuses, hoursPerWeek, commissions]
   )
 
   const netFor = useCallback(
@@ -252,7 +255,7 @@ export default function Rentabilidad() {
       if (!pd || !trips || isNaN(pd.avg)) return null
       // Yango: comisión apilable computada. Resto: % del DB.
       const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
-      const week = pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips)
+      const week = pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg)
       return metric === 'trip' ? week / trips : week
     },
     [pricesByCat, commissions, bonusFor, metric, yangoCommission]
@@ -266,7 +269,8 @@ export default function Rentabilidad() {
       const yangoKey = getYangoDisplayName(country, dbCity, dbCategory)
       const pd = pricesByCat[dbCategory]?.[yangoKey]
       if (!pd || !trips || isNaN(pd.avg)) return null
-      const week = pd.avg * trips * (1 - commPct / 100) + bonusFor(yangoKey, dbCategory, trips)
+      const week =
+        pd.avg * trips * (1 - commPct / 100) + bonusFor(yangoKey, dbCategory, trips, pd.avg)
       return metric === 'trip' ? week / trips : week
     },
     [pricesByCat, bonusFor, metric, country, dbCity]
@@ -284,7 +288,7 @@ export default function Rentabilidad() {
       const pd = pricesByCat[dbCategory]?.[comp]
       if (!pd || !n || isNaN(pd.avg)) return null
       const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
-      return pd.avg * (1 - comm / 100) + bonusFor(comp, dbCategory, n) / n
+      return pd.avg * (1 - comm / 100) + bonusFor(comp, dbCategory, n, pd.avg) / n
     },
     [pricesByCat, commissions, bonusFor, yangoCommission]
   )
