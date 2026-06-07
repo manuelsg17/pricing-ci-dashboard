@@ -11,7 +11,12 @@ import {
   LabelList,
 } from 'recharts'
 import { sb } from '../lib/supabase'
-import { COMPETITOR_COLORS, getCompetitors, resolveDbParams } from '../lib/constants'
+import {
+  COMPETITOR_COLORS,
+  getCompetitors,
+  resolveDbParams,
+  getYangoDisplayName,
+} from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
@@ -235,14 +240,17 @@ export default function Rentabilidad() {
   )
 
   // Ganancia de Yango a una comisión arbitraria (para la matriz de escenarios).
+  // La key de Yango varía por ciudad/categoría (ej. Corp usa 'YangoEconomy'),
+  // así que la resolvemos con getYangoDisplayName en vez de hardcodear 'Yango'.
   const yangoNetAt = useCallback(
     (dbCategory, trips, commPct) => {
-      const pd = pricesByCat[dbCategory]?.['Yango']
+      const yangoKey = getYangoDisplayName(country, dbCity, dbCategory)
+      const pd = pricesByCat[dbCategory]?.[yangoKey]
       if (!pd || !trips || isNaN(pd.avg)) return null
-      const week = pd.avg * trips * (1 - commPct / 100) + bonusFor('Yango', trips)
+      const week = pd.avg * trips * (1 - commPct / 100) + bonusFor(yangoKey, trips)
       return metric === 'trip' ? week / trips : week
     },
-    [pricesByCat, bonusFor, metric]
+    [pricesByCat, bonusFor, metric, country, dbCity]
   )
 
   // data para un valor de viajes: [{ tier, [comp]: value }]
@@ -269,10 +277,15 @@ export default function Rentabilidad() {
   }, [segments, liveTrips])
 
   // Tier + competidor de referencia para la matriz E1/E4 (primer tier con data
-  // de Yango; primer rival visible).
+  // de Yango; primer rival visible). Sin fallback a catMap[0]: si ningún tier
+  // tiene Yango, refTier queda undefined y la matriz se oculta (guard abajo).
   const refTier = useMemo(
-    () => catMap.find(({ dbCategory }) => pricesByCat[dbCategory]?.['Yango']) || catMap[0],
-    [catMap, pricesByCat]
+    () =>
+      catMap.find(
+        ({ dbCategory }) =>
+          pricesByCat[dbCategory]?.[getYangoDisplayName(country, dbCity, dbCategory)]
+      ),
+    [catMap, pricesByCat, country, dbCity]
   )
   const refComp = useMemo(
     () => visibleCompetitors.find((c) => !isYango(c)) || shownCompetitors.find((c) => !isYango(c)),
@@ -749,7 +762,7 @@ export default function Rentabilidad() {
                           fontWeight: 600,
                         }}
                       >
-                        {delta == null ? '—' : `${delta >= 0 ? '+' : ''}${fmt(delta)}`}
+                        {delta == null ? '—' : `${delta >= 0 ? '+' : '-'}${fmt(Math.abs(delta))}`}
                       </td>
                     </tr>
                   )
