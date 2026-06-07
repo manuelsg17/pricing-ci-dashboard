@@ -271,6 +271,23 @@ export default function Rentabilidad() {
     [pricesByCat, bonusFor, metric, country, dbCity]
   )
 
+  // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
+  const yangoKeyFor = useCallback(
+    (dbCategory) => getYangoDisplayName(country, dbCity, dbCategory),
+    [country, dbCity]
+  )
+
+  // Ganancia POR VIAJE a n viajes (siempre per-trip, para el break-even).
+  const netPerTrip = useCallback(
+    (dbCategory, comp, n) => {
+      const pd = pricesByCat[dbCategory]?.[comp]
+      if (!pd || !n || isNaN(pd.avg)) return null
+      const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
+      return pd.avg * (1 - comm / 100) + bonusFor(comp, n) / n
+    },
+    [pricesByCat, commissions, bonusFor, yangoCommission]
+  )
+
   // data para un valor de viajes: [{ tier, [comp]: value }]
   const chartDataFor = useCallback(
     (trips) =>
@@ -309,6 +326,89 @@ export default function Rentabilidad() {
     () => visibleCompetitors.find((c) => !isYango(c)) || shownCompetitors.find((c) => !isYango(c)),
     [visibleCompetitors, shownCompetitors]
   )
+
+  // ── Análisis auto-generado (Build 3) ────────────────────────────────────
+  const rivalCols = useMemo(
+    () => visibleCompetitors.filter((c) => !isYango(c)),
+    [visibleCompetitors]
+  )
+
+  // Yango vs cada rival por tier — delta en la métrica actual, a liveTrips.
+  const tierComparison = useMemo(
+    () =>
+      catMap.map(({ uiCat, dbCategory }) => {
+        const yNet = netFor(dbCategory, yangoKeyFor(dbCategory), liveTrips)
+        const cells = rivalCols.map((comp) => {
+          const cNet = netFor(dbCategory, comp, liveTrips)
+          return { comp, cNet, delta: yNet != null && cNet != null ? yNet - cNet : null }
+        })
+        return { uiCat, yNet, cells }
+      }),
+    [catMap, rivalCols, netFor, liveTrips, yangoKeyFor]
+  )
+  const winSummary = useMemo(() => {
+    let wins = 0
+    let total = 0
+    for (const row of tierComparison)
+      for (const c of row.cells)
+        if (c.delta != null) {
+          total++
+          if (c.delta >= 0) wins++
+        }
+    return { wins, total }
+  }, [tierComparison])
+
+  // Costo de cada herramienta Yango en el tier de referencia (en la métrica actual).
+  const toolCosts = useMemo(() => {
+    if (!refTier) return null
+    const pd = pricesByCat[refTier.dbCategory]?.[yangoKeyFor(refTier.dbCategory)]
+    if (!pd) return null
+    const fare = pd.avg
+    const cost = (pct) => (metric === 'trip' ? fare * (pct / 100) : fare * (pct / 100) * liveTrips)
+    const items = [
+      {
+        key: 'mi_casa',
+        label: YANGO_TOOLS.mi_casa.label,
+        pct: YANGO_TOOLS.mi_casa.pct,
+        active: tools.mi_casa,
+      },
+      {
+        key: 'mis_destinos',
+        label: YANGO_TOOLS.mis_destinos.label,
+        pct: YANGO_TOOLS.mis_destinos.pct,
+        active: tools.mis_destinos,
+      },
+      { key: 'flex', label: YANGO_TOOLS.flex.label, pct: YANGO_TOOLS.flex.pct, active: tools.flex },
+      { key: 'mi_zona', label: 'Mi Zona', pct: miZonaPct, active: tools.mi_zona.on },
+    ].map((it) => ({ ...it, cost: cost(it.pct) }))
+    return { fare, items, totalPct: yangoExtraPct, totalCost: cost(yangoExtraPct) }
+  }, [refTier, pricesByCat, metric, liveTrips, tools, miZonaPct, yangoExtraPct, yangoKeyFor])
+
+  // Break-even: a cuántos viajes/sem Yango supera a cada rival (tier ref, per-trip).
+  const breakEvens = useMemo(() => {
+    if (!refTier) return []
+    const yKey = yangoKeyFor(refTier.dbCategory)
+    const MAXN = 200
+    return rivalCols.map((comp) => {
+      let startWin = null
+      let flipN = null
+      let points = 0
+      for (let n = 1; n <= MAXN; n++) {
+        const y = netPerTrip(refTier.dbCategory, yKey, n)
+        const c = netPerTrip(refTier.dbCategory, comp, n)
+        if (y == null || c == null) continue
+        points++
+        const win = y >= c
+        if (startWin === null) startWin = win
+        else if (flipN === null && win !== startWin) flipN = n
+      }
+      let type
+      if (!points) type = 'nodata'
+      else if (flipN === null) type = startWin ? 'always' : 'never'
+      else type = startWin ? 'until' : 'from'
+      return { comp, type, n: flipN }
+    })
+  }, [refTier, rivalCols, netPerTrip, yangoKeyFor])
 
   // ── Manejo de segmentos ────────────────────────────────────────────────
   function updateSegment(i, val) {
@@ -881,10 +981,159 @@ export default function Rentabilidad() {
         </div>
       </div>
 
-      {/* ── Nota Build 3 ── */}
-      <div style={{ marginTop: 4, fontSize: 12, color: 'var(--color-muted)', fontStyle: 'italic' }}>
-        {t('rentabilidad.b3_note')}
-      </div>
+      {/* ── Análisis auto-generado (Build 3) ── */}
+      {hasData && refTier && (
+        <div className="rent-panel" style={panelStyle}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+            {t('rentabilidad.analysis')}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
+            {liveTrips} {t('rentabilidad.trips_week')} ·{' '}
+            {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')} ·{' '}
+            {t('rentabilidad.total_commission')} {yangoCommission.toFixed(1)}%
+            {winSummary.total > 0 && (
+              <>
+                {' · '}
+                <strong
+                  style={{
+                    color: winSummary.wins * 2 >= winSummary.total ? '#16A34A' : '#DC2626',
+                  }}
+                >
+                  Yango {t('rentabilidad.wins_in')} {winSummary.wins}/{winSummary.total}{' '}
+                  {t('rentabilidad.comparisons')}
+                </strong>
+              </>
+            )}
+          </div>
+
+          {/* 1. Yango vs competidores por tier */}
+          <div style={{ fontSize: 13, fontWeight: 600, margin: '4px 0 6px' }}>
+            {t('rentabilidad.vs_competitors_tier')}
+          </div>
+          <div style={{ overflowX: 'auto', marginBottom: 18 }}>
+            <table style={matrixTableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>{t('rentabilidad.col_tier')}</th>
+                  <th style={thStyle}>Yango</th>
+                  {rivalCols.map((c) => (
+                    <th key={c} style={thStyle}>
+                      vs {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tierComparison.map((row) => (
+                  <tr key={row.uiCat}>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>{row.uiCat}</td>
+                    <td style={tdStyle}>{fmt(row.yNet)}</td>
+                    {row.cells.map((c) => (
+                      <td
+                        key={c.comp}
+                        style={{
+                          ...tdStyle,
+                          color: c.delta == null ? 'inherit' : c.delta >= 0 ? '#16A34A' : '#DC2626',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {c.delta == null
+                          ? '—'
+                          : `${c.delta >= 0 ? '+' : '-'}${fmt(Math.abs(c.delta))}`}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* 2 + 3: costo de herramientas + break-even, lado a lado */}
+          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+            {toolCosts && (
+              <div style={{ flex: '1 1 320px' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                  {t('rentabilidad.tool_costs')}{' '}
+                  <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: 11 }}>
+                    · {refTier.uiCat}
+                  </span>
+                </div>
+                <table style={matrixTableStyle}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>{t('rentabilidad.col_tool')}</th>
+                      <th style={thStyle}>+pp</th>
+                      <th style={thStyle}>{t('rentabilidad.cost')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {toolCosts.items.map((it) => (
+                      <tr key={it.key} style={{ opacity: it.active ? 1 : 0.5 }}>
+                        <td style={tdStyle}>
+                          {it.label}
+                          {it.active && (
+                            <span style={{ color: '#16A34A', marginLeft: 4 }}>
+                              ✓ {t('rentabilidad.active')}
+                            </span>
+                          )}
+                        </td>
+                        <td style={tdStyle}>+{it.pct.toFixed(it.key === 'mi_zona' ? 1 : 0)}</td>
+                        <td style={{ ...tdStyle, color: '#DC2626' }}>−{fmt(it.cost)}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>
+                        {t('rentabilidad.total_active')}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 700 }}>
+                        +{toolCosts.totalPct.toFixed(1)}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 700, color: '#DC2626' }}>
+                        −{fmt(toolCosts.totalCost)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {breakEvens.length > 0 && (
+              <div style={{ flex: '1 1 320px' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                  {t('rentabilidad.break_even')}{' '}
+                  <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: 11 }}>
+                    · {refTier.uiCat}
+                  </span>
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.9 }}>
+                  {breakEvens.map((be) => {
+                    const map = {
+                      always: { txt: t('rentabilidad.be_always'), color: '#16A34A' },
+                      never: { txt: t('rentabilidad.be_never'), color: '#DC2626' },
+                      from: {
+                        txt: `${t('rentabilidad.be_from')} ${be.n} ${t('rentabilidad.trips_week')}`,
+                        color: '#D97706',
+                      },
+                      until: {
+                        txt: `${t('rentabilidad.be_until')} ${be.n} ${t('rentabilidad.trips_week')}`,
+                        color: '#D97706',
+                      },
+                      nodata: { txt: t('rentabilidad.be_nodata'), color: 'var(--color-muted)' },
+                    }
+                    const v = map[be.type]
+                    return (
+                      <li key={be.comp}>
+                        <strong>{be.comp}</strong>:{' '}
+                        <span style={{ color: v.color, fontWeight: 600 }}>{v.txt}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
