@@ -100,7 +100,7 @@ export default function MiZonaMap({ selected = [], onToggle }) {
               fill={on ? '#fff' : '#475569'}
               style={{ pointerEvents: 'none', fontWeight: on ? 700 : 500 }}
             >
-              {p.i}
+              {p.i + 1}
             </text>
           </g>
         )
