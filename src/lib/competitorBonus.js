@@ -28,7 +28,8 @@ export function tieredReward(tiers, trips, cap) {
   for (const t of tiers || []) {
     if (trips >= num(t.threshold)) best = Math.max(best, num(t.reward))
   }
-  return cap != null ? Math.min(best, num(cap)) : best
+  // cap 0 (o vacío) = SIN tope (no anular el bono).
+  return cap != null && num(cap) > 0 ? Math.min(best, num(cap)) : best
 }
 
 function streakCash(spec, days) {
@@ -37,9 +38,11 @@ function streakCash(spec, days) {
   const windows = num(spec.windows_per_day, 1)
   let perWindow = 0
   for (let d = 0; d < days && d < perDay.length; d++) perWindow += num(perDay[d])
-  if (spec.cap_per_window != null) perWindow = Math.min(perWindow, num(spec.cap_per_window))
+  if (spec.cap_per_window != null && num(spec.cap_per_window) > 0)
+    perWindow = Math.min(perWindow, num(spec.cap_per_window))
   let total = perWindow * windows
-  if (spec.cap_total != null) total = Math.min(total, num(spec.cap_total))
+  if (spec.cap_total != null && num(spec.cap_total) > 0)
+    total = Math.min(total, num(spec.cap_total))
   return total
 }
 
@@ -59,7 +62,8 @@ export function rowWeeklyCash(b, ctx) {
     case 'surge': {
       const share = b.share_in_window != null ? num(b.share_in_window) : num(ctx.sharePeak)
       const raw = (num(b.mult_pct) / 100) * fare * trips * share
-      return b.cap_amount != null ? Math.min(raw, num(b.cap_amount)) : raw
+      const cap = num(b.cap_amount) // cap 0 (o vacío) = SIN tope
+      return b.cap_amount != null && cap > 0 ? Math.min(raw, cap) : raw
     }
     case 'streak':
       return streakCash(b.streak_spec, num(ctx.streakDays))
@@ -105,6 +109,37 @@ export function resolveBonusWeekly(rows, ctx = {}) {
     }
   }
   return { total, oneOff, applied }
+}
+
+// Descripción legible de un bono según su mecanismo (resúmenes, PDF, snapshot).
+export function describeBonus(b, currency = 'S/') {
+  const cap =
+    b.cap_amount != null && Number(b.cap_amount) > 0 ? ` (tope ${currency} ${b.cap_amount})` : ''
+  switch (b.mechanism || 'flat') {
+    case 'tiered': {
+      const t = (b.tiers || [])
+        .slice()
+        .sort((a, c) => Number(a.threshold) - Number(c.threshold))
+        .map((x) => `≥${x.threshold}→${currency} ${x.reward}`)
+        .join(' · ')
+      return `Escalera: ${t || '—'}${cap}`
+    }
+    case 'guarantee':
+      return `Garantía: piso ${currency} ${b.bonus_amount} si ≥${b.threshold} viajes`
+    case 'comm_credit':
+      return `Monedas: ${currency} ${b.bonus_amount}/sem`
+    case 'surge':
+      return `Surge: +${b.mult_pct}% sobre fare${cap}`
+    case 'streak':
+      return 'Racha (días consecutivos)'
+    case 'comm_discount':
+      return `Desc. comisión a ${b.comm_pct}% en ventana`
+    case 'flat':
+    default:
+      return b.bonus_type === 'horas'
+        ? `≥ ${b.threshold} h/sem → +${currency} ${b.bonus_amount}`
+        : `≥ ${b.threshold} viajes → +${currency} ${b.bonus_amount}`
+  }
 }
 
 // Comisión EFECTIVA del competidor tras descuentos por ventana (InDrive 1%).

@@ -14,7 +14,7 @@ import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { COMPETITOR_COLORS, getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
-import { resolveBonusWeekly } from '../lib/competitorBonus'
+import { resolveBonusWeekly, describeBonus } from '../lib/competitorBonus'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
@@ -263,9 +263,18 @@ export default function DriverEarnings() {
       bonuses: competitors.flatMap((c) =>
         (bonuses[c] || []).map((b) => ({
           competitor: c,
-          type: b.bonus_type,
+          mechanism: b.mechanism || 'flat',
+          bonus_type: b.bonus_type,
           threshold: b.threshold,
           amount: b.bonus_amount,
+          tiers: b.tiers || null,
+          cap_amount: b.cap_amount ?? null,
+          mult_pct: b.mult_pct ?? null,
+          streak_spec: b.streak_spec || null,
+          comm_pct: b.comm_pct ?? null,
+          share_in_window: b.share_in_window ?? null,
+          segment: b.segment,
+          recurring: b.recurring,
           description: b.description,
         }))
       ),
@@ -373,13 +382,7 @@ export default function DriverEarnings() {
     const bonusRows = competitors.flatMap((comp) =>
       (bonuses[comp] || [])
         .filter((b) => !b.category || b.category === dbCat)
-        .map((b) => [
-          comp,
-          b.bonus_type === 'viajes' ? 'Viajes' : b.bonus_type === 'horas' ? 'Horas' : 'Zona',
-          b.threshold,
-          fmt(b.bonus_amount),
-          b.description || '—',
-        ])
+        .map((b) => [comp, describeBonus(b, countryConfig.currency), b.description || '—'])
     )
     if (bonusRows.length > 0) {
       const bonusY = doc.lastAutoTable.finalY + 10
@@ -388,7 +391,7 @@ export default function DriverEarnings() {
       doc.text('Bonos de Referencia', 14, bonusY)
       autoTable(doc, {
         startY: bonusY + 4,
-        head: [['Competidor', 'Tipo', 'Umbral', 'Monto', 'Descripción']],
+        head: [['Competidor', 'Bono', 'Descripción']],
         body: bonusRows,
         styles: { fontSize: 9, cellPadding: 3 },
         headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
@@ -730,14 +733,9 @@ export default function DriverEarnings() {
                           {compBonuses.map((b, i) => (
                             <span
                               key={i}
-                              className={`earn-bonus-chip earn-bonus-chip--${b.bonus_type}`}
+                              className={`earn-bonus-chip earn-bonus-chip--${b.mechanism || b.bonus_type}`}
                             >
-                              {b.bonus_type === 'viajes' &&
-                                `≥ ${b.threshold} viajes → +${currency} ${b.bonus_amount}`}
-                              {b.bonus_type === 'horas' &&
-                                `≥ ${b.threshold} h/sem → +${currency} ${b.bonus_amount}`}
-                              {b.bonus_type === 'zona' &&
-                                `Zona: +${currency} ${b.bonus_amount} (informativo)`}
+                              {describeBonus(b, currency)}
                               {b.description && ` · ${b.description}`}
                             </span>
                           ))}

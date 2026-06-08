@@ -63,6 +63,8 @@ const labelStyle = {
   marginBottom: 3,
 }
 const hintStyle = { fontSize: 11, color: 'var(--color-muted)', fontStyle: 'italic', marginTop: 4 }
+// '' → null; un 0 explícito se conserva (igual criterio que el hook).
+const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
 function pill(active, color = 'var(--color-yango, #E53935)') {
   return {
     padding: '4px 11px',
@@ -331,7 +333,7 @@ export default function BonusesConfig({ country }) {
                       <input
                         type="number"
                         min="0"
-                        value={t.threshold}
+                        value={t.threshold ?? ''}
                         placeholder="viajes"
                         style={{ width: 80 }}
                         onChange={(e) => updateTier(row.id, tiers, i, 'threshold', e.target.value)}
@@ -340,7 +342,7 @@ export default function BonusesConfig({ country }) {
                       <input
                         type="number"
                         min="0"
-                        value={t.reward}
+                        value={t.reward ?? ''}
                         placeholder="premio"
                         style={{ width: 90 }}
                         onChange={(e) => updateTier(row.id, tiers, i, 'reward', e.target.value)}
@@ -472,6 +474,9 @@ export default function BonusesConfig({ country }) {
                     Baja la comisión solo en la ventana. % en ventana también es ajustable en el
                     arquetipo.
                   </div>
+                  <div style={{ ...hintStyle, color: '#D97706' }}>
+                    ⚠ Aún no se refleja en las gráficas (descuento de comisión pendiente — F2).
+                  </div>
                 </div>
               )}
 
@@ -539,7 +544,7 @@ export default function BonusesConfig({ country }) {
                       placeholder="2"
                       style={{ width: 70 }}
                       onChange={(e) =>
-                        setStreak(row.id, spec, 'windows_per_day', Number(e.target.value) || null)
+                        setStreak(row.id, spec, 'windows_per_day', numOrNull(e.target.value))
                       }
                     />
                   </Field>
@@ -572,7 +577,7 @@ export default function BonusesConfig({ country }) {
                       placeholder="100"
                       style={{ width: 80 }}
                       onChange={(e) =>
-                        setStreak(row.id, spec, 'cap_per_window', Number(e.target.value) || null)
+                        setStreak(row.id, spec, 'cap_per_window', numOrNull(e.target.value))
                       }
                     />
                   </Field>
@@ -584,7 +589,7 @@ export default function BonusesConfig({ country }) {
                       placeholder="200"
                       style={{ width: 80 }}
                       onChange={(e) =>
-                        setStreak(row.id, spec, 'cap_total', Number(e.target.value) || null)
+                        setStreak(row.id, spec, 'cap_total', numOrNull(e.target.value))
                       }
                     />
                   </Field>

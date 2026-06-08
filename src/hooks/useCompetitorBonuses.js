@@ -17,6 +17,7 @@ export function useCompetitorBonuses(city, country) {
       .eq('country', country)
       .order('competitor_name')
       .order('sort_order')
+      .order('id')
     if (e) setError(e.message)
     else if (data) setAllRows(data)
     setLoading(false)
