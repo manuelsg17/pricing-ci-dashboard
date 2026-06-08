@@ -803,8 +803,8 @@ export default function DriverEarnings() {
                 {t('earnings.bonuses')}
               </button>
             </div>
-            {configTab === 'commissions' && <CommissionsConfig />}
-            {configTab === 'bonuses' && <BonusesConfig />}
+            {configTab === 'commissions' && <CommissionsConfig country={country} />}
+            {configTab === 'bonuses' && <BonusesConfig country={country} />}
           </div>
         )}
       </div>
