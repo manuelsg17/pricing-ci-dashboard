@@ -34,7 +34,7 @@ import {
   yangoScenarioCommission,
 } from '../lib/yangoTools'
 import { gmvInsideRatio, miZonaCommissionForSelection } from '../lib/limaZones'
-import { resolveBonusWeekly } from '../lib/competitorBonus'
+import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
 import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -65,6 +65,9 @@ export default function Rentabilidad() {
   const [liveTrips, setLiveTrips] = useState(70)
   const [metric, setMetric] = useState('trip') // 'trip' | 'week'
   const [tools, setTools] = useState(DEFAULT_TOOLS_STATE) // herramientas Yango
+  // Arquetipo de driver: define a quién se evalúan los bonos (segmento) y los
+  // parámetros de ventana/racha (alimentan comm_discount InDrive, surge y streak Didi).
+  const [archetype, setArchetype] = useState({ segment: 'active', sharePeak: 0.25, streakDays: 3 })
 
   // dbCategory -> { comp -> { avg, count } }
   const [pricesByCat, setPricesByCat] = useState({})
@@ -242,23 +245,31 @@ export default function Rentabilidad() {
         dbCategory,
         fare,
         commPct: commissions[comp] ?? 20,
-        // segment/sharePeak/streakDays: defaults F1 (arquetipo llega en F3)
+        segment: archetype.segment,
+        sharePeak: archetype.sharePeak,
+        streakDays: archetype.streakDays,
       })
       return total
     },
-    [bonuses, hoursPerWeek, commissions]
+    [bonuses, hoursPerWeek, commissions, archetype]
   )
 
   const netFor = useCallback(
     (dbCategory, comp, trips) => {
       const pd = pricesByCat[dbCategory]?.[comp]
       if (!pd || !trips || isNaN(pd.avg)) return null
-      // Yango: comisión apilable computada. Resto: % del DB.
-      const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
+      // Yango: comisión apilable computada. Resto: % del DB con descuento de
+      // ventana (comm_discount InDrive) según el arquetipo.
+      const comm = isYango(comp)
+        ? yangoCommission
+        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
+            dbCategory,
+            segment: archetype.segment,
+          })
       const week = pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg)
       return metric === 'trip' ? week / trips : week
     },
-    [pricesByCat, commissions, bonusFor, metric, yangoCommission]
+    [pricesByCat, commissions, bonuses, bonusFor, metric, yangoCommission, archetype]
   )
 
   // Ganancia de Yango a una comisión arbitraria (para la matriz de escenarios).
@@ -287,10 +298,15 @@ export default function Rentabilidad() {
     (dbCategory, comp, n) => {
       const pd = pricesByCat[dbCategory]?.[comp]
       if (!pd || !n || isNaN(pd.avg)) return null
-      const comm = isYango(comp) ? yangoCommission : (commissions[comp] ?? 20)
+      const comm = isYango(comp)
+        ? yangoCommission
+        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
+            dbCategory,
+            segment: archetype.segment,
+          })
       return pd.avg * (1 - comm / 100) + bonusFor(comp, dbCategory, n, pd.avg) / n
     },
-    [pricesByCat, commissions, bonusFor, yangoCommission]
+    [pricesByCat, commissions, bonuses, bonusFor, yangoCommission, archetype]
   )
 
   // data para un valor de viajes: [{ tier, [comp]: value }]
@@ -416,6 +432,39 @@ export default function Rentabilidad() {
       return { comp, type, n: type === 'until' ? flipN - 1 : flipN }
     })
   }, [refTier, rivalCols, netPerTrip, yangoKeyFor])
+
+  // Bonos "gancho 1 vez" (recurring=false) por competidor en el tier de ref, al
+  // volumen vivo. Solo aparecen si el segmento del arquetipo coincide (ej. un
+  // welcome 'new' o reconexión 'reactivado' no le salen a un activo).
+  const oneOffs = useMemo(() => {
+    if (!refTier) return []
+    const comps = [yangoKeyFor(refTier.dbCategory), ...rivalCols]
+    const out = []
+    for (const comp of comps) {
+      const { oneOff } = resolveBonusWeekly(bonuses[comp], {
+        trips: liveTrips,
+        hours: hoursPerWeek,
+        dbCategory: refTier.dbCategory,
+        fare: pricesByCat[refTier.dbCategory]?.[comp]?.avg,
+        commPct: commissions[comp] ?? 20,
+        segment: archetype.segment,
+        sharePeak: archetype.sharePeak,
+        streakDays: archetype.streakDays,
+      })
+      if (oneOff > 0) out.push({ comp, oneOff })
+    }
+    return out
+  }, [
+    refTier,
+    rivalCols,
+    bonuses,
+    liveTrips,
+    hoursPerWeek,
+    pricesByCat,
+    commissions,
+    archetype,
+    yangoKeyFor,
+  ])
 
   // ── Manejo de segmentos ────────────────────────────────────────────────
   function updateSegment(i, val) {
@@ -786,6 +835,75 @@ export default function Rentabilidad() {
         )}
       </div>
 
+      {/* ── Arquetipo de driver ── */}
+      <div className="rent-panel" style={panelStyle}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+          {t('rentabilidad.archetype')}
+        </div>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)' }}>
+              {t('rentabilidad.segment')}
+            </span>
+            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+              {[
+                ['active', 'seg_active'],
+                ['new', 'seg_new'],
+                ['reactivated', 'seg_reactivated'],
+                ['all', 'seg_all'],
+              ].map(([v, k]) => (
+                <button
+                  key={v}
+                  onClick={() => setArchetype((s) => ({ ...s, segment: v }))}
+                  style={toggleStyle(archetype.segment === v)}
+                >
+                  {t('rentabilidad.' + k)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Field label={t('rentabilidad.share_peak')}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={archetype.sharePeak}
+                onChange={(e) => setArchetype((s) => ({ ...s, sharePeak: Number(e.target.value) }))}
+                style={{ width: 160, accentColor: 'var(--color-yango, #E53935)' }}
+              />
+              <span style={{ fontSize: 12, color: 'var(--color-muted)', minWidth: 34 }}>
+                {Math.round(archetype.sharePeak * 100)}%
+              </span>
+            </div>
+          </Field>
+          <Field label={t('rentabilidad.streak_days')}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="range"
+                min="0"
+                max="7"
+                step="1"
+                value={archetype.streakDays}
+                onChange={(e) =>
+                  setArchetype((s) => ({ ...s, streakDays: Number(e.target.value) }))
+                }
+                style={{ width: 120, accentColor: 'var(--color-yango, #E53935)' }}
+              />
+              <span style={{ fontSize: 12, color: 'var(--color-muted)', minWidth: 28 }}>
+                {archetype.streakDays}/7
+              </span>
+            </div>
+          </Field>
+        </div>
+        <div
+          style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 8, fontStyle: 'italic' }}
+        >
+          {t('rentabilidad.archetype_hint')}
+        </div>
+      </div>
+
       {/* ── Gráficos (small multiples) ── */}
       {loading ? (
         <div style={emptyStyle}>{t('app.loading')}</div>
@@ -1012,6 +1130,19 @@ export default function Rentabilidad() {
               </>
             )}
           </div>
+
+          {/* Bonos one-off (gancho de una sola vez, no entran al recurrente) */}
+          {oneOffs.length > 0 && (
+            <div style={{ fontSize: 12, marginBottom: 10 }}>
+              <span style={{ fontWeight: 600 }}>{t('rentabilidad.one_off')}:</span>{' '}
+              {oneOffs.map((o) => (
+                <span key={o.comp} style={{ marginRight: 12 }}>
+                  {o.comp} <strong style={{ color: '#D97706' }}>+{fmt(o.oneOff)}</strong>{' '}
+                  <span style={{ fontSize: 10, color: 'var(--color-muted)' }}>1×</span>
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* 1. Yango vs competidores por tier */}
           <div style={{ fontSize: 13, fontWeight: 600, margin: '4px 0 6px' }}>

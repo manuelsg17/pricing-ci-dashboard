@@ -471,11 +471,8 @@ export default function BonusesConfig({ country }) {
                     />
                   </Field>
                   <div style={hintStyle}>
-                    Baja la comisión solo en la ventana. % en ventana también es ajustable en el
-                    arquetipo.
-                  </div>
-                  <div style={{ ...hintStyle, color: '#D97706' }}>
-                    ⚠ Aún no se refleja en las gráficas (descuento de comisión pendiente — F2).
+                    Baja la comisión efectiva del competidor según el % de viajes en ventana
+                    (también ajustable en el Arquetipo de driver).
                   </div>
                 </div>
               )}

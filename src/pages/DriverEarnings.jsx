@@ -14,7 +14,7 @@ import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { COMPETITOR_COLORS, getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
-import { resolveBonusWeekly, describeBonus } from '../lib/competitorBonus'
+import { resolveBonusWeekly, describeBonus, effectiveCommission } from '../lib/competitorBonus'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
@@ -175,7 +175,10 @@ export default function DriverEarnings() {
     const priceData = effectivePrices[comp]
     if (!priceData || isNaN(priceData.price)) return null
     const commPct = commissions[comp] ?? 20
-    const netRides = priceData.price * n * (1 - commPct / 100)
+    // Comisión efectiva tras descuento de ventana (InDrive 1%); share default 0.25
+    // (Ganancias no tiene arquetipo). Sin filas comm_discount → effComm == commPct.
+    const effComm = effectiveCommission(commPct, bonuses[comp], 0.25, { dbCategory: dbCat })
+    const netRides = priceData.price * n * (1 - effComm / 100)
 
     // Motor único (peldaño-máximo + mecanismos). Sustituye la suma plana anterior.
     const { total: totalBonus, applied: appliedBonuses } = resolveBonusWeekly(bonuses[comp], {
@@ -189,7 +192,7 @@ export default function DriverEarnings() {
       netRides,
       totalBonus,
       total: netRides + totalBonus,
-      commPct,
+      commPct: effComm,
       pricePerTrip: priceData.price,
       appliedBonuses,
     }
