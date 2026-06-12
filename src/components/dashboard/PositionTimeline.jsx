@@ -12,7 +12,13 @@
  */
 import { useMemo } from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts'
 
 export default function PositionTimeline({ priceMatrix, periods, competitors, compareVs }) {
@@ -41,6 +47,19 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
   const hasData = data.some((d) => d.rank != null)
   const maxRank = useMemo(() => Math.max(2, ...data.map((d) => d.total || 0)), [data])
 
+  // Conclusión automática: dónde estamos hoy y si mejoramos o empeoramos.
+  const conclusion = useMemo(() => {
+    const valid = data.filter((d) => d.rank != null)
+    if (valid.length < 1) return null
+    const first = valid[0]
+    const last = valid[valid.length - 1]
+    const now = `Hoy Yango es el ${last.rank}° más barato de ${last.total}`
+    if (valid.length < 2 || first.rank === last.rank)
+      return `${now} — posición estable en el rango.`
+    if (last.rank < first.rank) return `${now}, mejorando: arrancó el rango en ${first.rank}°.`
+    return `${now}, empeorando: arrancó el rango en ${first.rank}°.`
+  }, [data])
+
   if (!hasData) {
     return (
       <div className="p-6 text-center text-sm text-muted">
@@ -51,6 +70,11 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
 
   return (
     <div className="w-full">
+      {conclusion && (
+        <div className="mb-3 rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs leading-relaxed">
+          <strong>Lectura rápida:</strong> {conclusion}
+        </div>
+      )}
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
           <XAxis dataKey="period" tick={{ fontSize: 10 }} />
@@ -62,7 +86,12 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
             allowDecimals={false}
             ticks={Array.from({ length: maxRank }, (_, i) => i + 1)}
             tickFormatter={(v) => `${v}°`}
-            label={{ value: 'Posición', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'var(--color-muted)' } }}
+            label={{
+              value: 'Posición',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fontSize: 10, fill: 'var(--color-muted)' },
+            }}
           />
           <Tooltip
             contentStyle={{ fontSize: 11 }}
@@ -85,8 +114,8 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
         </LineChart>
       </ResponsiveContainer>
       <p className="text-xs text-muted mt-2">
-        Posición de Yango en cada período (1° = más barato). Línea
-        punteada amarilla = podio (top 3). Y invertido: subir = mejorar.
+        Ranking de precio de Yango semana a semana (1° = el más barato del mercado). La línea
+        punteada amarilla marca el podio (top 3). Subir en el gráfico = mejorar.
       </p>
     </div>
   )

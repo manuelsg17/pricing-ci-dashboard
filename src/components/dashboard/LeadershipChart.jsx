@@ -16,18 +16,25 @@
  */
 import { useMemo } from 'react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  ReferenceLine,
 } from 'recharts'
 import { BRACKETS } from '../../lib/constants'
 
 const BRACKET_LABELS = {
-  _wa:         'WA',
-  very_short:  'Very Short',
-  short:       'Short',
-  median:      'Median',
-  average:     'Average',
-  long:        'Long',
-  very_long:   'Very Long',
+  _wa: 'WA',
+  very_short: 'Very Short',
+  short: 'Short',
+  median: 'Median',
+  average: 'Average',
+  long: 'Long',
+  very_long: 'Very Long',
 }
 
 function leadershipColor(pct) {
@@ -67,6 +74,20 @@ export default function LeadershipChart({ priceMatrix, periods, competitors, com
 
   const hasData = data.some((d) => d.totalValid > 0)
 
+  // Conclusión automática en lenguaje simple: dónde dominamos y dónde no.
+  const conclusion = useMemo(() => {
+    const valid = data.filter((d) => d.leadership != null)
+    if (!valid.length) return null
+    const strong = valid.filter((d) => d.leadership >= 60).map((d) => d.bracket)
+    const weak = valid.filter((d) => d.leadership < 30).map((d) => d.bracket)
+    const parts = []
+    if (strong.length) parts.push(`Yango casi siempre es el más barato en ${strong.join(', ')}`)
+    if (weak.length) parts.push(`rara vez lidera en ${weak.join(', ')}`)
+    if (!parts.length)
+      return 'Yango compite parejo en todas las distancias: lidera entre el 30% y 60% de las semanas.'
+    return parts.join('; pero ') + '.'
+  }, [data])
+
   if (!hasData) {
     return (
       <div className="p-6 text-center text-sm text-muted">
@@ -77,6 +98,11 @@ export default function LeadershipChart({ priceMatrix, periods, competitors, com
 
   return (
     <div className="w-full">
+      {conclusion && (
+        <div className="mb-3 rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs leading-relaxed">
+          <strong>Lectura rápida:</strong> {conclusion}
+        </div>
+      )}
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
           <XAxis
@@ -91,24 +117,25 @@ export default function LeadershipChart({ priceMatrix, periods, competitors, com
             formatter={(value, _name, props) => {
               if (value == null) return ['Sin data', 'Liderazgo']
               const { leadCount, totalValid } = props.payload
-              return [
-                `${value.toFixed(0)}% (${leadCount}/${totalValid} períodos)`,
-                'Yango líder',
-              ]
+              return [`${value.toFixed(0)}% (${leadCount}/${totalValid} períodos)`, 'Yango líder']
             }}
             labelFormatter={(label) => `Bracket: ${label}`}
           />
           <ReferenceLine x={50} stroke="var(--color-muted)" strokeDasharray="3 3" />
           <Bar dataKey="leadership" radius={[0, 4, 4, 0]} barSize={18}>
             {data.map((entry, idx) => (
-              <Cell key={idx} fill={entry.leadership == null ? '#cbd5e1' : leadershipColor(entry.leadership)} />
+              <Cell
+                key={idx}
+                fill={entry.leadership == null ? '#cbd5e1' : leadershipColor(entry.leadership)}
+              />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
       <p className="text-xs text-muted mt-2">
-        % de períodos donde Yango fue el competidor más barato en cada bracket.
-        Verde ≥60%, amarillo 30-60%, rojo &lt;30%. Línea punteada = 50%.
+        Cada barra = % de las semanas del rango en que Yango fue el competidor más barato en esa
+        distancia. Verde = casi siempre líder (≥60%), amarillo = a veces (30-60%), rojo = casi nunca
+        (&lt;30%). La línea punteada marca el 50%.
       </p>
     </div>
   )

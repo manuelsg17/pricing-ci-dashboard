@@ -14,7 +14,12 @@ import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import { Button } from './button'
 import {
-  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
 } from './command'
 import { Popover, PopoverContent, PopoverTrigger } from './popover'
 
@@ -44,7 +49,10 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn('w-[--radix-popover-trigger-width] p-0', className)} align="start">
+      <PopoverContent
+        className={cn('w-[--radix-popover-trigger-width] p-0', className)}
+        align="start"
+      >
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
@@ -54,12 +62,19 @@ export function Combobox({
                 <CommandItem
                   key={item.value}
                   value={item.value}
-                  onSelect={(v) => {
-                    onValueChange?.(v === value ? '' : v)
+                  onSelect={() => {
+                    // cmdk pasa el value lowercased a onSelect — usamos
+                    // item.value del closure para preservar el casing real.
+                    onValueChange?.(item.value)
                     setOpen(false)
                   }}
                 >
-                  <Check className={cn('mr-2 h-4 w-4', value === item.value ? 'opacity-100' : 'opacity-0')} />
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === item.value ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
                   {item.label}
                 </CommandItem>
               ))}

@@ -18,7 +18,7 @@
  *   Usa el priceMatrix del Dashboard (último período) — no hace fetch propio.
  *   El Dashboard pasa todo lo necesario por props.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Combobox } from '../ui/shadcn/combobox'
 import { Badge } from '../ui/shadcn/badge'
 import { Card, CardContent } from '../ui/shadcn/card'
@@ -28,13 +28,13 @@ import { formatPrice } from '../../lib/format.js'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 const BRACKET_LABELS = {
-  _wa:         'WA',
-  very_short:  'Very Short',
-  short:       'Short',
-  median:      'Median',
-  average:     'Average',
-  long:        'Long',
-  very_long:   'Very Long',
+  _wa: 'WA',
+  very_short: 'Very Short',
+  short: 'Short',
+  median: 'Median',
+  average: 'Average',
+  long: 'Long',
+  very_long: 'Very Long',
 }
 
 export default function HeadToHeadView({
@@ -57,8 +57,15 @@ export default function HeadToHeadView({
     [competitors, yangoComp]
   )
 
-  // Default: el primer rival disponible
+  // Default: el primer rival disponible. Las opciones llegan async (cuando
+  // carga el priceMatrix), así que si la selección actual ya no existe en la
+  // lista (o quedó vacía del primer render) la corregimos al primer rival.
   const [selectedRival, setSelectedRival] = useState(rivalOptions[0]?.value || '')
+  useEffect(() => {
+    if (rivalOptions.length && !rivalOptions.some((o) => o.value === selectedRival)) {
+      setSelectedRival(rivalOptions[0].value)
+    }
+  }, [rivalOptions, selectedRival])
 
   // Computación de la matriz comparativa por bracket
   const rows = useMemo(() => {
@@ -89,7 +96,8 @@ export default function HeadToHeadView({
     const valid = rows.filter((r) => r.deltaPct != null && r.bracket !== '_wa')
     const leadCount = valid.filter((r) => r.yangoLeads).length
     const total = valid.length
-    if (total === 0) return { leadCount: 0, total: 0, bestKey: null, worstKey: null, avgDelta: null }
+    if (total === 0)
+      return { leadCount: 0, total: 0, bestKey: null, worstKey: null, avgDelta: null }
 
     // Best Yango: bracket donde Yango está MÁS barato (deltaPct más negativo)
     // Worst Yango: bracket donde Yango está MÁS caro (deltaPct más positivo)
@@ -111,11 +119,16 @@ export default function HeadToHeadView({
 
   return (
     <div className="flex flex-col gap-4 p-2">
+      {/* Para qué sirve esta vista — en una frase */}
+      <div className="rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs leading-relaxed text-muted">
+        <strong className="text-foreground">¿Para qué sirve?</strong> Elegí UN competidor y mirá
+        distancia por distancia dónde Yango le gana en precio y dónde no. Útil para responder
+        rápido: <em>“¿estamos más baratos que Uber en viajes cortos?”</em>
+      </div>
+
       {/* Selector competidor + período actual */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold uppercase text-muted">
-          Yango vs:
-        </label>
+        <label className="text-xs font-semibold uppercase text-muted">Yango vs:</label>
         <Combobox
           items={rivalOptions}
           value={selectedRival}
@@ -124,7 +137,8 @@ export default function HeadToHeadView({
           searchPlaceholder="Buscar competidor…"
         />
         <p className="text-xs text-muted">
-          Comparando el período <span className="font-semibold text-foreground">{latestLabel}</span> con moneda {currency}.
+          Comparando el período <span className="font-semibold text-foreground">{latestLabel}</span>{' '}
+          con moneda {currency}.
         </p>
       </div>
 
@@ -135,9 +149,7 @@ export default function HeadToHeadView({
             <div className="text-xs uppercase text-muted">Yango líder</div>
             <div className="text-2xl font-bold text-foreground">
               {summary.leadCount}
-              <span className="ml-1 text-base font-normal text-muted">
-                / {summary.total}
-              </span>
+              <span className="ml-1 text-base font-normal text-muted">/ {summary.total}</span>
             </div>
             <div className="text-xs text-muted">brackets vs {prettyCompetitor(selectedRival)}</div>
           </div>
@@ -192,8 +204,7 @@ export default function HeadToHeadView({
                 <tr
                   key={r.bracket}
                   className={
-                    'border-b border-border/50 ' +
-                    (isWA ? 'bg-secondary/30 font-semibold ' : '')
+                    'border-b border-border/50 ' + (isWA ? 'bg-secondary/30 font-semibold ' : '')
                   }
                 >
                   <td className="py-2 pr-2">
@@ -248,9 +259,7 @@ export default function HeadToHeadView({
                               : 'var(--sem-green-fg)',
                     }}
                   >
-                    {r.diff == null
-                      ? '—'
-                      : `${r.diff > 0 ? '+' : ''}${formatPrice(r.diff)}`}
+                    {r.diff == null ? '—' : `${r.diff > 0 ? '+' : ''}${formatPrice(r.diff)}`}
                   </td>
                 </tr>
               )
@@ -260,9 +269,9 @@ export default function HeadToHeadView({
       </div>
 
       <div className="text-xs text-muted">
-        <Minus className="inline h-3 w-3" />{' '}
-        <strong>Δ %</strong> = (Yango − {prettyCompetitor(selectedRival)}) / {prettyCompetitor(selectedRival)}.
-        Negativo (verde) = Yango más barato. Positivo (rojo) = Yango más caro.
+        <Minus className="inline h-3 w-3" /> <strong>Δ %</strong> = (Yango −{' '}
+        {prettyCompetitor(selectedRival)}) / {prettyCompetitor(selectedRival)}. Negativo (verde) =
+        Yango más barato. Positivo (rojo) = Yango más caro.
         <strong> Best</strong> = bracket donde Yango es más competitivo en precio.
         <strong> Worst</strong> = bracket donde Yango está más caro.
       </div>
