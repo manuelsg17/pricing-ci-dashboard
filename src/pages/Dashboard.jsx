@@ -23,7 +23,11 @@ import { useConfigContext } from '../context/ConfigProvider'
 import HeadToHeadView from '../components/dashboard/HeadToHeadView'
 import AdvancedAnalyticsView from '../components/dashboard/AdvancedAnalyticsView'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from '../components/ui/shadcn/sheet'
 import { BRACKETS } from '../lib/constants'
 import { useCountry } from '../context/CountryContext'
@@ -99,6 +103,8 @@ function DashboardContent() {
     deltaChartData: rawDeltaChartData,
     periods,
     frozenWeeks,
+    filtersConflict,
+    frozenIgnoresFilters,
   } = usePricingData(filters, dbWeights, locale, dbSemaforo)
 
   // ── What-if simulator: aplica un % a Yango y recalcula deltas/charts ────
@@ -626,7 +632,12 @@ function DashboardContent() {
             className="kpi-export-btn"
             onClick={() => setH2hOpen(true)}
             title="Comparar Yango vs un competidor específico, bracket por bracket"
-            style={{ background: '#e0f2fe', borderColor: '#0284c7', color: '#075985', fontWeight: 600 }}
+            style={{
+              background: '#e0f2fe',
+              borderColor: '#0284c7',
+              color: '#075985',
+              fontWeight: 600,
+            }}
           >
             ⚔ Head-to-Head
           </button>
@@ -636,7 +647,12 @@ function DashboardContent() {
             className="kpi-export-btn"
             onClick={() => setAnalyticsOpen(true)}
             title="Ver análisis avanzados: % liderazgo por bracket, timeline de posición"
-            style={{ background: '#f0fdf4', borderColor: '#16a34a', color: '#15803d', fontWeight: 600 }}
+            style={{
+              background: '#f0fdf4',
+              borderColor: '#16a34a',
+              color: '#15803d',
+              fontWeight: 600,
+            }}
           >
             📈 Analytics
           </button>
@@ -716,7 +732,32 @@ function DashboardContent() {
         </div>
       )}
 
-      {!loading && !error && periods.length === 0 && (
+      {frozenIgnoresFilters && !filtersConflict && (
+        <div
+          style={{
+            margin: '0 16px 8px',
+            padding: '6px 12px',
+            borderRadius: 6,
+            background: '#fffbeb',
+            border: '1px solid #f59e0b',
+            fontSize: 12,
+            color: '#78350f',
+          }}
+        >
+          🔒 Las semanas congeladas muestran el promedio de TODAS las franjas/surge/zonas — los
+          filtros activos solo aplican a las semanas live.
+        </div>
+      )}
+
+      {filtersConflict && (
+        <EmptyState
+          icon="⚡"
+          title="Filtros contradictorios"
+          message="Tu selección de franja horaria no se cruza con las reglas de surge configuradas (Config → Timing → Surge). Poné Surge en 'Both' o cambiá las franjas seleccionadas."
+        />
+      )}
+
+      {!loading && !error && !filtersConflict && periods.length === 0 && (
         <EmptyState
           icon="📊"
           title={t('dashboard.no_data')}
@@ -810,8 +851,8 @@ function DashboardContent() {
             <SheetHeader>
               <SheetTitle>Head-to-Head — Yango vs un competidor</SheetTitle>
               <SheetDescription>
-                Compará Yango vs un competidor específico bracket por bracket.
-                Best/worst auto-resaltados.
+                Compará Yango vs un competidor específico bracket por bracket. Best/worst
+                auto-resaltados.
               </SheetDescription>
             </SheetHeader>
             <div className="mt-4">

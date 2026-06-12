@@ -13,30 +13,31 @@ import { rowWeeklyCash, describeBonus } from '../../lib/competitorBonus'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
+// {C} se reemplaza por la moneda del país al renderizar.
 const MECH_CARDS = [
   {
     value: 'tiered',
     label: 'Escalera de montos',
     desc: 'Cuantos más viajes, más grande el premio fijo. Paga solo el peldaño más alto que alcances.',
-    example: 'Ej. Uber: 20 viajes → S/50 · 40 viajes → S/120',
+    example: 'Ej. Uber: 20 viajes → {C}50 · 40 viajes → {C}120',
   },
   {
     value: 'gmv_tiered',
     label: '% del GMV con metas',
     desc: 'Elegís una meta de N viajes y te devuelven un % de lo facturado (antes de comisión) en esos primeros N viajes. Cada meta tiene su tope.',
-    example: 'Ej. Yango: meta 20 viajes → 5% del GMV, tope S/40',
+    example: 'Ej. Yango: meta 20 viajes → 5% del GMV, tope {C}40',
   },
   {
     value: 'flat',
     label: 'Monto fijo',
     desc: 'Llegás al umbral de viajes u horas y te dan un monto fijo.',
-    example: 'Ej. 30 viajes en la semana → S/80',
+    example: 'Ej. 30 viajes en la semana → {C}80',
   },
   {
     value: 'guarantee',
     label: 'Garantía (piso)',
     desc: 'Si hacés N viajes, te aseguran un mínimo: completan la diferencia entre lo que ganaste y el piso.',
-    example: 'Ej. 40 viajes → te aseguran S/500',
+    example: 'Ej. 40 viajes → te aseguran {C}500',
   },
   {
     value: 'comm_discount',
@@ -48,19 +49,19 @@ const MECH_CARDS = [
     value: 'comm_credit',
     label: 'Monedas / crédito',
     desc: 'Crédito semanal para pagar comisión — equivale a cash.',
-    example: 'Ej. S/30 en monedas por semana',
+    example: 'Ej. {C}30 en monedas por semana',
   },
   {
     value: 'streak',
     label: 'Racha de días',
     desc: 'Premio por trabajar días consecutivos en ventanas horarias.',
-    example: 'Ej. Didi: S/16, S/18, S/20 por día 1, 2, 3…',
+    example: 'Ej. Didi: {C}16, {C}18, {C}20 por día 1, 2, 3…',
   },
   {
     value: 'surge',
     label: 'Surge / multiplicador',
     desc: '% extra sobre la tarifa en una ventana horaria, con tope.',
-    example: 'Ej. Didi TAD: +30% sobre el fare, tope S/88',
+    example: 'Ej. Didi TAD: +30% sobre el fare, tope {C}88',
   },
 ]
 
@@ -142,7 +143,14 @@ function Lbl({ children }) {
   )
 }
 
-export default function BonusWizard({ config, currency = 'S/', onSave, onClose, saving }) {
+export default function BonusWizard({
+  config,
+  currency = 'S/',
+  commissions = {},
+  onSave,
+  onClose,
+  saving,
+}) {
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState({
     competitor_name: '',
@@ -181,26 +189,67 @@ export default function BonusWizard({ config, currency = 'S/', onSave, onClose, 
     )
   }
 
+  // Al cambiar de mecanismo, remapear tiers a la shape correcta preservando
+  // los thresholds. Sin esto, ir de Escalera a % GMV (o al revés) deja tiers
+  // con keys del mecanismo anterior y el bono se guardaría pagando 0.
+  function pickMechanism(value) {
+    setDraft((d) => {
+      let tiers = d.tiers
+      if (value === 'gmv_tiered' && tiers.some((t) => !('pct' in t))) {
+        tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', pct: '', cap: '' }))
+      } else if (value === 'tiered' && tiers.some((t) => !('reward' in t))) {
+        tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', reward: '' }))
+      }
+      return { ...d, mechanism: value, tiers }
+    })
+  }
+
+  // Validación del paso "Los números": evita guardar bonos que pagan 0
+  // silencioso en Rentabilidad por campos vacíos.
+  const numbersOk = (() => {
+    switch (mech) {
+      case 'tiered':
+        return draft.tiers.some((t) => Number(t.threshold) > 0 && Number(t.reward) > 0)
+      case 'gmv_tiered':
+        return draft.tiers.some((t) => Number(t.threshold) > 0 && Number(t.pct) > 0)
+      case 'flat':
+      case 'guarantee':
+        return Number(draft.threshold) > 0 && Number(draft.bonus_amount) > 0
+      case 'comm_credit':
+        return Number(draft.bonus_amount) > 0
+      case 'comm_discount':
+        return draft.comm_pct !== '' && Number(draft.comm_pct) >= 0
+      case 'surge':
+        return Number(draft.mult_pct) > 0
+      case 'streak':
+        return (draft.streak_spec?.per_day_reward || []).length > 0
+      default:
+        return true
+    }
+  })()
+
   const exampleValue = useMemo(() => {
     if (!mech) return null
     const row = {
       ...draft,
       tiers: (draft.tiers || []).filter((t) => t.threshold !== '' && t.threshold != null),
     }
+    // Misma comisión que usa Rentabilidad (lookup por competidor, fallback
+    // 20) para que el preview coincida con lo que se verá después.
     return rowWeeklyCash(row, {
       trips: Number(exTrips) || 0,
       fare: Number(exFare) || 0,
       hours: 40,
-      commPct: 12,
+      commPct: commissions?.[draft.competitor_name] ?? 20,
       sharePeak: 0.25,
       streakDays: 7,
     })
-  }, [draft, mech, exTrips, exFare])
+  }, [draft, mech, exTrips, exFare, commissions])
 
   const canNext = [
     !!draft.competitor_name, // paso 0
     !!mech, // paso 1
-    true, // paso 2 (detalles — validación blanda)
+    numbersOk, // paso 2 — sin números válidos el bono pagaría 0
     true, // paso 3 (condiciones)
   ][step]
 
@@ -313,13 +362,15 @@ export default function BonusWizard({ config, currency = 'S/', onSave, onClose, 
                 <div
                   key={m.value}
                   style={mechCardStyle(mech === m.value)}
-                  onClick={() => set('mechanism', m.value)}
+                  onClick={() => pickMechanism(m.value)}
                 >
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{m.label}</div>
                   <div style={{ fontSize: 11, color: 'var(--color-muted)', margin: '3px 0' }}>
                     {m.desc}
                   </div>
-                  <div style={{ fontSize: 11, color: '#0369a1' }}>{m.example}</div>
+                  <div style={{ fontSize: 11, color: '#0369a1' }}>
+                    {m.example.replaceAll('{C}', currency)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -749,11 +800,28 @@ export default function BonusWizard({ config, currency = 'S/', onSave, onClose, 
                   Este mecanismo no paga cash: baja la comisión efectiva en Rentabilidad.
                 </div>
               )}
+              {mech === 'guarantee' && (
+                <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6 }}>
+                  Calculado con comisión {commissions?.[draft.competitor_name] ?? 20}% de{' '}
+                  {draft.competitor_name} (la misma que usa Rentabilidad).
+                </div>
+              )}
+              {mech === 'surge' && draft.share_in_window === '' && (
+                <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6 }}>
+                  Asumiendo 25% de los viajes dentro de la ventana (ajustable en el Arquetipo de
+                  driver de Rentabilidad).
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* Navegación */}
+        {step === 2 && !numbersOk && (
+          <div style={{ fontSize: 11, color: '#b45309', marginTop: 10 }}>
+            Completá los números del bono (meta y monto/%) para continuar.
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
           <button style={btnGhost} onClick={onClose}>
             Cancelar
@@ -791,7 +859,11 @@ export default function BonusWizard({ config, currency = 'S/', onSave, onClose, 
                 Siguiente →
               </button>
             ) : (
-              <button style={btnPrimary} disabled={saving} onClick={() => onSave(draft)}>
+              <button
+                style={{ ...btnPrimary, opacity: numbersOk ? 1 : 0.45 }}
+                disabled={saving || !numbersOk}
+                onClick={() => onSave(draft)}
+              >
                 {saving ? 'Guardando…' : '✓ Crear bono'}
               </button>
             )}

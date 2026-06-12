@@ -25,6 +25,10 @@ function num(x, d = 0) {
   return Number.isFinite(n) ? n : d
 }
 
+function clamp01(x) {
+  return Math.min(1, Math.max(0, x))
+}
+
 // Escalera: reward acumulado del peldaño más alto con threshold ≤ viajes, topeado.
 export function tieredReward(tiers, trips, cap) {
   let best = 0
@@ -81,7 +85,9 @@ export function rowWeeklyCash(b, ctx) {
       return Math.max(0, num(b.bonus_amount) - fare * nGar * (1 - c))
     }
     case 'surge': {
-      const share = b.share_in_window != null ? num(b.share_in_window) : num(ctx.sharePeak)
+      // share es una FRACCIÓN 0..1 — clamp defensivo por si quedó guardado
+      // un % (ej. 25 en vez de 0.25), que multiplicaría el cash ×25.
+      const share = clamp01(b.share_in_window != null ? num(b.share_in_window) : num(ctx.sharePeak))
       const raw = (num(b.mult_pct) / 100) * fare * trips * share
       const cap = num(b.cap_amount) // cap 0 (o vacío) = SIN tope
       return b.cap_amount != null && cap > 0 ? Math.min(raw, cap) : raw
@@ -183,7 +189,8 @@ export function effectiveCommission(commBase, rows, sharePeak, ctx = {}) {
   for (const b of rows || []) {
     if (b.mechanism !== 'comm_discount' || !rowPasses(b, ctx)) continue
     const reduced = num(b.comm_pct, comm)
-    const share = b.share_in_window != null ? num(b.share_in_window) : num(sharePeak)
+    // share clamp 0..1 — un % guardado por error (25) daría comisión negativa
+    const share = clamp01(b.share_in_window != null ? num(b.share_in_window) : num(sharePeak))
     comm = comm - (num(commBase) - reduced) * share
   }
   return comm

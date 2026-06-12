@@ -24,7 +24,9 @@ const TIME_SLOTS = [
 
 export default function SurgeWindowsConfig({ country }) {
   const config = getCountryConfig(country)
-  const cities = config.dbCities || []
+  // null = fila "Todas las ciudades" (city NULL en DB) — aplica al país entero
+  // salvo que la ciudad tenga sus propias marcas (se suman, no se pisan).
+  const cities = [null, ...(config.dbCities || [])]
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -78,11 +80,12 @@ export default function SurgeWindowsConfig({ country }) {
       setMsg({ type: 'err', text: 'Error al guardar: ' + error.message })
     } else {
       const slotLabel = TIME_SLOTS.find((s) => s.key === slot)?.label || slot
+      const cityLabel = city ?? 'Todas las ciudades'
       setMsg({
         type: 'ok',
         text: existing
-          ? `${city} · ${slotLabel}: ya no se considera surge.`
-          : `${city} · ${slotLabel}: marcada como franja con surge.`,
+          ? `${cityLabel} · ${slotLabel}: ya no se considera surge.`
+          : `${cityLabel} · ${slotLabel}: marcada como franja con surge.`,
       })
       await load()
     }
@@ -119,8 +122,18 @@ export default function SurgeWindowsConfig({ country }) {
         </thead>
         <tbody>
           {cities.map((city) => (
-            <tr key={city}>
-              <td style={{ fontWeight: 600 }}>{city}</td>
+            <tr
+              key={city ?? '__all__'}
+              style={city === null ? { background: '#f8fafc' } : undefined}
+            >
+              <td style={{ fontWeight: 600 }}>
+                {city ?? 'Todas las ciudades'}
+                {city === null && (
+                  <div style={{ fontSize: 9, fontWeight: 400, color: 'var(--color-muted)' }}>
+                    se suma a las marcas por ciudad
+                  </div>
+                )}
+              </td>
               {TIME_SLOTS.map((s) => {
                 const on = isOn(city, s.key)
                 return (

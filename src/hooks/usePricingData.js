@@ -60,6 +60,10 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     return [...new Set(rows.map((w) => w.time_of_day))]
   }, [surgeWindows, country, dbCity])
 
+  // Nota: con la traducción activa, las observaciones SIN time_of_day (solo
+  // data manual legacy de Peru, ~2.5% del total) quedan fuera de Yes/No y
+  // se ven solo en "Todos" — misma semántica que el filtro de franjas
+  // explícito (mig 42).
   const { surgeParam, timeOfDayEffective } = useMemo(() => {
     if (surge == null || surgeSlots.length === 0) {
       return { surgeParam: surge, timeOfDayEffective: timeOfDayParam }
@@ -71,6 +75,13 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         : base.filter((s) => !surgeSlots.includes(s))
     return { surgeParam: null, timeOfDayEffective: eff }
   }, [surge, surgeSlots, timeOfDayParam])
+
+  // Intersección vacía Surge×Franja (ej: Surge=Yes con solo Madrugada
+  // seleccionada y madrugada no marcada como surge) → cero filas seguro.
+  // Cortocircuitamos para no consultar al pedo y para que el Dashboard
+  // pueda explicar el vacío (en weekly, sin esto, las frozen rows — que no
+  // filtran por franja — dejarían una grilla de rayas sin mensaje).
+  const filtersConflict = timeOfDayEffective != null && timeOfDayEffective.length === 0
 
   // Track previous viewMode shape — solo necesitamos limpiar rawRows
   // cuando la SHAPE cambia (daily ↔ weekly/historic), no en cada filtro.
@@ -86,6 +97,12 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
   // se queda con data del país viejo o vacío, y requiere F5 para arreglarse.
   useEffect(() => {
     if (!dbCity || !dbCategory) {
+      setLoading(false)
+      return
+    }
+    if (filtersConflict) {
+      setRawRows([])
+      setFrozenRows([])
       setLoading(false)
       return
     }
@@ -179,6 +196,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     dailyEnd,
     surgeParam,
     timeOfDayEffective,
+    filtersConflict,
   ])
 
   // ── Construir set de semanas congeladas para indicador visual ──
@@ -189,6 +207,15 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     }
     return set
   }, [frozenRows])
+
+  // pricing_wa_frozen es un snapshot agregado SIN surge/franja/zona/source
+  // (mig 43) — cuando hay filtros de esos activos, las semanas 🔒 muestran
+  // el promedio de TODO mientras las live muestran solo lo filtrado. Este
+  // flag permite avisarlo en la UI en vez de comparar peras con manzanas
+  // en silencio.
+  const frozenIgnoresFilters =
+    frozenWeeks.size > 0 &&
+    (surge != null || timeOfDayParam != null || (zone && zone !== 'All') || dataSource != null)
 
   // ── Índice de datos congelados: comp → periodKey → bracket → {avg_price, count} ──
   // Defense-in-depth: normalizar competition_name al indexar. Si data
@@ -512,6 +539,8 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     deltaChartData,
     periods,
     frozenWeeks,
+    filtersConflict,
+    frozenIgnoresFilters,
   }
 }
 

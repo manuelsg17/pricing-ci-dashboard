@@ -74,7 +74,13 @@ export function useCompetitorBonuses(city, country) {
         group_key: row.group_key || null,
         is_chosen: row.is_chosen ?? true,
         comm_pct: numOrNull(row.comm_pct),
-        share_in_window: numOrNull(row.share_in_window),
+        // share es fracción 0..1; si tipean un % (ej. 25) lo interpretamos
+        // como 25% — es siempre la intención del usuario.
+        share_in_window: (() => {
+          const s = numOrNull(row.share_in_window)
+          if (s == null) return null
+          return s > 1 ? Math.min(1, s / 100) : Math.max(0, s)
+        })(),
         cap_amount: numOrNull(row.cap_amount),
         mult_pct: numOrNull(row.mult_pct),
         streak_spec: row.mechanism === 'streak' ? row.streak_spec || null : null,

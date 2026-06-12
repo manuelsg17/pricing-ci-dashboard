@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useCompetitorBonuses } from '../../hooks/useCompetitorBonuses'
+import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { describeBonus } from '../../lib/competitorBonus'
 import SaveStatusBanner from './SaveStatusBanner'
@@ -110,6 +111,9 @@ export default function BonusesConfig({ country }) {
   ]
 
   const { allRows, loading, saveBonus, deleteBonus, addRow } = useCompetitorBonuses(null, country)
+  // Comisiones reales por competidor — para que el preview del wizard
+  // calcule garantías con la misma comisión que usa Rentabilidad.
+  const { commissions } = useCompetitorCommissions(null, country)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
   const [edits, setEdits] = useState({})
@@ -129,6 +133,21 @@ export default function BonusesConfig({ country }) {
   // ── tiers (escalera) ──
   function setTiers(id, tiers) {
     setField(id, 'tiers', tiers)
+  }
+  // Cambio de mecanismo: remapear tiers a la shape correcta (preservando
+  // thresholds). Sin esto, cruzar Escalera↔% GMV deja keys del mecanismo
+  // anterior y el bono se guardaría pagando 0 silencioso.
+  function setMechanism(id, tiers, value) {
+    setMsg(null)
+    setEdits((prev) => {
+      const cur = { ...prev[id], mechanism: value }
+      if (value === 'gmv_tiered' && tiers.some((t) => !('pct' in t))) {
+        cur.tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', pct: '', cap: '' }))
+      } else if (value === 'tiered' && tiers.some((t) => !('reward' in t))) {
+        cur.tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', reward: '' }))
+      }
+      return { ...prev, [id]: cur }
+    })
   }
   function updateTier(id, tiers, i, key, val) {
     setTiers(
@@ -394,7 +413,7 @@ export default function BonusesConfig({ country }) {
                     {MECHANISMS.map((x) => (
                       <button
                         key={x.value}
-                        onClick={() => setField(row.id, 'mechanism', x.value)}
+                        onClick={() => setMechanism(row.id, tiers, x.value)}
                         style={pill(mech === x.value)}
                       >
                         {x.label}
@@ -415,7 +434,7 @@ export default function BonusesConfig({ country }) {
                   {mech === 'tiered' && (
                     <div>
                       <span style={labelStyle}>
-                        Peldaños (a partir de N viajes → premio S/, acumulado)
+                        Peldaños (a partir de N viajes → premio {config.currency}, acumulado)
                       </span>
                       {tiers.map((t, i) => (
                         <div
@@ -433,7 +452,7 @@ export default function BonusesConfig({ country }) {
                               updateTier(row.id, tiers, i, 'threshold', e.target.value)
                             }
                           />
-                          <span style={{ fontSize: 12 }}>viajes → S/</span>
+                          <span style={{ fontSize: 12 }}>viajes → {config.currency}</span>
                           <input
                             type="number"
                             min="0"
@@ -464,12 +483,12 @@ export default function BonusesConfig({ country }) {
                           {[...tiers]
                             .filter((t) => t.threshold !== '' && t.threshold != null)
                             .sort((a, b) => Number(a.threshold) - Number(b.threshold))
-                            .map((t) => `a ${t.threshold} → S/${t.reward || 0}`)
+                            .map((t) => `a ${t.threshold} → ${config.currency}${t.reward || 0}`)
                             .join('  ·  ')}
                         </div>
                       )}
                       <div style={{ marginTop: 8 }}>
-                        <Field label="Tope (opcional, S/)">
+                        <Field label={`Tope (opcional, ${config.currency})`}>
                           <input
                             type="number"
                             min="0"
@@ -889,6 +908,7 @@ export default function BonusesConfig({ country }) {
         <BonusWizard
           config={config}
           currency={config.currency}
+          commissions={commissions}
           saving={saving}
           onSave={handleWizardSave}
           onClose={() => setWizardOpen(false)}
