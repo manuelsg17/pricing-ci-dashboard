@@ -7,6 +7,9 @@
 //
 // Reglas por mecanismo (todo en CASH SEMANAL; el per-viaje se divide ÷viajes afuera):
 // - tiered (escalera): reward del peldaño MÁS ALTO alcanzado (NO suma), topeado en cap_amount.
+// - gmv_tiered (% GMV, Yango): elegís una meta de N viajes → te devuelven pct% del GMV
+//   (ANTES de comisión) de los primeros N viajes, topeado en cap S/ por peldaño. Si el
+//   driver supera varias metas, se asume que eligió la que más paga.
 // - flat: +bonus_amount si viajes/horas ≥ threshold.
 // - guarantee (piso): si viajes ≥ N, max(0, garantía − neto de esos N viajes).
 // - surge: min(cap, mult% × fare × viajes × share).
@@ -32,6 +35,22 @@ export function tieredReward(tiers, trips, cap) {
   return cap != null && num(cap) > 0 ? Math.min(best, num(cap)) : best
 }
 
+// % GMV con metas (Yango): tiers = [{threshold: N viajes meta, pct: % GMV, cap: tope S/}].
+// El % aplica SOLO sobre el GMV bruto (fare × N, sin descontar comisión) de los primeros
+// N viajes de la meta — aunque el driver haga más. Entre las metas alcanzadas (threshold
+// ≤ viajes) se toma la de mayor pago, porque el driver la elige antes de la semana.
+export function gmvTieredReward(tiers, trips, fare) {
+  let best = 0
+  for (const t of tiers || []) {
+    const n = num(t.threshold)
+    if (n <= 0 || trips < n) continue
+    let v = (num(t.pct) / 100) * fare * n
+    if (t.cap != null && num(t.cap) > 0) v = Math.min(v, num(t.cap))
+    best = Math.max(best, v)
+  }
+  return best
+}
+
 function streakCash(spec, days) {
   if (!spec || !days) return 0
   const perDay = Array.isArray(spec.per_day_reward) ? spec.per_day_reward : []
@@ -54,6 +73,8 @@ export function rowWeeklyCash(b, ctx) {
   switch (b.mechanism || 'flat') {
     case 'tiered':
       return tieredReward(b.tiers, trips, b.cap_amount)
+    case 'gmv_tiered':
+      return gmvTieredReward(b.tiers, trips, fare)
     case 'guarantee': {
       const nGar = num(b.threshold)
       if (nGar <= 0 || trips < nGar) return 0
@@ -123,6 +144,19 @@ export function describeBonus(b, currency = 'S/') {
         .map((x) => `≥${x.threshold}→${currency} ${x.reward}`)
         .join(' · ')
       return `Escalera: ${t || '—'}${cap}`
+    }
+    case 'gmv_tiered': {
+      const t = (b.tiers || [])
+        .slice()
+        .sort((a, c) => Number(a.threshold) - Number(c.threshold))
+        .map(
+          (x) =>
+            `meta ${x.threshold} viajes→${x.pct}% GMV${
+              x.cap != null && Number(x.cap) > 0 ? ` (tope ${currency} ${x.cap})` : ''
+            }`
+        )
+        .join(' · ')
+      return `% GMV: ${t || '—'} — sobre el GMV bruto de los primeros N viajes de la meta`
     }
     case 'guarantee':
       return `Garantía: piso ${currency} ${b.bonus_amount} si ≥${b.threshold} viajes`

@@ -60,7 +60,15 @@ export function useCompetitorBonuses(city, country) {
             ? row.tiers
                 .filter((t) => t && t.threshold !== '' && t.threshold != null)
                 .map((t) => ({ threshold: Number(t.threshold), reward: Number(t.reward) || 0 }))
-            : null,
+            : row.mechanism === 'gmv_tiered' && Array.isArray(row.tiers)
+              ? row.tiers
+                  .filter((t) => t && t.threshold !== '' && t.threshold != null)
+                  .map((t) => ({
+                    threshold: Number(t.threshold),
+                    pct: Number(t.pct) || 0,
+                    cap: numOrNull(t.cap),
+                  }))
+              : null,
         segment: row.segment || 'all',
         recurring: row.recurring ?? true,
         group_key: row.group_key || null,
