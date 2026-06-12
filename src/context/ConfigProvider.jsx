@@ -107,6 +107,26 @@ export function ConfigProvider({ children }) {
     },
   })
 
+  const surgeWindows = useStaleWhileRevalidate({
+    key: 'cfg.surge_windows.all',
+    enabled,
+    liveSyncTable: 'surge_windows',
+    fetcher: async () => {
+      const { data, error } = await sb
+        .from('surge_windows')
+        .select('*')
+        .order('country')
+        .order('time_of_day')
+      // Tolerante a pre-migración: si la tabla aún no existe (mig 111 sin
+      // aplicar), devolvemos [] y el filtro surge cae al flag del scraper.
+      if (error) {
+        console.warn('[ConfigProvider] surge_windows no disponible:', error.message)
+        return []
+      }
+      return data || []
+    },
+  })
+
   const indriveConfig = useStaleWhileRevalidate({
     key: 'cfg.indrive_config.all',
     enabled,
@@ -122,14 +142,15 @@ export function ConfigProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      weights:       weights.data       ?? EMPTY,
-      semaforo:      semaforo.data      ?? EMPTY,
-      thresholds:    thresholds.data    ?? EMPTY,
-      priceRules:    priceRules.data    ?? EMPTY,
-      rushHour:      rushHour.data      ?? EMPTY,
+      weights: weights.data ?? EMPTY,
+      semaforo: semaforo.data ?? EMPTY,
+      thresholds: thresholds.data ?? EMPTY,
+      priceRules: priceRules.data ?? EMPTY,
+      rushHour: rushHour.data ?? EMPTY,
+      surgeWindows: surgeWindows.data ?? EMPTY,
       indriveConfig: indriveConfig.data ?? EMPTY,
       loading: weights.loading || semaforo.loading || thresholds.loading,
-      error:   weights.error   || semaforo.error   || thresholds.error,
+      error: weights.error || semaforo.error || thresholds.error,
       refresh: () =>
         Promise.all([
           weights.reload(),
@@ -137,22 +158,41 @@ export function ConfigProvider({ children }) {
           thresholds.reload(),
           priceRules.reload(),
           rushHour.reload(),
+          surgeWindows.reload(),
           indriveConfig.reload(),
         ]),
     }),
+    // Deps granulares a propósito (.data/.loading/.reload por config) para
+    // no invalidar el memo con cada render del hook SWR.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      weights.data, weights.loading, weights.error, weights.reload,
-      semaforo.data, semaforo.loading, semaforo.error, semaforo.reload,
-      thresholds.data, thresholds.loading, thresholds.error, thresholds.reload,
-      priceRules.data, priceRules.reload,
-      rushHour.data, rushHour.reload,
-      indriveConfig.data, indriveConfig.reload,
+      weights.data,
+      weights.loading,
+      weights.error,
+      weights.reload,
+      semaforo.data,
+      semaforo.loading,
+      semaforo.error,
+      semaforo.reload,
+      thresholds.data,
+      thresholds.loading,
+      thresholds.error,
+      thresholds.reload,
+      priceRules.data,
+      priceRules.reload,
+      rushHour.data,
+      rushHour.reload,
+      surgeWindows.data,
+      surgeWindows.reload,
+      indriveConfig.data,
+      indriveConfig.reload,
     ]
   )
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useConfigContext() {
   const ctx = useContext(ConfigContext)
   if (!ctx) throw new Error('useConfigContext debe estar dentro de <ConfigProvider>')

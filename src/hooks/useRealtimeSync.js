@@ -37,6 +37,7 @@ const REFETCHABLE_TABLES = new Set([
   'bracket_weights_by_category',
   'semaforo_config',
   'rush_hour_windows',
+  'surge_windows',
   'price_validation_rules',
   'indrive_config',
   'distance_references',
@@ -69,11 +70,15 @@ const TOAST_WORTHY_TABLES = new Set([
  */
 export function useRealtimeSync({ myEmail, enabled = true, onForeignChange }) {
   // refs para que cambios en callbacks no recreen la suscripción
-  const callbackRef    = useRef(onForeignChange)
-  const myEmailRef     = useRef(myEmail)
+  const callbackRef = useRef(onForeignChange)
+  const myEmailRef = useRef(myEmail)
 
-  useEffect(() => { callbackRef.current = onForeignChange }, [onForeignChange])
-  useEffect(() => { myEmailRef.current  = myEmail },        [myEmail])
+  useEffect(() => {
+    callbackRef.current = onForeignChange
+  }, [onForeignChange])
+  useEffect(() => {
+    myEmailRef.current = myEmail
+  }, [myEmail])
 
   // Debounce de despacho `config:changed` por tabla: un bulk INSERT del bot
   // genera N audit_log rows que llegan en cascada. Sin debounce cada hook
@@ -99,11 +104,12 @@ export function useRealtimeSync({ myEmail, enabled = true, onForeignChange }) {
           // localmente pero no muestro toast.
           const isSameSession = row.session_id === SESSION_ID
 
-          const table   = row.table_name
-          const action  = row.action
+          const table = row.table_name
+          const action = row.action
           const country = row.country
           const userEmail = row.user_email
-          const sameUser = !!myEmailRef.current &&
+          const sameUser =
+            !!myEmailRef.current &&
             !!userEmail &&
             userEmail.toLowerCase() === myEmailRef.current.toLowerCase()
 
@@ -111,18 +117,28 @@ export function useRealtimeSync({ myEmail, enabled = true, onForeignChange }) {
           if (REFETCHABLE_TABLES.has(table)) {
             const prev = timers.get(table)
             if (prev) clearTimeout(prev)
-            timers.set(table, setTimeout(() => {
-              timers.delete(table)
-              window.dispatchEvent(new CustomEvent('config:changed', {
-                detail: { table, action, country, userEmail, isSameSession }
-              }))
-            }, 500))
+            timers.set(
+              table,
+              setTimeout(() => {
+                timers.delete(table)
+                window.dispatchEvent(
+                  new CustomEvent('config:changed', {
+                    detail: { table, action, country, userEmail, isSameSession },
+                  })
+                )
+              }, 500)
+            )
           }
 
           // Toast inmediato si NO es mi sesión Y la tabla justifica notificación
           if (!isSameSession && TOAST_WORTHY_TABLES.has(table)) {
             callbackRef.current?.({
-              table, action, country, userEmail, sameUser, isSameSession,
+              table,
+              action,
+              country,
+              userEmail,
+              sameUser,
+              isSameSession,
             })
           }
         }
@@ -137,7 +153,7 @@ export function useRealtimeSync({ myEmail, enabled = true, onForeignChange }) {
 
     return () => {
       sb.removeChannel(channel)
-      timers.forEach(t => clearTimeout(t))
+      timers.forEach((t) => clearTimeout(t))
       timers.clear()
     }
   }, [enabled])

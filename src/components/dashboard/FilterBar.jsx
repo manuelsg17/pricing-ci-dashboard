@@ -4,37 +4,61 @@ import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
 import { useFilterContext } from '../../context/FilterContext'
 import { useFilterPresets } from '../../hooks/useFilterPresets'
+import { useConfigContext } from '../../context/ConfigProvider'
 
 // Slots con keys estables y rangos (texto neutro entre idiomas). Los
 // labels se traducen dentro del componente vía t('filter.time_slot.<key>')
 // porque al nivel de módulo el t() de useI18n() no existe.
 const TIME_SLOT_KEYS = [
-  { key: 'early_morning', range: '0–6h'  },
-  { key: 'morning',       range: '6–12h' },
-  { key: 'midday',        range: '12–14h'},
-  { key: 'afternoon',     range: '14–18h'},
-  { key: 'evening',       range: '18–24h'},
+  { key: 'early_morning', range: '0–6h' },
+  { key: 'morning', range: '6–12h' },
+  { key: 'midday', range: '12–14h' },
+  { key: 'afternoon', range: '14–18h' },
+  { key: 'evening', range: '18–24h' },
 ]
 
 export default function FilterBar({ className = '' }) {
   const {
-    filters, zones, country,
-    setCity, setCategory, setZone, setSurge, setDataSource,
-    setCompareVs, setViewMode, setWeekStart,
+    filters,
+    zones,
+    country,
+    setCity,
+    setCategory,
+    setZone,
+    setSurge,
+    setDataSource,
+    setCompareVs,
+    setViewMode,
+    setWeekStart,
     setDailyStart,
-    setHistoricFrom, setHistoricTo,
-    timeOfDay, setTimeOfDay, ALL_TIME_SLOTS,
+    setHistoricFrom,
+    setHistoricTo,
+    timeOfDay,
+    setTimeOfDay,
+    ALL_TIME_SLOTS,
     applyPreset,
   } = useFilterContext()
 
-  const [timeOpen,    setTimeOpen]    = useState(false)
-  const [presetOpen,  setPresetOpen]  = useState(false)
-  const [presetName,  setPresetName]  = useState('')
+  const [timeOpen, setTimeOpen] = useState(false)
+  const [presetOpen, setPresetOpen] = useState(false)
+  const [presetName, setPresetName] = useState('')
   const [saveFeedback, setSaveFeedback] = useState(false)
-  const timeRef   = useRef(null)
+  const timeRef = useRef(null)
   const presetRef = useRef(null)
 
   const { presets, saving, savePreset, deletePreset } = useFilterPresets(country)
+
+  // ⚡ junto al label de Surge cuando hay franjas configuradas para esta
+  // ciudad (el filtro usa esas reglas en vez del flag del scraper).
+  const { surgeWindows } = useConfigContext()
+  const surgeRulesActive = useMemo(
+    () =>
+      surgeWindows.some(
+        (w) =>
+          w.is_active !== false && w.country === country && (!w.city || w.city === filters.dbCity)
+      ),
+    [surgeWindows, country, filters.dbCity]
+  )
 
   useEffect(() => {
     function onOutsideClick(e) {
@@ -47,13 +71,17 @@ export default function FilterBar({ className = '' }) {
 
   async function handleSavePreset() {
     const ok = await savePreset(presetName, filters)
-    if (ok) { setPresetName(''); setSaveFeedback(true); setTimeout(() => setSaveFeedback(false), 2000) }
+    if (ok) {
+      setPresetName('')
+      setSaveFeedback(true)
+      setTimeout(() => setSaveFeedback(false), 2000)
+    }
   }
 
   function toggleSlot(key) {
-    setTimeOfDay(prev => {
+    setTimeOfDay((prev) => {
       if (prev.includes(key)) {
-        const next = prev.filter(s => s !== key)
+        const next = prev.filter((s) => s !== key)
         return next.length === 0 ? ALL_TIME_SLOTS : next
       }
       return [...prev, key]
@@ -65,17 +93,20 @@ export default function FilterBar({ className = '' }) {
   // Slots traducidos (memoizado por idioma). Re-computa cuando el usuario
   // cambia el toggle de idioma, no en cada render.
   const TIME_SLOTS = useMemo(
-    () => TIME_SLOT_KEYS.map(s => ({
-      ...s,
-      label: t(`filter.time_slot.${s.key}`),
-    })),
+    () =>
+      TIME_SLOT_KEYS.map((s) => ({
+        ...s,
+        label: t(`filter.time_slot.${s.key}`),
+      })),
     [t]
   )
 
   const allSelected = timeOfDay.length === ALL_TIME_SLOTS.length
-  const timeLabel   = allSelected
+  const timeLabel = allSelected
     ? t('filter.time_all')
-    : TIME_SLOTS.filter(s => timeOfDay.includes(s.key)).map(s => s.label).join(', ')
+    : TIME_SLOTS.filter((s) => timeOfDay.includes(s.key))
+        .map((s) => s.label)
+        .join(', ')
 
   // Conteo de filtros "no-default" (zona/surge/source/timeOfDay).
   // city/category/viewMode/weekStart no se cuentan porque siempre tienen
@@ -96,8 +127,21 @@ export default function FilterBar({ className = '' }) {
   // dbConfigs cubre países onboardeados via wizard (no en constants.js).
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
-  const { city, category, subCategory, zone, surge, dataSource, compareVs, viewMode, weekStart, dailyStart, dailyEnd, historicFrom, historicTo } = filters
-  const categories  = config.categoriesByCity[city] || []
+  const {
+    city,
+    category,
+    subCategory,
+    zone,
+    surge,
+    dataSource,
+    compareVs,
+    viewMode,
+    weekStart,
+    dailyStart,
+    historicFrom,
+    historicTo,
+  } = filters
+  const categories = config.categoriesByCity[city] || []
   const competitors = getCompetitors(city, category, subCategory, country, dbConfigs)
 
   // Forzar que weekStart siempre sea lunes
@@ -115,8 +159,10 @@ export default function FilterBar({ className = '' }) {
       {/* Ciudad */}
       <div className="filter-bar__group">
         <span className="filter-bar__label">{t('filter.city')}</span>
-        <select value={city} onChange={e => setCity(e.target.value)}>
-          {config.cities.map(c => <option key={c}>{c}</option>)}
+        <select value={city} onChange={(e) => setCity(e.target.value)}>
+          {config.cities.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
         </select>
       </div>
 
@@ -125,8 +171,10 @@ export default function FilterBar({ className = '' }) {
       {/* Categoría */}
       <div className="filter-bar__group">
         <span className="filter-bar__label">{t('filter.category')}</span>
-        <select value={category} onChange={e => setCategory(e.target.value)}>
-          {categories.map(c => <option key={c}>{c}</option>)}
+        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          {categories.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
         </select>
       </div>
 
@@ -135,8 +183,10 @@ export default function FilterBar({ className = '' }) {
       {/* Zona */}
       <div className="filter-bar__group">
         <span className="filter-bar__label">{t('filter.zone')}</span>
-        <select value={zone} onChange={e => setZone(e.target.value)}>
-          {zones.map(z => <option key={z}>{z}</option>)}
+        <select value={zone} onChange={(e) => setZone(e.target.value)}>
+          {zones.map((z) => (
+            <option key={z}>{z}</option>
+          ))}
         </select>
       </div>
 
@@ -144,10 +194,20 @@ export default function FilterBar({ className = '' }) {
 
       {/* Surge */}
       <div className="filter-bar__group">
-        <span className="filter-bar__label">{t('filter.surge')}</span>
+        <span
+          className="filter-bar__label"
+          title={
+            surgeRulesActive
+              ? 'Filtra por tus franjas con surge (Config → Timing → Surge)'
+              : 'Filtra por el flag de surge que manda el bot. Configurá franjas en Config → Timing → Surge para usar tus propias reglas.'
+          }
+        >
+          {t('filter.surge')}
+          {surgeRulesActive ? ' ⚡' : ''}
+        </span>
         <select
           value={surge === null ? 'all' : String(surge)}
-          onChange={e => setSurge(e.target.value === 'all' ? null : e.target.value === 'true')}
+          onChange={(e) => setSurge(e.target.value === 'all' ? null : e.target.value === 'true')}
         >
           <option value="all">{t('filter.both_surge')}</option>
           <option value="true">{t('filter.yes')}</option>
@@ -162,28 +222,45 @@ export default function FilterBar({ className = '' }) {
         <span className="filter-bar__label">{t('filter.time_of_day')}</span>
         <button
           type="button"
-          onClick={() => setTimeOpen(v => !v)}
+          onClick={() => setTimeOpen((v) => !v)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '0 8px', height: 28, minWidth: 110, maxWidth: 200,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '0 8px',
+            height: 28,
+            minWidth: 110,
+            maxWidth: 200,
             border: `1px solid ${allSelected ? 'var(--color-border)' : '#E53935'}`,
             borderRadius: 'var(--radius-sm)',
             background: allSelected ? 'var(--color-bg)' : '#FFF5F5',
             color: allSelected ? 'var(--color-text)' : '#B71C1C',
-            fontSize: 12, fontWeight: allSelected ? 400 : 600,
-            cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden',
+            fontSize: 12,
+            fontWeight: allSelected ? 400 : 600,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
             transition: 'border-color 0.15s, background 0.15s',
           }}
         >
-          <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span
+            style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          >
             🕐 {timeLabel}
           </span>
           {!allSelected && (
-            <span style={{
-              background: '#E53935', color: '#fff',
-              borderRadius: 10, fontSize: 10, fontWeight: 700,
-              padding: '0 5px', lineHeight: '16px', flexShrink: 0,
-            }}>
+            <span
+              style={{
+                background: '#E53935',
+                color: '#fff',
+                borderRadius: 10,
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '0 5px',
+                lineHeight: '16px',
+                flexShrink: 0,
+              }}
+            >
               {timeOfDay.length}/{ALL_TIME_SLOTS.length}
             </span>
           )}
@@ -193,31 +270,53 @@ export default function FilterBar({ className = '' }) {
         </button>
 
         {timeOpen && (
-          <div style={{
-            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200,
-            background: 'var(--color-panel)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-            minWidth: 220, overflow: 'hidden',
-          }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              zIndex: 200,
+              background: 'var(--color-panel)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
+              minWidth: 220,
+              overflow: 'hidden',
+            }}
+          >
             {/* Header del dropdown */}
-            <div style={{
-              padding: '8px 12px 6px',
-              borderBottom: '1px solid var(--color-border)',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div
+              style={{
+                padding: '8px 12px 6px',
+                borderBottom: '1px solid var(--color-border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
                 {t('filter.time_of_day')}
               </span>
               <button
                 type="button"
                 onClick={() => setTimeOfDay(ALL_TIME_SLOTS)}
                 style={{
-                  fontSize: 10, fontWeight: 600,
+                  fontSize: 10,
+                  fontWeight: 600,
                   color: allSelected ? 'var(--color-muted)' : '#E53935',
-                  background: 'none', border: 'none', cursor: allSelected ? 'default' : 'pointer',
-                  padding: 0, opacity: allSelected ? 0.4 : 1,
+                  background: 'none',
+                  border: 'none',
+                  cursor: allSelected ? 'default' : 'pointer',
+                  padding: 0,
+                  opacity: allSelected ? 0.4 : 1,
                 }}
               >
                 {t('filter.time_select_all')}
@@ -231,36 +330,54 @@ export default function FilterBar({ className = '' }) {
                 <label
                   key={slot.key}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
                     padding: '7px 12px',
                     cursor: 'pointer',
                     background: checked ? 'rgba(229, 57, 53, 0.04)' : 'transparent',
-                    borderBottom: i < TIME_SLOTS.length - 1 ? '1px solid var(--color-border)' : 'none',
+                    borderBottom:
+                      i < TIME_SLOTS.length - 1 ? '1px solid var(--color-border)' : 'none',
                     transition: 'background 0.1s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = checked ? 'rgba(229,57,53,0.08)' : 'var(--color-bg)'}
-                  onMouseLeave={e => e.currentTarget.style.background = checked ? 'rgba(229,57,53,0.04)' : 'transparent'}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = checked
+                      ? 'rgba(229,57,53,0.08)'
+                      : 'var(--color-bg)')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = checked
+                      ? 'rgba(229,57,53,0.04)'
+                      : 'transparent')
+                  }
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleSlot(slot.key)}
-                    style={{ accentColor: '#E53935', width: 14, height: 14, cursor: 'pointer', flexShrink: 0 }}
+                    style={{
+                      accentColor: '#E53935',
+                      width: 14,
+                      height: 14,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
                   />
                   <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontSize: 12, fontWeight: checked ? 600 : 400,
-                      color: checked ? '#B71C1C' : 'var(--color-text)',
-                    }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: checked ? 600 : 400,
+                        color: checked ? '#B71C1C' : 'var(--color-text)',
+                      }}
+                    >
                       {slot.label}
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 1 }}>
                       {slot.range}
                     </div>
                   </div>
-                  {checked && (
-                    <span style={{ fontSize: 12, color: '#E53935' }}>✓</span>
-                  )}
+                  {checked && <span style={{ fontSize: 12, color: '#E53935' }}>✓</span>}
                 </label>
               )
             })}
@@ -275,7 +392,7 @@ export default function FilterBar({ className = '' }) {
         <span className="filter-bar__label">{t('filter.source')}</span>
         <select
           value={dataSource === null ? 'all' : dataSource}
-          onChange={e => setDataSource(e.target.value === 'all' ? null : e.target.value)}
+          onChange={(e) => setDataSource(e.target.value === 'all' ? null : e.target.value)}
         >
           <option value="all">{t('filter.source_both')}</option>
           <option value="bot">{t('filter.source_bot')}</option>
@@ -288,8 +405,10 @@ export default function FilterBar({ className = '' }) {
       {/* Comparar vs */}
       <div className="filter-bar__group">
         <span className="filter-bar__label">{t('filter.compare_vs')}</span>
-        <select value={compareVs} onChange={e => setCompareVs(e.target.value)}>
-          {competitors.map(c => <option key={c}>{c}</option>)}
+        <select value={compareVs} onChange={(e) => setCompareVs(e.target.value)}>
+          {competitors.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
         </select>
       </div>
 
@@ -302,15 +421,21 @@ export default function FilterBar({ className = '' }) {
           <button
             className={viewMode === 'weekly' ? 'active' : ''}
             onClick={() => setViewMode('weekly')}
-          >{t('filter.weekly')}</button>
+          >
+            {t('filter.weekly')}
+          </button>
           <button
             className={viewMode === 'daily' ? 'active' : ''}
             onClick={() => setViewMode('daily')}
-          >{t('filter.daily')}</button>
+          >
+            {t('filter.daily')}
+          </button>
           <button
             className={viewMode === 'historic' ? 'active' : ''}
             onClick={() => setViewMode('historic')}
-          >{t('filter.historic')}</button>
+          >
+            {t('filter.historic')}
+          </button>
         </div>
       </div>
 
@@ -319,29 +444,35 @@ export default function FilterBar({ className = '' }) {
       {/* Selector de fechas según modo */}
       {viewMode === 'weekly' && (
         <div className="filter-bar__group">
-          <span className="filter-bar__label">{t('filter.from')} {t('filter.monday_hint')}</span>
-          <input
-            type="date"
-            value={weekStart}
-            onChange={handleWeekStart}
-          />
+          <span className="filter-bar__label">
+            {t('filter.from')} {t('filter.monday_hint')}
+          </span>
+          <input type="date" value={weekStart} onChange={handleWeekStart} />
         </div>
       )}
       {viewMode === 'daily' && (
         <div className="filter-bar__group">
           <span className="filter-bar__label">{t('filter.from')}</span>
-          <input type="date" value={dailyStart} onChange={e => setDailyStart(e.target.value)} />
+          <input type="date" value={dailyStart} onChange={(e) => setDailyStart(e.target.value)} />
         </div>
       )}
       {viewMode === 'historic' && (
         <>
           <div className="filter-bar__group">
-            <span className="filter-bar__label">{t('filter.from')} {t('filter.monday_hint')}</span>
-            <input type="date" value={historicFrom} onChange={e => setHistoricFrom(e.target.value)} />
+            <span className="filter-bar__label">
+              {t('filter.from')} {t('filter.monday_hint')}
+            </span>
+            <input
+              type="date"
+              value={historicFrom}
+              onChange={(e) => setHistoricFrom(e.target.value)}
+            />
           </div>
           <div className="filter-bar__group">
-            <span className="filter-bar__label">{t('filter.to')} {t('filter.monday_hint')}</span>
-            <input type="date" value={historicTo} onChange={e => setHistoricTo(e.target.value)} />
+            <span className="filter-bar__label">
+              {t('filter.to')} {t('filter.monday_hint')}
+            </span>
+            <input type="date" value={historicTo} onChange={(e) => setHistoricTo(e.target.value)} />
           </div>
         </>
       )}
@@ -353,14 +484,20 @@ export default function FilterBar({ className = '' }) {
         <span className="filter-bar__label">{t('dashboard.preset.label')}</span>
         <button
           type="button"
-          onClick={() => setPresetOpen(v => !v)}
+          onClick={() => setPresetOpen((v) => !v)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '0 8px', height: 28, minWidth: 90,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '0 8px',
+            height: 28,
+            minWidth: 90,
             border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-sm)',
             background: 'var(--color-bg)',
-            color: 'var(--color-text)', fontSize: 12, cursor: 'pointer',
+            color: 'var(--color-text)',
+            fontSize: 12,
+            cursor: 'pointer',
           }}
         >
           ⭐ {presets.length > 0 ? `${presets.length}` : ''}
@@ -368,30 +505,47 @@ export default function FilterBar({ className = '' }) {
         </button>
 
         {presetOpen && (
-          <div style={{
-            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200,
-            background: 'var(--color-panel)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-            minWidth: 240, overflow: 'hidden',
-          }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              zIndex: 200,
+              background: 'var(--color-panel)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              minWidth: 240,
+              overflow: 'hidden',
+            }}
+          >
             {/* Save new preset */}
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border)' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: 6,
+                }}
+              >
                 {t('dashboard.preset.save')}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input
                   type="text"
                   value={presetName}
-                  onChange={e => setPresetName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSavePreset()}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
                   placeholder={t('dashboard.preset.name_placeholder')}
                   style={{
-                    flex: 1, padding: '4px 8px', fontSize: 12,
+                    flex: 1,
+                    padding: '4px 8px',
+                    fontSize: 12,
                     border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-sm)', outline: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    outline: 'none',
                   }}
                 />
                 <button
@@ -399,9 +553,13 @@ export default function FilterBar({ className = '' }) {
                   onClick={handleSavePreset}
                   disabled={saving || !presetName.trim()}
                   style={{
-                    padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 600,
                     background: saveFeedback ? '#16a34a' : 'var(--color-yango)',
-                    color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
                     cursor: saving || !presetName.trim() ? 'default' : 'pointer',
                     opacity: !presetName.trim() ? 0.5 : 1,
                     transition: 'background 0.2s',
@@ -414,16 +572,24 @@ export default function FilterBar({ className = '' }) {
 
             {/* Saved presets list */}
             {presets.length === 0 ? (
-              <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--color-muted)', textAlign: 'center' }}>
+              <div
+                style={{
+                  padding: '12px 14px',
+                  fontSize: 12,
+                  color: 'var(--color-muted)',
+                  textAlign: 'center',
+                }}
+              >
                 {t('app.no_data')}
               </div>
             ) : (
               <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                {presets.map(preset => (
+                {presets.map((preset) => (
                   <div
                     key={preset.id}
                     style={{
-                      display: 'flex', alignItems: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
                       padding: '8px 12px',
                       borderBottom: '1px solid var(--color-border-soft)',
                       gap: 8,
@@ -431,11 +597,20 @@ export default function FilterBar({ className = '' }) {
                   >
                     <button
                       type="button"
-                      onClick={() => { applyPreset(preset.filters); setPresetOpen(false) }}
+                      onClick={() => {
+                        applyPreset(preset.filters)
+                        setPresetOpen(false)
+                      }}
                       style={{
-                        flex: 1, textAlign: 'left', background: 'none', border: 'none',
-                        fontSize: 12, fontWeight: 500, color: 'var(--color-text)',
-                        cursor: 'pointer', padding: 0,
+                        flex: 1,
+                        textAlign: 'left',
+                        background: 'none',
+                        border: 'none',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: 'var(--color-text)',
+                        cursor: 'pointer',
+                        padding: 0,
                       }}
                       title={t('dashboard.preset.load')}
                     >
@@ -446,11 +621,18 @@ export default function FilterBar({ className = '' }) {
                       onClick={() => deletePreset(preset.id)}
                       title={t('dashboard.preset.delete')}
                       style={{
-                        background: 'none', border: 'none', color: '#ef4444',
-                        cursor: 'pointer', fontSize: 14, padding: '0 2px',
-                        opacity: 0.6, lineHeight: 1,
+                        background: 'none',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        padding: '0 2px',
+                        opacity: 0.6,
+                        lineHeight: 1,
                       }}
-                    >×</button>
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>
@@ -464,18 +646,26 @@ export default function FilterBar({ className = '' }) {
         <>
           <div className="filter-bar__divider" />
           <div className="filter-bar__group" style={{ gap: 6 }}>
-            <span style={{
-              background: '#E53935', color: '#fff',
-              borderRadius: 10, fontSize: 10, fontWeight: 700,
-              padding: '2px 8px', lineHeight: '14px',
-            }} title={t('filter.active_count') || 'Filtros activos'}>
-              {activeFiltersCount} {(t('filter.active_short') || 'activos')}
+            <span
+              style={{
+                background: '#E53935',
+                color: '#fff',
+                borderRadius: 10,
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 8px',
+                lineHeight: '14px',
+              }}
+              title={t('filter.active_count') || 'Filtros activos'}
+            >
+              {activeFiltersCount} {t('filter.active_short') || 'activos'}
             </span>
             <button
               type="button"
               onClick={handleResetFilters}
               style={{
-                fontSize: 12, padding: '4px 10px',
+                fontSize: 12,
+                padding: '4px 10px',
                 border: '1px solid var(--color-border)',
                 borderRadius: 'var(--radius-sm)',
                 background: 'transparent',

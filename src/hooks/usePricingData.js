@@ -5,6 +5,7 @@ import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAvera
 import { computeDelta, getSemaforoClass } from '../algorithms/semaforo'
 import { getISOYearWeek as getYearWeek } from '../lib/dateUtils'
 import { normalizeCompetitorName, toSnakeCase } from '../lib/normalize'
+import { useConfigContext } from '../context/ConfigProvider'
 
 const ALL_TIME_SLOTS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
 
@@ -45,6 +46,31 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     if (!timeOfDay || timeOfDay.length === ALL_TIME_SLOTS.length) return null
     return timeOfDay
   }, [timeOfDay])
+
+  // ── Reglas de surge por franja horaria (mig 111) ─────────────────────
+  // Si el analista configuró qué franjas tienen surge (Config → Timing →
+  // Surge), el filtro Surge=Yes/No se traduce a franjas time_of_day en
+  // lugar de usar el flag del scraper (poco confiable). Sin reglas
+  // configuradas para el país/ciudad, se mantiene el flag del scraper.
+  const { surgeWindows } = useConfigContext()
+  const surgeSlots = useMemo(() => {
+    const rows = surgeWindows.filter(
+      (w) => w.is_active !== false && w.country === country && (!w.city || w.city === dbCity)
+    )
+    return [...new Set(rows.map((w) => w.time_of_day))]
+  }, [surgeWindows, country, dbCity])
+
+  const { surgeParam, timeOfDayEffective } = useMemo(() => {
+    if (surge == null || surgeSlots.length === 0) {
+      return { surgeParam: surge, timeOfDayEffective: timeOfDayParam }
+    }
+    const base = timeOfDayParam ?? ALL_TIME_SLOTS
+    const eff =
+      surge === true
+        ? base.filter((s) => surgeSlots.includes(s))
+        : base.filter((s) => !surgeSlots.includes(s))
+    return { surgeParam: null, timeOfDayEffective: eff }
+  }, [surge, surgeSlots, timeOfDayParam])
 
   // Track previous viewMode shape — solo necesitamos limpiar rawRows
   // cuando la SHAPE cambia (daily ↔ weekly/historic), no en cada filtro.
@@ -91,13 +117,13 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
               p_category: dbCategory,
               p_country: country,
               p_zone: zone === 'All' ? null : zone,
-              p_surge: surge,
+              p_surge: surgeParam,
               p_week_start: w1,
               p_year_start: y1,
               p_week_end: w2,
               p_year_end: y2,
               p_data_source: dataSource,
-              p_time_of_day: timeOfDayParam,
+              p_time_of_day: timeOfDayEffective,
             }),
             sb
               .from('pricing_wa_frozen')
@@ -118,11 +144,11 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
             p_category: dbCategory,
             p_country: country,
             p_zone: zone === 'All' ? null : zone,
-            p_surge: surge,
+            p_surge: surgeParam,
             p_date_start: dailyStart,
             p_date_end: dailyEnd,
             p_data_source: dataSource,
-            p_time_of_day: timeOfDayParam,
+            p_time_of_day: timeOfDayEffective,
           })
           if (cancelled) return
           if (err) throw err
@@ -151,7 +177,8 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     weekColumns,
     dailyStart,
     dailyEnd,
-    timeOfDayParam,
+    surgeParam,
+    timeOfDayEffective,
   ])
 
   // ── Construir set de semanas congeladas para indicador visual ──

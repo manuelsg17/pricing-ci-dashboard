@@ -23,6 +23,7 @@ import SemaforoEditor from '../components/config/SemaforoEditor'
 import PriceRulesTable from '../components/config/PriceRulesTable'
 import RushHourConfig from '../components/config/RushHourConfig'
 import CITimeslotsConfig from '../components/config/CITimeslotsConfig'
+import SurgeWindowsConfig from '../components/config/SurgeWindowsConfig'
 import CommissionsConfig from '../components/config/CommissionsConfig'
 import BonusesConfig from '../components/config/BonusesConfig'
 import InDriveConfig from '../components/config/InDriveConfig'
@@ -35,13 +36,7 @@ import { useI18n } from '../context/LanguageContext'
 import { useCountry } from '../context/CountryContext'
 import { useAccessControl } from '../hooks/useAccessControl'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/shadcn/tabs'
-import {
-  SlidersHorizontal,
-  Clock,
-  Users,
-  Bot,
-  Shield,
-} from 'lucide-react'
+import { SlidersHorizontal, Clock, Users, Bot, Shield } from 'lucide-react'
 import '../styles/config.css'
 
 export default function Config() {
@@ -50,9 +45,15 @@ export default function Config() {
   const { isAdmin } = useAccessControl()
 
   const {
-    thresholds, weights, semaforo,
-    loading, saving, error,
-    saveThresholds, saveWeights, saveSemaforo,
+    thresholds,
+    weights,
+    semaforo,
+    loading,
+    saving,
+    error,
+    saveThresholds,
+    saveWeights,
+    saveSemaforo,
   } = useConfig(country)
 
   // 5 categorías con sus sub-tabs. Cada item['component'] es una factory
@@ -60,59 +61,131 @@ export default function Config() {
   const CATEGORIES = useMemo(() => {
     const cats = [
       {
-        id:    'pricing',
+        id: 'pricing',
         label: t('config.category.pricing'),
-        desc:  t('config.category.pricing.desc'),
-        Icon:  SlidersHorizontal,
+        desc: t('config.category.pricing.desc'),
+        Icon: SlidersHorizontal,
         items: [
-          { id: 'thresholds', label: t('config.distances'),    render: () => <ThresholdsTable thresholds={thresholds} onSave={saveThresholds} saving={saving} country={country} /> },
-          { id: 'weights',    label: t('config.weights'),      render: () => <WeightsTable    weights={weights}       onSave={saveWeights}    saving={saving} country={country} /> },
-          { id: 'semaforo',   label: t('config.semaforo'),     render: () => <SemaforoEditor  semaforo={semaforo}     onSave={saveSemaforo}   saving={saving} country={country} /> },
-          { id: 'pricerules', label: t('config.price_limits'), render: () => <PriceRulesTable country={country} /> },
+          {
+            id: 'thresholds',
+            label: t('config.distances'),
+            render: () => (
+              <ThresholdsTable
+                thresholds={thresholds}
+                onSave={saveThresholds}
+                saving={saving}
+                country={country}
+              />
+            ),
+          },
+          {
+            id: 'weights',
+            label: t('config.weights'),
+            render: () => (
+              <WeightsTable
+                weights={weights}
+                onSave={saveWeights}
+                saving={saving}
+                country={country}
+              />
+            ),
+          },
+          {
+            id: 'semaforo',
+            label: t('config.semaforo'),
+            render: () => (
+              <SemaforoEditor
+                semaforo={semaforo}
+                onSave={saveSemaforo}
+                saving={saving}
+                country={country}
+              />
+            ),
+          },
+          {
+            id: 'pricerules',
+            label: t('config.price_limits'),
+            render: () => <PriceRulesTable country={country} />,
+          },
         ],
       },
       {
-        id:    'timing',
+        id: 'timing',
         label: t('config.category.timing'),
-        desc:  t('config.category.timing.desc'),
-        Icon:  Clock,
+        desc: t('config.category.timing.desc'),
+        Icon: Clock,
         items: [
-          { id: 'rushhour',  label: t('config.rush_hour'), render: () => <RushHourConfig    country={country} /> },
-          { id: 'timeslots', label: t('config.timeslots'), render: () => <CITimeslotsConfig country={country} /> },
+          {
+            id: 'rushhour',
+            label: t('config.rush_hour'),
+            render: () => <RushHourConfig country={country} />,
+          },
+          {
+            id: 'timeslots',
+            label: t('config.timeslots'),
+            render: () => <CITimeslotsConfig country={country} />,
+          },
+          { id: 'surge', label: 'Surge', render: () => <SurgeWindowsConfig country={country} /> },
         ],
       },
       {
-        id:    'competitors',
+        id: 'competitors',
         label: t('config.category.competitors'),
-        desc:  t('config.category.competitors.desc'),
-        Icon:  Users,
+        desc: t('config.category.competitors.desc'),
+        Icon: Users,
         items: [
-          { id: 'commissions', label: t('config.commissions'), render: () => <CommissionsConfig country={country} /> },
-          { id: 'bonuses',     label: t('config.bonuses'),     render: () => <BonusesConfig     country={country} /> },
-          { id: 'indrive',     label: t('config.indrive'),     render: () => <InDriveConfig     country={country} /> },
+          {
+            id: 'commissions',
+            label: t('config.commissions'),
+            render: () => <CommissionsConfig country={country} />,
+          },
+          {
+            id: 'bonuses',
+            label: t('config.bonuses'),
+            render: () => <BonusesConfig country={country} />,
+          },
+          {
+            id: 'indrive',
+            label: t('config.indrive'),
+            render: () => <InDriveConfig country={country} />,
+          },
         ],
       },
       {
-        id:    'data',
+        id: 'data',
         label: t('config.category.data'),
-        desc:  t('config.category.data.desc'),
-        Icon:  Bot,
+        desc: t('config.category.data.desc'),
+        Icon: Bot,
         items: [
-          { id: 'botrules',  label: t('config.botrules'),  render: () => <BotRulesTable       country={country} /> },
-          { id: 'airports',  label: t('config.airports'),  render: () => <AirportMarkersTable country={country} /> },
-          { id: 'snapshots', label: t('config.snapshots'), render: () => <SnapshotsManager    country={country} /> },
+          {
+            id: 'botrules',
+            label: t('config.botrules'),
+            render: () => <BotRulesTable country={country} />,
+          },
+          {
+            id: 'airports',
+            label: t('config.airports'),
+            render: () => <AirportMarkersTable country={country} />,
+          },
+          {
+            id: 'snapshots',
+            label: t('config.snapshots'),
+            render: () => <SnapshotsManager country={country} />,
+          },
         ],
       },
       {
-        id:    'admin',
+        id: 'admin',
         label: t('config.category.admin'),
-        desc:  t('config.category.admin.desc'),
-        Icon:  Shield,
+        desc: t('config.category.admin.desc'),
+        Icon: Shield,
         items: [
           { id: 'countries', label: t('config.countries'), render: () => <CountriesConfig /> },
           // Audit log solo para admins. La RPC también filtra por is_admin()
           // en DB, pero ocultarlo de la UI mejora la experiencia.
-          ...(isAdmin ? [{ id: 'audit', label: '📋 ' + t('audit.title'), render: () => <AuditLogViewer /> }] : []),
+          ...(isAdmin
+            ? [{ id: 'audit', label: '📋 ' + t('audit.title'), render: () => <AuditLogViewer /> }]
+            : []),
         ],
       },
     ]
@@ -131,14 +204,24 @@ export default function Config() {
     return init
   })
 
-  const currentCategory = CATEGORIES.find(c => c.id === activeCategory) ?? CATEGORIES[0]
+  const currentCategory = CATEGORIES.find((c) => c.id === activeCategory) ?? CATEGORIES[0]
   const currentItemId = activeItemByCategory[currentCategory.id] ?? currentCategory.items[0]?.id
 
   if (loading) {
-    return <div className="config-page"><div className="state-box">{t('config.loading')}</div></div>
+    return (
+      <div className="config-page">
+        <div className="state-box">{t('config.loading')}</div>
+      </div>
+    )
   }
   if (error) {
-    return <div className="config-page"><div className="state-box state-box--error">{t('app.error')}: {error}</div></div>
+    return (
+      <div className="config-page">
+        <div className="state-box state-box--error">
+          {t('app.error')}: {error}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -167,18 +250,20 @@ export default function Config() {
             {/* Nivel 2: Sub-tabs dentro de la categoría. */}
             <Tabs
               value={activeItemByCategory[id] ?? items[0]?.id}
-              onValueChange={(itemId) => setActiveItemByCategory(prev => ({ ...prev, [id]: itemId }))}
+              onValueChange={(itemId) =>
+                setActiveItemByCategory((prev) => ({ ...prev, [id]: itemId }))
+              }
               className="w-full"
             >
               <TabsList className="bg-secondary/50">
-                {items.map(item => (
+                {items.map((item) => (
                   <TabsTrigger key={item.id} value={item.id} className="text-xs">
                     {item.label}
                   </TabsTrigger>
                 ))}
               </TabsList>
 
-              {items.map(item => (
+              {items.map((item) => (
                 <TabsContent key={item.id} value={item.id} className="mt-3">
                   {/* Render lazy: solo el sub-tab activo. Esto preserva el
                       comportamiento anterior (no carga TODOS los componentes
