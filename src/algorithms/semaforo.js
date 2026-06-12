@@ -9,7 +9,7 @@
  */
 export function computeDelta(competitorPrice, yangoPrice) {
   if (!yangoPrice || yangoPrice <= 0 || !competitorPrice) return null
-  return ((competitorPrice / yangoPrice) - 1) * 100
+  return (competitorPrice / yangoPrice - 1) * 100
 }
 
 /**
@@ -25,22 +25,7 @@ export function computeDelta(competitorPrice, yangoPrice) {
 export function getSemaforoClass(deltaPct) {
   if (deltaPct === null || deltaPct === undefined) return 'sem-none'
   const d = Number(deltaPct)
-  if (d >= 5 && d <= 10)                       return 'sem-green'
+  if (d >= 5 && d <= 10) return 'sem-green'
   if ((d >= 1 && d < 5) || (d > 10 && d <= 12)) return 'sem-yellow'
   return 'sem-red'
-}
-
-/**
- * Formatea el delta para mostrar en la celda.
- * Muestra "0%" para Yango (base), "N/A" para null.
- *
- * @param {number|null} deltaPct
- * @param {boolean}     isBase — true si es Yango (el competidor de comparación)
- * @returns {string}
- */
-export function formatDelta(deltaPct, isBase = false) {
-  if (isBase) return '0%'
-  if (deltaPct === null || deltaPct === undefined) return '—'
-  const sign = deltaPct >= 0 ? '+' : ''
-  return `${sign}${deltaPct.toFixed(0)}%`
 }

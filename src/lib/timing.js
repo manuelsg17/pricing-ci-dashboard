@@ -15,20 +15,10 @@
 // mensajes de error que confirmaciones rápidas.
 export const TOAST_DURATION_MS = Object.freeze({
   info: 3500,
-  ok:   3500,
+  ok: 3500,
   warn: 5000,
-  err:  6000,
+  err: 6000,
 })
-
-// Delay antes de hacer reload() tras un guardado/sync que requiere
-// re-fetch completo de la página (raro — la mayoría usa SWR + live-sync).
-export const RELOAD_DELAY_MS = 1500
-
-// Debounce de búsquedas en inputs (RawData filtros, etc.).
-export const SEARCH_DEBOUNCE_MS = 300
-
-// Auto-dismiss de banners de sync OK (banner-style, no toast).
-export const SYNC_OK_BANNER_MS = 5000
 
 // TTL del cache de useStaleWhileRevalidate.
 // `config`: tablas de configuración (bracket_weights, thresholds, etc.) —
@@ -36,6 +26,6 @@ export const SYNC_OK_BANNER_MS = 5000
 // `country`: catálogo de países / ciudades / categorías — 24h porque solo
 //   cambia cuando se agrega/quita un país (event raro).
 export const SWR_TTL_MS = Object.freeze({
-  config:  5  * 60 * 1000,
+  config: 5 * 60 * 1000,
   country: 24 * 60 * 60 * 1000,
 })

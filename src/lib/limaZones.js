@@ -1336,24 +1336,6 @@ export const MI_ZONA_MAX_PCT = 9.0
 export const MI_ZONA_MIN_PCT = 0.0
 export const MI_ZONA_MIN_POLYGONS = 2
 
-// GMV total que sale de cada zona (suma de su fila origen en la matriz). Sirve
-// para ponderar/ordenar zonas por magnitud de demanda.
-export const LIMA_ZONE_GMV = {
-  lima_0_71283998: 97426.9,
-  lima_1_99969367: 259847.2,
-  lima_2_36918896: 55993.3,
-  lima_3_52650877: 36538.1,
-  lima_4_14777285: 6807.3,
-  lima_12_5781905: 88021.0,
-  lima_13_45061890: 254249.2,
-  lima_14_24561546: 91335.7,
-  lima_15_34630786: 51977.4,
-  lima_16_20232995: 16766.1,
-  lima_17_77099131: 68269.8,
-  lima_18_53490818: 102726.4,
-  lima_19_72664290: 28583.4,
-}
-
 // gmvInsideRatio — RÉPLICA EXACTA de getCommissionForSelection() del HTML.
 // Devuelve la fracción [0,1] del GMV que, saliendo de las zonas seleccionadas,
 // se queda dentro de ellas. null si el set no genera GMV. Ver cabecera.

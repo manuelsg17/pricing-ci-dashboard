@@ -1,9 +1,10 @@
-export function Skeleton({ width = '100%', height = 14, rounded = 6, style }) {
+function Skeleton({ width = '100%', height = 14, rounded = 6, style }) {
   return (
     <div
       aria-hidden="true"
       style={{
-        width, height,
+        width,
+        height,
         borderRadius: rounded,
         background: 'linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%)',
         backgroundSize: '200% 100%',
@@ -14,7 +15,7 @@ export function Skeleton({ width = '100%', height = 14, rounded = 6, style }) {
   )
 }
 
-export function SkeletonRow({ cols = 6, cellHeight = 14, gap = 12 }) {
+function SkeletonRow({ cols = 6, cellHeight = 14, gap = 12 }) {
   return (
     <div style={{ display: 'flex', gap, alignItems: 'center', padding: '8px 0' }}>
       {Array.from({ length: cols }).map((_, i) => (
@@ -44,7 +45,10 @@ export function SkeletonDashboard() {
         ))}
       </div>
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 10 }}>
+        <div
+          key={i}
+          style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 10 }}
+        >
           <Skeleton width={180} height={18} style={{ marginBottom: 12 }} />
           <SkeletonTable rows={3} cols={6} />
         </div>

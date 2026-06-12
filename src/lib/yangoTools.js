@@ -71,11 +71,6 @@ export function yangoToolsExtra(state = DEFAULT_TOOLS_STATE, miZonaExtra = 0) {
   return extra
 }
 
-// Comisión total de Yango para una ciudad + estado de herramientas.
-export function yangoTotalCommission(dbCity, state, miZonaExtra = 0) {
-  return yangoBaseCommission(dbCity) + YANGO_PARTNER_PCT + yangoToolsExtra(state, miZonaExtra)
-}
-
 // Presets de la matriz de escenarios (decisión cerrada: solo mejor y peor).
 //   best (E1) = base + partner, sin herramientas (Mi Zona cobertura total).
 //   worst (E4) = base + partner + Flex + Mi Zona al máximo (~2 zonas).
