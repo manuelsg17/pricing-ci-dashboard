@@ -4,6 +4,7 @@ import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
 import { useFilterContext } from '../../context/FilterContext'
 import { useFilterPresets } from '../../hooks/useFilterPresets'
+import { Clock, Star, ChevronDown, ChevronUp, Check, X, RotateCcw, Zap } from 'lucide-react'
 
 // Slots con keys estables y rangos (texto neutro entre idiomas). Los
 // labels se traducen dentro del componente vía t('filter.time_slot.<key>')
@@ -95,15 +96,6 @@ export default function FilterBar({ className = '' }) {
         .map((s) => s.label)
         .join(', ')
 
-  // Conteo de filtros "no-default" (zona/surge/source/timeOfDay).
-  // city/category/viewMode/weekStart no se cuentan porque siempre tienen
-  // valor — no hay un "neutro" para ellos.
-  const activeFiltersCount =
-    (filters.zone && filters.zone !== 'All' ? 1 : 0) +
-    (filters.surge !== null && filters.surge !== undefined ? 1 : 0) +
-    (filters.dataSource ? 1 : 0) +
-    (allSelected ? 0 : 1)
-
   function handleResetFilters() {
     setZone('All')
     setSurge(null)
@@ -139,6 +131,38 @@ export default function FilterBar({ className = '' }) {
       d.setDate(d.getDate() - (day - 1))
     }
     setWeekStart(d.toISOString().slice(0, 10))
+  }
+
+  // Chips de filtros activos (no-default): zona / surge / fuente / franja.
+  // city/category/viewMode/weekStart no aparecen (siempre tienen valor).
+  const activeChips = []
+  if (zone && zone !== 'All') {
+    activeChips.push({
+      key: 'zone',
+      label: `${t('filter.zone')}: ${zone}`,
+      clear: () => setZone('All'),
+    })
+  }
+  if (surge !== null && surge !== undefined) {
+    activeChips.push({
+      key: 'surge',
+      label: `${t('filter.surge')}: ${surge ? t('filter.yes') : t('filter.no')}`,
+      clear: () => setSurge(null),
+    })
+  }
+  if (dataSource) {
+    activeChips.push({
+      key: 'source',
+      label: `${t('filter.source')}: ${dataSource === 'bot' ? t('filter.source_bot') : t('filter.source_hubs')}`,
+      clear: () => setDataSource(null),
+    })
+  }
+  if (!allSelected) {
+    activeChips.push({
+      key: 'time',
+      label: `${t('filter.time_of_day')}: ${timeOfDay.length}/${ALL_TIME_SLOTS.length}`,
+      clear: () => setTimeOfDay(ALL_TIME_SLOTS),
+    })
   }
 
   return (
@@ -184,8 +208,9 @@ export default function FilterBar({ className = '' }) {
         <span
           className="filter-bar__label"
           title="Filtra por tus ventanas de Rush Hour (Config → Horarios → Rush Hour). Sí = solo data en horario rush; No = el resto."
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}
         >
-          {t('filter.surge')} ⚡
+          {t('filter.surge')} <Zap size={11} />
         </span>
         <select
           value={surge === null ? 'all' : String(surge)}
@@ -205,140 +230,65 @@ export default function FilterBar({ className = '' }) {
         <button
           type="button"
           onClick={() => setTimeOpen((v) => !v)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '0 8px',
-            height: 28,
-            minWidth: 110,
-            maxWidth: 200,
-            border: `1px solid ${allSelected ? 'var(--color-border)' : '#E53935'}`,
-            borderRadius: 'var(--radius-sm)',
-            background: allSelected ? 'var(--color-bg)' : '#FFF5F5',
-            color: allSelected ? 'var(--color-text)' : '#B71C1C',
-            fontSize: 12,
-            fontWeight: allSelected ? 400 : 600,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            transition: 'border-color 0.15s, background 0.15s',
-          }}
+          className={`fb-control${allSelected ? '' : ' fb-control--active'}`}
+          style={{ minWidth: 120, maxWidth: 210, overflow: 'hidden' }}
         >
+          <Clock size={13} />
           <span
             style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}
           >
-            🕐 {timeLabel}
+            {timeLabel}
           </span>
           {!allSelected && (
-            <span
-              style={{
-                background: '#E53935',
-                color: '#fff',
-                borderRadius: 10,
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '0 5px',
-                lineHeight: '16px',
-                flexShrink: 0,
-              }}
-            >
+            <span className="fb-badge">
               {timeOfDay.length}/{ALL_TIME_SLOTS.length}
             </span>
           )}
-          <span style={{ fontSize: 9, color: 'inherit', flexShrink: 0, opacity: 0.6 }}>
-            {timeOpen ? '▲' : '▼'}
-          </span>
+          {timeOpen ? (
+            <ChevronUp size={13} style={{ opacity: 0.6 }} />
+          ) : (
+            <ChevronDown size={13} style={{ opacity: 0.6 }} />
+          )}
         </button>
 
         {timeOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 0,
-              zIndex: 200,
-              background: 'var(--color-panel)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-              minWidth: 220,
-              overflow: 'hidden',
-            }}
-          >
-            {/* Header del dropdown */}
-            <div
-              style={{
-                padding: '8px 12px 6px',
-                borderBottom: '1px solid var(--color-border)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: 'var(--color-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                {t('filter.time_of_day')}
-              </span>
+          <div className="fb-popover">
+            <div className="fb-popover__header">
+              <span>{t('filter.time_of_day')}</span>
               <button
                 type="button"
                 onClick={() => setTimeOfDay(ALL_TIME_SLOTS)}
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: allSelected ? 'var(--color-muted)' : '#E53935',
+                  color: allSelected ? 'var(--color-muted)' : 'var(--color-yango)',
                   background: 'none',
                   border: 'none',
                   cursor: allSelected ? 'default' : 'pointer',
                   padding: 0,
                   opacity: allSelected ? 0.4 : 1,
+                  textTransform: 'none',
+                  letterSpacing: 0,
                 }}
               >
                 {t('filter.time_select_all')}
               </button>
             </div>
 
-            {/* Opciones */}
-            {TIME_SLOTS.map((slot, i) => {
+            {TIME_SLOTS.map((slot) => {
               const checked = timeOfDay.includes(slot.key)
               return (
                 <label
                   key={slot.key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '7px 12px',
-                    cursor: 'pointer',
-                    background: checked ? 'rgba(229, 57, 53, 0.04)' : 'transparent',
-                    borderBottom:
-                      i < TIME_SLOTS.length - 1 ? '1px solid var(--color-border)' : 'none',
-                    transition: 'background 0.1s',
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = checked
-                      ? 'rgba(229,57,53,0.08)'
-                      : 'var(--color-bg)')
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = checked
-                      ? 'rgba(229,57,53,0.04)'
-                      : 'transparent')
-                  }
+                  className="fb-popover__item"
+                  style={checked ? { background: 'var(--color-yango-light)' } : undefined}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleSlot(slot.key)}
                     style={{
-                      accentColor: '#E53935',
+                      accentColor: 'var(--color-yango)',
                       width: 14,
                       height: 14,
                       cursor: 'pointer',
@@ -350,7 +300,7 @@ export default function FilterBar({ className = '' }) {
                       style={{
                         fontSize: 12,
                         fontWeight: checked ? 600 : 400,
-                        color: checked ? '#B71C1C' : 'var(--color-text)',
+                        color: checked ? 'var(--color-yango-dark)' : 'var(--color-text)',
                       }}
                     >
                       {slot.label}
@@ -359,7 +309,9 @@ export default function FilterBar({ className = '' }) {
                       {slot.range}
                     </div>
                   </div>
-                  {checked && <span style={{ fontSize: 12, color: '#E53935' }}>✓</span>}
+                  {checked && (
+                    <Check size={14} style={{ color: 'var(--color-yango)', flexShrink: 0 }} />
+                  )}
                 </label>
               )
             })}
@@ -464,43 +416,18 @@ export default function FilterBar({ className = '' }) {
       {/* #23 — filter presets */}
       <div className="filter-bar__group" ref={presetRef} style={{ position: 'relative' }}>
         <span className="filter-bar__label">{t('dashboard.preset.label')}</span>
-        <button
-          type="button"
-          onClick={() => setPresetOpen((v) => !v)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '0 8px',
-            height: 28,
-            minWidth: 90,
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--color-bg)',
-            color: 'var(--color-text)',
-            fontSize: 12,
-            cursor: 'pointer',
-          }}
-        >
-          ⭐ {presets.length > 0 ? `${presets.length}` : ''}
-          <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 2 }}>{presetOpen ? '▲' : '▼'}</span>
+        <button type="button" onClick={() => setPresetOpen((v) => !v)} className="fb-control">
+          <Star size={13} />
+          {presets.length > 0 && <span className="fb-badge">{presets.length}</span>}
+          {presetOpen ? (
+            <ChevronUp size={13} style={{ opacity: 0.6 }} />
+          ) : (
+            <ChevronDown size={13} style={{ opacity: 0.6 }} />
+          )}
         </button>
 
         {presetOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 0,
-              zIndex: 200,
-              background: 'var(--color-panel)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-              minWidth: 240,
-              overflow: 'hidden',
-            }}
-          >
+          <div className="fb-popover fb-popover--right" style={{ minWidth: 240 }}>
             {/* Save new preset */}
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-border)' }}>
               <div
@@ -535,6 +462,10 @@ export default function FilterBar({ className = '' }) {
                   onClick={handleSavePreset}
                   disabled={saving || !presetName.trim()}
                   style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 34,
                     padding: '4px 10px',
                     fontSize: 11,
                     fontWeight: 600,
@@ -547,7 +478,7 @@ export default function FilterBar({ className = '' }) {
                     transition: 'background 0.2s',
                   }}
                 >
-                  {saveFeedback ? '✓' : t('app.save')}
+                  {saveFeedback ? <Check size={14} /> : t('app.save')}
                 </button>
               </div>
             </div>
@@ -585,6 +516,9 @@ export default function FilterBar({ className = '' }) {
                       }}
                       style={{
                         flex: 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
                         textAlign: 'left',
                         background: 'none',
                         border: 'none',
@@ -596,24 +530,26 @@ export default function FilterBar({ className = '' }) {
                       }}
                       title={t('dashboard.preset.load')}
                     >
-                      ⭐ {preset.name}
+                      <Star size={12} style={{ color: 'var(--color-yango)', flexShrink: 0 }} />{' '}
+                      {preset.name}
                     </button>
                     <button
                       type="button"
                       onClick={() => deletePreset(preset.id)}
                       title={t('dashboard.preset.delete')}
                       style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
                         background: 'none',
                         border: 'none',
                         color: '#ef4444',
                         cursor: 'pointer',
-                        fontSize: 14,
                         padding: '0 2px',
                         opacity: 0.6,
                         lineHeight: 1,
                       }}
                     >
-                      ×
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
@@ -623,40 +559,32 @@ export default function FilterBar({ className = '' }) {
         )}
       </div>
 
-      {/* Restablecer filtros + chip de conteo */}
-      {activeFiltersCount > 0 && (
+      {/* Chips de filtros activos (removibles) + limpiar todo */}
+      {activeChips.length > 0 && (
         <>
           <div className="filter-bar__divider" />
-          <div className="filter-bar__group" style={{ gap: 6 }}>
-            <span
-              style={{
-                background: '#E53935',
-                color: '#fff',
-                borderRadius: 10,
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '2px 8px',
-                lineHeight: '14px',
-              }}
-              title={t('filter.active_count') || 'Filtros activos'}
-            >
-              {activeFiltersCount} {t('filter.active_short') || 'activos'}
-            </span>
+          <div className="filter-bar__group" style={{ gap: 6, flexWrap: 'wrap' }}>
+            {activeChips.map((c) => (
+              <span key={c.key} className="fb-chip">
+                {c.label}
+                <button
+                  type="button"
+                  className="fb-chip__x"
+                  onClick={c.clear}
+                  title={t('filter.reset') || 'Quitar'}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
             <button
               type="button"
+              className="fb-control"
               onClick={handleResetFilters}
-              style={{
-                fontSize: 12,
-                padding: '4px 10px',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                background: 'transparent',
-                color: 'var(--color-muted)',
-                cursor: 'pointer',
-              }}
+              style={{ gap: 4 }}
               title={t('filter.reset_title') || 'Restablecer filtros a valores neutros'}
             >
-              ↺ {t('filter.reset') || 'Limpiar'}
+              <RotateCcw size={13} /> {t('filter.reset') || 'Limpiar'}
             </button>
           </div>
         </>
