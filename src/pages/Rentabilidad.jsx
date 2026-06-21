@@ -71,6 +71,7 @@ export default function Rentabilidad() {
   const [liveTrips, setLiveTrips] = useState(70)
   const [metric, setMetric] = useState('trip') // 'trip' | 'week'
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [refTierCat, setRefTierCat] = useState(null) // tier de referencia elegido (null = auto)
   const [tools, setTools] = useState(DEFAULT_TOOLS_STATE) // herramientas Yango
   // Arquetipo de driver: define a quién se evalúan los bonos (segmento) y los
   // parámetros de ventana/racha (alimentan comm_discount InDrive, surge y streak Didi).
@@ -231,6 +232,7 @@ export default function Rentabilidad() {
   const [selectedComps, setSelectedComps] = useState(null)
   useEffect(() => {
     setSelectedComps(null)
+    setRefTierCat(null)
   }, [uiCity, country])
 
   const compCounts = useMemo(() => {
@@ -380,14 +382,21 @@ export default function Rentabilidad() {
   // Tier + competidor de referencia para la matriz E1/E4 (primer tier con data
   // de Yango; primer rival visible). Sin fallback a catMap[0]: si ningún tier
   // tiene Yango, refTier queda undefined y la matriz se oculta (guard abajo).
-  const refTier = useMemo(
+  const tiersWithData = useMemo(
     () =>
-      catMap.find(
+      catMap.filter(
         ({ dbCategory }) =>
           pricesByCat[dbCategory]?.[getYangoDisplayName(country, dbCity, dbCategory)]
       ),
     [catMap, pricesByCat, country, dbCity]
   )
+  const refTier = useMemo(() => {
+    if (refTierCat) {
+      const sel = tiersWithData.find((c) => c.dbCategory === refTierCat)
+      if (sel) return sel
+    }
+    return tiersWithData[0]
+  }, [tiersWithData, refTierCat])
   // ── Análisis auto-generado (Build 3) ────────────────────────────────────
   const rivalCols = useMemo(
     () => visibleCompetitors.filter((c) => !isYango(c)),
@@ -568,6 +577,17 @@ export default function Rentabilidad() {
     branded,
     bonusFor,
   ])
+
+  // Mejor competidor (mayor total) + posición de Yango en el ranking de rentabilidad.
+  const breakdownStats = useMemo(() => {
+    if (!breakdown.length) return { bestTotal: null, yangoRank: null }
+    const sorted = [...breakdown].sort((a, b) => b.total - a.total)
+    const yangoBest = breakdown.filter((b) => isYango(b.comp)).sort((a, b) => b.total - a.total)[0]
+    return {
+      bestTotal: sorted[0].total,
+      yangoRank: yangoBest ? sorted.findIndex((b) => b === yangoBest) + 1 : null,
+    }
+  }, [breakdown])
 
   // ── Resultado (hero): Yango vs mejor rival al volumen vivo + tiers ganados ──
   const hero = useMemo(() => {
@@ -1218,11 +1238,42 @@ export default function Rentabilidad() {
       {/* ── Desglose de ganancia (tarifa vs bonos) ── */}
       {breakdown.length > 0 && (
         <div className="rent-panel" style={panelStyle}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>
-            Cómo se compone la ganancia
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 12,
+              flexWrap: 'wrap',
+              marginBottom: 4,
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 700 }}>Cómo se compone la ganancia</span>
+            <select
+              value={refTier?.dbCategory || ''}
+              onChange={(e) => setRefTierCat(e.target.value)}
+              style={{ ...selectStyle, minWidth: 130 }}
+            >
+              {tiersWithData.map((c) => (
+                <option key={c.dbCategory} value={c.dbCategory}>
+                  {c.uiCat}
+                </option>
+              ))}
+            </select>
+            {breakdownStats.yangoRank && (
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: breakdownStats.yangoRank === 1 ? '#16A34A' : 'var(--color-muted)',
+                }}
+              >
+                {breakdownStats.yangoRank === 1 ? '🏆 ' : ''}Yango: {breakdownStats.yangoRank}º de{' '}
+                {breakdown.length} en rentabilidad
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 10 }}>
-            {refTier?.uiCat} · {liveTrips} viajes/sem ·{' '}
+            {liveTrips} viajes/sem ·{' '}
             {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')} — cuánto
             sale de la <strong>tarifa</strong> (después de comisión) y cuánto de{' '}
             <strong>bonos/incentivos</strong> del competidor.
@@ -1240,31 +1291,45 @@ export default function Rentabilidad() {
                 </tr>
               </thead>
               <tbody>
-                {breakdown.map((b) => (
-                  <tr key={b.comp}>
-                    <td style={{ ...tdStyle, fontWeight: 600 }}>
-                      <span style={{ color: COMPETITOR_COLORS[b.comp] || '#64748b' }}>●</span>{' '}
-                      {b.comp}
-                    </td>
-                    <td style={tdStyle}>{b.comm.toFixed(1)}%</td>
-                    <td style={tdStyle}>{fmt(b.fare)}</td>
-                    <td
-                      style={{
-                        ...tdStyle,
-                        fontWeight: 600,
-                        color: b.bonus > 0.005 ? '#16A34A' : 'var(--color-muted)',
-                      }}
-                    >
-                      {b.bonus > 0.005 ? `+ ${fmt(b.bonus)}` : '—'}
-                    </td>
-                    <td style={{ ...tdStyle, fontWeight: 700 }}>{fmt(b.total)}</td>
-                    <td style={tdStyle}>
-                      {b.total > 0 && b.bonus > 0.005
-                        ? `${Math.round((b.bonus / b.total) * 100)}%`
-                        : '—'}
-                    </td>
-                  </tr>
-                ))}
+                {breakdown.map((b) => {
+                  const isBest = b.total === breakdownStats.bestTotal
+                  return (
+                    <tr key={b.comp} style={{ background: isBest ? '#f0fdf4' : undefined }}>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                        <span style={{ color: COMPETITOR_COLORS[b.comp] || '#64748b' }}>●</span>{' '}
+                        {b.comp}
+                        {isBest && (
+                          <span style={{ color: '#16A34A', fontWeight: 700 }}> · más rentable</span>
+                        )}
+                      </td>
+                      <td style={tdStyle}>{b.comm.toFixed(1)}%</td>
+                      <td style={tdStyle}>{fmt(b.fare)}</td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontWeight: 600,
+                          color: b.bonus > 0.005 ? '#16A34A' : 'var(--color-muted)',
+                        }}
+                      >
+                        {b.bonus > 0.005 ? `+ ${fmt(b.bonus)}` : '—'}
+                      </td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          fontWeight: 700,
+                          color: isBest ? '#16A34A' : undefined,
+                        }}
+                      >
+                        {fmt(b.total)}
+                      </td>
+                      <td style={tdStyle}>
+                        {b.total > 0 && b.bonus > 0.005
+                          ? `${Math.round((b.bonus / b.total) * 100)}%`
+                          : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
