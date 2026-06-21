@@ -528,6 +528,52 @@ export default function Rentabilidad() {
   const fmt = (n) =>
     n == null || isNaN(n) ? '—' : `${currency} ${n.toFixed(metric === 'trip' ? 2 : 0)}`
 
+  // ── Desglose de ganancia: tarifa (neto) vs bonos/incentivos por competidor ──
+  // Mismo cálculo que netFor: fare = precio·viajes·(1−comisión efectiva); bonos =
+  // bonusFor (competitor_bonuses) + GMV de Yango. Hace visible cuánto pesa cada parte.
+  const breakdown = useMemo(() => {
+    if (!refTier || !hasData || !liveTrips) return []
+    const div = metric === 'trip' ? liveTrips : 1
+    const out = []
+    for (const comp of visibleCompetitors) {
+      const pd = pricesByCat[refTier.dbCategory]?.[comp]
+      if (!pd || isNaN(pd.avg)) continue
+      const comm = isYango(comp)
+        ? yangoCommission
+        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
+            dbCategory: refTier.dbCategory,
+            segment: archetype.segment,
+          })
+      const fareWeek = pd.avg * liveTrips * (1 - comm / 100)
+      const gmv = isYango(comp)
+        ? yangoGmvBonus(dbCity, refTier.dbCategory, branded, pd.avg, liveTrips)
+        : 0
+      const bonusWeek = bonusFor(comp, refTier.dbCategory, liveTrips, pd.avg) + gmv
+      out.push({
+        comp,
+        comm,
+        fare: fareWeek / div,
+        bonus: bonusWeek / div,
+        total: (fareWeek + bonusWeek) / div,
+      })
+    }
+    return out
+  }, [
+    refTier,
+    hasData,
+    liveTrips,
+    metric,
+    visibleCompetitors,
+    pricesByCat,
+    yangoCommission,
+    commissions,
+    bonuses,
+    archetype,
+    dbCity,
+    branded,
+    bonusFor,
+  ])
+
   // ── Resultado (hero): Yango vs mejor rival al volumen vivo + tiers ganados ──
   const hero = useMemo(() => {
     if (!refTier || !hasData) return null
@@ -1162,6 +1208,67 @@ export default function Rentabilidad() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Desglose de ganancia (tarifa vs bonos) ── */}
+      {breakdown.length > 0 && (
+        <div className="rent-panel" style={panelStyle}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>
+            Cómo se compone la ganancia
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 10 }}>
+            {refTier?.uiCat} · {liveTrips} viajes/sem ·{' '}
+            {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')} — cuánto
+            sale de la <strong>tarifa</strong> (después de comisión) y cuánto de{' '}
+            <strong>bonos/incentivos</strong> del competidor.
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={matrixTableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Competidor</th>
+                  <th style={thStyle}>Comisión efectiva</th>
+                  <th style={thStyle}>Tarifa (neto)</th>
+                  <th style={thStyle}>Bonos / incentivos</th>
+                  <th style={thStyle}>Total</th>
+                  <th style={thStyle}>% por bonos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {breakdown.map((b) => (
+                  <tr key={b.comp}>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>
+                      <span style={{ color: COMPETITOR_COLORS[b.comp] || '#64748b' }}>●</span>{' '}
+                      {b.comp}
+                    </td>
+                    <td style={tdStyle}>{b.comm.toFixed(1)}%</td>
+                    <td style={tdStyle}>{fmt(b.fare)}</td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        fontWeight: 600,
+                        color: b.bonus > 0.005 ? '#16A34A' : 'var(--color-muted)',
+                      }}
+                    >
+                      {b.bonus > 0.005 ? `+ ${fmt(b.bonus)}` : '—'}
+                    </td>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{fmt(b.total)}</td>
+                    <td style={tdStyle}>
+                      {b.total > 0 && b.bonus > 0.005
+                        ? `${Math.round((b.bonus / b.total) * 100)}%`
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--color-muted)' }}>
+            Los bonos salen de Config → Bonos (competitor_bonuses); el de Yango es el bono por % de
+            GMV. Si una fila muestra “—” en bonos, ese competidor no tiene bono cargado para este
+            segmento/volumen.
+          </div>
         </div>
       )}
 
