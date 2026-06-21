@@ -1379,26 +1379,38 @@ export default function Rentabilidad() {
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
           {t('rentabilidad.formulas')}
         </div>
-        <div style={formulaBoxStyle}>
-          <div style={{ marginBottom: 8 }}>
-            <strong>{t('rentabilidad.formula_competitor')}</strong>
-            <div>neto/semana = precio_prom × viajes × (1 − comisión%) + bonos</div>
-            <div>neto/viaje = neto/semana ÷ viajes</div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={formulaCardStyle}>
+            <div style={formulaLabelStyle}>{t('rentabilidad.formula_competitor')}</div>
+            <div style={formulaExprStyle}>
+              neto/semana = precio × viajes × (1 − comisión) + bonos
+            </div>
+            <div style={formulaExprStyle}>neto/viaje = neto/semana ÷ viajes</div>
           </div>
-          <div style={{ marginBottom: 8 }}>
-            <strong>Yango ({t('rentabilidad.formula_stacked')})</strong>
-            <div>comisión_total = base_ciudad + partner(3%) + Σ herramientas activas</div>
-            <div style={{ color: 'var(--color-yango, #E53935)' }}>
+          <div style={formulaCardStyle}>
+            <div style={formulaLabelStyle}>Yango — {t('rentabilidad.formula_stacked')}</div>
+            <div style={formulaExprStyle}>
+              comisión_total = base_ciudad + partner(3%) + Σ herramientas
+            </div>
+            <div
+              style={{
+                ...formulaExprStyle,
+                color: 'var(--color-yango, #E53935)',
+                fontWeight: 700,
+                fontSize: 14,
+              }}
+            >
               = {yangoBasePct}% ({dbCity}) + {YANGO_PARTNER_PCT}% + {yangoExtraPct.toFixed(1)}% ={' '}
-              <strong>{yangoCommission.toFixed(1)}%</strong>
+              {yangoCommission.toFixed(1)}%
             </div>
-            <div>Mi Casa +5% · Mis Destinos +5% · Mi Zona = 9·(1 − t^1.087)%</div>
-            <div style={{ color: 'var(--color-muted)' }}>
-              {' '}
-              t = (cobertura_GMV − 0.251) / 0.749 · cobertura 100% → 0% · ≤25% → 9%
+            <div style={{ ...formulaExprStyle, color: 'var(--color-muted)', fontSize: 11 }}>
+              herramientas: Mi Casa +5% · Mis Destinos +5% · Mi Zona 9·(1 − t^1.087)% · t =
+              (cobertura_GMV − 0.251) / 0.749
             </div>
           </div>
-          <div style={{ color: 'var(--color-muted)' }}>{t('rentabilidad.formula_note')}</div>
+          <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+            {t('rentabilidad.formula_note')}
+          </div>
         </div>
       </div>
 
@@ -1662,14 +1674,25 @@ const tdStyle = {
   borderBottom: '1px solid var(--color-border, #f1f5f9)',
   whiteSpace: 'nowrap',
 }
-const formulaBoxStyle = {
-  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  fontSize: 12,
-  lineHeight: 1.7,
-  background: 'var(--color-bg, #f8fafc)',
+const formulaCardStyle = {
+  background: '#fff',
   border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 6,
-  padding: '12px 14px',
+  borderRadius: 8,
+  padding: '10px 14px',
+}
+const formulaLabelStyle = {
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: 0.4,
+  color: 'var(--color-muted)',
+  marginBottom: 4,
+}
+const formulaExprStyle = {
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: 12.5,
+  lineHeight: 1.7,
+  color: 'var(--color-text)',
 }
 const chipStyle = {
   display: 'inline-flex',
