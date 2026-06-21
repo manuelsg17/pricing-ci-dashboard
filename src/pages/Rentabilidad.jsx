@@ -641,6 +641,91 @@ export default function Rentabilidad() {
         </div>
       )}
 
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', margin: '4px 2px 12px' }}>
+        ℹ️ Cómo leer: cada barra es la <strong>ganancia neta del conductor</strong> (precio ×
+        (1−comisión) + bonos). Más alta = mejor para el conductor.
+      </div>
+
+      {/* ── Gráficos (small multiples) ── */}
+      {loading ? (
+        <div style={emptyStyle}>{t('app.loading')}</div>
+      ) : !hasData ? (
+        <div style={emptyStyle}>
+          {t('rentabilidad.no_data')}{' '}
+          <strong>
+            {uiCity} · {formatWeekLabel(refYear, refWeek)}
+          </strong>
+          .
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(680px, 1fr))',
+            gap: 18,
+          }}
+        >
+          {panels.map((p) => (
+            <div
+              key={p.key}
+              className="rent-panel"
+              style={{
+                ...panelStyle,
+                borderColor: p.live ? 'var(--color-yango, #E53935)' : undefined,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                {p.live ? `${t('rentabilidad.live_trips')}: ` : ''}
+                {p.trips} {t('rentabilidad.trips_week')}
+                <span style={{ fontWeight: 400, color: 'var(--color-muted)', marginLeft: 6 }}>
+                  · {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')}
+                </span>
+              </div>
+              <div style={{ width: '100%', height: 340 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartDataFor(p.trips)}
+                    margin={{ top: 22, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="tier" tick={{ fontSize: 11 }} interval={0} />
+                    <YAxis
+                      tickFormatter={(v) => `${currency} ${v}`}
+                      tick={{ fontSize: 10 }}
+                      width={58}
+                    />
+                    <RechartTooltip
+                      formatter={(val, name) => [fmt(val), name]}
+                      labelFormatter={(l) => l}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    {visibleCompetitors.map((comp) => (
+                      <Bar
+                        key={comp}
+                        dataKey={comp}
+                        fill={COMPETITOR_COLORS[comp] || '#94a3b8'}
+                        radius={[3, 3, 0, 0]}
+                      >
+                        <LabelList
+                          dataKey={comp}
+                          position="top"
+                          formatter={(v) => (v != null ? v.toFixed(metric === 'trip' ? 1 : 0) : '')}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: isYango(comp) ? 700 : 400,
+                            fill: COMPETITOR_COLORS[comp] || '#64748b',
+                          }}
+                        />
+                      </Bar>
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Parámetros ── */}
       <div className="rent-panel" style={panelStyle}>
         {/* Ciudades */}
@@ -1076,93 +1161,6 @@ export default function Rentabilidad() {
           {t('rentabilidad.archetype_hint')}
         </div>
       </CollapsibleSection>
-
-      <div style={{ fontSize: 12, color: 'var(--color-muted)', margin: '4px 2px 12px' }}>
-        ℹ️ Cómo leer: cada barra es la <strong>ganancia neta del conductor</strong> (precio ×
-        (1−comisión) + bonos). Más alta = mejor para el conductor.
-      </div>
-
-      {/* ── Gráficos (small multiples) ── */}
-      {loading ? (
-        <div style={emptyStyle}>{t('app.loading')}</div>
-      ) : !hasData ? (
-        <div style={emptyStyle}>
-          {t('rentabilidad.no_data')}{' '}
-          <strong>
-            {uiCity} · {formatWeekLabel(refYear, refWeek)}
-          </strong>
-          .
-        </div>
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            // ~2 paneles por fila en pantallas grandes (antes 3 muy angostos) y
-            // 1 a pantalla completa en monitores chicos → barras mucho más anchas.
-            gridTemplateColumns: 'repeat(auto-fit, minmax(680px, 1fr))',
-            gap: 18,
-          }}
-        >
-          {panels.map((p) => (
-            <div
-              key={p.key}
-              className="rent-panel"
-              style={{
-                ...panelStyle,
-                borderColor: p.live ? 'var(--color-yango, #E53935)' : undefined,
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                {p.live ? `${t('rentabilidad.live_trips')}: ` : ''}
-                {p.trips} {t('rentabilidad.trips_week')}
-                <span style={{ fontWeight: 400, color: 'var(--color-muted)', marginLeft: 6 }}>
-                  · {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')}
-                </span>
-              </div>
-              <div style={{ width: '100%', height: 340 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={chartDataFor(p.trips)}
-                    margin={{ top: 22, right: 8, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="tier" tick={{ fontSize: 11 }} interval={0} />
-                    <YAxis
-                      tickFormatter={(v) => `${currency} ${v}`}
-                      tick={{ fontSize: 10 }}
-                      width={58}
-                    />
-                    <RechartTooltip
-                      formatter={(val, name) => [fmt(val), name]}
-                      labelFormatter={(l) => l}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    {visibleCompetitors.map((comp) => (
-                      <Bar
-                        key={comp}
-                        dataKey={comp}
-                        fill={COMPETITOR_COLORS[comp] || '#94a3b8'}
-                        radius={[3, 3, 0, 0]}
-                      >
-                        <LabelList
-                          dataKey={comp}
-                          position="top"
-                          formatter={(v) => (v != null ? v.toFixed(metric === 'trip' ? 1 : 0) : '')}
-                          style={{
-                            fontSize: 10,
-                            fontWeight: isYango(comp) ? 700 : 400,
-                            fill: COMPETITOR_COLORS[comp] || '#64748b',
-                          }}
-                        />
-                      </Bar>
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ── Matriz de escenarios Yango (E1 mejor / E4 peor) ── */}
       {hasData && refTier && (
