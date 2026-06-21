@@ -556,6 +556,7 @@ export default function Rentabilidad() {
       out.push({
         comp,
         comm,
+        gross: (pd.avg * liveTrips) / div, // tarifa bruta (WA) en la misma métrica
         fare: fareWeek / div,
         bonus: bonusWeek / div,
         total: (fareWeek + bonusWeek) / div,
@@ -1283,6 +1284,7 @@ export default function Rentabilidad() {
               <thead>
                 <tr>
                   <th style={thStyle}>Competidor</th>
+                  <th style={thStyle}>Precio WA</th>
                   <th style={thStyle}>Comisión efectiva</th>
                   <th style={thStyle}>Tarifa (neto)</th>
                   <th style={thStyle}>Bonos / incentivos</th>
@@ -1302,6 +1304,7 @@ export default function Rentabilidad() {
                           <span style={{ color: '#16A34A', fontWeight: 700 }}> · más rentable</span>
                         )}
                       </td>
+                      <td style={tdStyle}>{fmt(b.gross)}</td>
                       <td style={tdStyle}>{b.comm.toFixed(1)}%</td>
                       <td style={tdStyle}>{fmt(b.fare)}</td>
                       <td
@@ -1334,9 +1337,9 @@ export default function Rentabilidad() {
             </table>
           </div>
           <div style={{ marginTop: 6, fontSize: 11, color: 'var(--color-muted)' }}>
-            Los bonos salen de Config → Bonos (competitor_bonuses); el de Yango es el bono por % de
-            GMV. Si una fila muestra “—” en bonos, ese competidor no tiene bono cargado para este
-            segmento/volumen.
+            Los bonos de competidores salen de Config → Bonos. El de Yango es el bono por % de GMV
+            (tablas fijas en el código, no editable en Config → Bonos). Si una fila muestra “—” en
+            bonos, ese competidor no tiene bono cargado para este segmento/volumen.
           </div>
         </div>
       )}
