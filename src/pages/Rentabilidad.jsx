@@ -1218,26 +1218,43 @@ export default function Rentabilidad() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={chartDataFor(p.trips)}
-                    margin={{ top: 22, right: 8, left: 0, bottom: 0 }}
+                    margin={{ top: 24, right: 8, left: 0, bottom: 0 }}
+                    barCategoryGap="22%"
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="tier" tick={{ fontSize: 11 }} interval={0} />
+                    <CartesianGrid vertical={false} stroke="#eef2f7" />
+                    <XAxis
+                      dataKey="tier"
+                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      interval={0}
+                      axisLine={false}
+                      tickLine={false}
+                    />
                     <YAxis
                       tickFormatter={(v) => `${currency} ${v}`}
-                      tick={{ fontSize: 10 }}
-                      width={58}
+                      tick={{ fontSize: 10, fill: '#94a3b8' }}
+                      width={54}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <RechartTooltip
                       formatter={(val, name) => [fmt(val), name]}
                       labelFormatter={(l) => l}
+                      cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+                        fontSize: 12,
+                      }}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} iconType="circle" />
                     {visibleCompetitors.map((comp) => (
                       <Bar
                         key={comp}
                         dataKey={comp}
                         fill={COMPETITOR_COLORS[comp] || '#94a3b8'}
-                        radius={[3, 3, 0, 0]}
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={46}
                       >
                         <LabelList
                           dataKey={comp}
