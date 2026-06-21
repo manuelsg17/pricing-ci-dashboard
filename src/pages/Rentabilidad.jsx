@@ -416,7 +416,6 @@ export default function Rentabilidad() {
         pct: YANGO_TOOLS.mis_destinos.pct,
         active: tools.mis_destinos,
       },
-      { key: 'flex', label: YANGO_TOOLS.flex.label, pct: YANGO_TOOLS.flex.pct, active: tools.flex },
       { key: 'mi_zona', label: 'Mi Zona', pct: miZonaPct, active: tools.mi_zona.on },
     ].map((it) => ({ ...it, cost: cost(it.pct) }))
     return { fare, items, totalPct: yangoExtraPct, totalCost: cost(yangoExtraPct) }
@@ -731,12 +730,6 @@ export default function Rentabilidad() {
             active={tools.mis_destinos}
             onClick={() => setTools((s) => ({ ...s, mis_destinos: !s.mis_destinos }))}
             label={`${YANGO_TOOLS.mis_destinos.label} +${YANGO_TOOLS.mis_destinos.pct}%`}
-          />
-          <ToolToggle
-            active={tools.flex}
-            onClick={() => setTools((s) => ({ ...s, flex: !s.flex }))}
-            label={`${YANGO_TOOLS.flex.label} +${YANGO_TOOLS.flex.pct}%`}
-            sub={t('rentabilidad.temporary')}
           />
           <ToolToggle
             active={tools.mi_zona.on}
@@ -1055,7 +1048,6 @@ export default function Rentabilidad() {
               <thead>
                 <tr>
                   <th style={thStyle}>{t('rentabilidad.col_scenario')}</th>
-                  <th style={thStyle}>Flex</th>
                   <th style={thStyle}>Mi Zona</th>
                   <th style={thStyle}>{t('rentabilidad.col_commission')}</th>
                   <th style={thStyle}>{t('rentabilidad.col_net')}</th>
@@ -1068,7 +1060,6 @@ export default function Rentabilidad() {
                     key: 'best',
                     label: t('rentabilidad.scenario_best'),
                     comm: yangoScenarioCommission(dbCity, 'best'),
-                    flex: '—',
                     zona: '0%',
                     accent: '#16A34A',
                   },
@@ -1076,7 +1067,6 @@ export default function Rentabilidad() {
                     key: 'current',
                     label: t('rentabilidad.scenario_current'),
                     comm: yangoCommission,
-                    flex: tools.flex ? `${YANGO_TOOLS.flex.pct}%` : '—',
                     zona: tools.mi_zona.on ? `${miZonaPct.toFixed(1)}%` : '—',
                     accent: 'var(--color-yango, #E53935)',
                   },
@@ -1084,7 +1074,6 @@ export default function Rentabilidad() {
                     key: 'worst',
                     label: t('rentabilidad.scenario_worst'),
                     comm: yangoScenarioCommission(dbCity, 'worst'),
-                    flex: `${YANGO_TOOLS.flex.pct}%`,
                     zona: `${MI_ZONA_MAX_PCT}%`,
                     accent: '#DC2626',
                   },
@@ -1097,7 +1086,6 @@ export default function Rentabilidad() {
                       <td style={{ ...tdStyle, fontWeight: 600 }}>
                         <span style={{ color: row.accent }}>●</span> {row.label}
                       </td>
-                      <td style={tdStyle}>{row.flex}</td>
                       <td style={tdStyle}>{row.zona}</td>
                       <td style={{ ...tdStyle, fontWeight: 700 }}>{row.comm.toFixed(1)}%</td>
                       <td style={tdStyle}>{fmt(yNet)}</td>
@@ -1140,7 +1128,7 @@ export default function Rentabilidad() {
               = {yangoBasePct}% ({dbCity}) + {YANGO_PARTNER_PCT}% + {yangoExtraPct.toFixed(1)}% ={' '}
               <strong>{yangoCommission.toFixed(1)}%</strong>
             </div>
-            <div>Mi Casa +5% · Mis Destinos +5% · Flex +6% · Mi Zona = 9·(1 − t^1.087)%</div>
+            <div>Mi Casa +5% · Mis Destinos +5% · Mi Zona = 9·(1 − t^1.087)%</div>
             <div style={{ color: 'var(--color-muted)' }}>
               {' '}
               t = (cobertura_GMV − 0.251) / 0.749 · cobertura 100% → 0% · ≤25% → 9%

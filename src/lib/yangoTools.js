@@ -6,10 +6,10 @@
 // el driver tenga prendidas. Validado contra la matriz E1-E4 de la slide "04":
 //
 //   comisión_total = base_ciudad + partner(3%) + Mi Casa(5%) + Mis Destinos(5%)
-//                    + Flex(6%) + Mi Zona(curva por cobertura de GMV)
+//                    + Mi Zona(curva por cobertura de GMV)
 //
-//   E1 (mejor)  = 12 (Lima) + 3                       = 15%
-//   E4 (peor)   = 12 + 3 + 6 (Flex) + 9 (Mi Zona min) = 30%
+//   E1 (mejor)  = 12 (Lima) + 3            = 15%
+//   E4 (peor)   = 12 + 3 + 9 (Mi Zona min) = 24%
 //
 // Hoy los números viven acá como constantes (v1). Cuando se quieran editar sin
 // deploy → tabla `yango_tools` (ver RENTABILIDAD_DESIGN §5.2). El framework usa
@@ -30,7 +30,6 @@ export function yangoBaseCommission(dbCity = '') {
 export const YANGO_TOOLS = {
   mi_casa: { key: 'mi_casa', label: 'Mi Casa', pct: 5 },
   mis_destinos: { key: 'mis_destinos', label: 'Mis Destinos', pct: 5 },
-  flex: { key: 'flex', label: 'Flex', pct: 6, temporary: true },
 }
 
 // ── Mi Zona — modelo B (curva por gmv_inside_ratio) ────────────────────────
@@ -55,7 +54,6 @@ export function miZonaCommissionForRatio(ratio) {
 export const DEFAULT_TOOLS_STATE = {
   mi_casa: false,
   mis_destinos: false,
-  flex: false,
   mi_zona: { on: false, zones: [], ratio: 0.5 },
 }
 
@@ -66,16 +64,15 @@ export function yangoToolsExtra(state = DEFAULT_TOOLS_STATE, miZonaExtra = 0) {
   let extra = 0
   if (state.mi_casa) extra += YANGO_TOOLS.mi_casa.pct
   if (state.mis_destinos) extra += YANGO_TOOLS.mis_destinos.pct
-  if (state.flex) extra += YANGO_TOOLS.flex.pct
   extra += miZonaExtra
   return extra
 }
 
 // Presets de la matriz de escenarios (decisión cerrada: solo mejor y peor).
 //   best (E1) = base + partner, sin herramientas (Mi Zona cobertura total).
-//   worst (E4) = base + partner + Flex + Mi Zona al máximo (~2 zonas).
+//   worst (E4) = base + partner + Mi Zona al máximo (~2 zonas).
 export function yangoScenarioCommission(dbCity, which) {
   const base = yangoBaseCommission(dbCity) + YANGO_PARTNER_PCT
   if (which === 'best') return base
-  return base + YANGO_TOOLS.flex.pct + MI_ZONA_MAX_PCT
+  return base + MI_ZONA_MAX_PCT
 }
