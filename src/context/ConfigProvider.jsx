@@ -107,26 +107,6 @@ export function ConfigProvider({ children }) {
     },
   })
 
-  const surgeWindows = useStaleWhileRevalidate({
-    key: 'cfg.surge_windows.all',
-    enabled,
-    liveSyncTable: 'surge_windows',
-    fetcher: async () => {
-      const { data, error } = await sb
-        .from('surge_windows')
-        .select('*')
-        .order('country')
-        .order('time_of_day')
-      // Tolerante a pre-migración: si la tabla aún no existe (mig 111 sin
-      // aplicar), devolvemos [] y el filtro surge cae al flag del scraper.
-      if (error) {
-        console.warn('[ConfigProvider] surge_windows no disponible:', error.message)
-        return []
-      }
-      return data || []
-    },
-  })
-
   const indriveConfig = useStaleWhileRevalidate({
     key: 'cfg.indrive_config.all',
     enabled,
@@ -147,7 +127,6 @@ export function ConfigProvider({ children }) {
       thresholds: thresholds.data ?? EMPTY,
       priceRules: priceRules.data ?? EMPTY,
       rushHour: rushHour.data ?? EMPTY,
-      surgeWindows: surgeWindows.data ?? EMPTY,
       indriveConfig: indriveConfig.data ?? EMPTY,
       loading: weights.loading || semaforo.loading || thresholds.loading,
       error: weights.error || semaforo.error || thresholds.error,
@@ -158,7 +137,6 @@ export function ConfigProvider({ children }) {
           thresholds.reload(),
           priceRules.reload(),
           rushHour.reload(),
-          surgeWindows.reload(),
           indriveConfig.reload(),
         ]),
     }),
@@ -182,8 +160,6 @@ export function ConfigProvider({ children }) {
       priceRules.reload,
       rushHour.data,
       rushHour.reload,
-      surgeWindows.data,
-      surgeWindows.reload,
       indriveConfig.data,
       indriveConfig.reload,
     ]

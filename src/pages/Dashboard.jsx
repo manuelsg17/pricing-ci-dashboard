@@ -103,7 +103,6 @@ function DashboardContent() {
     deltaChartData: rawDeltaChartData,
     periods,
     frozenWeeks,
-    filtersConflict,
     frozenIgnoresFilters,
   } = usePricingData(filters, dbWeights, locale, dbSemaforo)
 
@@ -732,7 +731,7 @@ function DashboardContent() {
         </div>
       )}
 
-      {frozenIgnoresFilters && !filtersConflict && (
+      {frozenIgnoresFilters && (
         <div
           style={{
             margin: '0 16px 8px',
@@ -749,15 +748,7 @@ function DashboardContent() {
         </div>
       )}
 
-      {filtersConflict && (
-        <EmptyState
-          icon="⚡"
-          title="Filtros contradictorios"
-          message="Tu selección de franja horaria no se cruza con las reglas de surge configuradas (Config → Timing → Surge). Poné Surge en 'Both' o cambiá las franjas seleccionadas."
-        />
-      )}
-
-      {!loading && !error && !filtersConflict && periods.length === 0 && (
+      {!loading && !error && periods.length === 0 && (
         <EmptyState
           icon="📊"
           title={t('dashboard.no_data')}

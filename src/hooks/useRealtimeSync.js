@@ -37,7 +37,6 @@ const REFETCHABLE_TABLES = new Set([
   'bracket_weights_by_category',
   'semaforo_config',
   'rush_hour_windows',
-  'surge_windows',
   'price_validation_rules',
   'indrive_config',
   'distance_references',

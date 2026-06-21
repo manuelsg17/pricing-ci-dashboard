@@ -4,7 +4,6 @@ import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
 import { useFilterContext } from '../../context/FilterContext'
 import { useFilterPresets } from '../../hooks/useFilterPresets'
-import { useConfigContext } from '../../context/ConfigProvider'
 
 // Slots con keys estables y rangos (texto neutro entre idiomas). Los
 // labels se traducen dentro del componente vía t('filter.time_slot.<key>')
@@ -47,18 +46,6 @@ export default function FilterBar({ className = '' }) {
   const presetRef = useRef(null)
 
   const { presets, saving, savePreset, deletePreset } = useFilterPresets(country)
-
-  // ⚡ junto al label de Surge cuando hay franjas configuradas para esta
-  // ciudad (el filtro usa esas reglas en vez del flag del scraper).
-  const { surgeWindows } = useConfigContext()
-  const surgeRulesActive = useMemo(
-    () =>
-      surgeWindows.some(
-        (w) =>
-          w.is_active !== false && w.country === country && (!w.city || w.city === filters.dbCity)
-      ),
-    [surgeWindows, country, filters.dbCity]
-  )
 
   useEffect(() => {
     function onOutsideClick(e) {
@@ -196,14 +183,9 @@ export default function FilterBar({ className = '' }) {
       <div className="filter-bar__group">
         <span
           className="filter-bar__label"
-          title={
-            surgeRulesActive
-              ? 'Filtra por tus franjas con surge (Config → Timing → Surge)'
-              : 'Filtra por el flag de surge que manda el bot. Configurá franjas en Config → Timing → Surge para usar tus propias reglas.'
-          }
+          title="Filtra por tus ventanas de Rush Hour (Config → Horarios → Rush Hour). Sí = solo data en horario rush; No = el resto."
         >
-          {t('filter.surge')}
-          {surgeRulesActive ? ' ⚡' : ''}
+          {t('filter.surge')} ⚡
         </span>
         <select
           value={surge === null ? 'all' : String(surge)}

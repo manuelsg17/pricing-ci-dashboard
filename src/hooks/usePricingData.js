@@ -5,7 +5,6 @@ import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAvera
 import { computeDelta, getSemaforoClass } from '../algorithms/semaforo'
 import { getISOYearWeek as getYearWeek } from '../lib/dateUtils'
 import { normalizeCompetitorName, toSnakeCase } from '../lib/normalize'
-import { useConfigContext } from '../context/ConfigProvider'
 
 const ALL_TIME_SLOTS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
 
@@ -47,41 +46,14 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     return timeOfDay
   }, [timeOfDay])
 
-  // ── Reglas de surge por franja horaria (mig 111) ─────────────────────
-  // Si el analista configuró qué franjas tienen surge (Config → Timing →
-  // Surge), el filtro Surge=Yes/No se traduce a franjas time_of_day en
-  // lugar de usar el flag del scraper (poco confiable). Sin reglas
-  // configuradas para el país/ciudad, se mantiene el flag del scraper.
-  const { surgeWindows } = useConfigContext()
-  const surgeSlots = useMemo(() => {
-    const rows = surgeWindows.filter(
-      (w) => w.is_active !== false && w.country === country && (!w.city || w.city === dbCity)
-    )
-    return [...new Set(rows.map((w) => w.time_of_day))]
-  }, [surgeWindows, country, dbCity])
-
-  // Nota: con la traducción activa, las observaciones SIN time_of_day (solo
-  // data manual legacy de Peru, ~2.5% del total) quedan fuera de Yes/No y
-  // se ven solo en "Todos" — misma semántica que el filtro de franjas
-  // explícito (mig 42).
-  const { surgeParam, timeOfDayEffective } = useMemo(() => {
-    if (surge == null || surgeSlots.length === 0) {
-      return { surgeParam: surge, timeOfDayEffective: timeOfDayParam }
-    }
-    const base = timeOfDayParam ?? ALL_TIME_SLOTS
-    const eff =
-      surge === true
-        ? base.filter((s) => surgeSlots.includes(s))
-        : base.filter((s) => !surgeSlots.includes(s))
-    return { surgeParam: null, timeOfDayEffective: eff }
-  }, [surge, surgeSlots, timeOfDayParam])
-
-  // Intersección vacía Surge×Franja (ej: Surge=Yes con solo Madrugada
-  // seleccionada y madrugada no marcada como surge) → cero filas seguro.
-  // Cortocircuitamos para no consultar al pedo y para que el Dashboard
-  // pueda explicar el vacío (en weekly, sin esto, las frozen rows — que no
-  // filtran por franja — dejarían una grilla de rayas sin mensaje).
-  const filtersConflict = timeOfDayEffective != null && timeOfDayEffective.length === 0
+  // ── Surge = ventanas de Rush Hour (mig 114) ──────────────────────────
+  // El filtro Surge=Yes/No filtra por la columna rush_hour de cada
+  // observación (pre-calculada en la BD desde observed_time + las ventanas
+  // de Rush Hour, Config → Horarios → Rush Hour). Yes = la hora cae en una
+  // ventana rush; No = fuera. El flag `surge` del scraper ya NO maneja el
+  // filtro (se conserva solo para el drill-down). Las observaciones sin hora
+  // (rush_hour NULL) quedan fuera de Yes/No y se ven solo en "Ambos".
+  const rushHourParam = surge // true = Sí (en ventana), false = No, null = Ambos
 
   // Track previous viewMode shape — solo necesitamos limpiar rawRows
   // cuando la SHAPE cambia (daily ↔ weekly/historic), no en cada filtro.
@@ -97,12 +69,6 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
   // se queda con data del país viejo o vacío, y requiere F5 para arreglarse.
   useEffect(() => {
     if (!dbCity || !dbCategory) {
-      setLoading(false)
-      return
-    }
-    if (filtersConflict) {
-      setRawRows([])
-      setFrozenRows([])
       setLoading(false)
       return
     }
@@ -134,13 +100,14 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
               p_category: dbCategory,
               p_country: country,
               p_zone: zone === 'All' ? null : zone,
-              p_surge: surgeParam,
+              p_surge: null,
               p_week_start: w1,
               p_year_start: y1,
               p_week_end: w2,
               p_year_end: y2,
               p_data_source: dataSource,
-              p_time_of_day: timeOfDayEffective,
+              p_time_of_day: timeOfDayParam,
+              p_rush_hour: rushHourParam,
             }),
             sb
               .from('pricing_wa_frozen')
@@ -161,11 +128,12 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
             p_category: dbCategory,
             p_country: country,
             p_zone: zone === 'All' ? null : zone,
-            p_surge: surgeParam,
+            p_surge: null,
             p_date_start: dailyStart,
             p_date_end: dailyEnd,
             p_data_source: dataSource,
-            p_time_of_day: timeOfDayEffective,
+            p_time_of_day: timeOfDayParam,
+            p_rush_hour: rushHourParam,
           })
           if (cancelled) return
           if (err) throw err
@@ -194,9 +162,8 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     weekColumns,
     dailyStart,
     dailyEnd,
-    surgeParam,
-    timeOfDayEffective,
-    filtersConflict,
+    rushHourParam,
+    timeOfDayParam,
   ])
 
   // ── Construir set de semanas congeladas para indicador visual ──
@@ -539,7 +506,6 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     deltaChartData,
     periods,
     frozenWeeks,
-    filtersConflict,
     frozenIgnoresFilters,
   }
 }

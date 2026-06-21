@@ -23,7 +23,6 @@ import SemaforoEditor from '../components/config/SemaforoEditor'
 import PriceRulesTable from '../components/config/PriceRulesTable'
 import RushHourConfig from '../components/config/RushHourConfig'
 import CITimeslotsConfig from '../components/config/CITimeslotsConfig'
-import SurgeWindowsConfig from '../components/config/SurgeWindowsConfig'
 import CommissionsConfig from '../components/config/CommissionsConfig'
 import BonusesConfig from '../components/config/BonusesConfig'
 import InDriveConfig from '../components/config/InDriveConfig'
@@ -125,7 +124,6 @@ export default function Config() {
             label: t('config.timeslots'),
             render: () => <CITimeslotsConfig country={country} />,
           },
-          { id: 'surge', label: 'Surge', render: () => <SurgeWindowsConfig country={country} /> },
         ],
       },
       {
