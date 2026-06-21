@@ -147,6 +147,10 @@ export const TRANSLATIONS = {
     'filter.time_of_day': 'Franja horaria',
     'filter.time_all': 'Todas',
     'filter.time_select_all': 'Seleccionar todas',
+    'filter.active_short': 'activos',
+    'filter.active_count': 'Filtros activos',
+    'filter.reset': 'Limpiar',
+    'filter.reset_title': 'Restablecer filtros a valores neutros',
 
     // ── Samples (BracketSection) ───────────────────────
     'samples.summary_title_attr': 'Muestras observadas ({label}) — última semana con data',
@@ -655,6 +659,10 @@ export const TRANSLATIONS = {
     'filter.time_of_day': 'Time of day',
     'filter.time_all': 'All',
     'filter.time_select_all': 'Select all',
+    'filter.active_short': 'active',
+    'filter.active_count': 'Active filters',
+    'filter.reset': 'Reset',
+    'filter.reset_title': 'Reset filters to neutral values',
 
     // ── Samples (BracketSection) ───────────────────────
     'samples.summary_title_attr': 'Observed samples ({label}) — most recent week with data',
@@ -1154,6 +1162,10 @@ export const TRANSLATIONS = {
     'filter.time_of_day': 'Время суток',
     'filter.time_all': 'Все',
     'filter.time_select_all': 'Выбрать все',
+    'filter.active_short': 'актив.',
+    'filter.active_count': 'Активные фильтры',
+    'filter.reset': 'Сбросить',
+    'filter.reset_title': 'Сбросить фильтры к нейтральным значениям',
 
     // ── Samples (BracketSection) ───────────────────────
     'samples.summary_title_attr': 'Наблюдаемые выборки ({label}) — последняя неделя с данными',
