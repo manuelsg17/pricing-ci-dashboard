@@ -39,6 +39,7 @@ const REFETCHABLE_TABLES = new Set([
   'rush_hour_windows',
   'price_validation_rules',
   'indrive_config',
+  'yango_gmv_tiers',
   'distance_references',
   'ci_timeslots',
   'airport_markers',

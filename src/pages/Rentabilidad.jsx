@@ -59,7 +59,7 @@ function formatWeekLabel(year, week) {
 export default function Rentabilidad() {
   const { t } = useI18n()
   const { country, countryConfig, dbConfigs } = useCountry()
-  const { weights: dbWeights } = useConfigContext()
+  const { weights: dbWeights, yangoGmvTiers } = useConfigContext()
   const uiCities = countryConfig.cities
   const { currency } = countryConfig
 
@@ -298,7 +298,9 @@ export default function Rentabilidad() {
             dbCategory,
             segment: archetype.segment,
           })
-      const gmv = isYango(comp) ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips) : 0
+      const gmv = isYango(comp)
+        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers)
+        : 0
       const week =
         pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg) + gmv
       return metric === 'trip' ? week / trips : week
@@ -313,6 +315,7 @@ export default function Rentabilidad() {
       archetype,
       dbCity,
       branded,
+      yangoGmvTiers,
     ]
   )
 
@@ -327,10 +330,10 @@ export default function Rentabilidad() {
       const week =
         pd.avg * trips * (1 - commPct / 100) +
         bonusFor(yangoKey, dbCategory, trips, pd.avg) +
-        yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips)
+        yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers)
       return metric === 'trip' ? week / trips : week
     },
-    [pricesByCat, bonusFor, metric, country, dbCity, branded]
+    [pricesByCat, bonusFor, metric, country, dbCity, branded, yangoGmvTiers]
   )
 
   // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
@@ -350,10 +353,22 @@ export default function Rentabilidad() {
             dbCategory,
             segment: archetype.segment,
           })
-      const gmv = isYango(comp) ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, n) : 0
+      const gmv = isYango(comp)
+        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, n, yangoGmvTiers)
+        : 0
       return pd.avg * (1 - comm / 100) + (bonusFor(comp, dbCategory, n, pd.avg) + gmv) / n
     },
-    [pricesByCat, commissions, bonuses, bonusFor, yangoCommission, archetype, dbCity, branded]
+    [
+      pricesByCat,
+      commissions,
+      bonuses,
+      bonusFor,
+      yangoCommission,
+      archetype,
+      dbCity,
+      branded,
+      yangoGmvTiers,
+    ]
   )
 
   // data para un valor de viajes: [{ tier, [comp]: value }]
@@ -550,7 +565,7 @@ export default function Rentabilidad() {
           })
       const fareWeek = pd.avg * liveTrips * (1 - comm / 100)
       const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, refTier.dbCategory, branded, pd.avg, liveTrips)
+        ? yangoGmvBonus(dbCity, refTier.dbCategory, branded, pd.avg, liveTrips, yangoGmvTiers)
         : 0
       const bonusWeek = bonusFor(comp, refTier.dbCategory, liveTrips, pd.avg) + gmv
       out.push({
@@ -577,6 +592,7 @@ export default function Rentabilidad() {
     dbCity,
     branded,
     bonusFor,
+    yangoGmvTiers,
   ])
 
   // Mejor competidor (mayor total) + posición de Yango en el ranking de rentabilidad.
@@ -945,11 +961,18 @@ export default function Rentabilidad() {
         </div>
 
         {/* Readout del bono Yango por % de GMV (cash aditivo, no comisión) */}
-        {hasYangoGmvTable(dbCity) &&
+        {hasYangoGmvTable(dbCity, yangoGmvTiers) &&
           refTier &&
           (() => {
             const fare = pricesByCat[refTier.dbCategory]?.[yangoKeyFor(refTier.dbCategory)]?.avg
-            const d = yangoGmvDetail(dbCity, refTier.dbCategory, branded, fare, liveTrips)
+            const d = yangoGmvDetail(
+              dbCity,
+              refTier.dbCategory,
+              branded,
+              fare,
+              liveTrips,
+              yangoGmvTiers
+            )
             return (
               <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-muted)' }}>
                 {t('rentabilidad.gmv_bonus')} (

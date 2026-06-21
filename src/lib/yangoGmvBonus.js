@@ -87,22 +87,38 @@ const TABLES = {
   },
 }
 
+// Construye la estructura TABLES desde filas de yango_gmv_tiers (mig 116). Si no
+// hay filas (config sin cargar / test node), cae al hardcode de arriba.
+function tablesFromRows(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return TABLES
+  const out = {}
+  for (const r of rows) {
+    if (r.is_active === false) continue
+    if (!out[r.city]) out[r.city] = {}
+    if (!out[r.city][r.variant]) out[r.city][r.variant] = []
+    out[r.city][r.variant].push({ t: Number(r.min_trips), pct: Number(r.pct), cap: Number(r.cap) })
+  }
+  for (const city of Object.keys(out))
+    for (const v of Object.keys(out[city])) out[city][v].sort((a, b) => a.t - b.t)
+  return out
+}
+
 // ¿Hay tabla de bono GMV para esta ciudad? (aeropuertos/Corp → no, por ahora).
-export function hasYangoGmvTable(dbCity) {
-  return !!TABLES[dbCity]
+export function hasYangoGmvTable(dbCity, rows) {
+  return !!tablesFromRows(rows)[dbCity]
 }
 
 // Devuelve la escalera aplicable según ciudad/categoría/brandeo.
-function ladderFor(dbCity, dbCategory, branded) {
-  const t = TABLES[dbCity]
+function ladderFor(dbCity, dbCategory, branded, rows) {
+  const t = tablesFromRows(rows)[dbCity]
   if (!t) return null
   if (dbCity === 'Lima' && dbCategory === 'Premier' && t.vip) return t.vip // VIP gana
   return branded ? t.branded : t.unbranded
 }
 
 // Detalle del bono GMV: { pct, cap, gmv, bono } o null si no aplica.
-export function yangoGmvDetail(dbCity, dbCategory, branded, fare, trips) {
-  const ladder = ladderFor(dbCity, dbCategory, branded)
+export function yangoGmvDetail(dbCity, dbCategory, branded, fare, trips, rows) {
+  const ladder = ladderFor(dbCity, dbCategory, branded, rows)
   if (!ladder || !fare || !trips || isNaN(fare)) return null
   let step = null
   for (const r of ladder) if (trips >= r.t) step = r // peldaño máximo alcanzado
@@ -111,7 +127,8 @@ export function yangoGmvDetail(dbCity, dbCategory, branded, fare, trips) {
   return { pct: step.pct, cap: step.cap, gmv, bono: Math.min((step.pct / 100) * gmv, step.cap) }
 }
 
-// Bono GMV semanal (S/). 0 si no aplica.
-export function yangoGmvBonus(dbCity, dbCategory, branded, fare, trips) {
-  return yangoGmvDetail(dbCity, dbCategory, branded, fare, trips)?.bono || 0
+// Bono GMV semanal (S/). 0 si no aplica. `rows` = filas de yango_gmv_tiers
+// (de useConfigContext); sin ellas usa las tablas hardcodeadas de fallback.
+export function yangoGmvBonus(dbCity, dbCategory, branded, fare, trips, rows) {
+  return yangoGmvDetail(dbCity, dbCategory, branded, fare, trips, rows)?.bono || 0
 }

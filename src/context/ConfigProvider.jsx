@@ -120,6 +120,24 @@ export function ConfigProvider({ children }) {
     },
   })
 
+  const yangoGmvTiers = useStaleWhileRevalidate({
+    key: 'cfg.yango_gmv_tiers.all',
+    enabled,
+    liveSyncTable: 'yango_gmv_tiers',
+    fetcher: async () => {
+      const { data, error } = await sb
+        .from('yango_gmv_tiers')
+        .select('country, city, variant, min_trips, pct, cap, is_active')
+      // Tolerante a pre-migración (mig 116 sin aplicar) → [] y el cálculo usa
+      // las tablas hardcodeadas de fallback.
+      if (error) {
+        console.warn('[ConfigProvider] yango_gmv_tiers no disponible:', error.message)
+        return []
+      }
+      return data || []
+    },
+  })
+
   const value = useMemo(
     () => ({
       weights: weights.data ?? EMPTY,
@@ -128,6 +146,7 @@ export function ConfigProvider({ children }) {
       priceRules: priceRules.data ?? EMPTY,
       rushHour: rushHour.data ?? EMPTY,
       indriveConfig: indriveConfig.data ?? EMPTY,
+      yangoGmvTiers: yangoGmvTiers.data ?? EMPTY,
       loading: weights.loading || semaforo.loading || thresholds.loading,
       error: weights.error || semaforo.error || thresholds.error,
       refresh: () =>
@@ -138,6 +157,7 @@ export function ConfigProvider({ children }) {
           priceRules.reload(),
           rushHour.reload(),
           indriveConfig.reload(),
+          yangoGmvTiers.reload(),
         ]),
     }),
     // Deps granulares a propósito (.data/.loading/.reload por config) para
@@ -162,6 +182,8 @@ export function ConfigProvider({ children }) {
       rushHour.reload,
       indriveConfig.data,
       indriveConfig.reload,
+      yangoGmvTiers.data,
+      yangoGmvTiers.reload,
     ]
   )
 
