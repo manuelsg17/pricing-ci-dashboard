@@ -645,17 +645,18 @@ export default function Rentabilidad() {
 
       {/* ── Parámetros ── */}
       <div className="rent-panel" style={panelStyle}>
-        {/* Ciudades */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-          {uiCities.map((c) => (
-            <button key={c} onClick={() => setUiCity(c)} style={cityTabStyle(uiCity === c)}>
-              {c}
-            </button>
-          ))}
-        </div>
-
         {/* ── Controles principales ── */}
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <Field label={t('filter.city')}>
+            <select value={uiCity} onChange={(e) => setUiCity(e.target.value)} style={selectStyle}>
+              {uiCities.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </Field>
+
           <Field label={t('earnings.week')}>
             <input
               type="number"
@@ -1572,27 +1573,25 @@ const chipAddStyle = {
   fontSize: 12,
   color: 'var(--color-muted)',
 }
-function cityTabStyle(active) {
-  return {
-    padding: '5px 12px',
-    borderRadius: 6,
-    fontSize: 13,
-    cursor: 'pointer',
-    border:
-      '1px solid ' + (active ? 'var(--color-yango, #E53935)' : 'var(--color-border, #e2e8f0)'),
-    background: active ? 'var(--color-yango, #E53935)' : '#fff',
-    color: active ? '#fff' : 'inherit',
-    fontWeight: active ? 600 : 400,
-  }
+const selectStyle = {
+  padding: '6px 10px',
+  border: '1px solid var(--color-border, #e2e8f0)',
+  borderRadius: 8,
+  fontSize: 13,
+  fontWeight: 600,
+  background: '#fff',
+  cursor: 'pointer',
+  minWidth: 150,
 }
 function toggleStyle(active) {
   return {
-    padding: '5px 12px',
+    padding: '7px 14px',
     fontSize: 12,
     cursor: 'pointer',
     border: 'none',
     background: active ? 'var(--color-yango, #E53935)' : '#fff',
     color: active ? '#fff' : 'var(--color-muted)',
-    fontWeight: active ? 600 : 400,
+    fontWeight: active ? 700 : 500,
+    transition: 'background 0.12s',
   }
 }
