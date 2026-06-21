@@ -70,6 +70,7 @@ export default function Rentabilidad() {
   const [segments, setSegments] = useState([60, 90])
   const [liveTrips, setLiveTrips] = useState(70)
   const [metric, setMetric] = useState('trip') // 'trip' | 'week'
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [tools, setTools] = useState(DEFAULT_TOOLS_STATE) // herramientas Yango
   // Arquetipo de driver: define a quién se evalúan los bonos (segmento) y los
   // parámetros de ventana/racha (alimentan comm_discount InDrive, surge y streak Didi).
@@ -544,54 +545,28 @@ export default function Rentabilidad() {
           ))}
         </div>
 
+        {/* ── Controles principales ── */}
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <Field label={t('earnings.year')}>
-            <input
-              type="number"
-              value={refYear}
-              min="2020"
-              max="2030"
-              style={{ width: 76 }}
-              onChange={(e) => {
-                const v = Number(e.target.value)
-                if (v) setRefYear(v)
-              }}
-            />
-          </Field>
           <Field label={t('earnings.week')}>
             <input
               type="number"
               value={refWeek}
               min="1"
               max="53"
-              style={{ width: 64 }}
+              style={inputStyle}
               onChange={(e) => {
                 const v = Number(e.target.value)
                 if (v) setRefWeek(v)
               }}
             />
           </Field>
-          <Field label={t('earnings.hours_per_week')}>
-            <input
-              type="number"
-              value={hoursPerWeek}
-              min="1"
-              max="80"
-              style={{ width: 68 }}
-              onChange={(e) => {
-                const v = Number(e.target.value)
-                if (v) setHoursPerWeek(v)
-              }}
-            />
-          </Field>
 
-          {/* Toggle por viaje / por semana */}
           <Field label={t('rentabilidad.metric')}>
             <div
               style={{
                 display: 'inline-flex',
                 border: '1px solid var(--color-border, #e2e8f0)',
-                borderRadius: 6,
+                borderRadius: 8,
                 overflow: 'hidden',
               }}
             >
@@ -603,35 +578,82 @@ export default function Rentabilidad() {
               </button>
             </div>
           </Field>
-        </div>
 
-        {/* Segmentos de viajes */}
-        <div
-          style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-muted)' }}>
-            {t('rentabilidad.segments')}
-          </span>
-          {segments.map((n, i) => (
-            <div key={i} style={chipStyle}>
-              <input
-                type="number"
-                value={n}
-                min="1"
-                style={{ width: 52, border: 'none', background: 'transparent' }}
-                onChange={(e) => updateSegment(i, e.target.value)}
-              />
-              {segments.length > 1 && (
-                <button onClick={() => removeSegment(i)} style={chipRemoveStyle}>
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-          <button onClick={addSegment} disabled={segments.length >= 5} style={chipAddStyle}>
-            + {t('rentabilidad.add_segment')}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((s) => !s)}
+            style={advancedToggleStyle}
+          >
+            ⚙ Avanzado {showAdvanced ? '▴' : '▾'}
           </button>
         </div>
+
+        {/* ── Avanzado: año, horas, segmentos (oculto por defecto) ── */}
+        {showAdvanced && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 8,
+              background: 'var(--color-bg, #f8fafc)',
+              border: '1px solid var(--color-border, #e2e8f0)',
+              display: 'flex',
+              gap: 18,
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+            }}
+          >
+            <Field label={t('earnings.year')}>
+              <input
+                type="number"
+                value={refYear}
+                min="2020"
+                max="2030"
+                style={inputStyle}
+                onChange={(e) => {
+                  const v = Number(e.target.value)
+                  if (v) setRefYear(v)
+                }}
+              />
+            </Field>
+            <Field label={t('earnings.hours_per_week')}>
+              <input
+                type="number"
+                value={hoursPerWeek}
+                min="1"
+                max="80"
+                style={inputStyle}
+                onChange={(e) => {
+                  const v = Number(e.target.value)
+                  if (v) setHoursPerWeek(v)
+                }}
+              />
+            </Field>
+            <Field label={t('rentabilidad.segments')}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {segments.map((n, i) => (
+                  <div key={i} style={chipStyle}>
+                    <input
+                      type="number"
+                      value={n}
+                      min="1"
+                      style={{ width: 52, border: 'none', background: 'transparent' }}
+                      onChange={(e) => updateSegment(i, e.target.value)}
+                    />
+                    {segments.length > 1 && (
+                      <button onClick={() => removeSegment(i)} style={chipRemoveStyle}>
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={addSegment} disabled={segments.length >= 5} style={chipAddStyle}>
+                  + {t('rentabilidad.add_segment')}
+                </button>
+              </div>
+            </Field>
+          </div>
+        )}
 
         {/* Slider "en vivo" */}
         <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -659,7 +681,7 @@ export default function Rentabilidad() {
             min="0"
             max="400"
             value={liveTrips}
-            style={{ width: 72 }}
+            style={inputStyle}
             onChange={(e) => setLiveTrips(Number(e.target.value) || 0)}
           />
           <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>viajes/sem</span>
@@ -1357,12 +1379,31 @@ function Field({ label, children }) {
   )
 }
 
+const inputStyle = {
+  padding: '6px 10px',
+  border: '1px solid var(--color-border, #e2e8f0)',
+  borderRadius: 8,
+  fontSize: 13,
+  width: 90,
+  background: '#fff',
+}
+const advancedToggleStyle = {
+  padding: '6px 12px',
+  border: '1px solid var(--color-border, #e2e8f0)',
+  borderRadius: 8,
+  background: '#fff',
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--color-muted)',
+  cursor: 'pointer',
+}
 const panelStyle = {
   background: 'var(--color-panel, #fff)',
   border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 8,
-  padding: 14,
+  borderRadius: 10,
+  padding: 16,
   marginBottom: 16,
+  boxShadow: 'var(--shadow-sm)',
 }
 const emptyStyle = {
   padding: '40px 16px',
