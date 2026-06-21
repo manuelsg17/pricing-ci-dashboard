@@ -172,7 +172,7 @@ export const COUNTRY_CONFIG = {
         'Comfort+': ['Yango', 'Uber', 'InDrive', 'Cabify'],
         Premier: ['Yango', 'Uber', 'Cabify'],
         XL: ['Yango', 'Uber', 'InDrive', 'Cabify'],
-        TukTuk: ['Yango', 'Uber'],
+        TukTuk: ['Yango', 'Uber', 'InDrive'],
       },
       Trujillo: {
         'Economy/Comfort': ['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive', 'Cabify'],
