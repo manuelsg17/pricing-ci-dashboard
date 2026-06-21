@@ -25,6 +25,17 @@ export const TRANSLATIONS = {
     'app.error': 'Error',
     'app.saved': '✓ Guardado',
 
+    // ── Cuenta / contraseña ────────────────────────────
+    'account.change_password': 'Cambiar contraseña',
+    'account.current': 'Contraseña actual',
+    'account.new': 'Nueva contraseña',
+    'account.confirm': 'Confirmar nueva contraseña',
+    'account.saving': 'Guardando…',
+    'account.min_len': 'La nueva contraseña debe tener al menos 8 caracteres.',
+    'account.mismatch': 'Las contraseñas no coinciden.',
+    'account.wrong_current': 'La contraseña actual es incorrecta.',
+    'account.success': '✓ Contraseña actualizada',
+
     // ── Navigation ─────────────────────────────────────
     'nav.dashboard': '📊 Dashboard',
     'nav.analisis': 'Análisis',
@@ -542,6 +553,17 @@ export const TRANSLATIONS = {
     'app.error': 'Error',
     'app.saved': '✓ Saved',
 
+    // ── Account / password ─────────────────────────────
+    'account.change_password': 'Change password',
+    'account.current': 'Current password',
+    'account.new': 'New password',
+    'account.confirm': 'Confirm new password',
+    'account.saving': 'Saving…',
+    'account.min_len': 'The new password must be at least 8 characters.',
+    'account.mismatch': 'Passwords do not match.',
+    'account.wrong_current': 'The current password is incorrect.',
+    'account.success': '✓ Password updated',
+
     'nav.dashboard': '📊 Dashboard',
     'nav.analisis': 'Analysis',
     'nav.earnings': '💰 Earnings',
@@ -1044,6 +1066,17 @@ export const TRANSLATIONS = {
     'app.no_data': 'Нет данных',
     'app.error': 'Ошибка',
     'app.saved': '✓ Сохранено',
+
+    // ── Аккаунт / пароль ───────────────────────────────
+    'account.change_password': 'Сменить пароль',
+    'account.current': 'Текущий пароль',
+    'account.new': 'Новый пароль',
+    'account.confirm': 'Подтвердите новый пароль',
+    'account.saving': 'Сохранение…',
+    'account.min_len': 'Новый пароль должен содержать не менее 8 символов.',
+    'account.mismatch': 'Пароли не совпадают.',
+    'account.wrong_current': 'Текущий пароль неверный.',
+    'account.success': '✓ Пароль обновлён',
 
     'nav.dashboard': '📊 Дашборд',
     'nav.analisis': 'Анализ',

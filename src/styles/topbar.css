@@ -197,38 +197,45 @@
   border-top: 1px solid var(--color-border-soft);
 }
 
-.topbar__spacer {
-  flex: 1;
+/* Menú alineado a la derecha (cuenta) para no desbordar el borde de la pantalla */
+.topbar__menu--right {
+  left: auto;
+  right: 0;
 }
 
-.topbar__user {
+/* ── Account menu trigger (email clickable) ───────────────── */
+.topbar__account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   color: var(--color-muted);
+  max-width: 200px;
+  padding: 4px 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.topbar__account-trigger:hover,
+.topbar__account-trigger--open {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
+
+.topbar__account-email {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px;
-  padding: 4px 8px;
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
+  max-width: 160px;
 }
 
-.topbar__logout {
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: all 0.15s;
-}
-
-.topbar__logout:hover {
-  border-color: var(--color-yango);
-  color: var(--color-yango);
-  background: var(--color-yango-light);
+.topbar__spacer {
+  flex: 1;
 }
 
 /* ── Topbar right group ───────────────────────────────────── */

@@ -23,7 +23,7 @@ const Market = lazy(() => import('./pages/Market'))
 const Coverage = lazy(() => import('./pages/Coverage'))
 
 export default function App() {
-  const { loading, signIn, signOut, session } = useAuth()
+  const { loading, signIn, signOut, changePassword, session } = useAuth()
   const { country, setCountry, availableCountries } = useCountry()
   const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -144,6 +144,7 @@ export default function App() {
         onTabChange={setActiveTab}
         userEmail={session.user.email}
         onLogout={signOut}
+        changePassword={changePassword}
         canAccess={canAccess}
         allowedCountries={allowedCountries}
       />

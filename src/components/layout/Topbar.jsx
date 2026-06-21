@@ -4,7 +4,8 @@ import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import CountrySelector from './CountrySelector'
 import BotFreshnessBadge from '../ui/BotFreshnessBadge'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import ChangePasswordModal from './ChangePasswordModal'
+import { ChevronDown, ChevronUp, KeyRound, LogOut } from 'lucide-react'
 import '../../styles/topbar.css'
 
 const getNav = (t) => [
@@ -99,11 +100,78 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
   )
 }
 
+// Menú de cuenta: el email es el disparador de un dropdown con
+// "Cambiar contraseña" + "Cerrar sesión". Vive en la Topbar (visible para
+// TODOS los roles), no en Configuración — que el rol Analista no puede abrir.
+function AccountMenu({ userEmail, onLogout, changePassword, t }) {
+  const [open, setOpen] = useState(false)
+  const [pwdOpen, setPwdOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div className="topbar__dropdown" ref={ref}>
+      <button
+        className={`topbar__account-trigger${open ? ' topbar__account-trigger--open' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        title={userEmail}
+      >
+        <span className="topbar__account-email">{userEmail}</span>
+        <span className="topbar__chevron" style={{ display: 'inline-flex', alignItems: 'center' }}>
+          {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </span>
+      </button>
+
+      {open && (
+        <div className="topbar__menu topbar__menu--right">
+          <button
+            className="topbar__menu-item"
+            onClick={() => {
+              setOpen(false)
+              setPwdOpen(true)
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <KeyRound size={14} /> {t('account.change_password')}
+            </span>
+          </button>
+          <button
+            className="topbar__menu-item"
+            onClick={() => {
+              setOpen(false)
+              onLogout()
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <LogOut size={14} /> {t('app.logout')}
+            </span>
+          </button>
+        </div>
+      )}
+
+      <ChangePasswordModal
+        open={pwdOpen}
+        onClose={() => setPwdOpen(false)}
+        onSubmit={changePassword}
+      />
+    </div>
+  )
+}
+
 export default function Topbar({
   activeTab,
   onTabChange,
   userEmail,
   onLogout,
+  changePassword,
   canAccess = () => true,
   allowedCountries = COUNTRIES,
 }) {
@@ -198,12 +266,12 @@ export default function Topbar({
           ))}
         </select>
 
-        <span className="topbar__user" title={userEmail}>
-          {userEmail}
-        </span>
-        <button className="topbar__logout" onClick={onLogout}>
-          {t('app.logout')}
-        </button>
+        <AccountMenu
+          userEmail={userEmail}
+          onLogout={onLogout}
+          changePassword={changePassword}
+          t={t}
+        />
       </div>
     </nav>
   )
