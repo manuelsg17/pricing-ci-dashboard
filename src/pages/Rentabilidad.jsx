@@ -526,6 +526,40 @@ export default function Rentabilidad() {
   const fmt = (n) =>
     n == null || isNaN(n) ? '—' : `${currency} ${n.toFixed(metric === 'trip' ? 2 : 0)}`
 
+  // ── Resultado (hero): Yango vs mejor rival al volumen vivo + tiers ganados ──
+  const hero = useMemo(() => {
+    if (!refTier || !hasData) return null
+    const netM = (dbCat, comp) =>
+      metric === 'trip' ? netPerTrip(dbCat, comp, liveTrips) : netFor(dbCat, comp, liveTrips)
+    const yNet = netM(refTier.dbCategory, yangoKeyFor(refTier.dbCategory))
+    let bestComp = null
+    let bestNet = null
+    for (const comp of rivalCols) {
+      const v = netM(refTier.dbCategory, comp)
+      if (v == null) continue
+      if (bestNet == null || v > bestNet) {
+        bestNet = v
+        bestComp = comp
+      }
+    }
+    let won = 0
+    let total = 0
+    for (const { dbCategory } of catMap) {
+      const y = netPerTrip(dbCategory, yangoKeyFor(dbCategory), liveTrips)
+      if (y == null) continue
+      let best = null
+      for (const comp of rivalCols) {
+        const v = netPerTrip(dbCategory, comp, liveTrips)
+        if (v != null && (best == null || v > best)) best = v
+      }
+      if (best == null) continue
+      total++
+      if (y >= best) won++
+    }
+    const delta = yNet != null && bestNet != null ? yNet - bestNet : null
+    return { yNet, bestComp, bestNet, delta, won, total }
+  }, [refTier, hasData, rivalCols, catMap, yangoKeyFor, netPerTrip, netFor, metric, liveTrips])
+
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="rent-page" style={{ padding: '16px 20px', maxWidth: 1820 }}>
@@ -533,6 +567,79 @@ export default function Rentabilidad() {
       <p style={{ color: 'var(--color-muted)', fontSize: 13, marginBottom: 16 }}>
         {t('rentabilidad.subtitle')}
       </p>
+
+      {/* ── RESULTADO (hero): la respuesta primero ── */}
+      {hero && (
+        <div
+          style={{
+            background: 'var(--color-panel, #fff)',
+            border: '1px solid var(--color-border, #e2e8f0)',
+            borderLeft: `4px solid ${hero.delta != null && hero.delta >= 0 ? '#16A34A' : '#DC2626'}`,
+            borderRadius: 10,
+            boxShadow: 'var(--shadow-sm)',
+            padding: '14px 18px',
+            marginBottom: 16,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--color-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            📊 {refTier.uiCat} · {liveTrips} viajes/sem ·{' '}
+            {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              gap: 24,
+              flexWrap: 'wrap',
+              alignItems: 'baseline',
+              marginTop: 8,
+            }}
+          >
+            <div>
+              <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>Yango </span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-yango, #E53935)' }}>
+                {fmt(hero.yNet)}
+              </span>
+            </div>
+            {hero.bestComp && (
+              <div>
+                <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                  vs {hero.bestComp}{' '}
+                </span>
+                <span style={{ fontSize: 20, fontWeight: 700 }}>{fmt(hero.bestNet)}</span>
+              </div>
+            )}
+            {hero.delta != null && (
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: hero.delta >= 0 ? '#16A34A' : '#DC2626',
+                }}
+              >
+                {hero.delta >= 0 ? '▲ +' : '▼ −'}
+                {fmt(Math.abs(hero.delta))}
+              </div>
+            )}
+          </div>
+          {hero.total > 0 && (
+            <div style={{ fontSize: 13, marginTop: 6 }}>
+              Yango gana en{' '}
+              <strong>
+                {hero.won} de {hero.total}
+              </strong>{' '}
+              categorías a este volumen.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Parámetros ── */}
       <div className="rent-panel" style={panelStyle}>
