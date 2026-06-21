@@ -32,6 +32,7 @@ import {
   BarChart3,
   Pin,
   Camera,
+  Lock,
 } from 'lucide-react'
 
 const SAMPLE_LOW = 30
@@ -533,7 +534,12 @@ function BracketSection({
                             : undefined
                         }
                       >
-                        {frozenWeeks?.has(p.key) ? '🔒 ' : ''}
+                        {frozenWeeks?.has(p.key) ? (
+                          <Lock
+                            size={10}
+                            style={{ display: 'inline', verticalAlign: '-1px', marginRight: 2 }}
+                          />
+                        ) : null}
                         {p.label}
                       </th>
                     ))}
@@ -614,7 +620,16 @@ function BracketSection({
                                 gap: 3,
                               }}
                             >
-                              {isFrozen ? '🔒 ' : ''}
+                              {isFrozen ? (
+                                <Lock
+                                  size={10}
+                                  style={{
+                                    display: 'inline',
+                                    verticalAlign: '-1px',
+                                    marginRight: 2,
+                                  }}
+                                />
+                              ) : null}
                               {p.label}
                               {isSort ? (sortConfig.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                               {/* #41 pin button */}
@@ -712,7 +727,12 @@ function BracketSection({
                               : undefined
                           }
                         >
-                          {frozenWeeks?.has(p.key) ? '🔒 ' : ''}
+                          {frozenWeeks?.has(p.key) ? (
+                            <Lock
+                              size={10}
+                              style={{ display: 'inline', verticalAlign: '-1px', marginRight: 2 }}
+                            />
+                          ) : null}
                           {p.label}
                         </th>
                       ))}
@@ -782,7 +802,12 @@ function BracketSection({
                               : undefined
                           }
                         >
-                          {frozenWeeks?.has(p.key) ? '🔒 ' : ''}
+                          {frozenWeeks?.has(p.key) ? (
+                            <Lock
+                              size={10}
+                              style={{ display: 'inline', verticalAlign: '-1px', marginRight: 2 }}
+                            />
+                          ) : null}
                           {p.label}
                         </th>
                       ))}

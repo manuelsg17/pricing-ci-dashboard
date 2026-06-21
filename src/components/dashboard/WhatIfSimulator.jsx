@@ -1,4 +1,4 @@
-import { SlidersHorizontal, RotateCcw, X } from 'lucide-react'
+import { SlidersHorizontal, RotateCcw, X, AlertTriangle } from 'lucide-react'
 
 export default function WhatIfSimulator({ pct, setPct, onClose, compareVs = 'Yango' }) {
   return (
@@ -92,8 +92,19 @@ export default function WhatIfSimulator({ pct, setPct, onClose, compareVs = 'Yan
       >
         <X size={12} /> Cerrar
       </button>
-      <span style={{ fontSize: 10, color: '#78350f', flexBasis: '100%', marginTop: 2 }}>
-        ⚠ Las matrices, KPIs y charts muestran números simulados — los datos reales no se modifican.
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          fontSize: 10,
+          color: '#78350f',
+          flexBasis: '100%',
+          marginTop: 2,
+        }}
+      >
+        <AlertTriangle size={11} /> Las matrices, KPIs y charts muestran números simulados — los
+        datos reales no se modifican.
       </span>
     </div>
   )

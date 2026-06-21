@@ -470,7 +470,7 @@
 }
 .kpi-card--highlight {
   border-color: var(--color-yango);
-  background: linear-gradient(180deg, #fff7f7 0%, #ffffff 72%);
+  background: linear-gradient(180deg, var(--color-yango-tint) 0%, var(--color-panel) 78%);
   box-shadow: 0 1px 3px rgba(229, 57, 53, 0.12);
 }
 
@@ -498,26 +498,6 @@
 .kpi-card__sub {
   font-size: 11px;
   color: var(--color-muted);
-}
-
-.kpi-export-btn {
-  align-self: center;
-  padding: 8px 15px;
-  background: var(--color-panel);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-  box-shadow: var(--shadow-xs);
-}
-.kpi-export-btn:hover {
-  border-color: #cbd2dc;
-  background: #fbfcfd;
-  box-shadow: var(--shadow-sm);
 }
 
 /* ── #36 Skeleton shimmer cell ───────────────────────────── */

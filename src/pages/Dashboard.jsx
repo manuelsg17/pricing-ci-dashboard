@@ -45,6 +45,7 @@ import {
   ChevronUp,
   RotateCcw,
   AlertCircle,
+  AlertTriangle,
   Lock,
   BarChart3,
   Loader2,
@@ -557,6 +558,7 @@ function DashboardContent() {
                         setExportOpen(false)
                         handleExportPNG()
                       }}
+                      title={t('dashboard.export_png')}
                     >
                       {t('dashboard.export_png')}
                     </button>
@@ -567,6 +569,7 @@ function DashboardContent() {
                         setExportOpen(false)
                         handleExportCSV()
                       }}
+                      title={t('dashboard.export_csv_tooltip')}
                     >
                       {t('dashboard.export_csv')}
                     </button>
@@ -577,6 +580,7 @@ function DashboardContent() {
                         setExportOpen(false)
                         handleExportPDF()
                       }}
+                      title={t('dashboard.export_pdf')}
                     >
                       {t('dashboard.export_pdf')}
                     </button>
@@ -588,7 +592,6 @@ function DashboardContent() {
               country={filters.country}
               dbCity={filters.dbCity}
               dbCategory={filters.dbCategory}
-              currency={currency}
             />
           </div>
           <div className="kpi-bar">
@@ -631,7 +634,12 @@ function DashboardContent() {
                         (!warn ? 'Sample size y cobertura adecuados.' : '')
                       }
                     >
-                      {warn && '⚠ '}
+                      {warn && (
+                        <AlertTriangle
+                          size={11}
+                          style={{ display: 'inline', verticalAlign: '-1px', marginRight: 3 }}
+                        />
+                      )}
                       n={kpis.yangoSampleN} · {kpis.yangoCoverage}/6 brackets
                     </div>
                   )

@@ -571,9 +571,10 @@ export default function FilterBar({ className = '' }) {
                   type="button"
                   className="fb-chip__x"
                   onClick={c.clear}
-                  title={t('filter.reset') || 'Quitar'}
+                  aria-label={`${t('filter.reset')} ${c.label}`}
+                  title={`${t('filter.reset')} ${c.label}`}
                 >
-                  <X size={12} />
+                  <X size={12} aria-hidden="true" />
                 </button>
               </span>
             ))}
