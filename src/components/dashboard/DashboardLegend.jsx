@@ -2,19 +2,20 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig, BRACKET_LABELS, BRACKETS, COMPETITOR_COLORS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import { Info } from 'lucide-react'
 
 // Pretty-print de un par (vehicle_category, observed_vehicle_category) tal
 // como el bot lo registra. Si ovc='*' (wildcard) lo omitimos para no llenar
 // la leyenda con asteriscos confusos.
 function fmtTier(rule) {
-  const vc  = (rule.vc  || '—').toString()
+  const vc = (rule.vc || '—').toString()
   const ovc = (rule.ovc || '').toString()
   if (!ovc || ovc === '*') return vc
   if (vc === ovc) return vc
   return `${vc} → ${ovc}`
 }
 
-export default function DashboardLegend({ country, dbCity, dbCategory, currency }) {
+export default function DashboardLegend({ country, dbCity, dbCategory }) {
   const [open, setOpen] = useState(false)
   const [thresholds, setThresholds] = useState([])
   const [loading, setLoading] = useState(false)
@@ -37,7 +38,9 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
         setThresholds(data || [])
         setLoading(false)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [open, country, dbCity, dbCategory])
 
   // Categorías de la ciudad de UI actual + las reglas que aplican a cada una.
@@ -56,32 +59,25 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
     return result
   }, [config, dbCity])
 
-  // Competidores conocidos para esta (city, category) — algunos como
-  // Cabify no están en botRules porque se ingresan manualmente. Los
-  // marcamos para que el usuario sepa que no vienen del bot.
-  const competitorsForCategory = useMemo(() => {
-    return config.competitorsByDbCityCategory?.[dbCity]?.[dbCategory] || []
-  }, [config, dbCity, dbCategory])
-
   // Ordenar brackets en el orden canónico very_short → very_long,
   // omitiendo los que no estén en la config (pueden ser distintos por país).
   const orderedThresholds = useMemo(() => {
     const map = {}
     for (const t of thresholds) map[t.bracket] = t.max_km
-    return BRACKETS.map(b => ({ bracket: b, max_km: map[b] ?? null }))
-                   .filter(t => t.max_km != null || thresholds.some(x => x.bracket === t.bracket))
+    return BRACKETS.map((b) => ({ bracket: b, max_km: map[b] ?? null })).filter(
+      (t) => t.max_km != null || thresholds.some((x) => x.bracket === t.bracket)
+    )
   }, [thresholds])
 
   if (!open) {
     return (
       <button
         type="button"
-        className="kpi-export-btn"
+        className="toolbar-btn"
         onClick={() => setOpen(true)}
         title={t('legend.button_title')}
-        style={{ marginLeft: 6 }}
       >
-        {t('legend.button')}
+        <Info size={14} /> {t('legend.button')}
       </button>
     )
   }
@@ -90,41 +86,62 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
     <>
       <button
         type="button"
-        className="kpi-export-btn"
+        className="toolbar-btn toolbar-btn--active"
         onClick={() => setOpen(false)}
-        style={{ marginLeft: 6 }}
       >
-        {t('legend.button')}
+        <Info size={14} /> {t('legend.button')}
       </button>
       <div
         role="dialog"
         aria-modal="true"
         onClick={() => setOpen(false)}
         style={{
-          position: 'fixed', inset: 0, zIndex: 10000,
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10000,
           background: 'rgba(15,23,42,0.45)',
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-          padding: 16, paddingTop: 64, backdropFilter: 'blur(2px)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          padding: 16,
+          paddingTop: 64,
+          backdropFilter: 'blur(2px)',
           overflow: 'auto',
         }}
       >
         <div
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           style={{
-            background: '#fff', borderRadius: 12, maxWidth: 760, width: '100%',
-            padding: 22, boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
-            fontSize: 13, color: '#0f172a',
+            background: '#fff',
+            borderRadius: 12,
+            maxWidth: 760,
+            width: '100%',
+            padding: 22,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+            fontSize: 13,
+            color: '#0f172a',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 14,
+            }}
+          >
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
               {t('legend.heading')} · {dbCity} · {dbCategory}
             </h3>
             <button
               onClick={() => setOpen(false)}
               style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                fontSize: 18, color: '#64748b', padding: 4,
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 18,
+                color: '#64748b',
+                padding: 4,
               }}
               aria-label={t('legend.close')}
             >
@@ -142,9 +159,7 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
             </p>
 
             {Object.keys(categoryRules).length === 0 ? (
-              <div style={{ color: '#64748b', fontSize: 12 }}>
-                {t('legend.no_rules')}
-              </div>
+              <div style={{ color: '#64748b', fontSize: 12 }}>{t('legend.no_rules')}</div>
             ) : (
               Object.entries(categoryRules).map(([cat, rules]) => {
                 const compsInCat = config.competitorsByDbCityCategory?.[dbCity]?.[cat] || []
@@ -155,26 +170,47 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
                   byComp[r.name].push(r)
                 }
                 return (
-                  <div key={cat} style={{ marginBottom: 10, padding: 10, border: '1px solid #e2e8f0', borderRadius: 6, background: '#f8fafc' }}>
+                  <div
+                    key={cat}
+                    style={{
+                      marginBottom: 10,
+                      padding: 10,
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 6,
+                      background: '#f8fafc',
+                    }}
+                  >
                     <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{cat}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '4px 12px' }}>
-                      {compsInCat.map(comp => {
+                    <div
+                      style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '4px 12px' }}
+                    >
+                      {compsInCat.map((comp) => {
                         const ruleList = byComp[comp]
                         const color = COMPETITOR_COLORS[comp] || '#64748b'
                         return (
                           <Fragment key={`${cat}-${comp}`}>
                             <div>
-                              <span style={{
-                                background: color, color: '#fff', padding: '2px 8px',
-                                borderRadius: 4, fontSize: 11, fontWeight: 700,
-                              }}>
+                              <span
+                                style={{
+                                  background: color,
+                                  color: '#fff',
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
                                 {comp}
                               </span>
                             </div>
                             <div style={{ fontSize: 12, color: '#334155' }}>
-                              {ruleList && ruleList.length
-                                ? ruleList.map(r => fmtTier(r)).join(', ')
-                                : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('legend.manual_only')}</span>}
+                              {ruleList && ruleList.length ? (
+                                ruleList.map((r) => fmtTier(r)).join(', ')
+                              ) : (
+                                <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                                  {t('legend.manual_only')}
+                                </span>
+                              )}
                             </div>
                           </Fragment>
                         )
@@ -198,29 +234,53 @@ export default function DashboardLegend({ country, dbCity, dbCategory, currency 
             {loading ? (
               <div style={{ fontSize: 12, color: '#64748b' }}>{t('legend.loading')}</div>
             ) : orderedThresholds.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#64748b' }}>
-                {t('legend.no_thresholds')}
-              </div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{t('legend.no_thresholds')}</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9' }}>
-                    <th style={{ textAlign: 'left',  padding: '6px 8px', borderBottom: '1px solid #cbd5e1' }}>{t('legend.col_bracket')}</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid #cbd5e1' }}>{t('legend.col_range')}</th>
+                    <th
+                      style={{
+                        textAlign: 'left',
+                        padding: '6px 8px',
+                        borderBottom: '1px solid #cbd5e1',
+                      }}
+                    >
+                      {t('legend.col_bracket')}
+                    </th>
+                    <th
+                      style={{
+                        textAlign: 'right',
+                        padding: '6px 8px',
+                        borderBottom: '1px solid #cbd5e1',
+                      }}
+                    >
+                      {t('legend.col_range')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {orderedThresholds.map((t, i) => {
                     const prev = i > 0 ? orderedThresholds[i - 1].max_km : 0
-                    const range = t.max_km == null
-                      ? `> ${prev}`
-                      : (i === 0 ? `≤ ${t.max_km}` : `${prev} – ${t.max_km}`)
+                    const range =
+                      t.max_km == null
+                        ? `> ${prev}`
+                        : i === 0
+                          ? `≤ ${t.max_km}`
+                          : `${prev} – ${t.max_km}`
                     return (
                       <tr key={t.bracket}>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #e2e8f0' }}>
                           {BRACKET_LABELS[t.bracket] || t.bracket}
                         </td>
-                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontFamily: 'monospace' }}>
+                        <td
+                          style={{
+                            padding: '6px 8px',
+                            borderBottom: '1px solid #e2e8f0',
+                            textAlign: 'right',
+                            fontFamily: 'monospace',
+                          }}
+                        >
                           {range}
                         </td>
                       </tr>

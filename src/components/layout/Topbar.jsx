@@ -4,6 +4,7 @@ import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import CountrySelector from './CountrySelector'
 import BotFreshnessBadge from '../ui/BotFreshnessBadge'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import '../../styles/topbar.css'
 
 const getNav = (t) => [
@@ -73,8 +74,11 @@ function DropdownMenu({ item, activeTab, onTabChange, visibleChildren }) {
         aria-expanded={open}
       >
         {item.label}
-        <span className="topbar__chevron" style={{ marginLeft: 5, fontSize: 9 }}>
-          {open ? '▲' : '▼'}
+        <span
+          className="topbar__chevron"
+          style={{ marginLeft: 4, display: 'inline-flex', alignItems: 'center' }}
+        >
+          {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </span>
       </button>
 

@@ -42,6 +42,12 @@ import {
   SlidersHorizontal,
   Download,
   ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  AlertCircle,
+  Lock,
+  BarChart3,
+  Loader2,
 } from 'lucide-react'
 import '../styles/dashboard.css'
 
@@ -727,20 +733,22 @@ function DashboardContent() {
           {sectionOrder && (
             <button
               className="filter-bar-toggle__btn"
-              style={{ marginRight: 'auto' }}
+              style={{ marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}
               onClick={() => setSectionOrder(null)}
               title={t('dashboard.reset_order')}
             >
-              ↺ {t('dashboard.reset_order')}
+              <RotateCcw size={12} /> {t('dashboard.reset_order')}
             </button>
           )}
           <button
             className="filter-bar-toggle__btn"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
             onClick={() => setFilterBarVisible((v) => !v)}
             title={filterBarVisible ? t('filter.collapse') : t('filter.expand')}
           >
-            {filterBarVisible ? '▲' : '▼'}{' '}
+            <SlidersHorizontal size={12} />
             {filterBarVisible ? t('filter.collapse') : t('filter.expand')}
+            {filterBarVisible ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         </div>
         <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
@@ -750,31 +758,39 @@ function DashboardContent() {
       {loading && periods.length === 0 && <SkeletonDashboard />}
 
       {error && (
-        <div className="state-box state-box--error">
-          {t('app.error')}: {humanizeError(error)}
+        <div
+          className="state-box state-box--error"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          <AlertCircle size={16} style={{ flexShrink: 0 }} /> {t('app.error')}:{' '}
+          {humanizeError(error)}
         </div>
       )}
 
       {frozenIgnoresFilters && (
         <div
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
             margin: '0 16px 8px',
-            padding: '6px 12px',
-            borderRadius: 6,
-            background: '#fffbeb',
-            border: '1px solid #f59e0b',
+            padding: '8px 12px',
+            borderRadius: 10,
+            background: '#fffdf5',
+            border: '1px solid #fde9b8',
+            borderLeft: '3px solid #f59e0b',
             fontSize: 12,
             color: '#78350f',
           }}
         >
-          🔒 Las semanas congeladas muestran el promedio de TODAS las franjas/surge/zonas — los
-          filtros activos solo aplican a las semanas live.
+          <Lock size={14} style={{ flexShrink: 0 }} /> Las semanas congeladas muestran el promedio
+          de TODAS las franjas/surge/zonas — los filtros activos solo aplican a las semanas live.
         </div>
       )}
 
       {!loading && !error && periods.length === 0 && (
         <EmptyState
-          icon="📊"
+          icon={<BarChart3 size={40} strokeWidth={1.5} />}
           title={t('dashboard.no_data')}
           message={t('dashboard.empty_message_long')}
         />
@@ -801,6 +817,9 @@ function DashboardContent() {
             >
               <span
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
                   background: 'rgba(255,255,255,0.9)',
                   border: '1px solid var(--color-border)',
                   borderRadius: 99,
@@ -811,7 +830,7 @@ function DashboardContent() {
                   boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                {t('dashboard.updating')}
+                <Loader2 size={13} className="animate-spin" /> {t('dashboard.updating')}
               </span>
             </div>
           )}
