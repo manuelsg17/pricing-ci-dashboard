@@ -13,11 +13,14 @@ import {
 import { sb } from '../lib/supabase'
 import {
   COMPETITOR_COLORS,
+  DEFAULT_WEIGHTS,
   getCompetitors,
   resolveDbParams,
   getYangoDisplayName,
 } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
+import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAverage'
+import { useConfigContext } from '../context/ConfigProvider'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
@@ -55,6 +58,7 @@ function formatWeekLabel(year, week) {
 export default function Rentabilidad() {
   const { t } = useI18n()
   const { country, countryConfig, dbConfigs } = useCountry()
+  const { weights: dbWeights } = useConfigContext()
   const uiCities = countryConfig.cities
   const { currency } = countryConfig
 
@@ -133,36 +137,56 @@ export default function Rentabilidad() {
       return
     }
     setLoading(true)
-    const { data } = await sb
-      .from('pricing_observations')
-      .select('competition_name, category, price_without_discount')
-      .eq('country', country)
-      .eq('city', dbCity)
-      .eq('year', refYear)
-      .eq('week', refWeek)
-      .in('category', dbCategories)
-      .not('price_without_discount', 'is', null)
+    // Mismo origen que el "Promedio Ponderado" del dashboard: el RPC _fast lee
+    // la MV (bot + manual, precio efectivo) y devuelve el promedio por bracket.
+    // Acá colapsamos surge por observación y aplicamos el WA con los mismos
+    // pesos (buildWeightsMap) → el número coincide con el WA del dashboard, y
+    // aparecen todos los competidores con data (Cabify, Didi, etc.).
+    const perCat = await Promise.all(
+      dbCategories.map((cat) =>
+        sb
+          .rpc('get_dashboard_data_weekly_fast', {
+            p_city: dbCity,
+            p_category: cat,
+            p_country: country,
+            p_week_start: refWeek,
+            p_year_start: refYear,
+            p_week_end: refWeek,
+            p_year_end: refYear,
+          })
+          .then(({ data }) => ({ cat, rows: data || [] }))
+      )
+    )
 
-    const grouped = {} // cat -> comp -> { sum, count }
-    for (const row of data || []) {
-      const comp =
-        normalizeCompetitorName(row.competition_name, { city: dbCity }) || row.competition_name
-      const cat = row.category
-      if (!grouped[cat]) grouped[cat] = {}
-      if (!grouped[cat][comp]) grouped[cat][comp] = { sum: 0, count: 0 }
-      grouped[cat][comp].sum += parseFloat(row.price_without_discount)
-      grouped[cat][comp].count += 1
-    }
     const result = {}
-    for (const [cat, comps] of Object.entries(grouped)) {
+    for (const { cat, rows } of perCat) {
+      // (comp, bracket) → promedio ponderado por observation_count (colapsa surge)
+      const byComp = {}
+      for (const r of rows) {
+        const comp =
+          normalizeCompetitorName(r.competition_name, { city: dbCity }) || r.competition_name
+        if (!byComp[comp]) byComp[comp] = {}
+        const b = byComp[comp][r.distance_bracket] || { sum: 0, w: 0 }
+        b.sum += Number(r.avg_price) * Number(r.observation_count)
+        b.w += Number(r.observation_count)
+        byComp[comp][r.distance_bracket] = b
+      }
+      const weights = buildWeightsMap(dbWeights || [], dbCity, cat) || DEFAULT_WEIGHTS
       result[cat] = {}
-      for (const [comp, { sum, count }] of Object.entries(comps)) {
-        result[cat][comp] = { avg: sum / count, count }
+      for (const [comp, brackets] of Object.entries(byComp)) {
+        const bracketPrices = {}
+        let count = 0
+        for (const [bk, { sum, w }] of Object.entries(brackets)) {
+          if (w > 0) bracketPrices[bk] = sum / w
+          count += w
+        }
+        const wa = computeWeightedAvg(bracketPrices, weights)
+        if (wa != null) result[cat][comp] = { avg: wa, count }
       }
     }
     setPricesByCat(result)
     setLoading(false)
-  }, [country, dbCity, dbCategories, refYear, refWeek])
+  }, [country, dbCity, dbCategories, refYear, refWeek, dbWeights])
 
   useEffect(() => {
     loadPrices()
