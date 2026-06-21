@@ -388,11 +388,6 @@ export default function Rentabilidad() {
       ),
     [catMap, pricesByCat, country, dbCity]
   )
-  const refComp = useMemo(
-    () => visibleCompetitors.find((c) => !isYango(c)) || shownCompetitors.find((c) => !isYango(c)),
-    [visibleCompetitors, shownCompetitors]
-  )
-
   // ── Análisis auto-generado (Build 3) ────────────────────────────────────
   const rivalCols = useMemo(
     () => visibleCompetitors.filter((c) => !isYango(c)),
@@ -1309,7 +1304,11 @@ export default function Rentabilidad() {
                   <th style={thStyle}>Mi Zona</th>
                   <th style={thStyle}>{t('rentabilidad.col_commission')}</th>
                   <th style={thStyle}>{t('rentabilidad.col_net')}</th>
-                  <th style={thStyle}>vs {refComp || '—'}</th>
+                  {rivalCols.map((c) => (
+                    <th key={c} style={thStyle}>
+                      vs {c}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -1337,8 +1336,6 @@ export default function Rentabilidad() {
                   },
                 ].map((row) => {
                   const yNet = yangoNetAt(refTier.dbCategory, liveTrips, row.comm)
-                  const rNet = refComp ? netFor(refTier.dbCategory, refComp, liveTrips) : null
-                  const delta = yNet != null && rNet != null ? yNet - rNet : null
                   return (
                     <tr key={row.key}>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>
@@ -1347,15 +1344,24 @@ export default function Rentabilidad() {
                       <td style={tdStyle}>{row.zona}</td>
                       <td style={{ ...tdStyle, fontWeight: 700 }}>{row.comm.toFixed(1)}%</td>
                       <td style={tdStyle}>{fmt(yNet)}</td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          color: delta == null ? 'inherit' : delta >= 0 ? '#16A34A' : '#DC2626',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {delta == null ? '—' : `${delta >= 0 ? '+' : '-'}${fmt(Math.abs(delta))}`}
-                      </td>
+                      {rivalCols.map((c) => {
+                        const rNet = netFor(refTier.dbCategory, c, liveTrips)
+                        const delta = yNet != null && rNet != null ? yNet - rNet : null
+                        return (
+                          <td
+                            key={c}
+                            style={{
+                              ...tdStyle,
+                              color: delta == null ? 'inherit' : delta >= 0 ? '#16A34A' : '#DC2626',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {delta == null
+                              ? '—'
+                              : `${delta >= 0 ? '+' : '-'}${fmt(Math.abs(delta))}`}
+                          </td>
+                        )
+                      })}
                     </tr>
                   )
                 })}
