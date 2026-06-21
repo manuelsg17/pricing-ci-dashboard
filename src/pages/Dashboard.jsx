@@ -36,6 +36,13 @@ import EmptyState from '../components/ui/EmptyState'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
 import { escapeCsvCell } from '../lib/csvSafety'
+import {
+  Swords,
+  LineChart as LineChartIcon,
+  SlidersHorizontal,
+  Download,
+  ChevronDown,
+} from 'lucide-react'
 import '../styles/dashboard.css'
 
 function DashboardContent() {
@@ -115,6 +122,9 @@ function DashboardContent() {
 
   // ── Sprint 2.6: Analytics avanzados sheet (Leadership + Position) ────
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
+
+  // Dropdown de exportar (PNG/CSV/PDF) en la barra de herramientas
+  const [exportOpen, setExportOpen] = useState(false)
 
   const { priceMatrix, deltaMatrix, semaforoMatrix, diffMatrix, chartData, deltaChartData } =
     useMemo(() => {
@@ -491,210 +501,224 @@ function DashboardContent() {
         />
       )}
 
-      {/* ── KPI Bar — scrolls naturally above the sticky filter ── */}
+      {/* ── Barra de herramientas (acciones) + KPI Bar ── */}
       {!loading && kpis && (
-        <div className="kpi-bar">
-          <div className="kpi-card">
-            <div className="kpi-card__label">{t('dashboard.kpi.yango_wa')}</div>
-            <div
-              className="kpi-card__value"
-              style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}
+        <>
+          <div className="dash-toolbar">
+            <button
+              className="toolbar-btn"
+              onClick={() => setH2hOpen(true)}
+              title="Comparar Yango vs un competidor específico, bracket por bracket"
+              style={{ color: '#075985', borderColor: '#bae6fd' }}
             >
-              <AnimatedKpiValue target={kpis?.yangoWA ?? null} prefix={`${currency} `} />
-              {/* #19 — WoW badge animado */}
-              <AnimatedWowBadge target={kpis?.wowDelta ?? null} />
-            </div>
-            {kpis?.yangoWA != null &&
-              (() => {
-                const lowN = kpis.yangoSampleN < 30
-                const lowCoverage = kpis.yangoCoverage < 4
-                const warn = lowN || lowCoverage
-                const emptyLabel = kpis.yangoEmptyBrackets?.length
-                  ? ` · sin data: ${kpis.yangoEmptyBrackets.join(', ')}`
-                  : ''
-                return (
+              <Swords size={14} style={{ color: '#0284c7' }} /> Head-to-Head
+            </button>
+            <button
+              className="toolbar-btn"
+              onClick={() => setAnalyticsOpen(true)}
+              title="Ver análisis avanzados: % liderazgo por bracket, timeline de posición"
+              style={{ color: '#15803d', borderColor: '#bbf7d0' }}
+            >
+              <LineChartIcon size={14} style={{ color: '#16a34a' }} /> Analytics
+            </button>
+            <button
+              className={`toolbar-btn${simEnabled ? ' toolbar-btn--active' : ''}`}
+              onClick={() => setSimEnabled((s) => !s)}
+              title={t('dashboard.sim.toggle_tooltip')}
+            >
+              <SlidersHorizontal size={14} />{' '}
+              {simEnabled ? t('dashboard.sim.on') : t('dashboard.sim.toggle')}
+            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                className="toolbar-btn"
+                onClick={() => setExportOpen((o) => !o)}
+                title="Exportar PNG / CSV / PDF"
+              >
+                <Download size={14} /> Exportar <ChevronDown size={13} style={{ opacity: 0.6 }} />
+              </button>
+              {exportOpen && (
+                <>
                   <div
-                    className="kpi-card__sub"
-                    style={{
-                      marginTop: 4,
-                      fontSize: 11,
-                      color: warn ? '#b45309' : 'var(--color-muted, #6b7280)',
-                      fontWeight: warn ? 600 : 400,
-                    }}
-                    title={
-                      `Promedio Ponderado calculado con ${kpis.yangoSampleN} observación${kpis.yangoSampleN === 1 ? '' : 'es'} ` +
-                      `repartidas en ${kpis.yangoCoverage}/6 brackets.${emptyLabel}\n\n` +
-                      (lowN
-                        ? 'Sample size bajo (<30) — el WA tiene varianza alta semana a semana.\n'
-                        : '') +
-                      (lowCoverage
-                        ? 'Cobertura baja (<4/6 brackets) — el WA refleja solo parte del rango de distancia, no es comparable directo con competidores de cobertura distinta.\n'
-                        : '') +
-                      (!warn ? 'Sample size y cobertura adecuados.' : '')
-                    }
-                  >
-                    {warn && '⚠ '}
-                    n={kpis.yangoSampleN} · {kpis.yangoCoverage}/6 brackets
+                    onClick={() => setExportOpen(false)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 199 }}
+                  />
+                  <div className="fb-popover fb-popover--right" style={{ minWidth: 160 }}>
+                    <button
+                      type="button"
+                      className="fb-popover__item"
+                      onClick={() => {
+                        setExportOpen(false)
+                        handleExportPNG()
+                      }}
+                    >
+                      {t('dashboard.export_png')}
+                    </button>
+                    <button
+                      type="button"
+                      className="fb-popover__item"
+                      onClick={() => {
+                        setExportOpen(false)
+                        handleExportCSV()
+                      }}
+                    >
+                      {t('dashboard.export_csv')}
+                    </button>
+                    <button
+                      type="button"
+                      className="fb-popover__item"
+                      onClick={() => {
+                        setExportOpen(false)
+                        handleExportPDF()
+                      }}
+                    >
+                      {t('dashboard.export_pdf')}
+                    </button>
                   </div>
-                )
-              })()}
+                </>
+              )}
+            </div>
+            <DashboardLegend
+              country={filters.country}
+              dbCity={filters.dbCity}
+              dbCategory={filters.dbCategory}
+              currency={currency}
+            />
           </div>
-          {/* Yango vs Promedio Competencia — un solo número que responde
+          <div className="kpi-bar">
+            <div className="kpi-card">
+              <div className="kpi-card__label">{t('dashboard.kpi.yango_wa')}</div>
+              <div
+                className="kpi-card__value"
+                style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}
+              >
+                <AnimatedKpiValue target={kpis?.yangoWA ?? null} prefix={`${currency} `} />
+                {/* #19 — WoW badge animado */}
+                <AnimatedWowBadge target={kpis?.wowDelta ?? null} />
+              </div>
+              {kpis?.yangoWA != null &&
+                (() => {
+                  const lowN = kpis.yangoSampleN < 30
+                  const lowCoverage = kpis.yangoCoverage < 4
+                  const warn = lowN || lowCoverage
+                  const emptyLabel = kpis.yangoEmptyBrackets?.length
+                    ? ` · sin data: ${kpis.yangoEmptyBrackets.join(', ')}`
+                    : ''
+                  return (
+                    <div
+                      className="kpi-card__sub"
+                      style={{
+                        marginTop: 4,
+                        fontSize: 11,
+                        color: warn ? '#b45309' : 'var(--color-muted, #6b7280)',
+                        fontWeight: warn ? 600 : 400,
+                      }}
+                      title={
+                        `Promedio Ponderado calculado con ${kpis.yangoSampleN} observación${kpis.yangoSampleN === 1 ? '' : 'es'} ` +
+                        `repartidas en ${kpis.yangoCoverage}/6 brackets.${emptyLabel}\n\n` +
+                        (lowN
+                          ? 'Sample size bajo (<30) — el WA tiene varianza alta semana a semana.\n'
+                          : '') +
+                        (lowCoverage
+                          ? 'Cobertura baja (<4/6 brackets) — el WA refleja solo parte del rango de distancia, no es comparable directo con competidores de cobertura distinta.\n'
+                          : '') +
+                        (!warn ? 'Sample size y cobertura adecuados.' : '')
+                      }
+                    >
+                      {warn && '⚠ '}
+                      n={kpis.yangoSampleN} · {kpis.yangoCoverage}/6 brackets
+                    </div>
+                  )
+                })()}
+            </div>
+            {/* Yango vs Promedio Competencia — un solo número que responde
               "¿estoy arriba o abajo del mercado y por cuánto?" */}
-          <div
-            className="kpi-card"
-            title={
-              kpis.yangoVsCompAvgPct != null ? t('dashboard.kpi.vs_comp_avg.tooltip') : undefined
-            }
-          >
-            <div className="kpi-card__label">{t('dashboard.kpi.vs_comp_avg')}</div>
             <div
-              className="kpi-card__value"
-              style={{
-                color:
-                  kpis.yangoVsCompAvgPct == null
-                    ? undefined
-                    : Math.abs(kpis.yangoVsCompAvgPct) < 0.5
-                      ? 'var(--color-muted, #6b7280)'
-                      : kpis.yangoVsCompAvgPct > 0
-                        ? 'var(--sem-red-fg)'
-                        : 'var(--sem-green-fg)',
-              }}
+              className="kpi-card"
+              title={
+                kpis.yangoVsCompAvgPct != null ? t('dashboard.kpi.vs_comp_avg.tooltip') : undefined
+              }
             >
-              {kpis.yangoVsCompAvgPct == null
-                ? '—'
-                : `${kpis.yangoVsCompAvgPct > 0 ? '+' : ''}${kpis.yangoVsCompAvgPct.toFixed(1)}%`}
+              <div className="kpi-card__label">{t('dashboard.kpi.vs_comp_avg')}</div>
+              <div
+                className="kpi-card__value"
+                style={{
+                  color:
+                    kpis.yangoVsCompAvgPct == null
+                      ? undefined
+                      : Math.abs(kpis.yangoVsCompAvgPct) < 0.5
+                        ? 'var(--color-muted, #6b7280)'
+                        : kpis.yangoVsCompAvgPct > 0
+                          ? 'var(--sem-red-fg)'
+                          : 'var(--sem-green-fg)',
+                }}
+              >
+                {kpis.yangoVsCompAvgPct == null
+                  ? '—'
+                  : `${kpis.yangoVsCompAvgPct > 0 ? '+' : ''}${kpis.yangoVsCompAvgPct.toFixed(1)}%`}
+              </div>
+              <div className="kpi-card__sub">
+                {kpis.yangoVsCompAvgPct == null
+                  ? ''
+                  : Math.abs(kpis.yangoVsCompAvgPct) < 0.5
+                    ? t('dashboard.kpi.vs_comp_avg.aligned')
+                    : kpis.yangoVsCompAvgPct > 0
+                      ? `${t('dashboard.kpi.vs_comp_avg.more_expensive')} (${kpis.yangoVsCompCount} comp.)`
+                      : `${t('dashboard.kpi.vs_comp_avg.cheaper')} (${kpis.yangoVsCompCount} comp.)`}
+              </div>
             </div>
-            <div className="kpi-card__sub">
-              {kpis.yangoVsCompAvgPct == null
-                ? ''
-                : Math.abs(kpis.yangoVsCompAvgPct) < 0.5
-                  ? t('dashboard.kpi.vs_comp_avg.aligned')
-                  : kpis.yangoVsCompAvgPct > 0
-                    ? `${t('dashboard.kpi.vs_comp_avg.more_expensive')} (${kpis.yangoVsCompCount} comp.)`
-                    : `${t('dashboard.kpi.vs_comp_avg.cheaper')} (${kpis.yangoVsCompCount} comp.)`}
-            </div>
-          </div>
-          <div
-            className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}
-          >
-            <div className="kpi-card__label">{t('dashboard.kpi.market_leader')}</div>
-            <div className="kpi-card__value">
-              {kpis.leader ? prettyCompetitor(kpis.leader.comp) : '—'}
-            </div>
-            <div className="kpi-card__sub">
-              {kpis.leader ? `${currency} ${kpis.leader.wa.toFixed(2)}` : ''}
-            </div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-card__label">{t('dashboard.kpi.yango_position')}</div>
-            <div className="kpi-card__value">
-              {kpis.yangoRank != null
-                ? `${kpis.yangoRank}º ${t('dashboard.kpi.position_of')} ${kpis.total}`
-                : '—'}
-            </div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-card__label">{t('dashboard.kpi.data_as_of')}</div>
-            <div className="kpi-card__value kpi-card__value--sm">{kpis.lastPeriodLabel}</div>
-          </div>
-          <div className="kpi-card" title={t('dashboard.kpi.leader_pct_tooltip')}>
-            <div className="kpi-card__label">{t('dashboard.kpi.yango_leader_pct')}</div>
-            <div className="kpi-card__value">
-              {kpis.yangoLeaderPct != null ? `${kpis.yangoLeaderPct}%` : '—'}
-            </div>
-            <div className="kpi-card__sub">
-              {kpis.yangoComparablePeriods
-                ? kpis.yangoComparablePeriods === 1
-                  ? t('dashboard.kpi.in_n_period').replace('{n}', kpis.yangoComparablePeriods)
-                  : t('dashboard.kpi.in_n_periods').replace('{n}', kpis.yangoComparablePeriods)
-                : ''}
-            </div>
-          </div>
-          <div
-            className="kpi-card"
-            title={t('dashboard.kpi.outliers_tooltip')}
-            style={outlierTotal && outlierTotal > 0 ? { borderColor: '#fca5a5' } : undefined}
-          >
-            <div className="kpi-card__label">{t('dashboard.kpi.outliers_label')}</div>
             <div
-              className="kpi-card__value"
-              style={{ color: outlierTotal && outlierTotal > 0 ? '#b91c1c' : undefined }}
+              className={`kpi-card${kpis.leader?.comp === filters.compareVs ? ' kpi-card--highlight' : ''}`}
             >
-              {outlierTotal == null ? '—' : outlierTotal.toLocaleString()}
+              <div className="kpi-card__label">{t('dashboard.kpi.market_leader')}</div>
+              <div className="kpi-card__value">
+                {kpis.leader ? prettyCompetitor(kpis.leader.comp) : '—'}
+              </div>
+              <div className="kpi-card__sub">
+                {kpis.leader ? `${currency} ${kpis.leader.wa.toFixed(2)}` : ''}
+              </div>
             </div>
-            <div className="kpi-card__sub">{t('dashboard.kpi.outliers_sublabel')}</div>
+            <div className="kpi-card">
+              <div className="kpi-card__label">{t('dashboard.kpi.yango_position')}</div>
+              <div className="kpi-card__value">
+                {kpis.yangoRank != null
+                  ? `${kpis.yangoRank}º ${t('dashboard.kpi.position_of')} ${kpis.total}`
+                  : '—'}
+              </div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-card__label">{t('dashboard.kpi.data_as_of')}</div>
+              <div className="kpi-card__value kpi-card__value--sm">{kpis.lastPeriodLabel}</div>
+            </div>
+            <div className="kpi-card" title={t('dashboard.kpi.leader_pct_tooltip')}>
+              <div className="kpi-card__label">{t('dashboard.kpi.yango_leader_pct')}</div>
+              <div className="kpi-card__value">
+                {kpis.yangoLeaderPct != null ? `${kpis.yangoLeaderPct}%` : '—'}
+              </div>
+              <div className="kpi-card__sub">
+                {kpis.yangoComparablePeriods
+                  ? kpis.yangoComparablePeriods === 1
+                    ? t('dashboard.kpi.in_n_period').replace('{n}', kpis.yangoComparablePeriods)
+                    : t('dashboard.kpi.in_n_periods').replace('{n}', kpis.yangoComparablePeriods)
+                  : ''}
+              </div>
+            </div>
+            <div
+              className="kpi-card"
+              title={t('dashboard.kpi.outliers_tooltip')}
+              style={outlierTotal && outlierTotal > 0 ? { borderColor: '#fca5a5' } : undefined}
+            >
+              <div className="kpi-card__label">{t('dashboard.kpi.outliers_label')}</div>
+              <div
+                className="kpi-card__value"
+                style={{ color: outlierTotal && outlierTotal > 0 ? '#b91c1c' : undefined }}
+              >
+                {outlierTotal == null ? '—' : outlierTotal.toLocaleString()}
+              </div>
+              <div className="kpi-card__sub">{t('dashboard.kpi.outliers_sublabel')}</div>
+            </div>
           </div>
-          {/* Sprint 2.5: Botón Head-to-Head — abre Sheet lateral con
-              comparación 1:1 Yango vs un competidor específico. */}
-          <button
-            className="kpi-export-btn"
-            onClick={() => setH2hOpen(true)}
-            title="Comparar Yango vs un competidor específico, bracket por bracket"
-            style={{
-              background: '#e0f2fe',
-              borderColor: '#0284c7',
-              color: '#075985',
-              fontWeight: 600,
-            }}
-          >
-            ⚔ Head-to-Head
-          </button>
-          {/* Sprint 2.6: Botón Analytics — abre Sheet con charts
-              analíticos (Leadership %, Position Timeline). */}
-          <button
-            className="kpi-export-btn"
-            onClick={() => setAnalyticsOpen(true)}
-            title="Ver análisis avanzados: % liderazgo por bracket, timeline de posición"
-            style={{
-              background: '#f0fdf4',
-              borderColor: '#16a34a',
-              color: '#15803d',
-              fontWeight: 600,
-            }}
-          >
-            📈 Analytics
-          </button>
-          <button
-            className="kpi-export-btn"
-            onClick={() => setSimEnabled((s) => !s)}
-            title={t('dashboard.sim.toggle_tooltip')}
-            style={
-              simEnabled
-                ? { background: '#fef3c7', borderColor: '#f59e0b', color: '#92400e' }
-                : undefined
-            }
-          >
-            {simEnabled ? t('dashboard.sim.on') : t('dashboard.sim.toggle')}
-          </button>
-          <button
-            className="kpi-export-btn"
-            onClick={handleExportPNG}
-            title={t('dashboard.export_png')}
-          >
-            {t('dashboard.export_png')}
-          </button>
-          <button
-            className="kpi-export-btn"
-            onClick={handleExportCSV}
-            title={t('dashboard.export_csv_tooltip')}
-          >
-            {t('dashboard.export_csv')}
-          </button>
-          <button
-            className="kpi-export-btn"
-            onClick={handleExportPDF}
-            title={t('dashboard.export_pdf')}
-          >
-            {t('dashboard.export_pdf')}
-          </button>
-          <DashboardLegend
-            country={filters.country}
-            dbCity={filters.dbCity}
-            dbCategory={filters.dbCategory}
-            currency={currency}
-          />
-        </div>
+        </>
       )}
 
       {/* ── Filter bar — sticky just below topbar ── */}
