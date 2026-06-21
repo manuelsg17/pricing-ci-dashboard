@@ -1,49 +1,65 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
-  --font-main:   'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono:   'SF Mono', 'Fira Code', 'Courier New', monospace;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Courier New', monospace;
 
   /* Palette */
-  --color-bg:          #f1f3f5;
-  --color-panel:       #ffffff;
-  --color-border:      #e2e8f0;
-  --color-border-soft: #edf2f7;
-  --color-text:        #1a202c;
+  --color-bg: #f5f6f8;
+  --color-panel: #ffffff;
+  --color-border: #e6e9ef;
+  --color-border-soft: #eef1f5;
+  --color-text: #1a202c;
   /* --color-muted oscurecido en Sprint 3.3: el valor previo #718096 dejaba
      ~4.25:1 sobre blanco (FALLA WCAG AA que requiere ≥4.5:1). #475569 da
      ~6.77:1 (PASS AA holgado, marginal AAA). Aplica a tooltips, sub-labels,
      placeholders y cualquier "texto secundario" — ahora legible para
      usuarios con visión reducida. */
-  --color-muted:       #475569;
-  --color-subtle:      #a0aec0;
+  --color-muted: #475569;
+  --color-subtle: #a0aec0;
 
   /* Yango brand */
-  --color-yango:       #E53935;
-  --color-yango-dark:  #C62828;
-  --color-yango-light: #FFEBEE;
-  --color-yango-mid:   rgba(229, 57, 53, 0.1);
+  --color-yango: #e53935;
+  --color-yango-dark: #c62828;
+  --color-yango-light: #ffebee;
+  --color-yango-mid: rgba(229, 57, 53, 0.1);
 
-  /* Shadows */
-  --shadow-xs:   0 1px 2px rgba(0,0,0,0.05);
-  --shadow-sm:   0 1px 4px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:   0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+  /* Shadows — tinte slate, suaves y difusas (look moderno, menos "duras") */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-md: 0 10px 30px rgba(16, 24, 40, 0.1), 0 4px 8px rgba(16, 24, 40, 0.04);
 
-  /* Radius */
-  --radius-sm:  4px;
-  --radius-md:  8px;
-  --radius-lg:  12px;
+  /* Radius — un punto más redondeado (más suave/moderno).
+     --radius es el alias por defecto: varias reglas (.kpi-card, etc.) usan
+     var(--radius) sin sufijo; antes quedaba sin definir → esquinas en pico. */
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
   /* Semáforo — contraste reforzado para WCAG AA (≥4.5:1) sobre el bg.
      fg oscurecido vs versiones 2024 para que daltónicos + lectores con
      monitores poco calibrados distingan el texto sin depender del color. */
-  --sem-green-bg:   #d4edda;  --sem-green-fg:   #0d4d26;
-  --sem-yellow-bg:  #fff3cd;  --sem-yellow-fg:  #5a3d00;
-  --sem-red-bg:     #f8d7da;  --sem-red-fg:     #5a1f1f;
-  --sem-none-bg:    transparent; --sem-none-fg: var(--color-text);
+  --sem-green-bg: #d4edda;
+  --sem-green-fg: #0d4d26;
+  --sem-yellow-bg: #fff3cd;
+  --sem-yellow-fg: #5a3d00;
+  --sem-red-bg: #f8d7da;
+  --sem-red-fg: #5a1f1f;
+  --sem-none-bg: transparent;
+  --sem-none-fg: var(--color-text);
 }
 
-html, body { height: 100%; }
+html,
+body {
+  height: 100%;
+}
 
 body {
   font-family: var(--font-main);
@@ -54,7 +70,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-#root { display: flex; flex-direction: column; min-height: 100vh; }
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
 
 button {
   cursor: pointer;
@@ -62,28 +82,49 @@ button {
   font-size: 12px;
 }
 
-input, select {
+input,
+select {
   font-family: var(--font-main);
   font-size: 12px;
 }
 
 .visually-hidden {
-  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
 }
 
 @keyframes skeletonShimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(12px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes confirmIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Focus visible global. Restituye el a11y baseline aunque alguna regla
@@ -98,7 +139,9 @@ input, select {
 /* Respeta la preferencia del SO de reducir movimiento. Mantiene la app
    utilizable para usuarios con sensibilidad vestibular. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
