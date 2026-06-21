@@ -40,6 +40,7 @@ import { gmvInsideRatio, miZonaCommissionForSelection } from '../lib/limaZones'
 import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
 import { yangoGmvBonus, yangoGmvDetail, hasYangoGmvTable } from '../lib/yangoGmvBonus'
 import MiZonaMap from '../components/rentabilidad/MiZonaMap'
+import CollapsibleSection from '../components/market/CollapsibleSection'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
@@ -718,32 +719,12 @@ export default function Rentabilidad() {
       </div>
 
       {/* ── Herramientas Yango (comisión apilable) ── */}
-      <div className="rent-panel" style={panelStyle}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 8,
-            marginBottom: 10,
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 700 }}>{t('rentabilidad.yango_tools')}</span>
-          <span style={{ fontSize: 13 }}>
-            {t('rentabilidad.total_commission')}:{' '}
-            <strong style={{ color: 'var(--color-yango, #E53935)', fontSize: 15 }}>
-              {yangoCommission.toFixed(1)}%
-            </strong>
-            <span style={{ color: 'var(--color-muted)', marginLeft: 8, fontSize: 12 }}>
-              = {yangoBasePct}% {t('rentabilidad.base_city')} + {YANGO_PARTNER_PCT}% partner
-              {yangoExtraPct > 0
-                ? ` + ${yangoExtraPct.toFixed(1)}% ${t('rentabilidad.tools_extra')}`
-                : ''}
-            </span>
-          </span>
-        </div>
-
+      <CollapsibleSection
+        id="rent-tools"
+        title={t('rentabilidad.yango_tools')}
+        subtitle={`${t('rentabilidad.total_commission')}: ${yangoCommission.toFixed(1)}% (${yangoBasePct}% ${t('rentabilidad.base_city')} + ${YANGO_PARTNER_PCT}% partner${yangoExtraPct > 0 ? ` + ${yangoExtraPct.toFixed(1)}% ${t('rentabilidad.tools_extra')}` : ''})`}
+        defaultOpen={false}
+      >
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <ToolToggle
             active={tools.mi_casa}
@@ -894,13 +875,15 @@ export default function Rentabilidad() {
             </span>
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {/* ── Arquetipo de driver ── */}
-      <div className="rent-panel" style={panelStyle}>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-          {t('rentabilidad.archetype')}
-        </div>
+      <CollapsibleSection
+        id="rent-archetype"
+        title={t('rentabilidad.archetype')}
+        subtitle={`${archetype.segment} · ${Math.round(archetype.sharePeak * 100)}% en pico · racha ${archetype.streakDays}/7`}
+        defaultOpen={false}
+      >
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)' }}>
@@ -963,6 +946,11 @@ export default function Rentabilidad() {
         >
           {t('rentabilidad.archetype_hint')}
         </div>
+      </CollapsibleSection>
+
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', margin: '4px 2px 12px' }}>
+        ℹ️ Cómo leer: cada barra es la <strong>ganancia neta del conductor</strong> (precio ×
+        (1−comisión) + bonos). Más alta = mejor para el conductor.
       </div>
 
       {/* ── Gráficos (small multiples) ── */}
