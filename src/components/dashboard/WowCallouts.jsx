@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { prettyCompetitor } from '../../lib/normalize'
+import { AlertTriangle, ArrowUp, ArrowDown, X } from 'lucide-react'
 
 const THRESHOLD = 5
 
@@ -49,8 +50,17 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
       }}
       role="status"
     >
-      <span style={{ fontWeight: 700, color: '#b45309', flexShrink: 0 }}>
-        ⚠ Cambios WoW {prevLabel} → {lastLabel}
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          fontWeight: 700,
+          color: '#b45309',
+          flexShrink: 0,
+        }}
+      >
+        <AlertTriangle size={14} /> Cambios WoW {prevLabel} → {lastLabel}
       </span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flex: 1 }}>
         {movers.slice(0, 6).map((m) => {
@@ -79,8 +89,16 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
                 }}
               />
               {prettyCompetitor(m.comp)}
-              <span style={{ color: up ? '#b91c1c' : '#15803d' }}>
-                {up ? '↑' : '↓'} {up ? '+' : ''}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  color: up ? '#b91c1c' : '#15803d',
+                }}
+              >
+                {up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                {up ? '+' : ''}
                 {m.pct.toFixed(1)}%
               </span>
             </span>
@@ -90,9 +108,10 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
       <button
         onClick={() => setDismissed(true)}
         style={{
+          display: 'inline-flex',
+          alignItems: 'center',
           background: 'none',
           border: 'none',
-          fontSize: 16,
           lineHeight: 1,
           cursor: 'pointer',
           color: '#92400e',
@@ -100,7 +119,7 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
         }}
         title="Ocultar"
       >
-        ×
+        <X size={15} />
       </button>
     </div>
   )

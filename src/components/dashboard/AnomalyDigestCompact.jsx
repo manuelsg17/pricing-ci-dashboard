@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { Search, ArrowRight } from 'lucide-react'
 
 // Versión compact: muestra los top 3 atípicos en una sola línea con
 // link a la pestaña Mercado para ver el detalle completo.
@@ -58,8 +59,17 @@ export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], c
         flexWrap: 'wrap',
       }}
     >
-      <span style={{ fontWeight: 700, color: '#92400e', flexShrink: 0 }}>
-        🔍 {top.length} atípico{top.length === 1 ? '' : 's'} esta semana:
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          fontWeight: 700,
+          color: '#92400e',
+          flexShrink: 0,
+        }}
+      >
+        <Search size={14} /> {top.length} atípico{top.length === 1 ? '' : 's'} esta semana:
       </span>
       <div style={{ display: 'flex', gap: 6, flex: 1, flexWrap: 'wrap' }}>
         {top.map((a, i) => (
@@ -99,18 +109,21 @@ export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], c
       <button
         onClick={goToMarket}
         style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
           padding: '2px 10px',
           fontSize: 11,
           fontWeight: 600,
           background: '#fff',
           border: '1px solid #b45309',
           color: '#92400e',
-          borderRadius: 4,
+          borderRadius: 6,
           cursor: 'pointer',
           whiteSpace: 'nowrap',
         }}
       >
-        Ver detalle →
+        Ver detalle <ArrowRight size={13} />
       </button>
     </div>
   )

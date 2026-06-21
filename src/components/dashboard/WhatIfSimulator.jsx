@@ -1,3 +1,5 @@
+import { SlidersHorizontal, RotateCcw, X } from 'lucide-react'
+
 export default function WhatIfSimulator({ pct, setPct, onClose, compareVs = 'Yango' }) {
   return (
     <div
@@ -14,8 +16,18 @@ export default function WhatIfSimulator({ pct, setPct, onClose, compareVs = 'Yan
         flexWrap: 'wrap',
       }}
     >
-      <span style={{ fontWeight: 700, fontSize: 13, color: '#92400e', flexShrink: 0 }}>
-        🎚️ Modo simulación
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontWeight: 700,
+          fontSize: 13,
+          color: '#92400e',
+          flexShrink: 0,
+        }}
+      >
+        <SlidersHorizontal size={15} /> Modo simulación
       </span>
       <span style={{ fontSize: 12, color: '#78350f', flexShrink: 0 }}>
         Ajustar <strong>{compareVs}</strong> en
@@ -45,34 +57,40 @@ export default function WhatIfSimulator({ pct, setPct, onClose, compareVs = 'Yan
       <button
         onClick={() => setPct(0)}
         style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
           padding: '4px 10px',
           fontSize: 11,
           fontWeight: 600,
           border: '1px solid #b45309',
           background: '#fff',
           color: '#92400e',
-          borderRadius: 4,
+          borderRadius: 6,
           cursor: 'pointer',
         }}
         title="Reset a 0%"
       >
-        Reset
+        <RotateCcw size={12} /> Reset
       </button>
       <button
         onClick={onClose}
         style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
           padding: '4px 10px',
           fontSize: 11,
           fontWeight: 600,
           border: '1px solid #b45309',
           background: '#92400e',
           color: '#fff',
-          borderRadius: 4,
+          borderRadius: 6,
           cursor: 'pointer',
         }}
         title="Cerrar simulación y volver a data real"
       >
-        Cerrar
+        <X size={12} /> Cerrar
       </button>
       <span style={{ fontSize: 10, color: '#78350f', flexBasis: '100%', marginTop: 2 }}>
         ⚠ Las matrices, KPIs y charts muestran números simulados — los datos reales no se modifican.

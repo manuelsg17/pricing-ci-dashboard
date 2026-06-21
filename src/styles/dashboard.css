@@ -100,11 +100,22 @@
   background: var(--color-panel);
   color: var(--color-text);
   font-size: 12px;
-  height: 28px;
+  height: var(--ctrl-h);
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
   outline: none;
+}
+
+/* Selects nativos: quitar la flecha del SO y poner un chevron lucide consistente */
+.filter-bar select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 26px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+      right 8px center no-repeat,
+    var(--color-panel);
 }
 
 .filter-bar select:focus,
@@ -134,7 +145,7 @@
   color: var(--color-muted);
   font-size: 11px;
   font-weight: 500;
-  height: 28px;
+  height: var(--ctrl-h);
   transition:
     background 0.15s,
     color 0.15s;
@@ -162,7 +173,7 @@
 }
 
 .bracket-section__title {
-  background: var(--color-panel);
+  background: linear-gradient(180deg, var(--color-yango-tint) 0%, var(--color-panel) 78%);
   color: var(--color-text);
   border-bottom: 1px solid var(--color-border);
   font-size: 11px;
@@ -544,4 +555,185 @@
 .matrix-table thead th .pin-btn.pinned {
   opacity: 1;
   color: #e53935;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Sistema unificado de controles del filtro (.fb-*), toolbar (.dash-toolbar)
+   y chips de filtros activos — modernización UI fase 3.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Botón/pill de control (Franja Horaria, Presets, etc.) */
+.fb-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--ctrl-h);
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.fb-control:hover {
+  border-color: #cbd2dc;
+}
+.fb-control--active {
+  border-color: var(--color-yango);
+  background: var(--color-yango-light);
+  color: var(--color-yango-dark);
+  font-weight: 600;
+}
+.fb-control svg {
+  flex-shrink: 0;
+}
+
+/* Contador rojo (badge) */
+.fb-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--color-yango);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Panel desplegable (Franja Horaria, Presets, Exportar) */
+.fb-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  min-width: 220px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+.fb-popover--right {
+  left: auto;
+  right: 0;
+}
+.fb-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-muted);
+}
+.fb-popover__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.fb-popover__item:hover {
+  background: var(--color-bg);
+}
+.fb-popover__item + .fb-popover__item {
+  border-top: 1px solid var(--color-border-soft);
+}
+
+/* Chips de filtros activos (removibles) */
+.fb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 5px 0 9px;
+  border-radius: 99px;
+  background: var(--color-yango-light);
+  border: 1px solid #f3c9c9;
+  color: var(--color-yango-dark);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.fb-chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--color-yango-dark);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.fb-chip__x:hover {
+  opacity: 1;
+  background: rgba(198, 40, 40, 0.12);
+}
+
+/* ── Barra de herramientas del dashboard (acciones) ───────────────────── */
+.dash-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--ctrl-h);
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-panel);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.toolbar-btn:hover {
+  border-color: #cbd2dc;
+  background: #fbfcfd;
+  box-shadow: var(--shadow-sm);
+}
+.toolbar-btn--active {
+  border-color: var(--color-yango);
+  background: var(--color-yango-light);
+  color: var(--color-yango-dark);
+}
+.toolbar-btn svg {
+  flex-shrink: 0;
 }
