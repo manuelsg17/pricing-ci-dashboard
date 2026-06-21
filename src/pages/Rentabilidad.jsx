@@ -35,6 +35,7 @@ import {
 } from '../lib/yangoTools'
 import { gmvInsideRatio, miZonaCommissionForSelection } from '../lib/limaZones'
 import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
+import { yangoGmvBonus, yangoGmvDetail, hasYangoGmvTable } from '../lib/yangoGmvBonus'
 import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ export default function Rentabilidad() {
   // Arquetipo de driver: define a quién se evalúan los bonos (segmento) y los
   // parámetros de ventana/racha (alimentan comm_discount InDrive, surge y streak Didi).
   const [archetype, setArchetype] = useState({ segment: 'active', sharePeak: 0.25, streakDays: 3 })
+  const [branded, setBranded] = useState(false) // bono Yango GMV: con/sin brandeo (default sin)
 
   // dbCategory -> { comp -> { avg, count } }
   const [pricesByCat, setPricesByCat] = useState({})
@@ -266,10 +268,22 @@ export default function Rentabilidad() {
             dbCategory,
             segment: archetype.segment,
           })
-      const week = pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg)
+      const gmv = isYango(comp) ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips) : 0
+      const week =
+        pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg) + gmv
       return metric === 'trip' ? week / trips : week
     },
-    [pricesByCat, commissions, bonuses, bonusFor, metric, yangoCommission, archetype]
+    [
+      pricesByCat,
+      commissions,
+      bonuses,
+      bonusFor,
+      metric,
+      yangoCommission,
+      archetype,
+      dbCity,
+      branded,
+    ]
   )
 
   // Ganancia de Yango a una comisión arbitraria (para la matriz de escenarios).
@@ -281,10 +295,12 @@ export default function Rentabilidad() {
       const pd = pricesByCat[dbCategory]?.[yangoKey]
       if (!pd || !trips || isNaN(pd.avg)) return null
       const week =
-        pd.avg * trips * (1 - commPct / 100) + bonusFor(yangoKey, dbCategory, trips, pd.avg)
+        pd.avg * trips * (1 - commPct / 100) +
+        bonusFor(yangoKey, dbCategory, trips, pd.avg) +
+        yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips)
       return metric === 'trip' ? week / trips : week
     },
-    [pricesByCat, bonusFor, metric, country, dbCity]
+    [pricesByCat, bonusFor, metric, country, dbCity, branded]
   )
 
   // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
@@ -304,9 +320,10 @@ export default function Rentabilidad() {
             dbCategory,
             segment: archetype.segment,
           })
-      return pd.avg * (1 - comm / 100) + bonusFor(comp, dbCategory, n, pd.avg) / n
+      const gmv = isYango(comp) ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, n) : 0
+      return pd.avg * (1 - comm / 100) + (bonusFor(comp, dbCategory, n, pd.avg) + gmv) / n
     },
-    [pricesByCat, commissions, bonuses, bonusFor, yangoCommission, archetype]
+    [pricesByCat, commissions, bonuses, bonusFor, yangoCommission, archetype, dbCity, branded]
   )
 
   // data para un valor de viajes: [{ tier, [comp]: value }]
@@ -728,7 +745,34 @@ export default function Rentabilidad() {
             }
             label={`Mi Zona +${miZonaPct.toFixed(1)}%`}
           />
+          <ToolToggle
+            active={branded}
+            onClick={() => setBranded((b) => !b)}
+            label={t('rentabilidad.branded')}
+          />
         </div>
+
+        {/* Readout del bono Yango por % de GMV (cash aditivo, no comisión) */}
+        {hasYangoGmvTable(dbCity) &&
+          refTier &&
+          (() => {
+            const fare = pricesByCat[refTier.dbCategory]?.[yangoKeyFor(refTier.dbCategory)]?.avg
+            const d = yangoGmvDetail(dbCity, refTier.dbCategory, branded, fare, liveTrips)
+            return (
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-muted)' }}>
+                {t('rentabilidad.gmv_bonus')} (
+                {branded ? t('rentabilidad.branded') : t('rentabilidad.unbranded')}) ·{' '}
+                {refTier.uiCat} · {liveTrips} {t('rentabilidad.trips_week')}:{' '}
+                {d ? (
+                  <strong style={{ color: 'var(--color-yango, #E53935)' }}>
+                    +{fmt(d.bono)} ({d.pct}% GMV, tope {currency} {d.cap})
+                  </strong>
+                ) : (
+                  '—'
+                )}
+              </div>
+            )
+          })()}
 
         {/* Mi Zona — Lima: mapa de zonas clickeable (Fase 3); provincias: slider. */}
         {tools.mi_zona.on && isLima && (

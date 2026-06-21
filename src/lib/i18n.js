@@ -290,6 +290,9 @@ export const TRANSLATIONS = {
     'rentabilidad.archetype_hint':
       'Define a quién se evalúan los bonos. El % en ventana alimenta el descuento de comisión (InDrive) y surge; los días de racha, la racha de Didi.',
     'rentabilidad.one_off': 'Gancho 1 vez',
+    'rentabilidad.branded': 'Brandeado',
+    'rentabilidad.unbranded': 'Sin brandeo',
+    'rentabilidad.gmv_bonus': 'Bono % GMV',
     'earnings.week': 'Semana',
     'earnings.year': 'Año',
     'earnings.hours_per_week': 'Horas / semana',
@@ -793,6 +796,9 @@ export const TRANSLATIONS = {
     'rentabilidad.archetype_hint':
       'Defines who bonuses apply to. % in window feeds the commission discount (InDrive) and surge; streak days feed the Didi streak.',
     'rentabilidad.one_off': 'One-off bonus',
+    'rentabilidad.branded': 'Branded',
+    'rentabilidad.unbranded': 'Unbranded',
+    'rentabilidad.gmv_bonus': 'GMV % bonus',
     'earnings.week': 'Week',
     'earnings.year': 'Year',
     'earnings.hours_per_week': 'Hours / week',
@@ -1289,6 +1295,9 @@ export const TRANSLATIONS = {
     'rentabilidad.archetype_hint':
       'Определяет, к кому применяются бонусы. % в окне питает скидку комиссии (InDrive) и surge; дни серии — серию Didi.',
     'rentabilidad.one_off': 'Разовый бонус',
+    'rentabilidad.branded': 'С брендингом',
+    'rentabilidad.unbranded': 'Без брендинга',
+    'rentabilidad.gmv_bonus': 'Бонус % GMV',
     'earnings.week': 'Неделя',
     'earnings.year': 'Год',
     'earnings.hours_per_week': 'Часов / неделю',

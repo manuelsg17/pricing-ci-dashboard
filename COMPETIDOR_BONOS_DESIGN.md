@@ -137,6 +137,40 @@ el "Gana hasta" del peldaño. Toggle **brandeo/sin brandeo, default sin brandeo*
 take-home de Yango. El take-home real de Yango = `fares×(1−comisión_total) +
 bono_GMV(viajes, brandeo)`. Es la contraparte directa de los bonos de competidor.
 
+### 8.1 Tablas Yango GMV ACTUALES (2026-06, fuente de verdad)
+
+Reemplazan las de arriba. Dimensiones: **ciudad × brandeo × categoría (Premier=VIP en
+Lima) × segmento (activo estándar / reactivado)**. Cada peldaño = `[≥viajes, %bono, tope S/]`;
+bono = `mín(%bono · fare·viajes, tope)` del peldaño máximo alcanzado.
+
+**LIMA — activo, sin brandeo:** `10→9/50 · 30→10/110 · 50→11/150 · 75→12/200 · 100→14/280 · 125→16/340 · 150→18/400`.
+**LIMA — activo, con brandeo:** `30→13/145 · 50→14/220 · 75→15/260 · 100→16/320 · 125→18/390 · 150→20/480 · 190→22/640`.
+**LIMA — VIP (solo Premier):** `2→40/64 · 4→43/135 · 6→46/205 · 8→49/300 · 10→52/395 · 15→56/640 · 20→60/900`. _(una sola tabla; sin split brandeo según lo compartido)._
+
+**TRUJILLO — activo, sin brandeo:** `10→9/23 · 35→10/46 · 65→11/80 · 95→12/110 · 125→14/160 · 155→16/205 · 190→18/300`.
+**TRUJILLO — activo, con brandeo:** `35→13/55 · 65→14/100 · 95→15/170 · 125→16/225 · 155→18/280 · 190→20/350 · 230→22/410`.
+
+**AREQUIPA — activo, sin brandeo:** `10→7/25 · 25→8/50 · 50→9/85 · 75→10/110 · 100→12/150 · 125→14/190 · 155→16/290`.
+**AREQUIPA — activo, con brandeo:** `25→10/65 · 50→11/120 · 75→12/180 · 100→13/240 · 125→14/320 · 155→16/440 · 195→18/520`.
+
+**REACTIVADO** (segmento reactivado, 45+ días sin conducir) — Trujillo/Arequipa ya
+arriba en §8 (Lima reactivado: pendiente). **TukTuk: pendiente (otra etapa).**
+
+### 8.2 F0 — SHIPPED (hardcodeado en `src/lib/yangoGmvBonus.js`)
+
+Decisión: módulo dedicado **hardcodeado** (no el motor genérico). Razón: el bono GMV
+tiene semántica propia (UNA tabla aplica, no suma; especificidad Premier→VIP; variante
+por brandeo) que no encaja en el modelo aditivo de competidores; y así NO toca
+`competitorBonus.js`. Como `yangoTools.js` para la comisión.
+
+- `yangoGmvBonus(dbCity, dbCategory, branded, fare, trips)` = mín(%peldaño·fare·trips, tope).
+- Tablas estándar (activo) Lima/Trujillo/Arequipa, con/sin brandeo + Lima VIP (Premier).
+- **Reactivación OFF** (decisión); VIP = una sola tabla.
+- Toggle **Brandeado** en Herramientas Yango (default sin brandeo) + readout del bono.
+- Cableado en las 3 rutas de Yango (barras `netFor`, matriz `yangoNetAt`, break-even
+  `netPerTrip`). Aeropuertos/Corp sin tabla → 0. Verificado en node.
+- Pendiente (otra etapa): tablas de **TukTuk**; Lima reactivado (si se reactivan).
+
 ---
 
 ## 7. Datos crudos de referencia (capturas del usuario, Lima salvo nota)
