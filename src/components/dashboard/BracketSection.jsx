@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  CartesianGrid,
   ResponsiveContainer,
   ReferenceLine,
   ReferenceArea,
@@ -18,6 +19,20 @@ import { formatPrice } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
 import DrillDownModal from './DrillDownModal'
+import {
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+  LineChart as LineChartIcon,
+  AreaChart as AreaChartIcon,
+  BarChart3,
+  Pin,
+  Camera,
+} from 'lucide-react'
 
 const SAMPLE_LOW = 30
 const SAMPLE_MED = 100
@@ -286,30 +301,31 @@ function BracketSection({
   // Chart type button bar
   function ChartTypeToggle() {
     const types = [
-      { key: 'line', label: '〰' },
-      { key: 'area', label: '▲' },
-      { key: 'bar', label: '▌▌' },
+      { key: 'line', Icon: LineChartIcon },
+      { key: 'area', Icon: AreaChartIcon },
+      { key: 'bar', Icon: BarChart3 },
     ]
     return (
       <div style={{ display: 'flex', gap: 2 }}>
-        {types.map(({ key: k, label }) => (
+        {types.map(({ key: k, Icon }) => (
           <button
             key={k}
             type="button"
             onClick={() => setChartType(k)}
             title={t(`dashboard.chart.type_${k}`)}
             style={{
-              padding: '2px 7px',
-              fontSize: 10,
-              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '3px 7px',
               border: `1px solid ${chartType === k ? 'var(--color-yango)' : 'var(--color-border)'}`,
               background: chartType === k ? 'var(--color-yango-light)' : 'transparent',
               color: chartType === k ? 'var(--color-yango)' : 'var(--color-muted)',
-              borderRadius: 4,
+              borderRadius: 5,
               cursor: 'pointer',
             }}
           >
-            {label}
+            <Icon size={13} />
           </button>
         ))}
       </div>
@@ -330,9 +346,15 @@ function BracketSection({
         {/* #26 drag handle indicator */}
         <span
           title={t('dashboard.drag_reorder')}
-          style={{ cursor: 'grab', opacity: 0.6, fontSize: 12, marginRight: 2, flexShrink: 0 }}
+          style={{
+            display: 'inline-flex',
+            cursor: 'grab',
+            color: 'var(--color-subtle)',
+            marginRight: 2,
+            flexShrink: 0,
+          }}
         >
-          ⠿
+          <GripVertical size={14} />
         </span>
 
         {/* #27 collapse toggle */}
@@ -341,18 +363,18 @@ function BracketSection({
           onClick={() => setCollapsed((c) => !c)}
           title={t(collapsed ? 'dashboard.section.expand' : 'dashboard.section.collapse')}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
             background: 'var(--color-bg)',
             border: '1px solid var(--color-border)',
             color: 'var(--color-muted)',
             borderRadius: 5,
-            padding: '1px 6px',
-            fontSize: 10,
+            padding: '2px 5px',
             cursor: 'pointer',
-            fontWeight: 700,
             flexShrink: 0,
           }}
         >
-          {collapsed ? '▼' : '▲'}
+          {collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
         </button>
 
         <span>{label}</span>
@@ -374,6 +396,9 @@ function BracketSection({
               onClick={handleCopySection}
               title={t('dashboard.copy_image')}
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
                 padding: '2px 8px',
                 fontSize: 10,
                 fontWeight: 600,
@@ -384,7 +409,13 @@ function BracketSection({
                 cursor: 'pointer',
               }}
             >
-              {copyDone ? t('dashboard.kpi.copy_done') : '📋'}
+              {copyDone ? (
+                <>
+                  <Check size={12} /> {t('dashboard.kpi.copy_done')}
+                </>
+              ) : (
+                <Copy size={12} />
+              )}
             </button>
 
             {/* Sample counts */}
@@ -438,6 +469,9 @@ function BracketSection({
                 type="button"
                 onClick={() => setShowSamples((s) => !s)}
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
                   marginLeft: 4,
                   padding: '2px 8px',
                   border: '1px solid var(--color-border)',
@@ -450,6 +484,7 @@ function BracketSection({
                 }}
                 title={t('samples.toggle_title')}
               >
+                {showSamples ? <EyeOff size={12} /> : <Eye size={12} />}
                 {showSamples ? t('samples.toggle_hide') : t('samples.toggle_show')}
               </button>
             </div>
@@ -593,17 +628,18 @@ function BracketSection({
                                   isPinned ? t('dashboard.unpin_period') : t('dashboard.pin_period')
                                 }
                                 style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
                                   background: 'none',
                                   border: 'none',
                                   padding: 0,
                                   cursor: 'pointer',
-                                  fontSize: 9,
                                   lineHeight: 1,
                                   opacity: isPinned ? 1 : 0.3,
-                                  color: isPinned ? '#E53935' : 'inherit',
+                                  color: isPinned ? 'var(--color-yango)' : 'inherit',
                                 }}
                               >
-                                📍
+                                <Pin size={11} />
                               </button>
                             </span>
                           </th>
@@ -973,16 +1009,17 @@ function MiniChart({
             onClick={handleExportChart}
             title={t('dashboard.export_chart')}
             style={{
-              padding: '2px 6px',
-              fontSize: 10,
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '3px 6px',
               border: '1px solid var(--color-border)',
               background: 'transparent',
               color: 'var(--color-muted)',
-              borderRadius: 4,
+              borderRadius: 5,
               cursor: 'pointer',
             }}
           >
-            📷
+            <Camera size={13} />
           </button>
         </div>
       </div>
@@ -999,14 +1036,28 @@ function MiniChart({
               margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
               syncId={syncId}
             >
-              <XAxis dataKey="period" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+              <CartesianGrid vertical={false} stroke="#eef2f7" />
+              <XAxis
+                dataKey="period"
+                tick={{ fontSize: 9, fill: 'var(--color-muted)' }}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+              />
               <YAxis
-                tick={{ fontSize: 9 }}
+                tick={{ fontSize: 9, fill: 'var(--color-muted)' }}
+                axisLine={false}
+                tickLine={false}
                 width={isPercent ? 36 : 32}
                 tickFormatter={(v) => (v != null ? yFormatter(v) : '')}
               />
               <Tooltip
-                contentStyle={{ fontSize: 11 }}
+                contentStyle={{
+                  fontSize: 11,
+                  borderRadius: 10,
+                  border: '1px solid var(--color-border)',
+                  boxShadow: 'var(--shadow-md)',
+                }}
                 formatter={(v, name) => {
                   // name viene como el raw competitor key (ej 'Yango', 'Cabify Lite').
                   // Mostramos el display name + contexto (vs base / moneda) para que
