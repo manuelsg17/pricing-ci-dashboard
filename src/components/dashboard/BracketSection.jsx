@@ -341,10 +341,10 @@ function BracketSection({
           onClick={() => setCollapsed((c) => !c)}
           title={t(collapsed ? 'dashboard.section.expand' : 'dashboard.section.collapse')}
           style={{
-            background: 'rgba(255,255,255,0.15)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: '#fff',
-            borderRadius: 4,
+            background: 'var(--color-bg)',
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-muted)',
+            borderRadius: 5,
             padding: '1px 6px',
             fontSize: 10,
             cursor: 'pointer',
@@ -377,10 +377,10 @@ function BracketSection({
                 padding: '2px 8px',
                 fontSize: 10,
                 fontWeight: 600,
-                background: 'rgba(255,255,255,0.15)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                color: '#fff',
-                borderRadius: 4,
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-muted)',
+                borderRadius: 5,
                 cursor: 'pointer',
               }}
             >
@@ -400,7 +400,7 @@ function BracketSection({
               }}
               title={t('samples.summary_title_attr').replace('{label}', summaryPeriodLabel)}
             >
-              <span style={{ color: 'rgba(255,255,255,0.75)', marginRight: 2 }}>
+              <span style={{ color: 'var(--color-muted)', marginRight: 2 }}>
                 n {summaryPeriodLabel}
                 {categoryLabel ? ` · ${categoryLabel}` : ''}:
               </span>
@@ -413,10 +413,11 @@ function BracketSection({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
-                      background: 'rgba(255,255,255,0.92)',
+                      background: 'var(--color-bg)',
+                      border: '1px solid var(--color-border)',
                       color: '#1f2937',
                       padding: '1px 6px',
-                      borderRadius: 4,
+                      borderRadius: 5,
                       fontWeight: 600,
                       fontSize: 10,
                     }}
@@ -439,10 +440,10 @@ function BracketSection({
                 style={{
                   marginLeft: 4,
                   padding: '2px 8px',
-                  border: '1px solid rgba(255,255,255,0.4)',
-                  background: 'rgba(255,255,255,0.15)',
-                  color: '#fff',
-                  borderRadius: 4,
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg)',
+                  color: 'var(--color-muted)',
+                  borderRadius: 5,
                   cursor: 'pointer',
                   fontSize: 10,
                   fontWeight: 600,

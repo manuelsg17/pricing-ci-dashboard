@@ -162,25 +162,27 @@
 }
 
 .bracket-section__title {
-  background: var(--color-yango);
-  color: #fff;
+  background: var(--color-panel);
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.7px;
-  padding: 11px 16px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
 }
 
+/* Acento rojo: barrita vertical a la izquierda del título (look moderno) */
 .bracket-section__title::before {
   content: '';
   display: inline-block;
-  width: 6px;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
+  width: 3px;
+  height: 14px;
+  background: var(--color-yango);
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
