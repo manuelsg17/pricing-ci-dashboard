@@ -1062,6 +1062,12 @@ export default function Rentabilidad() {
         subtitle={`${archetype.segment} · ${Math.round(archetype.sharePeak * 100)}% en pico · racha ${archetype.streakDays}/7`}
         defaultOpen={false}
       >
+        <div
+          style={{ fontSize: 12, color: 'var(--color-text)', marginBottom: 12, lineHeight: 1.5 }}
+        >
+          El <strong>arquetipo</strong> es el perfil del conductor con el que comparás — sirve para
+          evaluar los bonos de forma justa. Cada control afecta a un competidor distinto:
+        </div>
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)' }}>
@@ -1083,8 +1089,11 @@ export default function Rentabilidad() {
                 </button>
               ))}
             </div>
+            <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 4 }}>
+              filtra qué bonos aplican · todos los competidores
+            </div>
           </div>
-          <Field label={t('rentabilidad.share_peak')}>
+          <Field label={`${t('rentabilidad.share_peak')} · InDrive / surge`}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="range"
@@ -1100,7 +1109,7 @@ export default function Rentabilidad() {
               </span>
             </div>
           </Field>
-          <Field label={t('rentabilidad.streak_days')}>
+          <Field label={`${t('rentabilidad.streak_days')} · Didi`}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="range"
