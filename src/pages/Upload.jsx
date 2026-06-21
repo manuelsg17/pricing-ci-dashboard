@@ -2,24 +2,23 @@ import { useState } from 'react'
 // xlsx (475 KB) se carga dinámicamente solo cuando el usuario arrastra
 // un archivo. Sin esto, todo visitante a /upload baja el chunk vendor-xlsx
 // inmediatamente aunque nunca suba un archivo.
-import { sb }              from '../lib/supabase'
-import { getCountryConfig } from '../lib/constants'
+import { sb } from '../lib/supabase'
 import { computeEffectivePrice } from '../algorithms/indrive'
-import { assignBracket }         from '../algorithms/brackets'
-import DropZone            from '../components/upload/DropZone'
-import PreviewTable        from '../components/upload/PreviewTable'
-import IngestProgress      from '../components/upload/IngestProgress'
-import BotUpload           from '../components/upload/BotUpload'
-import BotConverter        from '../components/upload/BotConverter'
-import BotDbSync           from '../components/upload/BotDbSync'
-import OutlierReview          from '../components/upload/OutlierReview'
-import BotFreshnessBadge      from '../components/ui/BotFreshnessBadge'
-import { usePriceRules }      from '../hooks/usePriceRules'
-import { useRushHourConfig }  from '../hooks/useRushHourConfig'
-import { sanitizeBatch }      from '../algorithms/ingestionFilters'
+import DropZone from '../components/upload/DropZone'
+import PreviewTable from '../components/upload/PreviewTable'
+import IngestProgress from '../components/upload/IngestProgress'
+import BotUpload from '../components/upload/BotUpload'
+import BotConverter from '../components/upload/BotConverter'
+import BotDbSync from '../components/upload/BotDbSync'
+import OutlierReview from '../components/upload/OutlierReview'
+import BotFreshnessBadge from '../components/ui/BotFreshnessBadge'
+import { usePriceRules } from '../hooks/usePriceRules'
+import { useRushHourConfig } from '../hooks/useRushHourConfig'
+import { sanitizeBatch } from '../algorithms/ingestionFilters'
 import { normalizeCompetitorName, normalizeBracket, toSnakeCase } from '../lib/normalize'
-import { useToast }           from '../components/ui/Toast'
-import { useConfirm }         from '../components/ui/ConfirmDialog'
+import { TUKTUK_DISTRICTS, normalizeTukTukDistrict } from '../lib/tuktukDistricts'
+import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import '../styles/upload.css'
 
 // Mapa: nombre de columna en Excel/CSV → nombre en BD
@@ -29,39 +28,39 @@ import '../styles/upload.css'
 // Antes los Excel del campo traían WEEKNUM con offset distinto al ISO 8601 y
 // contaminaban la columna week con valores -1 del real.
 const COL_MAP = {
-  'Rush Hour':                      'rush_hour',
-  'Rush hour':                      'rush_hour',
-  'Point A':                        'point_a',
-  'Point B':                        'point_b',
-  'Travel Distance (Km)':           'distance_km',
-  'Travel Distance (km)':           'distance_km',
-  'Category':                       'category',
-  'Timeslot':                       'timeslot',
-  'Timeslot (for pivot)':           'timeslot',
-  'Distance bracket':               'distance_bracket',
-  'Distance Bracket':               'distance_bracket',
-  'Distance bracket (for pivot)':   'distance_bracket',
-  'Distance Bracket (for pivot)':   'distance_bracket',
-  'Date':                           'observed_date',
-  'Time':                           'observed_time',
-  'Competition Name':               'competition_name',
-  'Surge':                          'surge',
-  'Travel Time(Min)':               'travel_time_min',
-  'Travel Time (Min)':              'travel_time_min',
-  'ETA(min)':                       'eta_min',
-  'ETA (min)':                      'eta_min',
-  'ETA (Min)':                      'eta_min',
-  'Recommend Price':                'recommended_price',
-  'Recommended Price':              'recommended_price',
-  'Minimal bid':                    'minimal_bid',
-  'Minimal Bid':                    'minimal_bid',
-  'Price With Discount':            'price_with_discount',
-  'PriceW/ODiscount':               'price_without_discount',
-  'Price W/O Discount':             'price_without_discount',
-  'Zone':                           'zone',
-  'Bid 1':                          'bid_1',
-  'Bid 2':                          'bid_2',
-  'Bid 3':                          'bid_3',
+  'Rush Hour': 'rush_hour',
+  'Rush hour': 'rush_hour',
+  'Point A': 'point_a',
+  'Point B': 'point_b',
+  'Travel Distance (Km)': 'distance_km',
+  'Travel Distance (km)': 'distance_km',
+  Category: 'category',
+  Timeslot: 'timeslot',
+  'Timeslot (for pivot)': 'timeslot',
+  'Distance bracket': 'distance_bracket',
+  'Distance Bracket': 'distance_bracket',
+  'Distance bracket (for pivot)': 'distance_bracket',
+  'Distance Bracket (for pivot)': 'distance_bracket',
+  Date: 'observed_date',
+  Time: 'observed_time',
+  'Competition Name': 'competition_name',
+  Surge: 'surge',
+  'Travel Time(Min)': 'travel_time_min',
+  'Travel Time (Min)': 'travel_time_min',
+  'ETA(min)': 'eta_min',
+  'ETA (min)': 'eta_min',
+  'ETA (Min)': 'eta_min',
+  'Recommend Price': 'recommended_price',
+  'Recommended Price': 'recommended_price',
+  'Minimal bid': 'minimal_bid',
+  'Minimal Bid': 'minimal_bid',
+  'Price With Discount': 'price_with_discount',
+  'PriceW/ODiscount': 'price_without_discount',
+  'Price W/O Discount': 'price_without_discount',
+  Zone: 'zone',
+  'Bid 1': 'bid_1',
+  'Bid 2': 'bid_2',
+  'Bid 3': 'bid_3',
   // Mig 98 (2026-05-30): columnas bid_4, bid_5, discount_offer, diff,
   // for_pivot fueron eliminadas de pricing_observations (>99% NULL, sin
   // uso real). Mandarlas en el INSERT rompe el schema cache de PostgREST.
@@ -73,25 +72,25 @@ const COL_MAP = {
 // Los Excel históricos usan nombres viejos; aquí los traducimos al esquema nuevo.
 const CATEGORY_NORMALIZE = {
   // Esquema nuevo (Perú 2026): categorías tal cual
-  'Economy/Comfort':  'Economy/Comfort',
-  'Comfort+':         'Comfort+',
+  'Economy/Comfort': 'Economy/Comfort',
+  'Comfort+': 'Comfort+',
   // Esquema legacy (Excel anteriores)
-  'Comfort/Comfort+': 'Comfort+',   // TRU/ARQ legacy: antes "Comfort" agrupaba todo → ahora Comfort+
-  'Comfort+/Premier': 'Premier',    // Lima legacy: "Comfort+/Premier" → Premier
-  'Economy':          'Economy/Comfort', // Legacy: Economy se fusionó con Comfort
-  'Comfort':          'Comfort+',   // Legacy: Comfort (de Uber/InDrive) ahora es Comfort+
+  'Comfort/Comfort+': 'Comfort+', // TRU/ARQ legacy: antes "Comfort" agrupaba todo → ahora Comfort+
+  'Comfort+/Premier': 'Premier', // Lima legacy: "Comfort+/Premier" → Premier
+  Economy: 'Economy/Comfort', // Legacy: Economy se fusionó con Comfort
+  Comfort: 'Comfort+', // Legacy: Comfort (de Uber/InDrive) ahora es Comfort+
 }
 
 // Normalización de distance_bracket: display → formato BD (snake_case)
 const BRACKET_NORMALIZE = {
   'Very short': 'very_short',
   'Very Short': 'very_short',
-  'Short':      'short',
-  'Median':     'median',
-  'Average':    'average',
-  'Long':       'long',
-  'Very long':  'very_long',
-  'Very Long':  'very_long',
+  Short: 'short',
+  Median: 'median',
+  Average: 'average',
+  Long: 'long',
+  'Very long': 'very_long',
+  'Very Long': 'very_long',
 }
 
 // Normalización de nombres de competidor. Mismo split que en
@@ -100,14 +99,14 @@ const BRACKET_NORMALIZE = {
 // Premier y Comfort+ son sub-variantes de Yango. En Corp son competidores
 // legítimos separados — aplastarlos perdió 1190 filas históricas (mig 69).
 const COMPETITOR_CASING_FIXES = {
-  'Indrive':         'InDrive',
-  'DiDi':            'Didi',
+  Indrive: 'InDrive',
+  DiDi: 'Didi',
 }
 const COMPETITOR_YANGO_MASTER_FLATTEN = {
-  'Yango premier':   'Yango',
-  'Yango  premier':  'Yango',
-  'YangoPremier':    'Yango',
-  'YangoComfort+':   'Yango',
+  'Yango premier': 'Yango',
+  'Yango  premier': 'Yango',
+  YangoPremier: 'Yango',
+  'YangoComfort+': 'Yango',
 }
 
 // ── Helpers de parseo ──────────────────────────────────────
@@ -131,12 +130,12 @@ function parseExcelDate(val) {
     // Formato DD/MM/YYYY → YYYY-MM-DD
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
       const [d, m, y] = s.split('/')
-      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
     }
     // Formato DD-MM-YYYY
     if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
       const [d, m, y] = s.split('-')
-      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
     }
     // Ya en formato YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
@@ -155,12 +154,12 @@ function parseExcelTime(val) {
     return null
   }
   if (typeof val === 'number') {
-    const fraction    = val % 1
+    const fraction = val % 1
     const totalSeconds = Math.round(fraction * 86400)
     const h = Math.floor(totalSeconds / 3600)
     const m = Math.floor((totalSeconds % 3600) / 60)
     const s = totalSeconds % 60
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
   if (val instanceof Date) return val.toTimeString().slice(0, 8)
   return null
@@ -170,8 +169,16 @@ function parseExcelTime(val) {
 // Mig 98 dropeó bid_4/bid_5/discount_offer/diff de pricing_observations
 // (>99% NULL). Quitadas del set y de COL_MAP — el INSERT ya no las envía.
 const NUMERIC_COLS = new Set([
-  'distance_km','travel_time_min','eta_min','recommended_price','minimal_bid',
-  'price_with_discount','price_without_discount','bid_1','bid_2','bid_3',
+  'distance_km',
+  'travel_time_min',
+  'eta_min',
+  'recommended_price',
+  'minimal_bid',
+  'price_with_discount',
+  'price_without_discount',
+  'bid_1',
+  'bid_2',
+  'bid_3',
 ])
 
 // Columnas que deben ser enteros
@@ -185,7 +192,10 @@ function toNumeric(val) {
   if (typeof val === 'number') return isNaN(val) ? null : val
   // Quitar prefijo de moneda (ej: "S/.9.00" → "9.00", "$8.50" → "8.50")
   // y normalizar coma decimal ("13,2" → "13.2")
-  const s = String(val).trim().replace(/^[^\d-]+/, '').replace(',', '.')
+  const s = String(val)
+    .trim()
+    .replace(/^[^\d-]+/, '')
+    .replace(',', '.')
   const n = parseFloat(s)
   return isNaN(n) ? null : n
 }
@@ -214,25 +224,26 @@ function parseRows(sheetData, city) {
 
   // Encontrar la fila de cabeceras: la primera que contenga al menos una columna conocida en COL_MAP
   // (ignora filas de metadata como "colocar lista de eleccion", "InDrive", "All exc. InDrive"…)
-  const headerRowIdx = sheetData.findIndex(r =>
-    r && r.some(c => COL_MAP[String(c || '').trim()])
+  const headerRowIdx = sheetData.findIndex(
+    (r) => r && r.some((c) => COL_MAP[String(c || '').trim()])
   )
   if (headerRowIdx === -1) return []
   const headers = sheetData[headerRowIdx]
 
-  const mappedRows = sheetData.slice(headerRowIdx + 1).map(row => {
+  const mappedRows = sheetData.slice(headerRowIdx + 1).map((row) => {
     // Ignorar filas completamente vacías
-    if (!row || row.every(c => c === null || c === '')) return null
+    if (!row || row.every((c) => c === null || c === '')) return null
 
     const obj = { city }
     headers.forEach((h, i) => {
       const dbCol = COL_MAP[String(h || '').trim()]
       if (!dbCol) return
       const raw = row[i] ?? null
-      if (RAW_COLS.has(dbCol))        obj[dbCol] = raw              // fecha/hora: conservar número original
+      if (RAW_COLS.has(dbCol))
+        obj[dbCol] = raw // fecha/hora: conservar número original
       else if (NUMERIC_COLS.has(dbCol)) obj[dbCol] = toNumeric(raw)
-      else if (INT_COLS.has(dbCol))     obj[dbCol] = toInt(raw)
-      else                              obj[dbCol] = cleanStr(raw)
+      else if (INT_COLS.has(dbCol)) obj[dbCol] = toInt(raw)
+      else obj[dbCol] = cleanStr(raw)
     })
 
     // Fecha y hora
@@ -240,30 +251,33 @@ function parseRows(sheetData, city) {
     obj.observed_time = parseExcelTime(obj.observed_time)
 
     // Booleans — forzar true/false/null sin excepción
-    const rawSurge    = obj.surge
+    const rawSurge = obj.surge
     const rawRushHour = obj.rush_hour
 
-    obj.surge = typeof rawSurge === 'boolean'
-      ? rawSurge
-      : parseBool(rawSurge)
+    obj.surge = typeof rawSurge === 'boolean' ? rawSurge : parseBool(rawSurge)
 
-    obj.rush_hour = typeof rawRushHour === 'string'
-      ? (rawRushHour.toLowerCase().includes('rush') ? true : rawRushHour.toLowerCase().includes('valley') ? false : null)
-      : typeof rawRushHour === 'boolean'
-        ? rawRushHour
-        : parseBool(rawRushHour)
+    obj.rush_hour =
+      typeof rawRushHour === 'string'
+        ? rawRushHour.toLowerCase().includes('rush')
+          ? true
+          : rawRushHour.toLowerCase().includes('valley')
+            ? false
+            : null
+        : typeof rawRushHour === 'boolean'
+          ? rawRushHour
+          : parseBool(rawRushHour)
 
     // Red de seguridad final: si algo raro llegó, forzar null
-    if (obj.surge    !== null && typeof obj.surge    !== 'boolean') obj.surge    = null
+    if (obj.surge !== null && typeof obj.surge !== 'boolean') obj.surge = null
     if (obj.rush_hour !== null && typeof obj.rush_hour !== 'boolean') obj.rush_hour = null
 
     // Limpiar nombres clave (sin espacios extra, sin saltos de línea)
     obj.competition_name = cleanStr(obj.competition_name)
-    obj.category         = cleanStr(obj.category)
+    obj.category = cleanStr(obj.category)
     obj.distance_bracket = cleanStr(obj.distance_bracket)
 
     // Normalizar categorías, competidores y bracket a nombres canónicos en BD
-    if (obj.category)          obj.category          = CATEGORY_NORMALIZE[obj.category]          ?? obj.category
+    if (obj.category) obj.category = CATEGORY_NORMALIZE[obj.category] ?? obj.category
     if (obj.competition_name) {
       let legacy = COMPETITOR_CASING_FIXES[obj.competition_name] ?? obj.competition_name
       // El flatten YangoPremier/YangoComfort+ → Yango sólo aplica fuera de
@@ -276,7 +290,15 @@ function parseRows(sheetData, city) {
       }
       obj.competition_name = legacy
     }
-    if (obj.distance_bracket)  obj.distance_bracket  = BRACKET_NORMALIZE[obj.distance_bracket]   ?? normalizeBracket(obj.distance_bracket)
+    if (obj.distance_bracket)
+      obj.distance_bracket =
+        BRACKET_NORMALIZE[obj.distance_bracket] ?? normalizeBracket(obj.distance_bracket)
+
+    // TukTuk: canonicalizar el distrito (columna Zone) a la lista válida.
+    if (obj.category === 'TukTuk' && obj.zone) {
+      const d = normalizeTukTukDistrict(obj.zone)
+      if (d) obj.zone = d
+    }
 
     return obj
   })
@@ -284,24 +306,26 @@ function parseRows(sheetData, city) {
   // Fill-down: hereda competition_name, observed_date y category de la fila anterior
   // cuando la celda llega null (patrón de celdas combinadas en Excel).
   // Se resetea en filas completamente vacías (null) para no cruzar secciones.
-  let lastDate       = null
+  let lastDate = null
   let lastCompetitor = null
-  let lastCategory   = null
+  let lastCategory = null
   const filled = []
   for (const r of mappedRows) {
     if (!r) {
-      lastDate = null; lastCompetitor = null; lastCategory = null
+      lastDate = null
+      lastCompetitor = null
+      lastCategory = null
       filled.push(r)
       continue
     }
-    if (r.observed_date)     lastDate       = r.observed_date
-    else if (lastDate)       r.observed_date = lastDate
+    if (r.observed_date) lastDate = r.observed_date
+    else if (lastDate) r.observed_date = lastDate
 
-    if (r.competition_name)  lastCompetitor = r.competition_name
+    if (r.competition_name) lastCompetitor = r.competition_name
     else if (lastCompetitor) r.competition_name = lastCompetitor
 
-    if (r.category)          lastCategory   = r.category
-    else if (lastCategory)   r.category     = lastCategory
+    if (r.category) lastCategory = r.category
+    else if (lastCategory) r.category = lastCategory
 
     filled.push(r)
   }
@@ -311,11 +335,20 @@ function parseRows(sheetData, city) {
   let droppedNoCompetitor = 0
   let droppedNoCategory = 0
   let droppedCorpYango = 0
-  const rows = filled.filter(r => {
+  const rows = filled.filter((r) => {
     if (!r) return false
-    if (!r.observed_date)    { droppedNoDate++;       return false }
-    if (!r.competition_name) { droppedNoCompetitor++; return false }
-    if (!r.category)         { droppedNoCategory++;   return false }
+    if (!r.observed_date) {
+      droppedNoDate++
+      return false
+    }
+    if (!r.competition_name) {
+      droppedNoCompetitor++
+      return false
+    }
+    if (!r.category) {
+      droppedNoCategory++
+      return false
+    }
     // Mig 71: Corp rechaza 'Yango' anónimo (debe ser YangoEconomy/YangoComfort/
     // YangoComfort+/YangoPremier/YangoXL). Si el Excel trae bare 'Yango' para
     // Corp (en cualquier casing o con espacios), lo dropeamos acá en lugar de
@@ -329,7 +362,25 @@ function parseRows(sheetData, city) {
     return true
   })
 
-  return { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory, droppedCorpYango }
+  // TukTuk: diagnóstico de distrito (no se descartan filas, solo se avisa).
+  let tuktukRows = 0
+  let tuktukNoDistrict = 0
+  for (const r of rows) {
+    if (r.category === 'TukTuk') {
+      tuktukRows++
+      if (!normalizeTukTukDistrict(r.zone)) tuktukNoDistrict++
+    }
+  }
+
+  return {
+    rows,
+    droppedNoDate,
+    droppedNoCompetitor,
+    droppedNoCategory,
+    droppedCorpYango,
+    tuktukRows,
+    tuktukNoDistrict,
+  }
 }
 
 // Detecta la ciudad a partir del nombre de la pestaña o archivo.
@@ -349,24 +400,24 @@ function parseRows(sheetData, city) {
 //   Si la fila NO tiene Zone, el trigger intenta detectar por keyword en
 //   point_a/point_b (mig 78). Si tampoco matchea, queda en city base.
 const SHEET_CITY_MAP = {
-  lima_pricing_ci_corp_final:   'Corp',
-  lima_pricing_ci_corp:         'Corp',
-  lima_corp:                    'Corp',
-  lima_pricing_ci_final:        'Lima',
-  tru_pricing_ci_final:         'Trujillo',
-  trujillo:                     'Trujillo',
-  arq_pricing_ci_final:         'Arequipa',
-  arequipa:                     'Arequipa',
+  lima_pricing_ci_corp_final: 'Corp',
+  lima_pricing_ci_corp: 'Corp',
+  lima_corp: 'Corp',
+  lima_pricing_ci_final: 'Lima',
+  tru_pricing_ci_final: 'Trujillo',
+  trujillo: 'Trujillo',
+  arq_pricing_ci_final: 'Arequipa',
+  arequipa: 'Arequipa',
   // Airport sheets → base city. Zone column + trigger hace la clasificación.
-  lima_airport_ci_final:        'Lima',
-  lima_airport:                 'Lima',
-  tru_airport_ci_final:         'Trujillo',
-  trujillo_airport:             'Trujillo',
-  arq_airport_ci_final:         'Arequipa',
-  arequipa_airport:             'Arequipa',
+  lima_airport_ci_final: 'Lima',
+  lima_airport: 'Lima',
+  tru_airport_ci_final: 'Trujillo',
+  trujillo_airport: 'Trujillo',
+  arq_airport_ci_final: 'Arequipa',
+  arequipa_airport: 'Arequipa',
   // Legacy (Excel viejos donde "airport" = Lima sin city explícita)
-  airport_ci_final:             'Lima',
-  airport:                      'Lima',
+  airport_ci_final: 'Lima',
+  airport: 'Lima',
 }
 
 // `countryConfig` viene de useCountry() y ya respeta el override DB →
@@ -388,7 +439,12 @@ function detectCity(sheetName, countryConfig) {
   const botCityMap = countryConfig?.botCityMap || {}
   for (const [botKey, dbCity] of Object.entries(botCityMap)) {
     if (!botKey) continue
-    if (key === botKey || key.startsWith(botKey + '_') || key.endsWith('_' + botKey) || key.includes('_' + botKey + '_')) {
+    if (
+      key === botKey ||
+      key.startsWith(botKey + '_') ||
+      key.endsWith('_' + botKey) ||
+      key.includes('_' + botKey + '_')
+    ) {
       return dbCity
     }
   }
@@ -406,14 +462,14 @@ function detectCity(sheetName, countryConfig) {
   // simplemente caemos a la base city y dejamos que el trigger haga la
   // clasificación A/B.
   // ('corp' ya fue chequeado en paso (0) — gana sobre nombres de ciudad embebidos)
-  if (lowerPattern.includes('lima'))      return 'Lima'
+  if (lowerPattern.includes('lima')) return 'Lima'
   if (lowerPattern.includes('tru') || lowerPattern.includes('trujillo')) return 'Trujillo'
   if (lowerPattern.includes('arq') || lowerPattern.includes('arequipa')) return 'Arequipa'
   // Fallback Lima si dice "airport" sin city específica
   if (lowerPattern.includes('airport') || lowerPattern.includes('aero')) return 'Lima'
-  if (lowerPattern.includes('bog'))       return 'Bogota'
-  if (lowerPattern.includes('med'))       return 'Medellin'
-  if (lowerPattern.includes('cali'))      return 'Cali'
+  if (lowerPattern.includes('bog')) return 'Bogota'
+  if (lowerPattern.includes('med')) return 'Medellin'
+  if (lowerPattern.includes('cali')) return 'Cali'
   return null
 }
 
@@ -423,35 +479,37 @@ export default function Upload() {
   const { country, countryConfig: config } = useCountry()
   const toast = useToast()
   const confirm = useConfirm()
-  const [sheets,    setSheets]    = useState([])
-  const [preview,   setPreview]   = useState([])
-  const [allRows,   setAllRows]   = useState([])
-  const [progress,  setProgress]  = useState(null)
-  const [parsing,   setParsing]   = useState(null)
+  const [sheets, setSheets] = useState([])
+  const [preview, setPreview] = useState([])
+  const [allRows, setAllRows] = useState([])
+  const [progress, setProgress] = useState(null)
+  const [parsing, setParsing] = useState(null)
   const [uploadTab, setUploadTab] = useState('manual')
-  const [suspects,  setSuspects]  = useState(null)  // null | array de filas sospechosas
-  const [sanitizationStats, setSanitizationStats] = useState(null)
+  const [suspects, setSuspects] = useState(null) // null | array de filas sospechosas
+  const [, setSanitizationStats] = useState(null)
 
   const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
-  const { isRushHour }       = useRushHourConfig(country)
+  const { isRushHour } = useRushHourConfig(country)
 
   // Procesa un único archivo (File) y devuelve array de sheets
   const parseSingleFile = async (file) => {
     // Dynamic import: solo carga xlsx (~475 KB) cuando realmente se necesita
     const XLSX = await import('xlsx')
     const buf = await file.arrayBuffer()
-    const wb  = XLSX.read(buf, { type: 'array', cellDates: false })
+    const wb = XLSX.read(buf, { type: 'array', cellDates: false })
 
     // Para CSV el sheet name suele ser "Sheet1" — usar nombre de archivo como contexto
     const fileCity = detectCity(file.name.replace(/\.[^.]+$/, ''), config)
 
-    const dataSheets = wb.SheetNames.filter(n => {
+    const dataSheets = wb.SheetNames.filter((n) => {
       const lower = n.toLowerCase()
-      return !lower.includes('raw') &&
-             !lower.includes('legend') &&
-             !lower.includes('sheet4') &&
-             !lower.includes('apoyo') &&
-             !lower.includes('weight')
+      return (
+        !lower.includes('raw') &&
+        !lower.includes('legend') &&
+        !lower.includes('sheet4') &&
+        !lower.includes('apoyo') &&
+        !lower.includes('weight')
+      )
     })
 
     const parsed = []
@@ -460,21 +518,46 @@ export default function Upload() {
       let city = detectCity(sheetName, config) ?? fileCity
       // Forzar que la ciudad detectada pertenezca al país activo
       if (city && !config.dbCities.includes(city)) {
-          city = config.dbCities[0] 
+        city = config.dbCities[0]
       }
       if (!city) city = config.dbCities[0]
 
       const sheet = wb.Sheets[sheetName]
-      const raw   = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
-      const { rows, droppedNoDate, droppedNoCompetitor, droppedNoCategory, droppedCorpYango } = parseRows(raw, city)
-      if (rows.length === 0 && droppedNoDate === 0 && droppedNoCompetitor === 0 && droppedNoCategory === 0 && droppedCorpYango === 0) continue
+      const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
+      const {
+        rows,
+        droppedNoDate,
+        droppedNoCompetitor,
+        droppedNoCategory,
+        droppedCorpYango,
+        tuktukRows,
+        tuktukNoDistrict,
+      } = parseRows(raw, city)
+      if (
+        rows.length === 0 &&
+        droppedNoDate === 0 &&
+        droppedNoCompetitor === 0 &&
+        droppedNoCategory === 0 &&
+        droppedCorpYango === 0
+      )
+        continue
 
       // Etiqueta legible: usar nombre de archivo para CSV (una sola hoja)
-      const label = wb.SheetNames.length === 1
-        ? file.name.replace(/\.[^.]+$/, '')
-        : sheetName
+      const label = wb.SheetNames.length === 1 ? file.name.replace(/\.[^.]+$/, '') : sheetName
 
-      parsed.push({ name: label, city, rowCount: rows.length, droppedNoDate, droppedNoCompetitor, droppedNoCategory, droppedCorpYango, rows, included: true })
+      parsed.push({
+        name: label,
+        city,
+        rowCount: rows.length,
+        droppedNoDate,
+        droppedNoCompetitor,
+        droppedNoCategory,
+        droppedCorpYango,
+        tuktukRows,
+        tuktukNoDistrict,
+        rows,
+        included: true,
+      })
     }
     return parsed
   }
@@ -491,7 +574,7 @@ export default function Upload() {
       const file = files[i]
       setParsing(`Procesando ${i + 1}/${files.length}: ${file.name}…`)
       // Dar un tick al navegador para que renderice el mensaje
-      await new Promise(r => setTimeout(r, 0))
+      await new Promise((r) => setTimeout(r, 0))
 
       const fileParsed = await parseSingleFile(file)
       allParsed.push(...fileParsed)
@@ -499,32 +582,36 @@ export default function Upload() {
 
     setParsing(null)
 
-    const allRows = allParsed.flatMap(s => s.rows)
+    const allRows = allParsed.flatMap((s) => s.rows)
     setSheets(allParsed)
     setAllRows(allRows)
-    setPreview(allRows.slice(0, 20).map(r => ({
-      ...r,
-      _bracket_computed: r.distance_bracket || '(auto BD)',
-      _effective_price:  computeEffectivePrice(r)?.toFixed(2) ?? null,
-    })))
+    setPreview(
+      allRows.slice(0, 20).map((r) => ({
+        ...r,
+        _bracket_computed: r.distance_bracket || '(auto BD)',
+        _effective_price: computeEffectivePrice(r)?.toFixed(2) ?? null,
+      }))
+    )
   }
 
   // Recomputa allRows + preview a partir del estado de sheets (respeta `included`)
   const syncFromSheets = (updatedSheets) => {
-    const included = updatedSheets.filter(s => s.included !== false)
-    const flat = included.flatMap(s => s.rows)
+    const included = updatedSheets.filter((s) => s.included !== false)
+    const flat = included.flatMap((s) => s.rows)
     setAllRows(flat)
-    setPreview(flat.slice(0, 20).map(r => ({
-      ...r,
-      _bracket_computed: r.distance_bracket || '(auto BD)',
-      _effective_price:  computeEffectivePrice(r)?.toFixed(2) ?? null,
-    })))
+    setPreview(
+      flat.slice(0, 20).map((r) => ({
+        ...r,
+        _bracket_computed: r.distance_bracket || '(auto BD)',
+        _effective_price: computeEffectivePrice(r)?.toFixed(2) ?? null,
+      }))
+    )
   }
 
   const updateSheetCity = (idx, newCity) => {
-    setSheets(prev => {
+    setSheets((prev) => {
       const updated = prev.map((s, i) =>
-        i === idx ? { ...s, city: newCity, rows: s.rows.map(r => ({ ...r, city: newCity })) } : s
+        i === idx ? { ...s, city: newCity, rows: s.rows.map((r) => ({ ...r, city: newCity })) } : s
       )
       syncFromSheets(updated)
       return updated
@@ -532,18 +619,16 @@ export default function Upload() {
   }
 
   const toggleSheetIncluded = (idx) => {
-    setSheets(prev => {
-      const updated = prev.map((s, i) =>
-        i === idx ? { ...s, included: s.included === false } : s
-      )
+    setSheets((prev) => {
+      const updated = prev.map((s, i) => (i === idx ? { ...s, included: s.included === false } : s))
       syncFromSheets(updated)
       return updated
     })
   }
 
   const setAllSheetsIncluded = (included) => {
-    setSheets(prev => {
-      const updated = prev.map(s => ({ ...s, included }))
+    setSheets((prev) => {
+      const updated = prev.map((s) => ({ ...s, included }))
       syncFromSheets(updated)
       return updated
     })
@@ -555,17 +640,20 @@ export default function Upload() {
   const handleIngestClick = () => {
     // Paso 1: saneamiento compartido (mismo código que usaremos para la BD del bot).
     // NO descartamos outliers aquí — el usuario los revisa en el panel.
-    const { accepted, dropped, stats } = sanitizeBatch(allRows, rules, { dropOutliers: false })
+    const { accepted, stats } = sanitizeBatch(allRows, rules, { dropOutliers: false })
     setSanitizationStats(stats)
     if (stats.missingFields > 0 || stats.missingPrice > 0) {
       const total = stats.missingFields + stats.missingPrice
-      toast.warn(`${total} fila${total === 1 ? '' : 's'} descartada${total === 1 ? '' : 's'} por incompletas (${stats.missingFields} sin campos clave, ${stats.missingPrice} sin precio).`, { duration: 6000 })
+      toast.warn(
+        `${total} fila${total === 1 ? '' : 's'} descartada${total === 1 ? '' : 's'} por incompletas (${stats.missingFields} sin campos clave, ${stats.missingPrice} sin precio).`,
+        { duration: 6000 }
+      )
     }
 
     // Paso 2: outliers (mismo flujo que ya existía).
-    const { ok, suspects: found } = checkOutliers(accepted)
+    const { suspects: found } = checkOutliers(accepted)
     if (found.length > 0) {
-      setSuspects(found)  // muestra el panel de revisión
+      setSuspects(found) // muestra el panel de revisión
     } else {
       handleIngest(accepted)
     }
@@ -574,18 +662,20 @@ export default function Upload() {
   // Llamado desde OutlierReview cuando el usuario confirma
   const handleOutlierConfirm = (corrections) => {
     const currentSuspects = suspects
-    const finalRows = allRows.map((row, idx) => {
-      const corr = corrections[idx]
-      if (!corr) return row
-      if (corr.exclude) return null
-      const newPrice = parseFloat(corr.price)
-      if (!isNaN(newPrice)) {
-        const suspect = currentSuspects?.find(s => s.idx === idx)
-        const field = suspect?.field ?? 'price_without_discount'
-        if (newPrice !== row[field]) return { ...row, [field]: newPrice }
-      }
-      return row
-    }).filter(Boolean)
+    const finalRows = allRows
+      .map((row, idx) => {
+        const corr = corrections[idx]
+        if (!corr) return row
+        if (corr.exclude) return null
+        const newPrice = parseFloat(corr.price)
+        if (!isNaN(newPrice)) {
+          const suspect = currentSuspects?.find((s) => s.idx === idx)
+          const field = suspect?.field ?? 'price_without_discount'
+          if (newPrice !== row[field]) return { ...row, [field]: newPrice }
+        }
+        return row
+      })
+      .filter(Boolean)
     setSuspects(null)
     handleIngest(finalRows)
   }
@@ -597,22 +687,23 @@ export default function Upload() {
     const cityDateRanges = {}
     for (const r of rowsToInsert) {
       if (!r.city || !r.observed_date) continue
-      if (!cityDateRanges[r.city]) cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
+      if (!cityDateRanges[r.city])
+        cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
       if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
       if (r.observed_date > cityDateRanges[r.city].max) cityDateRanges[r.city].max = r.observed_date
     }
 
     // ── Confirmación destructiva: la ingesta hace DELETE+INSERT por (ciudad, rango) ──
-    const summary = Object.entries(cityDateRanges).map(([city, { min, max }]) =>
-      `${city}: ${min === max ? min : `${min} → ${max}`}`
-    ).join(' · ')
+    const summary = Object.entries(cityDateRanges)
+      .map(([city, { min, max }]) => `${city}: ${min === max ? min : `${min} → ${max}`}`)
+      .join(' · ')
     const ok = await confirm({
       title: 'Confirmar ingesta',
       message:
         `Se reemplazarán las filas manuales existentes en ${country} para:\n\n${summary}\n\n` +
         `Total a insertar: ${rowsToInsert.length} filas. Esta acción no se puede deshacer automáticamente.`,
       confirmText: `Reemplazar e insertar`,
-      cancelText:  'Cancelar',
+      cancelText: 'Cancelar',
       danger: true,
     })
     if (!ok) return
@@ -620,12 +711,9 @@ export default function Upload() {
     setProgress({ current: 0, total: rowsToInsert.length, done: false, error: null })
 
     const batchId = crypto.randomUUID()
-    const cityRanges = Object.entries(cityDateRanges).map(([city, { min, max }]) =>
-      ({ city, min_date: min, max_date: max })
-    )
 
     // ── Paso 2: Pre-computar campos calculados en cada fila ────────────────
-    const finalRows = rowsToInsert.map(r => {
+    const finalRows = rowsToInsert.map((r) => {
       // Normalizar competition_name context-aware. En city='Corp' colapsa
       // 'YangoEconomy' → 'Yango Economy' (el canónico del dashboard usa
       // espacios en Corp); en el resto deja 'YangoComfort' intacto (es
@@ -635,7 +723,7 @@ export default function Upload() {
         ...r,
         competition_name,
         country,
-        data_source:     'manual',
+        data_source: 'manual',
         upload_batch_id: batchId,
         rush_hour: r.observed_time
           ? (isRushHour(r.observed_time, r.city) ?? r.rush_hour)
@@ -647,7 +735,8 @@ export default function Upload() {
       // para el promedio). Quedan bid_1/bid_2/bid_3.
       if (row.competition_name === 'InDrive') {
         const bidVals = [row.bid_1, row.bid_2, row.bid_3]
-          .map(b => parseFloat(b)).filter(n => !isNaN(n) && n > 0)
+          .map((b) => parseFloat(b))
+          .filter((n) => !isNaN(n) && n > 0)
         if (bidVals.length) {
           const curMin = parseFloat(row.minimal_bid)
           if (!curMin || curMin === 0) row.minimal_bid = Math.min(...bidVals)
@@ -673,7 +762,7 @@ export default function Upload() {
         .gte('observed_date', min)
         .lte('observed_date', max)
       if (delErr) {
-        setProgress(p => ({ ...p, error: delErr.message, done: false }))
+        setProgress((p) => ({ ...p, error: delErr.message, done: false }))
         return
       }
     }
@@ -687,17 +776,17 @@ export default function Upload() {
       const { error } = await sb.from('pricing_observations').insert(chunk)
 
       if (error) {
-        setProgress(p => ({ ...p, error: error.message, done: false }))
+        setProgress((p) => ({ ...p, error: error.message, done: false }))
         return
       }
 
-      setProgress(p => ({
+      setProgress((p) => ({
         ...p,
         current: Math.min(i + BATCH_SIZE, finalRows.length),
       }))
 
       if (i + BATCH_SIZE < finalRows.length) {
-        await new Promise(r => setTimeout(r, 150))
+        await new Promise((r) => setTimeout(r, 150))
       }
     }
 
@@ -715,7 +804,15 @@ export default function Upload() {
 
   return (
     <div className="upload-page">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          flexWrap: 'wrap',
+          marginBottom: 8,
+        }}
+      >
         <h1 style={{ margin: 0 }}>Cargar Data</h1>
         <BotFreshnessBadge variant="pill" />
       </div>
@@ -758,164 +855,235 @@ export default function Upload() {
       {uploadTab === 'dbsync' && <BotDbSync />}
 
       {/* Manual upload */}
-      {uploadTab === 'manual' && <>
-      {!allRows.length && !parsing && <DropZone onFile={handleFile} />}
+      {uploadTab === 'manual' && (
+        <>
+          {!allRows.length && !parsing && <DropZone onFile={handleFile} />}
 
-      {/* Indicador de parseo */}
-      {parsing && (
-        <div style={{ padding: '20px 0', textAlign: 'center', color: '#555', fontSize: 14 }}>
-          <div style={{ marginBottom: 8, fontSize: 22 }}>⏳</div>
-          {parsing}
-        </div>
-      )}
+          {/* Indicador de parseo */}
+          {parsing && (
+            <div style={{ padding: '20px 0', textAlign: 'center', color: '#555', fontSize: 14 }}>
+              <div style={{ marginBottom: 8, fontSize: 22 }}>⏳</div>
+              {parsing}
+            </div>
+          )}
 
-      {/* Resumen de archivos detectados */}
-      {sheets.length > 0 && (
-        <div className="config-section" style={{ marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-            <h2 style={{ margin: 0 }}>Archivos detectados — verifica la ciudad asignada</h2>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => setAllSheetsIncluded(true)}
-                style={{ fontSize: 12, padding: '5px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: '#fff', cursor: 'pointer', fontWeight: 600 }}
-                title="Marcar todas las pestañas como incluidas"
+          {/* Resumen de archivos detectados */}
+          {sheets.length > 0 && (
+            <div className="config-section" style={{ marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginBottom: 8,
+                }}
               >
-                ✓ Incluir todas
-              </button>
-              <button
-                type="button"
-                onClick={() => setAllSheetsIncluded(false)}
-                style={{ fontSize: 12, padding: '5px 10px', border: '1px solid var(--color-border)', borderRadius: 6, background: '#fff', cursor: 'pointer', fontWeight: 600 }}
-                title="Saltar todas — después incluís solo las que querés"
+                <h2 style={{ margin: 0 }}>Archivos detectados — verifica la ciudad asignada</h2>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setAllSheetsIncluded(true)}
+                    style={{
+                      fontSize: 12,
+                      padding: '5px 10px',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 6,
+                      background: '#fff',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                    title="Marcar todas las pestañas como incluidas"
+                  >
+                    ✓ Incluir todas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAllSheetsIncluded(false)}
+                    style={{
+                      fontSize: 12,
+                      padding: '5px 10px',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 6,
+                      background: '#fff',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                    title="Saltar todas — después incluís solo las que querés"
+                  >
+                    ✕ Saltar todas
+                  </button>
+                </div>
+              </div>
+              <table className="config-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>Incluir</th>
+                    <th style={{ textAlign: 'left' }}>Archivo / Pestaña</th>
+                    <th style={{ textAlign: 'left' }}>Ciudad detectada</th>
+                    <th># Filas válidas</th>
+                    <th style={{ textAlign: 'left' }}>Descartadas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sheets.map((s, i) => {
+                    const dDate = s.droppedNoDate || 0
+                    const dComp = s.droppedNoCompetitor || 0
+                    const dCat = s.droppedNoCategory || 0
+                    const dCorp = s.droppedCorpYango || 0
+                    const dropped = dDate + dComp + dCat + dCorp
+                    const parts = []
+                    if (dDate > 0) parts.push(`${dDate} sin fecha`)
+                    if (dComp > 0) parts.push(`${dComp} sin competidor`)
+                    if (dCat > 0) parts.push(`${dCat} sin categoría`)
+                    if (dCorp > 0) parts.push(`${dCorp} Corp con "Yango" anónimo`)
+                    const isIncluded = s.included !== false
+                    return (
+                      <tr key={i} style={isIncluded ? undefined : { opacity: 0.45 }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isIncluded}
+                            onChange={() => toggleSheetIncluded(i)}
+                            title={
+                              isIncluded ? 'Click para saltar esta pestaña' : 'Click para incluirla'
+                            }
+                            style={{ cursor: 'pointer', width: 16, height: 16 }}
+                          />
+                        </td>
+                        <td
+                          style={{
+                            textAlign: 'left',
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                            textDecoration: isIncluded ? 'none' : 'line-through',
+                          }}
+                        >
+                          {s.name}
+                        </td>
+                        <td>
+                          <select
+                            value={s.city}
+                            onChange={(e) => updateSheetCity(i, e.target.value)}
+                            disabled={!isIncluded}
+                            style={{ fontSize: 12, padding: '2px 4px' }}
+                          >
+                            {config.dbCities.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{s.rowCount.toLocaleString()}</td>
+                        <td style={{ fontSize: 11, color: dropped > 0 ? '#dc2626' : '#9ca3af' }}>
+                          {dropped > 0 ? `⚠ ${dropped} (${parts.join(' · ')})` : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  <tr style={{ background: '#f9fbe7', fontWeight: 700 }}>
+                    <td></td>
+                    <td style={{ textAlign: 'left' }}>
+                      TOTAL ({sheets.filter((s) => s.included !== false).length} de {sheets.length}{' '}
+                      pestañas)
+                    </td>
+                    <td></td>
+                    <td style={{ textAlign: 'right' }}>{allRows.length.toLocaleString()}</td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {sheets.length > 0 && allRows.length === 0 && (
+            <div className="upload-error" style={{ marginBottom: 10 }}>
+              ⚠ Todas las pestañas están saltadas. Incluí al menos una para poder insertar.
+            </div>
+          )}
+
+          {/* TukTuk: distritos válidos + aviso de filas sin distrito (no se descartan) */}
+          {(() => {
+            const incl = sheets.filter((s) => s.included !== false)
+            const hasTukTuk = incl.some((s) => (s.tuktukRows || 0) > 0)
+            if (!hasTukTuk) return null
+            const totalNo = incl.reduce((a, s) => a + (s.tuktukNoDistrict || 0), 0)
+            return (
+              <div
+                className="config-section"
+                style={{ marginBottom: 12, borderLeft: '3px solid #f59e0b' }}
               >
-                ✕ Saltar todas
+                <strong>🛺 TukTuk — distritos válidos (columna Zone):</strong>{' '}
+                {TUKTUK_DISTRICTS.join(' · ')}
+                <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
+                  TukTuk opera dentro de cada distrito → la columna <code>Zone</code> debe traer uno
+                  de estos (se normaliza solo: mayúsculas/acentos/nombre completo).
+                </div>
+                {totalNo > 0 && (
+                  <div style={{ marginTop: 6, color: '#b45309', fontWeight: 600 }}>
+                    ⚠ {totalNo} fila{totalNo === 1 ? '' : 's'} TukTuk sin distrito válido —
+                    completá/corregí la columna Zone. (No se descartan, pero no aparecerán en el
+                    selector de zona del dashboard.)
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {preview.length > 0 && !suspects && <PreviewTable rows={preview} />}
+
+          {/* Panel de revisión de outliers */}
+          {suspects && (
+            <OutlierReview
+              suspects={suspects}
+              onConfirm={handleOutlierConfirm}
+              onCancel={() => setSuspects(null)}
+            />
+          )}
+
+          {progress && (
+            <IngestProgress
+              current={progress.current}
+              total={progress.total}
+              done={progress.done}
+              error={progress.error}
+            />
+          )}
+
+          {rulesLoaded && rules.length === 0 && allRows.length > 0 && (
+            <div className="upload-error" style={{ marginBottom: 10 }}>
+              ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se
+              aplicará. Ve a Config → Límites Precio para agregar reglas.
+            </div>
+          )}
+
+          {allRows.length > 0 && (
+            <div className="upload-actions">
+              {!progress?.done && (
+                <>
+                  <div className="upload-overwrite-notice">
+                    ⚠️ Al insertar se <strong>borrarán automáticamente</strong> las filas existentes
+                    del mismo rango de fechas y ciudad, luego se insertan las nuevas. Subir el mismo
+                    Excel dos veces no genera duplicados.
+                  </div>
+                  <button
+                    className="btn-ingest"
+                    onClick={handleIngestClick}
+                    disabled={!!progress && !progress.done && !progress.error}
+                  >
+                    Insertar {allRows.length.toLocaleString()} filas en Supabase
+                  </button>
+                </>
+              )}
+              <button className="btn-clear" onClick={handleClear}>
+                Limpiar
               </button>
             </div>
-          </div>
-          <table className="config-table">
-            <thead>
-              <tr>
-                <th style={{ width: 60 }}>Incluir</th>
-                <th style={{ textAlign: 'left' }}>Archivo / Pestaña</th>
-                <th style={{ textAlign: 'left' }}>Ciudad detectada</th>
-                <th># Filas válidas</th>
-                <th style={{ textAlign: 'left' }}>Descartadas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sheets.map((s, i) => {
-                const dDate = s.droppedNoDate || 0
-                const dComp = s.droppedNoCompetitor || 0
-                const dCat  = s.droppedNoCategory || 0
-                const dCorp = s.droppedCorpYango || 0
-                const dropped = dDate + dComp + dCat + dCorp
-                const parts = []
-                if (dDate > 0) parts.push(`${dDate} sin fecha`)
-                if (dComp > 0) parts.push(`${dComp} sin competidor`)
-                if (dCat  > 0) parts.push(`${dCat} sin categoría`)
-                if (dCorp > 0) parts.push(`${dCorp} Corp con "Yango" anónimo`)
-                const isIncluded = s.included !== false
-                return (
-                  <tr key={i} style={isIncluded ? undefined : { opacity: 0.45 }}>
-                    <td style={{ textAlign: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={isIncluded}
-                        onChange={() => toggleSheetIncluded(i)}
-                        title={isIncluded ? 'Click para saltar esta pestaña' : 'Click para incluirla'}
-                        style={{ cursor: 'pointer', width: 16, height: 16 }}
-                      />
-                    </td>
-                    <td style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 11, textDecoration: isIncluded ? 'none' : 'line-through' }}>
-                      {s.name}
-                    </td>
-                    <td>
-                      <select
-                        value={s.city}
-                        onChange={e => updateSheetCity(i, e.target.value)}
-                        disabled={!isIncluded}
-                        style={{ fontSize: 12, padding: '2px 4px' }}
-                      >
-                        {config.dbCities.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{s.rowCount.toLocaleString()}</td>
-                    <td style={{ fontSize: 11, color: dropped > 0 ? '#dc2626' : '#9ca3af' }}>
-                      {dropped > 0 ? `⚠ ${dropped} (${parts.join(' · ')})` : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
-              <tr style={{ background: '#f9fbe7', fontWeight: 700 }}>
-                <td></td>
-                <td style={{ textAlign: 'left' }}>
-                  TOTAL ({sheets.filter(s => s.included !== false).length} de {sheets.length} pestañas)
-                </td>
-                <td></td>
-                <td style={{ textAlign: 'right' }}>{allRows.length.toLocaleString()}</td>
-                <td></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {sheets.length > 0 && allRows.length === 0 && (
-        <div className="upload-error" style={{ marginBottom: 10 }}>
-          ⚠ Todas las pestañas están saltadas. Incluí al menos una para poder insertar.
-        </div>
-      )}
-
-      {preview.length > 0 && !suspects && <PreviewTable rows={preview} />}
-
-      {/* Panel de revisión de outliers */}
-      {suspects && (
-        <OutlierReview
-          suspects={suspects}
-          onConfirm={handleOutlierConfirm}
-          onCancel={() => setSuspects(null)}
-        />
-      )}
-
-      {progress && (
-        <IngestProgress
-          current={progress.current}
-          total={progress.total}
-          done={progress.done}
-          error={progress.error}
-        />
-      )}
-
-      {rulesLoaded && rules.length === 0 && allRows.length > 0 && (
-        <div className="upload-error" style={{ marginBottom: 10 }}>
-          ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se aplicará.
-          Ve a Config → Límites Precio para agregar reglas.
-        </div>
-      )}
-
-      {allRows.length > 0 && (
-        <div className="upload-actions">
-          {!progress?.done && (
-            <>
-              <div className="upload-overwrite-notice">
-                ⚠️ Al insertar se <strong>borrarán automáticamente</strong> las filas existentes
-                del mismo rango de fechas y ciudad, luego se insertan las nuevas.
-                Subir el mismo Excel dos veces no genera duplicados.
-              </div>
-              <button
-                className="btn-ingest"
-                onClick={handleIngestClick}
-                disabled={!!progress && !progress.done && !progress.error}
-              >
-                Insertar {allRows.length.toLocaleString()} filas en Supabase
-              </button>
-            </>
           )}
-          <button className="btn-clear" onClick={handleClear}>Limpiar</button>
-        </div>
+        </>
       )}
-      </>}
     </div>
   )
 }
