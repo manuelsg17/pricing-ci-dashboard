@@ -41,6 +41,7 @@ import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
 import { yangoGmvBonus, yangoGmvDetail, hasYangoGmvTable } from '../lib/yangoGmvBonus'
 import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 import CollapsibleSection from '../components/market/CollapsibleSection'
+import BonusSummaryByCity from '../components/dashboard/BonusSummaryByCity'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
@@ -1424,10 +1425,20 @@ export default function Rentabilidad() {
           </div>
           <div style={{ marginTop: 6, fontSize: 11, color: 'var(--color-muted)' }}>
             Los bonos de competidores salen de Config → Bonos. El de Yango es el bono por % de GMV
-            (tablas fijas en el código, no editable en Config → Bonos). Si una fila muestra “—” en
-            bonos, ese competidor no tiene bono cargado para este segmento/volumen.
+            (editable en Config → Bonos → “Bono Yango (% GMV)”). Si una fila muestra “—” en bonos,
+            ese competidor no tiene bono cargado para este segmento/volumen.
           </div>
         </div>
+      )}
+
+      {/* ── Resumen de bonos mapeados para la ciudad activa (solo lectura) ── */}
+      {hasData && (
+        <BonusSummaryByCity
+          country={country}
+          dbCity={dbCity}
+          currency={currency}
+          yangoGmvTiers={yangoGmvTiers}
+        />
       )}
 
       {/* ── Matriz de escenarios Yango (E1 mejor / E4 peor) ── */}
