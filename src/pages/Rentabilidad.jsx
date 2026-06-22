@@ -77,6 +77,7 @@ export default function Rentabilidad() {
   // parámetros de ventana/racha (alimentan comm_discount InDrive, surge y streak Didi).
   const [archetype, setArchetype] = useState({ segment: 'active', sharePeak: 0.25, streakDays: 3 })
   const [branded, setBranded] = useState(false) // bono Yango GMV: con/sin brandeo (default sin)
+  const [showDetail, setShowDetail] = useState(false) // tabla composición: columnas extra (comisión, % bonos)
 
   // dbCategory -> { comp -> { avg, count } }
   const [pricesByCat, setPricesByCat] = useState({})
@@ -546,6 +547,8 @@ export default function Rentabilidad() {
   const hasData = Object.keys(pricesByCat).length > 0
   const fmt = (n) =>
     n == null || isNaN(n) ? '—' : `${currency} ${n.toFixed(metric === 'trip' ? 2 : 0)}`
+  // Formateador a 2 decimales para la tabla "espejo del Excel" (siempre semanal).
+  const fmt2 = (n) => (n == null || isNaN(n) ? '—' : `${currency} ${n.toFixed(2)}`)
 
   // ── Desglose de ganancia: tarifa (neto) vs bonos/incentivos por competidor ──
   // Mismo cálculo que netFor: fare = precio·viajes·(1−comisión efectiva); bonos =
@@ -575,6 +578,14 @@ export default function Rentabilidad() {
         fare: fareWeek / div,
         bonus: bonusWeek / div,
         total: (fareWeek + bonusWeek) / div,
+        // ── Magnitudes SEMANALES absolutas para la tabla "espejo del Excel" ──
+        avgFare: pd.avg, // tarifa promedio por viaje (Avg Fare)
+        trips: liveTrips, // # viajes/sem (constante por fila)
+        gmvGross: pd.avg * liveTrips, // GMV bruto semanal
+        gmvNet: fareWeek, // GMV − comisión (neto antes de bonos)
+        incentiveWeek: bonusWeek, // incentivos/bonos semanales
+        totalWeek: fareWeek + bonusWeek, // total semanal (neto + bonos)
+        perTrip: (fareWeek + bonusWeek) / liveTrips, // ganancia por viaje
       })
     }
     return out
@@ -597,12 +608,18 @@ export default function Rentabilidad() {
 
   // Mejor competidor (mayor total) + posición de Yango en el ranking de rentabilidad.
   const breakdownStats = useMemo(() => {
-    if (!breakdown.length) return { bestTotal: null, yangoRank: null }
+    if (!breakdown.length) return { bestTotal: null, yangoRank: null, ranks: {} }
     const sorted = [...breakdown].sort((a, b) => b.total - a.total)
     const yangoBest = breakdown.filter((b) => isYango(b.comp)).sort((a, b) => b.total - a.total)[0]
+    // Rank de cada competidor por Total (1 = mayor) — para la columna Rank del Excel.
+    const ranks = {}
+    sorted.forEach((b, i) => {
+      ranks[b.comp] = i + 1
+    })
     return {
       bestTotal: sorted[0].total,
       yangoRank: yangoBest ? sorted.findIndex((b) => b === yangoBest) + 1 : null,
+      ranks,
     }
   }, [breakdown])
 
@@ -1312,31 +1329,57 @@ export default function Rentabilidad() {
                 {breakdown.length} en rentabilidad
               </span>
             )}
+            <button
+              onClick={() => setShowDetail((s) => !s)}
+              title="Mostrar/ocultar columnas Comisión efectiva y % por bonos"
+              style={{
+                marginLeft: 'auto',
+                padding: '3px 10px',
+                borderRadius: 999,
+                fontSize: 11,
+                cursor: 'pointer',
+                border: '1px solid var(--color-border, #e2e8f0)',
+                background: showDetail ? 'var(--color-yango-light, #fff5f5)' : '#fff',
+                color: showDetail ? 'var(--color-yango, #E53935)' : 'var(--color-muted)',
+                fontWeight: 600,
+              }}
+            >
+              {showDetail ? '− Detalle' : '+ Detalle'}
+            </button>
           </div>
           <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 10 }}>
-            {liveTrips} viajes/sem ·{' '}
-            {metric === 'trip' ? t('rentabilidad.per_trip') : t('rentabilidad.per_week')} — cuánto
-            sale de la <strong>tarifa</strong> (después de comisión) y cuánto de{' '}
+            {liveTrips} viajes/sem · valores semanales (+ columna por viaje) — cuánto sale de la{' '}
+            <strong>tarifa</strong> (después de comisión) y cuánto de{' '}
             <strong>bonos/incentivos</strong> del competidor.
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={matrixTableStyle}>
               <thead>
                 <tr>
+                  <th style={thStyle}># Viajes/sem</th>
                   <th style={thStyle}>Competidor</th>
-                  <th style={thStyle}>Precio WA</th>
-                  <th style={thStyle}>Comisión efectiva</th>
-                  <th style={thStyle}>Tarifa (neto)</th>
-                  <th style={thStyle}>Bonos / incentivos</th>
+                  <th style={thStyle}>Tarifa prom</th>
+                  <th style={thStyle}>GMV</th>
+                  <th style={thStyle}>GMV − comisión</th>
+                  <th style={thStyle}>Incentivos</th>
                   <th style={thStyle}>Total</th>
-                  <th style={thStyle}>% por bonos</th>
+                  <th style={thStyle}>Por viaje</th>
+                  <th style={thStyle}>Rank</th>
+                  {showDetail && <th style={thStyle}>Comisión efectiva</th>}
+                  {showDetail && <th style={thStyle}>% por bonos</th>}
                 </tr>
               </thead>
               <tbody>
                 {breakdown.map((b) => {
                   const isBest = b.total === breakdownStats.bestTotal
+                  const rank = breakdownStats.ranks[b.comp]
+                  const pctBonus =
+                    b.totalWeek > 0 && b.incentiveWeek > 0.005
+                      ? Math.round((b.incentiveWeek / b.totalWeek) * 100)
+                      : null
                   return (
                     <tr key={b.comp} style={{ background: isBest ? '#f0fdf4' : undefined }}>
+                      <td style={tdStyle}>{b.trips}</td>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>
                         <span style={{ color: COMPETITOR_COLORS[b.comp] || '#64748b' }}>●</span>{' '}
                         {b.comp}
@@ -1344,17 +1387,17 @@ export default function Rentabilidad() {
                           <span style={{ color: '#16A34A', fontWeight: 700 }}> · más rentable</span>
                         )}
                       </td>
-                      <td style={tdStyle}>{fmt(b.gross)}</td>
-                      <td style={tdStyle}>{b.comm.toFixed(1)}%</td>
-                      <td style={tdStyle}>{fmt(b.fare)}</td>
+                      <td style={tdStyle}>{fmt2(b.avgFare)}</td>
+                      <td style={tdStyle}>{fmt2(b.gmvGross)}</td>
+                      <td style={tdStyle}>{fmt2(b.gmvNet)}</td>
                       <td
                         style={{
                           ...tdStyle,
                           fontWeight: 600,
-                          color: b.bonus > 0.005 ? '#16A34A' : 'var(--color-muted)',
+                          color: b.incentiveWeek > 0.005 ? '#16A34A' : 'var(--color-muted)',
                         }}
                       >
-                        {b.bonus > 0.005 ? `+ ${fmt(b.bonus)}` : '—'}
+                        {b.incentiveWeek > 0.005 ? `+ ${fmt2(b.incentiveWeek)}` : '—'}
                       </td>
                       <td
                         style={{
@@ -1363,13 +1406,16 @@ export default function Rentabilidad() {
                           color: isBest ? '#16A34A' : undefined,
                         }}
                       >
-                        {fmt(b.total)}
+                        {fmt2(b.totalWeek)}
                       </td>
-                      <td style={tdStyle}>
-                        {b.total > 0 && b.bonus > 0.005
-                          ? `${Math.round((b.bonus / b.total) * 100)}%`
-                          : '—'}
+                      <td style={tdStyle}>{fmt2(b.perTrip)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                        {rank ? `${rank === 1 ? '🏆 ' : ''}${rank}º` : '—'}
                       </td>
+                      {showDetail && <td style={tdStyle}>{b.comm.toFixed(1)}%</td>}
+                      {showDetail && (
+                        <td style={tdStyle}>{pctBonus != null ? `${pctBonus}%` : '—'}</td>
+                      )}
                     </tr>
                   )
                 })}
