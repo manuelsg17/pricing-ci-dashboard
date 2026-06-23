@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
-import { useCompetitorBonuses } from '../../hooks/useCompetitorBonuses'
 import { describeBonus } from '../../lib/competitorBonus'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import CollapsibleSection from '../market/CollapsibleSection'
 
 // Resumen READ-ONLY de los bonos mapeados para la ciudad seleccionada.
-// Misma fuente que Config → Bonos (competitor_bonuses vía useCompetitorBonuses)
-// + el bono Yango por % de GMV (yango_gmv_tiers, recibido por prop). No escribe.
+// Misma fuente que Config → Bonos: recibe `bonusRows` (allRows de
+// competitor_bonuses) del hook que Rentabilidad ya tiene — sin re-fetch — y el
+// bono Yango por % de GMV (yango_gmv_tiers) por prop. No escribe nada.
 const SEGMENT_LABEL = {
   active: 'Activo',
   new: 'Nuevo',
@@ -49,17 +49,16 @@ function metaOf(b) {
 }
 
 export default function BonusSummaryByCity({
-  country,
   dbCity,
   currency = 'S/',
   yangoGmvTiers = [],
+  bonusRows = [],
+  loading = false,
 }) {
-  const { allRows, loading } = useCompetitorBonuses(dbCity, country)
-
   // Bonos de competidores activos que aplican a la ciudad activa
   // (city = ciudad seleccionada, o city = null = "todas las ciudades").
   const compRows = useMemo(() => {
-    const rows = (allRows || []).filter(
+    const rows = (bonusRows || []).filter(
       (r) => r.is_active !== false && (r.city === dbCity || !r.city)
     )
     const byComp = {}
@@ -67,7 +66,7 @@ export default function BonusSummaryByCity({
       ;(byComp[r.competitor_name] ||= []).push(r)
     }
     return Object.entries(byComp)
-  }, [allRows, dbCity])
+  }, [bonusRows, dbCity])
 
   // Bono Yango % GMV para la ciudad activa, una línea por variante presente.
   const yangoRows = useMemo(() => {

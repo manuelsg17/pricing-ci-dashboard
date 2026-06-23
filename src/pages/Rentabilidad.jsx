@@ -110,7 +110,11 @@ export default function Rentabilidad() {
   const dbCategories = useMemo(() => [...new Set(catMap.map((c) => c.dbCategory))], [catMap])
 
   const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity, country)
-  const { bonuses } = useCompetitorBonuses(dbCity, country)
+  const {
+    bonuses,
+    allRows: bonusRows,
+    loading: bonusesLoading,
+  } = useCompetitorBonuses(dbCity, country)
 
   // ── Comisión total de Yango = base ciudad + partner(3%) + herramientas ──────
   // Reemplaza el % plano del DB (Yango figura 20%): el modelo real es apilable.
@@ -586,7 +590,7 @@ export default function Rentabilidad() {
         gmvNet: fareWeek, // GMV − comisión (neto antes de bonos)
         incentiveWeek: bonusWeek, // incentivos/bonos semanales
         totalWeek: fareWeek + bonusWeek, // total semanal (neto + bonos)
-        perTrip: (fareWeek + bonusWeek) / liveTrips, // ganancia por viaje
+        perTrip: liveTrips > 0 ? (fareWeek + bonusWeek) / liveTrips : 0, // ganancia por viaje
       })
     }
     return out
@@ -610,15 +614,18 @@ export default function Rentabilidad() {
   // Mejor competidor (mayor total) + posición de Yango en el ranking de rentabilidad.
   const breakdownStats = useMemo(() => {
     if (!breakdown.length) return { bestTotal: null, yangoRank: null, ranks: {} }
-    const sorted = [...breakdown].sort((a, b) => b.total - a.total)
-    const yangoBest = breakdown.filter((b) => isYango(b.comp)).sort((a, b) => b.total - a.total)[0]
-    // Rank de cada competidor por Total (1 = mayor) — para la columna Rank del Excel.
+    // Rank/best por Total SEMANAL (totalWeek), que es lo que muestra la tabla —
+    // así el rank no depende del toggle Por viaje/Semana (independiente de `metric`).
+    const sorted = [...breakdown].sort((a, b) => b.totalWeek - a.totalWeek)
+    const yangoBest = breakdown
+      .filter((b) => isYango(b.comp))
+      .sort((a, b) => b.totalWeek - a.totalWeek)[0]
     const ranks = {}
     sorted.forEach((b, i) => {
       ranks[b.comp] = i + 1
     })
     return {
-      bestTotal: sorted[0].total,
+      bestTotal: sorted[0].totalWeek,
       yangoRank: yangoBest ? sorted.findIndex((b) => b === yangoBest) + 1 : null,
       ranks,
     }
@@ -1372,7 +1379,7 @@ export default function Rentabilidad() {
               </thead>
               <tbody>
                 {breakdown.map((b) => {
-                  const isBest = b.total === breakdownStats.bestTotal
+                  const isBest = b.totalWeek === breakdownStats.bestTotal
                   const rank = breakdownStats.ranks[b.comp]
                   const pctBonus =
                     b.totalWeek > 0 && b.incentiveWeek > 0.005
@@ -1434,10 +1441,11 @@ export default function Rentabilidad() {
       {/* ── Resumen de bonos mapeados para la ciudad activa (solo lectura) ── */}
       {hasData && (
         <BonusSummaryByCity
-          country={country}
           dbCity={dbCity}
           currency={currency}
           yangoGmvTiers={yangoGmvTiers}
+          bonusRows={bonusRows}
+          loading={bonusesLoading}
         />
       )}
 
