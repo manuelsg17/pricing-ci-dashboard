@@ -24,8 +24,7 @@ import PriceRulesTable from '../components/config/PriceRulesTable'
 import RushHourConfig from '../components/config/RushHourConfig'
 import CITimeslotsConfig from '../components/config/CITimeslotsConfig'
 import CommissionsConfig from '../components/config/CommissionsConfig'
-import BonusesConfig from '../components/config/BonusesConfig'
-import YangoGmvConfig from '../components/config/YangoGmvConfig'
+import BonusesTab from '../components/config/BonusesTab'
 import InDriveConfig from '../components/config/InDriveConfig'
 import CountriesConfig from '../components/config/CountriesConfig'
 import BotRulesTable from '../components/config/BotRulesTable'
@@ -141,12 +140,7 @@ export default function Config() {
           {
             id: 'bonuses',
             label: t('config.bonuses'),
-            render: () => <BonusesConfig country={country} />,
-          },
-          {
-            id: 'yango_gmv',
-            label: 'Bono Yango GMV',
-            render: () => <YangoGmvConfig country={country} />,
+            render: () => <BonusesTab country={country} />,
           },
           {
             id: 'indrive',
