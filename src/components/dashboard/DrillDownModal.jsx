@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import { useFilterContext } from '../../context/FilterContext'
 import { useI18n } from '../../context/LanguageContext'
-import { formatPrice, formatCurrency } from '../../lib/format.js'
+import { formatCurrency } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
 
 function getWeekDateRange(periodKey) {
@@ -18,26 +18,43 @@ function getWeekDateRange(periodKey) {
   sunday.setDate(monday.getDate() + 6)
   return {
     start: monday.toISOString().slice(0, 10),
-    end:   sunday.toISOString().slice(0, 10),
+    end: sunday.toISOString().slice(0, 10),
   }
 }
 
-export default function DrillDownModal({ open, onClose, comp, periodKey, bracket, currency, viewMode }) {
+export default function DrillDownModal({
+  open,
+  onClose,
+  comp,
+  periodKey,
+  bracket,
+  currency,
+  viewMode,
+}) {
   const { filters } = useFilterContext()
   const { t } = useI18n()
-  const [rows,    setRows]    = useState([])
+  const [rows, setRows] = useState([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!open) { setRows([]); return }
+    if (!open) {
+      setRows([])
+      setTotalCount(0)
+      return
+    }
     let cancelled = false
     setLoading(true)
 
     async function load() {
       // InDrive guarda precio en recommended_price; los demás en price_without_discount.
       const priceField = comp === 'InDrive' ? 'recommended_price' : 'price_without_discount'
-      let query = sb.from('pricing_observations')
-        .select('observed_date, observed_time, distance_bracket, price_without_discount, price_with_discount, recommended_price, minimal_bid, surge, data_source, time_of_day')
+      let query = sb
+        .from('pricing_observations')
+        .select(
+          'observed_date, observed_time, distance_bracket, price_without_discount, price_with_discount, recommended_price, minimal_bid, surge, data_source, time_of_day',
+          { count: 'exact' }
+        )
         .eq('country', filters.country)
         .eq('city', filters.dbCity)
         .eq('category', filters.dbCategory)
@@ -58,25 +75,41 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
         query = query.gte('observed_date', start).lte('observed_date', end)
       }
 
-      const { data, error } = await query
+      const { data, error, count } = await query
       if (!cancelled) {
         if (error) console.error('Drill-down query error:', error)
         setRows(data || [])
+        setTotalCount(count ?? (data ? data.length : 0))
         setLoading(false)
       }
     }
     load()
-    return () => { cancelled = true }
-  }, [open, comp, periodKey, bracket, viewMode, filters.country, filters.dbCity, filters.dbCategory])
+    return () => {
+      cancelled = true
+    }
+  }, [
+    open,
+    comp,
+    periodKey,
+    bracket,
+    viewMode,
+    filters.country,
+    filters.dbCity,
+    filters.dbCategory,
+  ])
 
   if (!open) return null
 
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
         background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         padding: 16,
       }}
       onClick={onClose}
@@ -84,57 +117,101 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
       <div
         style={{
           background: 'var(--color-panel)',
-          borderRadius: 12, padding: 24,
-          maxWidth: 640, width: '100%', maxHeight: '80vh',
+          borderRadius: 12,
+          padding: 24,
+          maxWidth: 640,
+          width: '100%',
+          maxHeight: '80vh',
           overflow: 'auto',
           boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
           animation: 'confirmIn 0.15s ease',
         }}
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 14,
+          }}
+        >
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
               {t('dashboard.drill.title')}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>
-              {prettyCompetitor(comp)} · {bracket === '_wa' ? 'WA (todos los brackets)' : bracket} · {periodKey}
+              {prettyCompetitor(comp)} · {bracket === '_wa' ? 'WA (todos los brackets)' : bracket} ·{' '}
+              {periodKey}
             </div>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: 'none', border: 'none', fontSize: 20, lineHeight: 1,
-              cursor: 'pointer', color: 'var(--color-muted)', padding: '0 4px',
+              background: 'none',
+              border: 'none',
+              fontSize: 20,
+              lineHeight: 1,
+              cursor: 'pointer',
+              color: 'var(--color-muted)',
+              padding: '0 4px',
               borderRadius: 4,
             }}
-          >×</button>
+          >
+            ×
+          </button>
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--color-muted)', fontSize: 13 }}>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '28px 0',
+              color: 'var(--color-muted)',
+              fontSize: 13,
+            }}
+          >
             {t('app.loading')}
           </div>
         ) : rows.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--color-muted)', fontSize: 13 }}>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '28px 0',
+              color: 'var(--color-muted)',
+              fontSize: 13,
+            }}
+          >
             {t('dashboard.drill.no_data')}
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 8, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--color-muted)',
+                marginBottom: 8,
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
               <span>
-                {rows.length} {t('dataentry.rows')} · {filters.dbCity} · {filters.dbCategory}
+                <strong>{totalCount.toLocaleString()}</strong> {t('dataentry.rows')}
+                {totalCount > rows.length ? ` · mostrando ${rows.length}` : ''} · {filters.dbCity} ·{' '}
+                {filters.dbCategory}
               </span>
               <span>
                 {(() => {
                   const prices = rows
-                    .map(r => Number(r.price_without_discount ?? r.recommended_price))
-                    .filter(p => !isNaN(p) && p > 0)
+                    .map((r) => Number(r.price_without_discount ?? r.recommended_price))
+                    .filter((p) => !isNaN(p) && p > 0)
                   if (!prices.length) return null
                   const avg = prices.reduce((a, b) => a + b, 0) / prices.length
                   const min = Math.min(...prices)
                   const max = Math.max(...prices)
-                  return `Avg ${formatCurrency(avg, currency)} · min ${formatCurrency(min, currency)} · max ${formatCurrency(max, currency)}`
+                  const suffix = totalCount > rows.length ? ' · muestra' : ''
+                  return `Avg ${formatCurrency(avg, currency)} · min ${formatCurrency(min, currency)} · max ${formatCurrency(max, currency)}${suffix}`
                 })()}
               </span>
             </div>
@@ -150,45 +227,102 @@ export default function DrillDownModal({ open, onClose, comp, periodKey, bracket
                     t('dashboard.drill.source'),
                     t('dashboard.drill.time'),
                   ].map((h, i) => (
-                    <th key={i} style={{
-                      padding: '6px 10px', textAlign: i === 0 ? 'left' : 'right',
-                      borderBottom: '2px solid var(--color-border)',
-                      fontSize: 10, fontWeight: 700, color: 'var(--color-muted)',
-                      textTransform: 'uppercase', letterSpacing: '0.4px',
-                    }}>{h}</th>
+                    <th
+                      key={i}
+                      style={{
+                        padding: '6px 10px',
+                        textAlign: i === 0 ? 'left' : 'right',
+                        borderBottom: '2px solid var(--color-border)',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: 'var(--color-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                      }}
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
-                    <td style={{ padding: '5px 10px', fontVariantNumeric: 'tabular-nums' }}>{r.observed_date}</td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+                    <td style={{ padding: '5px 10px', fontVariantNumeric: 'tabular-nums' }}>
+                      {r.observed_date}
+                    </td>
+                    <td
+                      style={{
+                        padding: '5px 10px',
+                        textAlign: 'right',
+                        fontVariantNumeric: 'tabular-nums',
+                        fontSize: 11,
+                      }}
+                    >
                       {r.observed_time ? String(r.observed_time).slice(0, 5) : '—'}
                     </td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right', fontSize: 10, color: 'var(--color-muted)' }}>
+                    <td
+                      style={{
+                        padding: '5px 10px',
+                        textAlign: 'right',
+                        fontSize: 10,
+                        color: 'var(--color-muted)',
+                      }}
+                    >
                       {r.distance_bracket || '—'}
                     </td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    <td
+                      style={{
+                        padding: '5px 10px',
+                        textAlign: 'right',
+                        fontVariantNumeric: 'tabular-nums',
+                        fontWeight: 600,
+                      }}
+                    >
                       {(() => {
                         const p = r.price_without_discount ?? r.recommended_price
                         return p != null ? formatCurrency(p, currency) : '—'
                       })()}
                     </td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.surge ? '⚡ Sí' : '—'}</td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right', fontSize: 10, color: 'var(--color-muted)' }}>
+                    <td style={{ padding: '5px 10px', textAlign: 'right' }}>
+                      {r.surge ? '⚡ Sí' : '—'}
+                    </td>
+                    <td
+                      style={{
+                        padding: '5px 10px',
+                        textAlign: 'right',
+                        fontSize: 10,
+                        color: 'var(--color-muted)',
+                      }}
+                    >
                       {r.data_source || '—'}
                     </td>
-                    <td style={{ padding: '5px 10px', textAlign: 'right', fontSize: 10, color: 'var(--color-muted)' }}>
+                    <td
+                      style={{
+                        padding: '5px 10px',
+                        textAlign: 'right',
+                        fontSize: 10,
+                        color: 'var(--color-muted)',
+                      }}
+                    >
                       {r.time_of_day || '—'}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {rows.length >= 500 && (
-              <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 8, fontStyle: 'italic' }}>
-                Mostrando las primeras 500 observaciones · ajusta los filtros si necesitas más detalle.
+            {totalCount > rows.length && (
+              <div
+                style={{
+                  fontSize: 10,
+                  color: 'var(--color-muted)',
+                  marginTop: 8,
+                  fontStyle: 'italic',
+                }}
+              >
+                Mostrando las primeras {rows.length.toLocaleString()} de{' '}
+                {totalCount.toLocaleString()} observaciones · afina los filtros (zona, franja,
+                fuente) para acotar.
               </div>
             )}
           </>
