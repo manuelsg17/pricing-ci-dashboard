@@ -14,12 +14,13 @@ import { sb } from '../lib/supabase'
 import {
   COMPETITOR_COLORS,
   DEFAULT_WEIGHTS,
+  LEGACY_WEIGHTS_PE,
   getCompetitors,
   resolveDbParams,
   getYangoDisplayName,
 } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
-import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAverage'
+import { computePeriodAvg, buildWeightsMap } from '../algorithms/weightedAverage'
 import { useConfigContext } from '../context/ConfigProvider'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
@@ -180,7 +181,13 @@ export default function Rentabilidad() {
         b.w += Number(r.observation_count)
         byComp[comp][r.distance_bracket] = b
       }
-      const weights = buildWeightsMap(dbWeights || [], dbCity, cat) || DEFAULT_WEIGHTS
+      // Mismos pesos que el dashboard (ver usePricingData): Perú usa los pesos
+      // históricos reales fijados en código; otros países, la BD. Desde 2026-W25
+      // el WA es promedio simple (computePeriodAvg lo decide por refYear/refWeek).
+      const weights =
+        country === 'Peru'
+          ? buildWeightsMap(LEGACY_WEIGHTS_PE, dbCity, cat)
+          : buildWeightsMap(dbWeights || [], dbCity, cat) || DEFAULT_WEIGHTS
       result[cat] = {}
       for (const [comp, brackets] of Object.entries(byComp)) {
         const bracketPrices = {}
@@ -189,7 +196,7 @@ export default function Rentabilidad() {
           if (w > 0) bracketPrices[bk] = sum / w
           count += w
         }
-        const wa = computeWeightedAvg(bracketPrices, weights)
+        const wa = computePeriodAvg(bracketPrices, weights, refYear, refWeek)
         if (wa != null) result[cat][comp] = { avg: wa, count }
       }
     }

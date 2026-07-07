@@ -58,6 +58,36 @@ export const DEFAULT_WEIGHTS = {
   very_long: 0.297,
 }
 
+// ── Pesos históricos REALES de Perú (fijados en código) ────
+// Snapshot inmediato ANTES del parche de emergencia 16.6% (recuperado del
+// audit_log, 2026-07-07). El histórico de Perú (semanas <= 2026-W24, hasta el
+// 8-jun) usa ESTOS pesos — NO la tabla bracket_weights de la BD — para que un
+// futuro edit accidental de los pesos ya no pueda malograr los números
+// presentados. Desde 2026-W25 (15-jun) el WA pasa a promedio simple (ver
+// SIMPLE_AVG_SINCE en algorithms/weightedAverage.js), donde los pesos no aplican.
+// Orden por bracket: [very_short, short, median, average, long, very_long].
+// OJO: Lima/Arequipa/Trujillo tenían pesos CUSTOM (no los DEFAULT_WEIGHTS); los
+// aeropuertos, curvas propias. `all` y `Corp` sí coincidían con los canónicos.
+const PE_LEGACY_BY_CITY = {
+  all: [0.0983, 0.1967, 0.1939, 0.1384, 0.075, 0.297],
+  Corp: [0.0983, 0.1967, 0.1939, 0.1384, 0.075, 0.297],
+  Lima: [0.0975, 0.2043, 0.1952, 0.133, 0.085, 0.285],
+  Arequipa: [0.1003, 0.186, 0.2118, 0.0861, 0.1158, 0.2236],
+  Trujillo: [0.1003, 0.186, 0.2118, 0.0861, 0.1158, 0.2236],
+  Airport: [0.0666, 0.1221, 0.2222, 0, 0.5891, 0],
+  Lima_Airport_A: [0.0666, 0.1221, 0.2222, 0, 0.5891, 0],
+  Lima_Airport_B: [0.0666, 0.1221, 0.2222, 0, 0.5891, 0],
+  Arequipa_Airport_A: [0.1003, 0.186, 0.2118, 0.0861, 0.1158, 0.3],
+  Arequipa_Airport_B: [0.1003, 0.186, 0.2118, 0.0861, 0, 0.3336],
+  Trujillo_Airport_A: [0.1003, 0.186, 0.2118, 0.0861, 0.4058, 0],
+  Trujillo_Airport_B: [0.1003, 0.186, 0.2118, 0, 0, 0.4136],
+}
+
+// Forma consumible por buildWeightsMap: filas { city, category, bracket, weight }.
+export const LEGACY_WEIGHTS_PE = Object.entries(PE_LEGACY_BY_CITY).flatMap(([city, w]) =>
+  BRACKETS.map((bracket, i) => ({ city, category: 'all', bracket, weight: w[i] }))
+)
+
 // ── Configuración por País ────────────────────────────────
 export const COUNTRY_CONFIG = {
   Peru: {

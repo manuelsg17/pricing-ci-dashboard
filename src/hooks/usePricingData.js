@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { sb } from '../lib/supabase'
-import { BRACKETS, DEFAULT_WEIGHTS } from '../lib/constants'
-import { computeWeightedAvg, buildWeightsMap } from '../algorithms/weightedAverage'
+import { BRACKETS, DEFAULT_WEIGHTS, LEGACY_WEIGHTS_PE } from '../lib/constants'
+import { computePeriodAvg, buildWeightsMap } from '../algorithms/weightedAverage'
 import { computeDelta, getSemaforoClass } from '../algorithms/semaforo'
 import { getISOYearWeek as getYearWeek } from '../lib/dateUtils'
 import { normalizeCompetitorName, toSnakeCase } from '../lib/normalize'
@@ -255,10 +255,17 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       }
     }
 
-    // Pasamos dbCategory para que la cascada de pesos resuelva por
-    // (city, category) con fallback a (city, 'all'). Si dbCategory no
-    // está definido, buildWeightsMap usa 'all' (retrocompat pre mig 56).
-    const weights = buildWeightsMap(dbWeights || [], f_dbCity, f_dbCategory) || DEFAULT_WEIGHTS
+    // Pesos para la rama PONDERADA (semanas <= 2026-W24). Desde 2026-W25 el WA
+    // es promedio simple y estos pesos no se usan (ver computePeriodAvg).
+    //   • Perú: pesos históricos REALES fijados en código (LEGACY_WEIGHTS_PE) —
+    //     su tabla bracket_weights fue parchada a 16.6% (emergencia jul-2026), así
+    //     que se ignora la BD y el histórico queda blindado ante futuros edits.
+    //   • Otros países (Colombia): pesos vivos de la BD (correctos), con la cascada
+    //     por (city, category) y fallback a DEFAULT_WEIGHTS.
+    const weights =
+      f_country === 'Peru'
+        ? buildWeightsMap(LEGACY_WEIGHTS_PE, f_dbCity, f_dbCategory)
+        : buildWeightsMap(dbWeights || [], f_dbCity, f_dbCategory) || DEFAULT_WEIGHTS
 
     // Determinar períodos (columnas)
     let periods = []
@@ -383,6 +390,10 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     }
 
     for (const period of periods) {
+      // ISO year/week del período para el corte ponderado→simple (2026-W25+).
+      // Weekly/historic ya traen year/week; daily se deriva de la fecha.
+      const { year: pYear, week: pWeek } = period.year != null ? period : getYearWeek(period.date)
+
       // ── Paso 1: construir priceMatrix para todos los competidores ──
       for (const comp of competitors) {
         // Preferir datos congelados si existen para esta semana
@@ -398,7 +409,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
           bracketCounts[b] = bracketData[b]?.count ?? 0
         }
 
-        const wa = computeWeightedAvg(bracketPrices, weights)
+        const wa = computePeriodAvg(bracketPrices, weights, pYear, pWeek)
 
         if (!priceMatrix[comp]) priceMatrix[comp] = {}
         if (!sampleMatrix[comp]) sampleMatrix[comp] = {}
