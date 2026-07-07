@@ -16,6 +16,7 @@ import {
   SIMPLE_AVG_SINCE,
 } from '../src/algorithms/weightedAverage.js'
 import { LEGACY_WEIGHTS_PE, BRACKETS } from '../src/lib/constants.js'
+import { isoWeekMonday } from '../src/lib/dateUtils.js'
 
 let pass = 0,
   fail = 0,
@@ -121,6 +122,16 @@ console.log('\n══ Corte promedio simple (2026-W25) ══')
     BRACKETS.every((b, i) => approx(eco[b], expect.Lima[i])),
     'Lima/Economy → cascada a (Lima, all)'
   )
+}
+
+// [5] isoWeekMonday — fechas del corte (para los indicadores UI)
+{
+  console.log('\n[5] isoWeekMonday (bordes del corte)')
+  const iso = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  assert(iso(isoWeekMonday(2026, 24)) === '2026-06-08', '2026-W24 → lunes 8-jun-2026')
+  assert(iso(isoWeekMonday(2026, 25)) === '2026-06-15', '2026-W25 → lunes 15-jun-2026')
+  assert(iso(isoWeekMonday(2026, 1)) === '2025-12-29', '2026-W01 → lunes 29-dic-2025')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

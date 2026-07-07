@@ -30,6 +30,8 @@ import {
   SheetDescription,
 } from '../components/ui/shadcn/sheet'
 import { BRACKETS } from '../lib/constants'
+import { SIMPLE_AVG_SINCE } from '../algorithms/weightedAverage'
+import { isoWeekMonday } from '../lib/dateUtils'
 import { useCountry } from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
@@ -49,8 +51,20 @@ import {
   Lock,
   BarChart3,
   Loader2,
+  Info,
 } from 'lucide-react'
 import '../styles/dashboard.css'
+
+// Corte Ponderado→Simple: fechas derivadas de SIMPLE_AVG_SINCE (sin hardcodear,
+// sin drift). Lunes de la última semana ponderada (W-1) y de la primera simple.
+const WA_CUTOFF_WEIGHTED_LABEL = isoWeekMonday(
+  SIMPLE_AVG_SINCE.year,
+  SIMPLE_AVG_SINCE.week - 1
+).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
+const WA_CUTOFF_SIMPLE_LABEL = isoWeekMonday(
+  SIMPLE_AVG_SINCE.year,
+  SIMPLE_AVG_SINCE.week
+).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
 
 function DashboardContent() {
   const { countryConfig } = useCountry()
@@ -842,6 +856,30 @@ function DashboardContent() {
               </span>
             </div>
           )}
+
+          {/* Aviso de metodología: hasta W24 Promedio Ponderado, desde W25 Simple. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              margin: '0 16px 8px',
+              padding: '8px 12px',
+              borderRadius: 10,
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderLeft: '3px solid #3b82f6',
+              fontSize: 12,
+              color: '#1e3a8a',
+            }}
+          >
+            <Info size={14} style={{ flexShrink: 0 }} />
+            <span>
+              <strong>Promedio Ponderado</strong> hasta la semana del {WA_CUTOFF_WEIGHTED_LABEL} ·{' '}
+              <strong>Promedio Simple</strong> desde la semana del {WA_CUTOFF_SIMPLE_LABEL} (aplica
+              a todos los países).
+            </span>
+          </div>
 
           {/* #26 — draggable sections.
               Key incluye viewMode para forzar remount cuando se cambia

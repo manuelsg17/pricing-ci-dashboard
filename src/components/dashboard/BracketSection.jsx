@@ -15,6 +15,7 @@ import {
   Brush,
 } from 'recharts'
 import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
+import { isSimpleAvgPeriod } from '../../algorithms/weightedAverage'
 import { formatPrice } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
@@ -153,6 +154,20 @@ function BracketSection({
 }) {
   const key = bracket
   const { t } = useI18n()
+
+  // Divisor del corte Ponderado→Simple (solo fila WA): true en la 1ª columna de
+  // la época simple cuando la columna previa VISIBLE es ponderada. Weekly/historic
+  // traen year/week; en daily (p.year null) no aplica.
+  const isWaCutoffCol = useCallback(
+    (p, i) =>
+      key === '_wa' &&
+      i > 0 &&
+      p?.year != null &&
+      periods[i - 1]?.year != null &&
+      isSimpleAvgPeriod(p.year, p.week) &&
+      !isSimpleAvgPeriod(periods[i - 1].year, periods[i - 1].week),
+    [key, periods]
+  )
 
   const sectionRef = useRef(null)
   const priceWrapRef = useRef(null)
@@ -609,8 +624,15 @@ function BracketSection({
                               ...(isFrozen ? { background: '#eef2ff', color: '#4338ca' } : {}),
                               ...(isSort ? { background: '#fef3c7' } : {}),
                               ...(isPinned ? { borderBottom: '2px solid #E53935' } : {}),
+                              ...(isWaCutoffCol(p, i) ? { borderLeft: '2px solid #f59e0b' } : {}),
                             }}
-                            title={isFrozen ? t('dashboard.frozen_period') : undefined}
+                            title={
+                              isWaCutoffCol(p, i)
+                                ? `Desde esta semana: Promedio Simple (antes, Ponderado)`
+                                : isFrozen
+                                  ? t('dashboard.frozen_period')
+                                  : undefined
+                            }
                           >
                             <span
                               style={{
@@ -683,7 +705,10 @@ function BracketSection({
                             <td
                               key={p.key}
                               onClick={() => v != null && setDrillDown({ comp, periodKey: p.key })}
-                              style={{ cursor: v != null ? 'pointer' : 'default' }}
+                              style={{
+                                cursor: v != null ? 'pointer' : 'default',
+                                ...(isWaCutoffCol(p, i) ? { borderLeft: '2px solid #f59e0b' } : {}),
+                              }}
                               title={v != null ? t('dashboard.drill.title') : undefined}
                             >
                               {v != null ? (
