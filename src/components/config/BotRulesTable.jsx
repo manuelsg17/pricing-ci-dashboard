@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import { CATALOG_CATEGORIES, CATALOG_COMPETITORS } from '../../lib/catalogs'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate'
+import { MultiCombobox } from '../ui/shadcn/multi-combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -43,6 +44,12 @@ export default function BotRulesTable({ country }) {
     CATALOG_COMPETITORS.forEach((c) => comps.add(c.value))
     return Array.from(comps).sort()
   }, [config])
+
+  // Ciudades válidas del país — misma fuente canónica que el resto del
+  // dashboard (Config→Comisiones, InDrive, etc). Ya NO se puede tipear una
+  // ciudad a mano: solo se elige de esta lista, así un typo no rompe el
+  // matching del bot en silencio.
+  const cityItems = useMemo(() => config.dbCities.map((c) => ({ value: c, label: c })), [config])
 
   const {
     data: serverRules,
@@ -182,6 +189,9 @@ export default function BotRulesTable({ country }) {
       ovc: combo.ovc || '*',
       competition_name: inferredComp,
       category: inferredCat,
+      // Si combo.db_city no está en config.dbCities (país mal configurado,
+      // ciudad nueva sin dar de alta, etc.), el MultiCombobox lo muestra
+      // como chip rojo "⚠" en vez de perderlo en silencio.
       cities: combo.db_city ? [combo.db_city] : [],
     })
   }
@@ -261,6 +271,10 @@ export default function BotRulesTable({ country }) {
     fontWeight: 600,
     boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
   }
+
+  // app/vc/ovc son valores técnicos crudos que manda el scraper — monospace
+  // los distingue visualmente de los dropdowns validados (Competidor/Categoría).
+  const monoInputStyle = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }
 
   return (
     <div className="config-section">
@@ -426,7 +440,7 @@ export default function BotRulesTable({ country }) {
                     type="text"
                     value={rule.app || ''}
                     onChange={(e) => updateRule(rule.id, 'app', e.target.value)}
-                    style={{ width: 100, ...(dirty ? dirtyCellStyle : {}) }}
+                    style={{ width: 100, ...monoInputStyle, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
                 <td>
@@ -434,7 +448,7 @@ export default function BotRulesTable({ country }) {
                     type="text"
                     value={rule.vc || ''}
                     onChange={(e) => updateRule(rule.id, 'vc', e.target.value)}
-                    style={{ width: 100, ...(dirty ? dirtyCellStyle : {}) }}
+                    style={{ width: 100, ...monoInputStyle, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
                 <td>
@@ -443,7 +457,7 @@ export default function BotRulesTable({ country }) {
                     value={rule.ovc || ''}
                     onChange={(e) => updateRule(rule.id, 'ovc', e.target.value)}
                     placeholder="*"
-                    style={{ width: 100, ...(dirty ? dirtyCellStyle : {}) }}
+                    style={{ width: 100, ...monoInputStyle, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
                 <td>
@@ -470,22 +484,16 @@ export default function BotRulesTable({ country }) {
                     ))}
                   </select>
                 </td>
-                <td style={{ fontSize: 11 }}>
-                  <input
-                    type="text"
-                    value={(rule.cities || []).join(', ')}
-                    onChange={(e) =>
-                      updateRule(
-                        rule.id,
-                        'cities',
-                        e.target.value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean)
-                      )
-                    }
-                    placeholder="(todas)"
-                    style={{ width: 140, ...(dirty ? dirtyCellStyle : {}) }}
+                <td style={{ textAlign: 'left', minWidth: 220 }}>
+                  <MultiCombobox
+                    items={cityItems}
+                    value={rule.cities || []}
+                    onValueChange={(v) => updateRule(rule.id, 'cities', v)}
+                    allLabel="Todas las ciudades"
+                    searchPlaceholder="Buscar ciudad…"
+                    emptyText="Ciudad no encontrada."
+                    style={dirty ? dirtyCellStyle : undefined}
+                    triggerClassName="text-xs"
                   />
                 </td>
                 <td style={{ textAlign: 'center' }}>
