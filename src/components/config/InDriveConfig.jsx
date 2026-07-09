@@ -214,30 +214,36 @@ export default function InDriveConfig({ country }) {
 
   const hasUnsavedChanges = CONFIG_ROWS.some(({ city, category }) => isCellDirty(city, category))
 
-  async function handleSave() {
+  async function handleSave({ withSnapshot = true } = {}) {
     setSaveMsg(null)
 
-    // Confirmación + hard copy — los % de InDrive afectan el precio efectivo histórico
+    // Confirmación. El snapshot (hard copy) es opcional: fija los promedios
+    // actuales antes de que el reconcile recalcule los precios efectivos del bot.
     const ok = await confirm({
-      title: '⚠ Cambio InDrive — hard copy requerido',
-      message:
-        'Cambiar el % de ajuste de InDrive afecta cómo se calculan los precios ' +
-        'efectivos históricos del bot. Antes de aplicar se creará un snapshot ' +
-        'de los promedios actuales para que los datos anteriores queden fijos. ' +
-        '\n\n¿Confirmar el snapshot y guardar?',
-      confirmText: 'Crear snapshot y guardar',
+      title: withSnapshot ? '⚠ Cambio InDrive — con snapshot' : '⚠ Cambio InDrive — sin snapshot',
+      message: withSnapshot
+        ? 'Cambiar el % de ajuste de InDrive afecta cómo se calculan los precios ' +
+          'efectivos históricos del bot. Antes de aplicar se creará un snapshot ' +
+          'de los promedios actuales para que los datos anteriores queden fijos. ' +
+          '\n\n¿Confirmar el snapshot y guardar?'
+        : 'Se guardarán los ajustes SIN crear un snapshot de los promedios actuales. ' +
+          'Los precios efectivos históricos del bot podrán cambiar cuando se recalculen. ' +
+          '\n\n¿Guardar sin snapshot?',
+      confirmText: withSnapshot ? 'Crear snapshot y guardar' : 'Guardar sin snapshot',
       cancelText: 'Cancelar',
       danger: true,
     })
     if (!ok) return
 
-    const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
-      p_country: country,
-      p_label: `Config InDrive cambiada — ${new Date().toISOString()}`,
-    })
-    if (snapErr) {
-      setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
-      return
+    if (withSnapshot) {
+      const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
+        p_country: country,
+        p_label: `Config InDrive cambiada — ${new Date().toISOString()}`,
+      })
+      if (snapErr) {
+        setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+        return
+      }
     }
 
     setSaving(true)
@@ -269,10 +275,10 @@ export default function InDriveConfig({ country }) {
       setOriginal(JSON.parse(JSON.stringify(config)))
       setSaveMsg({
         type: 'ok',
-        text: `Configuración guardada (${upserts.length} ${upserts.length === 1 ? 'ajuste' : 'ajustes'}). Aplicando al bot…`,
+        text: `Configuración guardada (${upserts.length} ${upserts.length === 1 ? 'ajuste' : 'ajustes'}). Los precios del bot se recalculan en segundo plano (≤10 min).`,
       })
-      // El trigger DB recalcula automáticamente los precios del bot para esas city+category.
-      // Recargamos el análisis para reflejar el impacto.
+      // La propagación a pricing_observations la hace reconcile_indrive_bot_prices()
+      // vía pg_cron (mig 122), no un trigger inline. Recargamos el análisis local.
       await loadAnalysis()
     } catch (e) {
       setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
@@ -722,14 +728,38 @@ export default function InDriveConfig({ country }) {
             </table>
 
             <div style={{ marginTop: 14 }}>
-              <button
-                className="btn-save"
-                onClick={handleSave}
-                disabled={saving || !hasUnsavedChanges}
-                title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
-              >
-                {saving ? 'Guardando…' : '💾 Guardar ajustes'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  className="btn-save"
+                  onClick={() => handleSave({ withSnapshot: true })}
+                  disabled={saving || !hasUnsavedChanges}
+                  title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
+                >
+                  {saving ? 'Guardando…' : '💾 Guardar ajustes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave({ withSnapshot: false })}
+                  disabled={saving || !hasUnsavedChanges}
+                  title={
+                    !hasUnsavedChanges
+                      ? 'No hay cambios para guardar'
+                      : 'Guardar sin crear snapshot de los promedios actuales'
+                  }
+                  style={{
+                    padding: '8px 14px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    background: '#f9fafb',
+                    color: '#374151',
+                    fontSize: 13,
+                    cursor: saving || !hasUnsavedChanges ? 'not-allowed' : 'pointer',
+                    opacity: saving || !hasUnsavedChanges ? 0.6 : 1,
+                  }}
+                >
+                  Guardar sin snapshot
+                </button>
+              </div>
               <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
             </div>
           </>
