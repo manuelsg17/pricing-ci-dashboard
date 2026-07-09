@@ -16,8 +16,13 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.btn-save-sm:hover { background: var(--color-yango-dark); }
-.btn-save-sm:disabled { opacity: 0.5; cursor: default; }
+.btn-save-sm:hover {
+  background: var(--color-yango-dark);
+}
+.btn-save-sm:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 .btn-delete-sm {
   height: 26px;
@@ -29,7 +34,9 @@
   color: #dc2626;
   cursor: pointer;
 }
-.btn-delete-sm:hover { background: #fee2e2; }
+.btn-delete-sm:hover {
+  background: #fee2e2;
+}
 
 .btn-add-row {
   height: 30px;
@@ -42,13 +49,33 @@
   color: var(--color-muted);
   cursor: pointer;
 }
-.btn-add-row:hover { border-color: var(--color-yango); color: var(--color-yango); }
+.btn-add-row:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
 
-.save-msg { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 10px; }
-.save-msg--ok  { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
-.save-msg--err { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.save-msg {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.save-msg--ok {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+.save-msg--err {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
 
-.config-loading { padding: 20px; color: var(--color-muted); font-size: 13px; }
+.config-loading {
+  padding: 20px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
 
 .config-page h1 {
   font-size: 18px;
@@ -75,12 +102,17 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
 }
 
-.config-tab:hover { color: var(--color-text); background: var(--color-yango-mid); }
+.config-tab:hover {
+  color: var(--color-text);
+  background: var(--color-yango-mid);
+}
 
 .config-tab.active {
   color: var(--color-yango);
@@ -137,7 +169,9 @@
   text-align: center;
 }
 
-.config-table tbody tr:hover td { background: #f8fafc; }
+.config-table tbody tr:hover td {
+  background: #f8fafc;
+}
 
 .config-table td:first-child {
   text-align: left;
@@ -146,8 +180,8 @@
   color: var(--color-text);
 }
 
-.config-table input[type="number"],
-.config-table input[type="text"] {
+.config-table input[type='number'],
+.config-table input[type='text'] {
   width: 72px;
   padding: 3px 6px;
   border: 1.5px solid var(--color-border);
@@ -155,7 +189,9 @@
   text-align: right;
   font-size: 12px;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   background: var(--color-bg);
 }
 
@@ -183,20 +219,45 @@
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    transform 0.1s;
 }
 
-.btn-save:hover { background: var(--color-yango-dark); }
-.btn-save:active { transform: scale(0.98); }
-.btn-save:disabled { background: var(--color-subtle); cursor: not-allowed; transform: none; }
+.btn-save:hover {
+  background: var(--color-yango-dark);
+}
+.btn-save:active {
+  transform: scale(0.98);
+}
+.btn-save:disabled {
+  background: var(--color-subtle);
+  cursor: not-allowed;
+  transform: none;
+}
 
-.config-save-ok  { color: var(--sem-green-fg); font-size: 12px; font-weight: 600; }
-.config-save-err { color: var(--sem-red-fg);   font-size: 12px; font-weight: 600; }
+.config-save-ok {
+  color: var(--sem-green-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+.config-save-err {
+  color: var(--sem-red-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
 
 /* ── Weights ───────────────────────────────────────── */
-.weight-sum { font-size: 12px; font-weight: 700; }
-.weight-sum.ok  { color: var(--sem-green-fg); }
-.weight-sum.warn{ color: #856404; }
+.weight-sum {
+  font-size: 12px;
+  font-weight: 700;
+}
+.weight-sum.ok {
+  color: var(--sem-green-fg);
+}
+.weight-sum.warn {
+  color: #856404;
+}
 
 /* ── Threshold selector ────────────────────────────── */
 .threshold-selector {
@@ -228,7 +289,9 @@
   transition: border-color 0.15s;
 }
 
-.threshold-selector select:focus { border-color: var(--color-yango); }
+.threshold-selector select:focus {
+  border-color: var(--color-yango);
+}
 
 /* ── City tabs for weights ─────────────────────────── */
 .city-tabs {
@@ -250,10 +313,80 @@
   transition: all 0.15s;
 }
 
-.city-tab:hover { border-color: var(--color-yango); color: var(--color-yango); }
+.city-tab:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
 .city-tab.active {
   background: var(--color-yango);
   color: #fff;
   border-color: var(--color-yango);
   font-weight: 600;
+}
+
+/* ── Section header with icon (Bot Rules, Comisiones, …) ──────────── */
+.config-section h2.with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.config-section h2.with-icon svg {
+  color: var(--color-yango);
+  flex-shrink: 0;
+}
+
+/* ── Modifier: tablas más espaciosas (opt-in, no toca .config-table base) */
+.config-table--modern th,
+.config-table--modern td {
+  padding: 9px 12px;
+}
+.config-table--modern td:first-child {
+  padding-left: 14px;
+}
+
+/* ── Toggle switch tipo iOS (reemplaza checkbox nativo para flags on/off) */
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.toggle-switch .toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--color-subtle);
+  border-radius: 999px;
+  transition: background 0.15s;
+  pointer-events: none;
+}
+.toggle-switch .toggle-track::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s;
+  box-shadow: var(--shadow-xs);
+}
+.toggle-switch input:checked + .toggle-track {
+  background: var(--color-yango);
+}
+.toggle-switch input:checked + .toggle-track::before {
+  transform: translateX(16px);
+}
+.toggle-switch input:focus-visible + .toggle-track {
+  box-shadow: 0 0 0 2px var(--color-yango-mid);
 }

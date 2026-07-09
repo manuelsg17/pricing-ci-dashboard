@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Bot, Plus, Trash2, AlertTriangle, Save } from 'lucide-react'
 import { sb } from '../../lib/supabase'
-import { getCountryConfig } from '../../lib/constants'
+import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { CATALOG_CATEGORIES, CATALOG_COMPETITORS } from '../../lib/catalogs'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate'
 import { MultiCombobox } from '../ui/shadcn/multi-combobox'
+import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -50,6 +52,17 @@ export default function BotRulesTable({ country }) {
   // ciudad a mano: solo se elige de esta lista, así un typo no rompe el
   // matching del bot en silencio.
   const cityItems = useMemo(() => config.dbCities.map((c) => ({ value: c, label: c })), [config])
+
+  // Items para los Combobox de Competidor/Categoría — el competidor lleva
+  // su color de marca (COMPETITOR_COLORS) para el dot en el dropdown.
+  const competitorItems = useMemo(
+    () => allCompetitors.map((c) => ({ value: c, label: c, color: COMPETITOR_COLORS[c] })),
+    [allCompetitors]
+  )
+  const categoryItems = useMemo(
+    () => allCategories.map((c) => ({ value: c, label: c })),
+    [allCategories]
+  )
 
   const {
     data: serverRules,
@@ -272,13 +285,26 @@ export default function BotRulesTable({ country }) {
     boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
   }
 
+  // Variante sin boxShadow para triggers de Combobox/MultiCombobox: el
+  // boxShadow inline estático taparía siempre el anillo de :focus-visible
+  // (Tailwind, también box-shadow) — con esta variante el fondo/borde
+  // amarillo sigue marcando "dirty" pero el foco de teclado sigue visible.
+  const dirtyTriggerStyle = {
+    background: dirtyCellStyle.background,
+    borderColor: dirtyCellStyle.borderColor,
+    fontWeight: dirtyCellStyle.fontWeight,
+  }
+
   // app/vc/ovc son valores técnicos crudos que manda el scraper — monospace
   // los distingue visualmente de los dropdowns validados (Competidor/Categoría).
   const monoInputStyle = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }
 
   return (
     <div className="config-section">
-      <h2>Reglas del Bot — {country}</h2>
+      <h2 className="with-icon">
+        <Bot size={15} />
+        Reglas del Bot — {country}
+      </h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 8 }}>
         El bot scrapea precios y los manda con sus propios nombres técnicos. Estas reglas son el{' '}
         <strong>traductor</strong>: le dicen al sistema “cuando llegue esto del bot, guardalo como
@@ -304,14 +330,22 @@ export default function BotRulesTable({ country }) {
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        <button className="btn-add-row" onClick={() => addRule()}>
-          + Nueva regla
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+        <button
+          className="btn-add-row"
+          onClick={() => addRule()}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <Plus size={13} />
+          Nueva regla
         </button>
         {unmatched.length > 0 && (
           <button
             onClick={() => setShowUnmatched((v) => !v)}
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
               padding: '6px 12px',
               borderRadius: 6,
               border: '1px solid #f59e0b',
@@ -321,7 +355,8 @@ export default function BotRulesTable({ country }) {
               color: '#78350f',
             }}
           >
-            ⚠ {unmatched.length} combos no matcheados ({showUnmatched ? 'ocultar' : 'ver'})
+            <AlertTriangle size={13} />
+            {unmatched.length} combos no matcheados ({showUnmatched ? 'ocultar' : 'ver'})
           </button>
         )}
       </div>
@@ -371,8 +406,13 @@ export default function BotRulesTable({ country }) {
                     {Number(c.total_n).toLocaleString()}
                   </td>
                   <td>
-                    <button className="btn-save-sm" onClick={() => addFromUnmatched(c)}>
-                      + Agregar
+                    <button
+                      className="btn-save-sm"
+                      onClick={() => addFromUnmatched(c)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Plus size={11} />
+                      Agregar
                     </button>
                   </td>
                 </tr>
@@ -382,7 +422,7 @@ export default function BotRulesTable({ country }) {
         </div>
       )}
 
-      <table className="config-table" style={{ marginTop: 4 }}>
+      <table className="config-table config-table--modern" style={{ marginTop: 4 }}>
         <thead>
           <tr>
             <th
@@ -460,48 +500,53 @@ export default function BotRulesTable({ country }) {
                     style={{ width: 100, ...monoInputStyle, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
-                <td>
-                  <select
+                <td style={{ textAlign: 'left', minWidth: 130 }}>
+                  <Combobox
+                    items={competitorItems}
                     value={rule.competition_name || ''}
-                    onChange={(e) => updateRule(rule.id, 'competition_name', e.target.value)}
-                    style={dirty ? dirtyCellStyle : undefined}
-                  >
-                    <option value="">—</option>
-                    {allCompetitors.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
+                    onValueChange={(v) => updateRule(rule.id, 'competition_name', v)}
+                    placeholder="— Elegir —"
+                    searchPlaceholder="Buscar competidor…"
+                    emptyText="Sin resultados."
+                    triggerClassName="text-xs"
+                    style={dirty ? dirtyTriggerStyle : undefined}
+                  />
                 </td>
-                <td>
-                  <select
+                <td style={{ textAlign: 'left', minWidth: 120 }}>
+                  <Combobox
+                    items={categoryItems}
                     value={rule.category || ''}
-                    onChange={(e) => updateRule(rule.id, 'category', e.target.value)}
-                    style={dirty ? dirtyCellStyle : undefined}
-                  >
-                    <option value="">—</option>
-                    {allCategories.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
+                    onValueChange={(v) => updateRule(rule.id, 'category', v)}
+                    placeholder="— Elegir —"
+                    searchPlaceholder="Buscar categoría…"
+                    emptyText="Sin resultados."
+                    triggerClassName="text-xs"
+                    style={dirty ? dirtyTriggerStyle : undefined}
+                  />
                 </td>
                 <td style={{ textAlign: 'left', minWidth: 220 }}>
-                  <MultiCombobox
-                    items={cityItems}
-                    value={rule.cities || []}
-                    onValueChange={(v) => updateRule(rule.id, 'cities', v)}
-                    allLabel="Todas las ciudades"
-                    searchPlaceholder="Buscar ciudad…"
-                    emptyText="Ciudad no encontrada."
-                    style={dirty ? dirtyCellStyle : undefined}
-                    triggerClassName="text-xs"
-                  />
+                  <div style={{ maxWidth: 380 }}>
+                    <MultiCombobox
+                      items={cityItems}
+                      value={rule.cities || []}
+                      onValueChange={(v) => updateRule(rule.id, 'cities', v)}
+                      allLabel="Todas las ciudades"
+                      searchPlaceholder="Buscar ciudad…"
+                      emptyText="Ciudad no encontrada."
+                      style={dirty ? dirtyTriggerStyle : undefined}
+                      triggerClassName="text-xs"
+                    />
+                  </div>
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!rule.active}
-                    onChange={(e) => updateRule(rule.id, 'active', e.target.checked)}
-                  />
+                  <label className="toggle-switch" title={rule.active ? 'Activa' : 'Inactiva'}>
+                    <input
+                      type="checkbox"
+                      checked={!!rule.active}
+                      onChange={(e) => updateRule(rule.id, 'active', e.target.checked)}
+                    />
+                    <span className="toggle-track" />
+                  </label>
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
                   <button
@@ -509,15 +554,18 @@ export default function BotRulesTable({ country }) {
                     onClick={() => saveRule(rule)}
                     disabled={saving || !dirty}
                     title={!dirty ? 'Sin cambios' : undefined}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                   >
+                    <Save size={11} />
                     {rule._new ? 'Crear' : 'Guardar'}
                   </button>
                   <button
                     className="btn-delete-sm"
                     aria-label="Eliminar"
+                    title="Eliminar"
                     onClick={() => deleteRule(rule.id)}
                   >
-                    ✕
+                    <Trash2 size={12} />
                   </button>
                 </td>
               </tr>

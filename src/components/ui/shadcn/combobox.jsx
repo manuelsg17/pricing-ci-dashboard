@@ -9,6 +9,10 @@
 //     onValueChange={setSelected}
 //     placeholder="Elegir competidor…"
 //   />
+//
+// Cada item puede traer opcionalmente `color` (hex) para mostrar un dot de
+// marca antes del label — usado en selects de competidor (COMPETITOR_COLORS).
+// Sin `color`, el render es idéntico al de siempre (retrocompatible).
 import * as React from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '../../../lib/utils'
@@ -32,6 +36,7 @@ export function Combobox({
   emptyText = 'Sin resultados.',
   className,
   triggerClassName,
+  style,
 }) {
   const [open, setOpen] = React.useState(false)
   const selected = items.find((it) => it.value === value)
@@ -43,9 +48,22 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          style={style}
           className={cn('w-full justify-between font-normal', triggerClassName)}
         >
-          {selected ? selected.label : placeholder}
+          {selected ? (
+            <span className="inline-flex items-center gap-1.5 truncate">
+              {selected.color && (
+                <span
+                  className="inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: selected.color }}
+                />
+              )}
+              {selected.label}
+            </span>
+          ) : (
+            placeholder
+          )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -75,6 +93,12 @@ export function Combobox({
                       value === item.value ? 'opacity-100' : 'opacity-0'
                     )}
                   />
+                  {item.color && (
+                    <span
+                      className="mr-2 inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: item.color }}
+                    />
+                  )}
                   {item.label}
                 </CommandItem>
               ))}
