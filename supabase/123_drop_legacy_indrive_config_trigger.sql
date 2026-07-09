@@ -1,0 +1,25 @@
+-- ════════════════════════════════════════════════════════════════════════
+-- Migración 123 — Eliminar el trigger LEGADO que aún reescribía precios inline
+--
+-- SÍNTOMA:
+--   Tras mig 122 (que volvió no-op a `trg_indrive_config_propagate`), guardar los
+--   ajustes de InDrive SEGUÍA dando "canceling statement due to statement timeout"
+--   en el upsert.
+--
+-- CAUSA:
+--   `indrive_config` tenía DOS triggers de propagación:
+--     1) `indrive_config_propagate_after_update` → trg_indrive_config_propagate
+--        (mig 86; ya no-op tras mig 122).
+--     2) `trg_indrive_config_change` → trg_apply_indrive_prices_on_config
+--        (mig 23, LEGADO) — seguía activo y corría el UPDATE pesado sobre
+--        pricing_observations (además SIN guard de idempotencia). Este es el que
+--        seguía pasándose de los 8s.
+--
+-- FIX:
+--   Eliminar el trigger legado `trg_indrive_config_change`. La propagación ahora
+--   la hace exclusivamente `reconcile_indrive_bot_prices()` vía pg_cron (mig 122).
+--   Se deja la función `trg_apply_indrive_prices_on_config` en la BD (huérfana,
+--   inofensiva) por si algún proceso la referencia por nombre.
+-- ════════════════════════════════════════════════════════════════════════
+
+DROP TRIGGER IF EXISTS trg_indrive_config_change ON public.indrive_config;
