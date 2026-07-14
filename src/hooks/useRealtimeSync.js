@@ -43,6 +43,7 @@ const REFETCHABLE_TABLES = new Set([
   'distance_references',
   'ci_timeslots',
   'airport_markers',
+  'competitive_bands',
 ])
 
 // Tablas que SIEMPRE muestran toast (cambios visibles inmediatamente al

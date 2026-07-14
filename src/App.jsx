@@ -21,6 +21,7 @@ const AccessManagement = lazy(() => import('./pages/AccessManagement'))
 const BotVsHubs = lazy(() => import('./pages/BotVsHubs'))
 const Market = lazy(() => import('./pages/Market'))
 const Coverage = lazy(() => import('./pages/Coverage'))
+const Competitividad = lazy(() => import('./pages/Competitividad'))
 
 export default function App() {
   const { loading, signIn, signOut, changePassword, session } = useAuth()
@@ -168,6 +169,7 @@ export default function App() {
             {activeTab === 'report' && canAccess('report') && <WeeklyReport />}
             {activeTab === 'market' && canAccess('market') && <Market />}
             {activeTab === 'coverage' && canAccess('coverage') && <Coverage />}
+            {activeTab === 'competitividad' && canAccess('competitividad') && <Competitividad />}
             {activeTab === 'events' && canAccess('events') && <MarketEvents />}
             {activeTab === 'rawdata' && canAccess('rawdata') && <RawData />}
             {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}

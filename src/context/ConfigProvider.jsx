@@ -120,6 +120,24 @@ export function ConfigProvider({ children }) {
     },
   })
 
+  const competitiveBands = useStaleWhileRevalidate({
+    key: 'cfg.competitive_bands.all',
+    enabled,
+    liveSyncTable: 'competitive_bands',
+    fetcher: async () => {
+      // ORDER BY explícito: sin esto, Postgres no garantiza el orden de
+      // retorno y el fallback countryBands[0] de Competitividad.jsx podría
+      // "saltar" de banda entre refetches sin que el usuario lo pida.
+      const { data, error } = await sb
+        .from('competitive_bands')
+        .select('*')
+        .order('competitor_name')
+        .order('category')
+      if (error) throw error
+      return data || []
+    },
+  })
+
   const yangoGmvTiers = useStaleWhileRevalidate({
     key: 'cfg.yango_gmv_tiers.all',
     enabled,
@@ -147,6 +165,7 @@ export function ConfigProvider({ children }) {
       rushHour: rushHour.data ?? EMPTY,
       indriveConfig: indriveConfig.data ?? EMPTY,
       yangoGmvTiers: yangoGmvTiers.data ?? EMPTY,
+      competitiveBands: competitiveBands.data ?? EMPTY,
       loading: weights.loading || semaforo.loading || thresholds.loading,
       error: weights.error || semaforo.error || thresholds.error,
       refresh: () =>
@@ -158,6 +177,7 @@ export function ConfigProvider({ children }) {
           rushHour.reload(),
           indriveConfig.reload(),
           yangoGmvTiers.reload(),
+          competitiveBands.reload(),
         ]),
     }),
     // Deps granulares a propósito (.data/.loading/.reload por config) para
@@ -184,6 +204,8 @@ export function ConfigProvider({ children }) {
       indriveConfig.reload,
       yangoGmvTiers.data,
       yangoGmvTiers.reload,
+      competitiveBands.data,
+      competitiveBands.reload,
     ]
   )
 
