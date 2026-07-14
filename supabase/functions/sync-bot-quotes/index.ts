@@ -384,6 +384,20 @@ Deno.serve(async (req) => {
       // ya vienen del catálogo bot_rules (idempotente).
       competition_name = normalizeCompetitorName(competition_name, dbCity) || competition_name
 
+      // Gate TukTuk: opera intra-distrito, así que solo aceptamos rutas
+      // curadas con distrito (main_category='tuktuk' + zone). Este es el
+      // mismo gate de mig 113/117, pero replicado acá porque este Edge
+      // Function (no sync_bot_quotes() SQL) es el que corre en producción
+      // — sin esto, TukTuk se cuela sin zone y con brackets long/very_long
+      // irreales para viajes intra-distrito.
+      let zone: string | null = null
+      if (category === 'TukTuk') {
+        const mainCatLc = String(raw.main_category ?? '').trim().toLowerCase()
+        const zoneRaw    = String(raw.zone ?? '').trim()
+        if (mainCatLc !== 'tuktuk' || !zoneRaw) { stats.dropped++; continue }
+        zone = zoneRaw
+      }
+
       const recommended_price       = num(raw.price_recommended)
       const price_with_discount     = num(raw.price_with_discount)
       const price_without_discount  = num(raw.price_without_discount)
@@ -433,6 +447,7 @@ Deno.serve(async (req) => {
         price_without_discount,
         distance_km,
         distance_bracket: norm_bracket,
+        zone,
         eta_min:      num(raw.eta_min),
         surge:        toBool(raw.surge),
         rush_hour:    toBool(raw.rush_hour),
