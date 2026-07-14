@@ -26,6 +26,7 @@ import CITimeslotsConfig from '../components/config/CITimeslotsConfig'
 import CommissionsConfig from '../components/config/CommissionsConfig'
 import BonusesTab from '../components/config/BonusesTab'
 import InDriveConfig from '../components/config/InDriveConfig'
+import CompetitiveBandsConfig from '../components/config/CompetitiveBandsConfig'
 import CountriesConfig from '../components/config/CountriesConfig'
 import BotRulesTable from '../components/config/BotRulesTable'
 import AirportMarkersTable from '../components/config/AirportMarkersTable'
@@ -146,6 +147,11 @@ export default function Config() {
             id: 'indrive',
             label: t('config.indrive'),
             render: () => <InDriveConfig country={country} />,
+          },
+          {
+            id: 'bands',
+            label: t('config.bands'),
+            render: () => <CompetitiveBandsConfig country={country} />,
           },
         ],
       },
