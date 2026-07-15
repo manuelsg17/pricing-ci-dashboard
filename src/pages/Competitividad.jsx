@@ -14,6 +14,7 @@ import PriceVolatilityChart from '../components/competitiveBands/PriceVolatility
 import '../styles/config.css'
 
 const WEEK_RANGE_OPTIONS = [
+  { value: 1, label: 'Última semana' },
   { value: 4, label: 'Últimas 4 semanas' },
   { value: 8, label: 'Últimas 8 semanas' },
   { value: 12, label: 'Últimas 12 semanas' },
@@ -37,6 +38,9 @@ export default function Competitividad() {
 
   const [selectedBand, setSelectedBand] = useState(null)
   const [weeksBack, setWeeksBack] = useState(8)
+  const [useCustomRange, setUseCustomRange] = useState(false)
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [drillDown, setDrillDown] = useState(null) // { city, bracket, summary } | null
   const [activeTab, setActiveTab] = useState('cumplimiento')
 
@@ -54,11 +58,20 @@ export default function Competitividad() {
   const activeBand =
     (selectedBand && countryBands.find((b) => b.id === selectedBand.id)) || countryBands[0] || null
 
+  // Rango personalizado (fechas exactas) tiene prioridad sobre el preset de
+  // semanas cuando está activo y ambas fechas están completas — la data
+  // igual vive en buckets semanales (ISO year/week), así que cada fecha
+  // elegida solo determina a qué semana pertenece.
   const { yearStart, weekStart, yearEnd, weekEnd } = useMemo(() => {
+    if (useCustomRange && customFrom && customTo) {
+      const start = getISOYearWeek(new Date(`${customFrom}T00:00:00`))
+      const end = getISOYearWeek(new Date(`${customTo}T00:00:00`))
+      return { yearStart: start.year, weekStart: start.week, yearEnd: end.year, weekEnd: end.week }
+    }
     const end = getISOYearWeek(new Date())
     const start = getISOYearWeek(getMondayWeeksAgo(weeksBack))
     return { yearStart: start.year, weekStart: start.week, yearEnd: end.year, weekEnd: end.week }
-  }, [weeksBack])
+  }, [weeksBack, useCustomRange, customFrom, customTo])
 
   const { summary, breakdown, loading, error, drillInto } = useCompetitiveBandAnalysis({
     country,
@@ -100,34 +113,110 @@ export default function Competitividad() {
         es cada uno.
       </p>
 
-      <div style={{ marginBottom: 16 }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'var(--color-muted)',
-            marginBottom: 4,
-            textTransform: 'uppercase',
-          }}
-        >
-          Período
+      <div
+        style={{
+          display: 'flex',
+          gap: 16,
+          alignItems: 'flex-end',
+          flexWrap: 'wrap',
+          marginBottom: 16,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--color-muted)',
+              marginBottom: 4,
+              textTransform: 'uppercase',
+            }}
+          >
+            Período
+          </div>
+          <select
+            value={weeksBack}
+            onChange={(e) => setWeeksBack(Number(e.target.value))}
+            disabled={useCustomRange}
+            style={{
+              padding: '6px 10px',
+              border: '1.5px solid var(--color-border)',
+              borderRadius: 6,
+              fontSize: 13,
+              opacity: useCustomRange ? 0.5 : 1,
+            }}
+          >
+            {WEEK_RANGE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={weeksBack}
-          onChange={(e) => setWeeksBack(Number(e.target.value))}
-          style={{
-            padding: '6px 10px',
-            border: '1.5px solid var(--color-border)',
-            borderRadius: 6,
-            fontSize: 13,
-          }}
+
+        <label
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, paddingBottom: 7 }}
         >
-          {WEEK_RANGE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          <input
+            type="checkbox"
+            checked={useCustomRange}
+            onChange={(e) => setUseCustomRange(e.target.checked)}
+          />
+          Rango de fechas personalizado
+        </label>
+
+        {useCustomRange && (
+          <>
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  marginBottom: 4,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Desde
+              </div>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                style={{
+                  padding: '6px 10px',
+                  border: '1.5px solid var(--color-border)',
+                  borderRadius: 6,
+                  fontSize: 13,
+                }}
+              />
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--color-muted)',
+                  marginBottom: 4,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Hasta
+              </div>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                style={{
+                  padding: '6px 10px',
+                  border: '1.5px solid var(--color-border)',
+                  borderRadius: 6,
+                  fontSize: 13,
+                }}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

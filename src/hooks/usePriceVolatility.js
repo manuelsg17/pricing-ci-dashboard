@@ -4,7 +4,15 @@ import { sb } from '../lib/supabase'
 // Llama get_price_volatility_by_category (mig 126) — percentiles de precio
 // REAL (no Δ%) por competidor, incluyendo Yango, para una categoría. Mismo
 // esqueleto que useCompetitiveBandAnalysis.js (cancel-flag pattern).
-export function usePriceVolatility({ country, category, yearStart, weekStart, yearEnd, weekEnd }) {
+export function usePriceVolatility({
+  country,
+  category,
+  yearStart,
+  weekStart,
+  yearEnd,
+  weekEnd,
+  city,
+}) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -31,6 +39,7 @@ export function usePriceVolatility({ country, category, yearStart, weekStart, ye
           p_week_start: weekStart ?? null,
           p_year_end: yearEnd ?? null,
           p_week_end: weekEnd ?? null,
+          p_city: city ?? null,
         })
         if (cancelled) return
         if (e) throw e
@@ -46,7 +55,7 @@ export function usePriceVolatility({ country, category, yearStart, weekStart, ye
     return () => {
       cancelled = true
     }
-  }, [ready, country, category, yearStart, weekStart, yearEnd, weekEnd, reloadTick])
+  }, [ready, country, category, yearStart, weekStart, yearEnd, weekEnd, city, reloadTick])
 
   const reload = useCallback(() => setReloadTick((t) => t + 1), [])
 

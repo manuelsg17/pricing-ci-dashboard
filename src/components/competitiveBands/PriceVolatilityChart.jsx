@@ -7,6 +7,8 @@ import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { formatCurrency, formatCount } from '../../lib/format'
 import { exportPriceVolatilityCsv } from '../../lib/competitiveBandsExport'
 
+const ALL_CITIES = '__all__'
+
 function VolatilityTooltip({ active, payload, currency }) {
   if (!active || !payload || !payload.length) return null
   const row = payload[0]?.payload
@@ -53,11 +55,23 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
       .map((c) => ({ value: c, label: c }))
   }, [config])
 
+  // 'value' = nombre DB-facing (lo que filtra la RPC vía v.city), 'label' =
+  // nombre UI-facing (puede llevar tilde, ej. Bogotá vs dbCities='Bogota').
+  // Corp excluido — mezcla sub-marcas Yango, ya fuera de scope de esta vista.
+  const cityItems = useMemo(() => {
+    const dbCities = config.dbCities || config.cities || []
+    const uiCities = config.cities || dbCities
+    return dbCities
+      .map((dbCity, i) => ({ value: dbCity, label: uiCities[i] || dbCity }))
+      .filter((c) => c.value !== 'Corp')
+  }, [config])
+
   // Cálculo síncrono (no useEffect corrector) — mismo criterio que
-  // `activeBand` en Competitividad.jsx: si la categoría elegida ya no
-  // pertenece al país actual (ej. tras un cambio de país), cae a la
-  // primera disponible EN EL MISMO render, sin un frame de retraso que
-  // dispare la RPC con un país/categoría que no matchean entre sí.
+  // `activeBand` en Competitividad.jsx: si la categoría/ciudad elegida ya
+  // no pertenece al país actual (ej. tras un cambio de país), cae a la
+  // primera disponible (o a "todas las ciudades") EN EL MISMO render, sin
+  // un frame de retraso que dispare la RPC con un país/valor que no
+  // matchean entre sí.
   const [selectedCategory, setSelectedCategory] = useState(null)
   const category =
     (selectedCategory &&
@@ -66,6 +80,13 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
     categoryItems[0]?.value ||
     null
 
+  // Ciudad: sin selección = todas las ciudades (comportamiento previo).
+  const [selectedCity, setSelectedCity] = useState(ALL_CITIES)
+  const city =
+    selectedCity === ALL_CITIES || !cityItems.some((c) => c.value === selectedCity)
+      ? null
+      : selectedCity
+
   const { rows, loading, error } = usePriceVolatility({
     country,
     category,
@@ -73,6 +94,7 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
     weekStart,
     yearEnd,
     weekEnd,
+    city,
   })
 
   // Orden para la tabla: Yango primero (fácil de ubicar), resto alfabético
@@ -138,8 +160,30 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
             triggerClassName="w-auto min-w-[220px]"
           />
         </div>
+        <div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--color-muted)',
+              marginBottom: 4,
+              textTransform: 'uppercase',
+            }}
+          >
+            Ciudad
+          </div>
+          <Combobox
+            items={[{ value: ALL_CITIES, label: 'Todas las ciudades' }, ...cityItems]}
+            value={selectedCity}
+            onValueChange={setSelectedCity}
+            placeholder="Todas las ciudades"
+            searchPlaceholder="Buscar ciudad…"
+            emptyText="Sin resultados."
+            triggerClassName="w-auto min-w-[180px]"
+          />
+        </div>
         <button
-          onClick={() => exportPriceVolatilityCsv({ country, category, currency, rows })}
+          onClick={() => exportPriceVolatilityCsv({ country, category, city, currency, rows })}
           disabled={!rows.length}
           className="btn-add-row"
           style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}

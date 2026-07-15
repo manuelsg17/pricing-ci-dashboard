@@ -76,10 +76,11 @@ export function exportCompetitiveBandCsv({
 // (mig 126, get_price_volatility_by_category) — mismo patrón Blob que
 // exportCompetitiveBandCsv, shape de datos distinto (precio real, no Δ%),
 // por eso es una función hermana en vez de sobrecargar la anterior.
-export function exportPriceVolatilityCsv({ country, category, currency, rows: dataRows }) {
+export function exportPriceVolatilityCsv({ country, category, city, currency, rows: dataRows }) {
   const rows = []
   rows.push(['Volatilidad de precio por competidor'])
   rows.push(['País', country])
+  rows.push(['Ciudad', city || 'Todas'])
   rows.push(['Categoría', category])
   rows.push(['Moneda', currency])
   rows.push([])
@@ -104,7 +105,8 @@ export function exportPriceVolatilityCsv({ country, category, currency, rows: da
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `volatilidad-precio-${sanitizeForFilename(category)}-${new Date().toISOString().slice(0, 10)}.csv`
+  const cityPart = city ? `-${sanitizeForFilename(city)}` : ''
+  link.download = `volatilidad-precio-${sanitizeForFilename(category)}${cityPart}-${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }
