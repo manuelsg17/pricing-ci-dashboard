@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Percent, Plus, Trash2, Save } from 'lucide-react'
 import { useCompetitiveBands } from '../../hooks/useCompetitiveBands'
 import { useCompetitiveBandAnalysis } from '../../hooks/useCompetitiveBandAnalysis'
+import { useConfigContext } from '../../context/ConfigProvider'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
@@ -74,6 +75,7 @@ export default function CompetitiveBandsConfig({ country }) {
     deleteBand,
     addRow,
   } = useCompetitiveBands(country)
+  const { refresh: refreshConfig } = useConfigContext()
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
   const [edits, setEdits] = useState({})
@@ -130,6 +132,10 @@ export default function CompetitiveBandsConfig({ country }) {
         type: 'ok',
         text: `Guardado: ${merged.competitor_name} / ${merged.category} → banda ${merged.min_pct}% a ${merged.max_pct}%`,
       })
+      // Refresh inmediato: no depender solo del round-trip de live-sync
+      // (audit_log → realtime → debounce 500ms) para que la propia sesión
+      // vea el cambio reflejado al instante en Análisis → Competitividad.
+      refreshConfig()
     } else {
       setMsg({ type: 'err', text: 'Error al guardar: ' + errMsg })
     }
@@ -148,7 +154,10 @@ export default function CompetitiveBandsConfig({ country }) {
     }
     const ok = await deleteBand(row.id)
     if (!ok) setMsg({ type: 'err', text: 'No se pudo eliminar.' })
-    else if (!isNew(row)) setMsg({ type: 'ok', text: 'Banda eliminada.' })
+    else {
+      if (!isNew(row)) setMsg({ type: 'ok', text: 'Banda eliminada.' })
+      refreshConfig()
+    }
   }
 
   if (loading) return <div className="config-loading">Cargando bandas competitivas…</div>

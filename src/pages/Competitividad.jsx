@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Info, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/shadcn/tabs'
 import { useFilterContext } from '../context/FilterContext'
 import { useConfigContext } from '../context/ConfigProvider'
 import { useCompetitiveBandAnalysis } from '../hooks/useCompetitiveBandAnalysis'
@@ -9,6 +10,7 @@ import BandSelector from '../components/competitiveBands/BandSelector'
 import ComplianceKpis from '../components/competitiveBands/ComplianceKpis'
 import PercentileTable from '../components/competitiveBands/PercentileTable'
 import CityBracketBreakdown from '../components/competitiveBands/CityBracketBreakdown'
+import PriceVolatilityChart from '../components/competitiveBands/PriceVolatilityChart'
 import '../styles/config.css'
 
 const WEEK_RANGE_OPTIONS = [
@@ -18,6 +20,16 @@ const WEEK_RANGE_OPTIONS = [
   { value: 26, label: 'Últimas 26 semanas' },
 ]
 
+// Lectura instantánea del cumplimiento, antes de los números detallados —
+// el pedido del usuario fue "que sea muy fácil de entender".
+function verdictFor(withinPct) {
+  const v = Number(withinPct)
+  if (!Number.isFinite(v)) return null
+  if (v >= 60) return { emoji: '🟢', label: 'Mayormente competitivo', color: 'var(--sem-green-fg)' }
+  if (v >= 30) return { emoji: '🟡', label: 'Resultados mixtos', color: 'var(--sem-yellow-fg)' }
+  return { emoji: '🔴', label: 'Mayormente fuera de rango', color: 'var(--sem-red-fg)' }
+}
+
 export default function Competitividad() {
   const { filters } = useFilterContext()
   const { competitiveBands, loading: configLoading } = useConfigContext()
@@ -26,6 +38,7 @@ export default function Competitividad() {
   const [selectedBand, setSelectedBand] = useState(null)
   const [weeksBack, setWeeksBack] = useState(8)
   const [drillDown, setDrillDown] = useState(null) // { city, bracket, summary } | null
+  const [activeTab, setActiveTab] = useState('cumplimiento')
 
   const countryBands = useMemo(
     () => competitiveBands.filter((b) => b.country === country && b.is_active !== false),
@@ -59,6 +72,8 @@ export default function Competitividad() {
     weekEnd,
   })
 
+  const verdict = summary?.total_observations ? verdictFor(summary.within_pct) : null
+
   async function handleCellClick(city, bracket, cell) {
     const detail = await drillInto(city, bracket)
     setDrillDown({ city, bracket, cell, detail })
@@ -81,158 +96,210 @@ export default function Competitividad() {
     <div style={{ padding: '16px 20px', maxWidth: '100%', overflowX: 'auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Competitividad</h1>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 14 }}>
-        Qué % de las cotizaciones reales de Yango cae dentro de la banda competitiva configurada.
+        Comparación de precios de Yango vs la competencia: cumplimiento de tu meta y qué tan estable
+        es cada uno.
       </p>
 
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'flex-start',
-          fontSize: 12,
-          color: '#1e3a8a',
-          marginBottom: 16,
-          padding: '10px 14px',
-          background: '#dbeafe',
-          border: '1px solid #93c5fd',
-          borderRadius: 6,
-        }}
-      >
-        <Info size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-        <span>
-          No existe forma de emparejar una cotización de Yango con la del competidor para el{' '}
-          <strong>mismo viaje exacto</strong> (los datos no traen un identificador de ruta/momento
-          compartido). Por eso, cada cotización real de Yango se compara contra el{' '}
-          <strong>precio promedio del competidor</strong> en la misma ciudad, categoría, distancia y
-          semana — esto sí muestra la volatilidad real de Yango, aunque no sea un pareo exacto
-          viaje-por-viaje.
-        </span>
+      <div style={{ marginBottom: 16 }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: 'var(--color-muted)',
+            marginBottom: 4,
+            textTransform: 'uppercase',
+          }}
+        >
+          Período
+        </div>
+        <select
+          value={weeksBack}
+          onChange={(e) => setWeeksBack(Number(e.target.value))}
+          style={{
+            padding: '6px 10px',
+            border: '1.5px solid var(--color-border)',
+            borderRadius: 6,
+            fontSize: 13,
+          }}
+        >
+          {WEEK_RANGE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {configLoading ? (
-        <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
-          Cargando…
-        </div>
-      ) : countryBands.length === 0 ? (
-        <div className="config-section">
-          <BandSelector
-            bands={countryBands}
-            selectedId={activeBand?.id}
-            onSelect={setSelectedBand}
-          />
-        </div>
-      ) : (
-        <>
-          <div
-            className="config-section"
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="cumplimiento">Cumplimiento de banda</TabsTrigger>
+          <TabsTrigger value="volatilidad">Volatilidad de precios</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cumplimiento" className="mt-4">
+          <details
             style={{
-              display: 'flex',
-              gap: 16,
-              alignItems: 'center',
-              flexWrap: 'wrap',
+              fontSize: 12,
+              color: '#1e3a8a',
               marginBottom: 16,
+              padding: '8px 14px',
+              background: '#dbeafe',
+              border: '1px solid #93c5fd',
+              borderRadius: 6,
             }}
           >
-            <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: 'var(--color-muted)',
-                  marginBottom: 4,
-                  textTransform: 'uppercase',
-                }}
-              >
-                Banda
-              </div>
+            <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+              ℹ️ ¿Cómo se calcula esto?
+            </summary>
+            <p style={{ marginTop: 8, marginBottom: 0 }}>
+              No existe forma de emparejar una cotización de Yango con la del competidor para el{' '}
+              <strong>mismo viaje exacto</strong> (los datos no traen un identificador de
+              ruta/momento compartido). Por eso, cada cotización real de Yango se compara contra el{' '}
+              <strong>precio promedio del competidor</strong> en la misma ciudad, categoría,
+              distancia y semana — esto sí muestra la volatilidad real de Yango, aunque no sea un
+              pareo exacto viaje-por-viaje.
+            </p>
+          </details>
+
+          {configLoading ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
+              Cargando…
+            </div>
+          ) : countryBands.length === 0 ? (
+            <div className="config-section">
               <BandSelector
                 bands={countryBands}
                 selectedId={activeBand?.id}
                 onSelect={setSelectedBand}
               />
             </div>
-            <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: 'var(--color-muted)',
-                  marginBottom: 4,
-                  textTransform: 'uppercase',
-                }}
-              >
-                Período
-              </div>
-              <select
-                value={weeksBack}
-                onChange={(e) => setWeeksBack(Number(e.target.value))}
-                style={{
-                  padding: '6px 10px',
-                  border: '1.5px solid var(--color-border)',
-                  borderRadius: 6,
-                  fontSize: 13,
-                }}
-              >
-                {WEEK_RANGE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {activeBand && (
-              <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-                Banda configurada: <strong>{activeBand.min_pct}%</strong> a{' '}
-                <strong>{activeBand.max_pct}%</strong>
-                {activeBand.note && <> — {activeBand.note}</>}
-              </div>
-            )}
-            <button
-              onClick={handleExport}
-              disabled={!summary}
-              className="btn-add-row"
-              style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              <Download size={13} />
-              Exportar CSV
-            </button>
-          </div>
-
-          {error && <div className="state-box state-box--error">Error: {error}</div>}
-
-          {loading && !summary ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
-              Calculando…
-            </div>
-          ) : !summary || !summary.total_observations ? (
-            <div className="state-box">
-              Sin observaciones para esta banda en el período elegido.
-            </div>
           ) : (
             <>
-              <ComplianceKpis summary={summary} />
-              <PercentileTable summary={summary} />
-              <CityBracketBreakdown breakdown={breakdown} onCellClick={handleCellClick} />
-
-              {drillDown && (
-                <div className="config-section" style={{ marginTop: 16 }}>
-                  <h2 style={{ margin: 0, marginBottom: 10 }}>
-                    Detalle — {drillDown.city} / {drillDown.bracket}
-                  </h2>
-                  {drillDown.detail ? (
-                    <>
-                      <ComplianceKpis summary={drillDown.detail} />
-                      <PercentileTable summary={drillDown.detail} />
-                    </>
-                  ) : (
-                    <div style={{ color: 'var(--color-muted)', fontSize: 13 }}>Sin datos.</div>
-                  )}
+              <div
+                className="config-section"
+                style={{
+                  display: 'flex',
+                  gap: 16,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  marginBottom: 16,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: 'var(--color-muted)',
+                      marginBottom: 4,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Banda
+                  </div>
+                  <BandSelector
+                    bands={countryBands}
+                    selectedId={activeBand?.id}
+                    onSelect={setSelectedBand}
+                  />
                 </div>
+                {activeBand && (
+                  <div style={{ fontSize: 13 }}>
+                    <strong>
+                      {activeBand.note || `${activeBand.competitor_name} — ${activeBand.category}`}
+                    </strong>
+                    <span
+                      style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}
+                      title="Banda configurada, en Δ% (Yango vs rival)"
+                    >
+                      ({activeBand.min_pct}% a {activeBand.max_pct}%)
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={handleExport}
+                  disabled={!summary}
+                  className="btn-add-row"
+                  style={{
+                    marginLeft: 'auto',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Download size={13} />
+                  Exportar CSV
+                </button>
+              </div>
+
+              {error && <div className="state-box state-box--error">Error: {error}</div>}
+
+              {loading && !summary ? (
+                <div
+                  style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}
+                >
+                  Calculando…
+                </div>
+              ) : !summary || !summary.total_observations ? (
+                <div className="state-box">
+                  Sin observaciones para esta banda en el período elegido.
+                </div>
+              ) : (
+                <>
+                  {verdict && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontSize: 16,
+                        fontWeight: 700,
+                        marginBottom: 14,
+                        color: verdict.color,
+                      }}
+                    >
+                      <span style={{ fontSize: 22 }}>{verdict.emoji}</span>
+                      {verdict.label}
+                    </div>
+                  )}
+                  <ComplianceKpis summary={summary} />
+                  <PercentileTable summary={summary} />
+                  <CityBracketBreakdown breakdown={breakdown} onCellClick={handleCellClick} />
+
+                  {drillDown && (
+                    <div className="config-section" style={{ marginTop: 16 }}>
+                      <h2 style={{ margin: 0, marginBottom: 10 }}>
+                        Detalle — {drillDown.city} / {drillDown.bracket}
+                      </h2>
+                      {drillDown.detail ? (
+                        <>
+                          <ComplianceKpis summary={drillDown.detail} />
+                          <PercentileTable summary={drillDown.detail} />
+                        </>
+                      ) : (
+                        <div style={{ color: 'var(--color-muted)', fontSize: 13 }}>Sin datos.</div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
-        </>
-      )}
+        </TabsContent>
+
+        <TabsContent value="volatilidad" className="mt-4">
+          {/* Lazy: solo dispara su RPC si esta tab está activa (mismo criterio que Config.jsx) */}
+          {activeTab === 'volatilidad' && (
+            <PriceVolatilityChart
+              country={country}
+              yearStart={yearStart}
+              weekStart={weekStart}
+              yearEnd={yearEnd}
+              weekEnd={weekEnd}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

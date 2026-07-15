@@ -1,5 +1,13 @@
 import { escapeCsvCell } from './csvSafety'
 
+// Sanea un valor para usarlo en el nombre de archivo de descarga. Categorías
+// reales de este dashboard incluyen '/' (ej. "Economy/Comfort") — sin esto,
+// el navegador puede guardar el archivo en una subcarpeta inesperada o
+// truncar el nombre en vez del .csv que el usuario espera encontrar.
+function sanitizeForFilename(value) {
+  return String(value ?? '').replace(/[/\\?%*:|"<>]/g, '-')
+}
+
 // Arma y dispara la descarga CSV del análisis de banda competitiva —
 // mismo patrón Blob/URL.createObjectURL que Dashboard.jsx handleExportCSV.
 export function exportCompetitiveBandCsv({
@@ -59,7 +67,44 @@ export function exportCompetitiveBandCsv({
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `competitividad-${competitorName}-${category}-${new Date().toISOString().slice(0, 10)}.csv`
+  link.download = `competitividad-${sanitizeForFilename(competitorName)}-${sanitizeForFilename(category)}-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+// Arma y dispara la descarga CSV de la comparación de volatilidad de precio
+// (mig 126, get_price_volatility_by_category) — mismo patrón Blob que
+// exportCompetitiveBandCsv, shape de datos distinto (precio real, no Δ%),
+// por eso es una función hermana en vez de sobrecargar la anterior.
+export function exportPriceVolatilityCsv({ country, category, currency, rows: dataRows }) {
+  const rows = []
+  rows.push(['Volatilidad de precio por competidor'])
+  rows.push(['País', country])
+  rows.push(['Categoría', category])
+  rows.push(['Moneda', currency])
+  rows.push([])
+  rows.push(['Competidor', 'Muestras', 'Mín', 'P10', 'P25', 'P50', 'P75', 'P90', 'Máx', 'Promedio'])
+  for (const r of dataRows) {
+    rows.push([
+      r.competitor_name,
+      r.n_buckets,
+      r.min_price,
+      r.p10,
+      r.p25,
+      r.p50,
+      r.p75,
+      r.p90,
+      r.max_price,
+      r.avg_price,
+    ])
+  }
+
+  const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `volatilidad-precio-${sanitizeForFilename(category)}-${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }
