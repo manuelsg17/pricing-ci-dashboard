@@ -1,12 +1,4 @@
-import { escapeCsvCell } from './csvSafety'
-
-// Sanea un valor para usarlo en el nombre de archivo de descarga. Categorías
-// reales de este dashboard incluyen '/' (ej. "Economy/Comfort") — sin esto,
-// el navegador puede guardar el archivo en una subcarpeta inesperada o
-// truncar el nombre en vez del .csv que el usuario espera encontrar.
-function sanitizeForFilename(value) {
-  return String(value ?? '').replace(/[/\\?%*:|"<>]/g, '-')
-}
+import { escapeCsvCell, sanitizeForFilename } from './csvSafety'
 
 // Arma y dispara la descarga CSV del análisis de banda competitiva —
 // mismo patrón Blob/URL.createObjectURL que Dashboard.jsx handleExportCSV.

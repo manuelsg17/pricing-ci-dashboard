@@ -62,3 +62,16 @@ export function escapeCsvCell(value) {
   }
   return s
 }
+
+/**
+ * Sanea un valor para usarlo en el nombre de archivo de una descarga.
+ * Categorías reales de este dashboard incluyen '/' (ej. "Economy/Comfort") —
+ * sin esto, el navegador puede guardar el archivo en una subcarpeta
+ * inesperada o truncar el nombre en vez del archivo que el usuario espera.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function sanitizeForFilename(value) {
+  return String(value ?? '').replace(/[/\\?%*:|"<>]/g, '-')
+}
