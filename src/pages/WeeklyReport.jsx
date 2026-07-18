@@ -7,6 +7,7 @@ import { BRACKETS, BRACKET_LABELS, getCompetitors, resolveDbParams } from '../li
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useI18n } from '../context/LanguageContext'
+import { Button } from '../components/ui/shadcn/button'
 import '../styles/weekly-report.css'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -363,9 +364,9 @@ export default function WeeklyReport() {
           />
         </label>
 
-        <button className="report-btn-generate" onClick={loadReportData} disabled={loading}>
+        <Button className="ml-auto" onClick={loadReportData} disabled={loading}>
           {loading ? t('app.loading') : t('report.load')}
-        </button>
+        </Button>
       </div>
 
       {/* ── Preview ── */}
@@ -387,9 +388,14 @@ export default function WeeklyReport() {
             <span className="report-preview__title">
               {uiCity} · {uiCat} · Sem {refWeek}/{refYear}
             </span>
-            <button className="report-btn-pdf" onClick={generatePDF} disabled={generatingPdf}>
+            <Button
+              size="sm"
+              className="bg-green-800 hover:bg-green-900"
+              onClick={generatePDF}
+              disabled={generatingPdf}
+            >
               {generatingPdf ? t('report.generating') : t('report.download_pdf')}
-            </button>
+            </Button>
           </div>
 
           <div className="report-preview__body">

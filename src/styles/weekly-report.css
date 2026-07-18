@@ -55,7 +55,7 @@
 }
 
 .report-ctrl select,
-.report-ctrl input[type="number"] {
+.report-ctrl input[type='number'] {
   padding: 5px 8px;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -66,24 +66,9 @@
 }
 
 .report-ctrl select:focus,
-.report-ctrl input:focus { border-color: var(--color-yango); }
-
-.report-btn-generate {
-  margin-left: auto;
-  padding: 7px 18px;
-  background: var(--color-yango);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
-  white-space: nowrap;
+.report-ctrl input:focus {
+  border-color: var(--color-yango);
 }
-
-.report-btn-generate:hover    { background: var(--color-yango-dark); }
-.report-btn-generate:disabled { background: var(--color-subtle); cursor: not-allowed; }
 
 /* ── Status ─────────────────────────────────────────────── */
 .report-loading,
@@ -123,21 +108,9 @@
   color: var(--color-muted);
 }
 
-.report-btn-pdf {
-  padding: 6px 14px;
-  background: #166534;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
+.report-preview__body {
+  padding: 16px;
 }
-
-.report-btn-pdf:hover { background: #14532d; }
-
-.report-preview__body { padding: 16px; }
 
 /* ── Report section ─────────────────────────────────────── */
 .report-section {
@@ -155,7 +128,9 @@
 }
 
 /* ── Report table ───────────────────────────────────────── */
-.report-table-wrap { overflow-x: auto; }
+.report-table-wrap {
+  overflow-x: auto;
+}
 
 .report-table {
   border-collapse: collapse;
@@ -176,7 +151,9 @@
   border: 1px solid var(--color-border-soft);
 }
 
-.report-table th:first-child { text-align: left; }
+.report-table th:first-child {
+  text-align: left;
+}
 
 .report-table td {
   padding: 5px 10px;
@@ -185,16 +162,37 @@
   vertical-align: middle;
 }
 
-.report-table td:first-child { text-align: left; font-weight: 600; }
+.report-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+}
 
-.report-table tbody tr:nth-child(even) td { background: #f8fafc; }
-.report-table tbody tr:hover td { background: var(--color-yango-mid); }
+.report-table tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+.report-table tbody tr:hover td {
+  background: var(--color-yango-mid);
+}
 
 /* Semaforo cell colors */
-.report-cell--green  { background: var(--sem-green-bg) !important; color: var(--sem-green-fg); font-weight: 700; }
-.report-cell--yellow { background: var(--sem-yellow-bg) !important; color: var(--sem-yellow-fg); font-weight: 700; }
-.report-cell--red    { background: var(--sem-red-bg) !important; color: var(--sem-red-fg); font-weight: 700; }
-.report-cell--none   { color: var(--color-muted); }
+.report-cell--green {
+  background: var(--sem-green-bg) !important;
+  color: var(--sem-green-fg);
+  font-weight: 700;
+}
+.report-cell--yellow {
+  background: var(--sem-yellow-bg) !important;
+  color: var(--sem-yellow-fg);
+  font-weight: 700;
+}
+.report-cell--red {
+  background: var(--sem-red-bg) !important;
+  color: var(--sem-red-fg);
+  font-weight: 700;
+}
+.report-cell--none {
+  color: var(--color-muted);
+}
 
 /* ── Summary cards ──────────────────────────────────────── */
 .report-summary {

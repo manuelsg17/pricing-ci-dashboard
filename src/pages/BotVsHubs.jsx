@@ -14,6 +14,7 @@ import { sb } from '../lib/supabase'
 import { humanizeError } from '../lib/humanizeError'
 import { useI18n } from '../context/LanguageContext'
 import { getCityLabel } from '../lib/constants'
+import { Button } from '../components/ui/shadcn/button'
 
 // Etiquetas personalizadas por DB
 
@@ -239,23 +240,18 @@ export default function BotVsHubs() {
           </select>
         </div>
         {(catFilter || compFilter) && (
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="bg-transparent text-muted"
             onClick={() => {
               setCatFilter('')
               setCompFilter('')
             }}
-            style={{
-              fontSize: 12,
-              padding: '5px 10px',
-              border: '1px solid var(--color-border)',
-              borderRadius: 4,
-              background: 'transparent',
-              cursor: 'pointer',
-              color: 'var(--color-muted)',
-            }}
           >
             ✕ Limpiar
-          </button>
+          </Button>
         )}
       </div>
 

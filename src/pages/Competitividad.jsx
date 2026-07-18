@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/shadcn/tabs'
+import { Button } from '../components/ui/shadcn/button'
 import { useFilterContext } from '../context/FilterContext'
 import { useConfigContext } from '../context/ConfigProvider'
 import { useCompetitiveBandAnalysis } from '../hooks/useCompetitiveBandAnalysis'
@@ -305,20 +306,17 @@ export default function Competitividad() {
                     </span>
                   </div>
                 )}
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto gap-1.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
                   onClick={handleExport}
                   disabled={!summary}
-                  className="btn-add-row"
-                  style={{
-                    marginLeft: 'auto',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
                 >
                   <Download size={13} />
                   Exportar CSV
-                </button>
+                </Button>
               </div>
 
               {error && <div className="state-box state-box--error">Error: {error}</div>}

@@ -5,6 +5,7 @@ import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
 import { SkeletonTable } from '../components/ui/Skeleton'
+import { Button } from '../components/ui/shadcn/button'
 import '../styles/market-events.css'
 
 const EVENT_TYPES = [
@@ -186,9 +187,9 @@ export default function MarketEvents() {
           <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
         </label>
 
-        <button className="mevt-btn-add" onClick={addRow}>
+        <Button size="sm" className="ml-auto" onClick={addRow}>
           + Nuevo evento
-        </button>
+        </Button>
       </div>
 
       {/* ── Table ── */}
@@ -289,16 +290,17 @@ export default function MarketEvents() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button
-                          className="mevt-btn-save"
-                          onClick={() => handleSave(row)}
-                          disabled={saving}
-                        >
+                        <Button size="sm" onClick={() => handleSave(row)} disabled={saving}>
                           Guardar
-                        </button>
-                        <button className="mevt-btn-del" onClick={() => handleDelete(row.id)}>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-300 text-red-600 hover:bg-red-100"
+                          onClick={() => handleDelete(row.id)}
+                        >
                           ✕
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
