@@ -49,7 +49,9 @@
   transition: border-color 0.15s;
 }
 
-.drefs-filters select:focus { border-color: var(--color-yango); }
+.drefs-filters select:focus {
+  border-color: var(--color-yango);
+}
 
 /* ── Table section ──────────────────────────────────── */
 .drefs-section {
@@ -84,7 +86,9 @@
 }
 
 /* ── Editable table ─────────────────────────────────── */
-.drefs-table-wrap { overflow-x: auto; }
+.drefs-table-wrap {
+  overflow-x: auto;
+}
 
 .drefs-table {
   border-collapse: collapse;
@@ -112,10 +116,16 @@
   vertical-align: middle;
 }
 
-.drefs-table tbody tr:hover td { background: #f8fafc; }
+.drefs-table tbody tr:hover td {
+  background: #f8fafc;
+}
 
-.drefs-table tr.row-new td { background: var(--color-yango-light); }
-.drefs-table tr.row-new:hover td { background: #fce4e4; }
+.drefs-table tr.row-new td {
+  background: var(--color-yango-light);
+}
+.drefs-table tr.row-new:hover td {
+  background: #fce4e4;
+}
 
 .drefs-table input,
 .drefs-table select {
@@ -127,7 +137,9 @@
   min-width: 80px;
   background: var(--color-bg);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .drefs-table input:focus,
@@ -137,55 +149,19 @@
   background: #fff;
 }
 
-.drefs-table input.wide  { min-width: 160px; }
-.drefs-table input.coord { min-width: 130px; font-family: var(--font-mono); font-size: 11px; }
-.drefs-table input.dist  { min-width: 70px; max-width: 80px; text-align: right; }
-
-/* ── Buttons ─────────────────────────────────────────── */
-.btn-add-row {
-  padding: 7px 16px;
-  background: transparent;
-  border: 1.5px solid var(--color-yango);
-  color: var(--color-yango);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
+.drefs-table input.wide {
+  min-width: 160px;
 }
-
-.btn-add-row:hover {
-  background: var(--color-yango);
-  color: #fff;
-}
-
-.btn-delete-row {
-  padding: 3px 8px;
-  background: transparent;
-  border: 1px solid #f5c6c6;
-  color: #dc3545;
-  border-radius: var(--radius-sm);
+.drefs-table input.coord {
+  min-width: 130px;
+  font-family: var(--font-mono);
   font-size: 11px;
-  cursor: pointer;
-  transition: all 0.15s;
 }
-
-.btn-delete-row:hover { background: var(--sem-red-bg); border-color: #dc3545; }
-
-.btn-save-row {
-  padding: 3px 10px;
-  background: var(--color-yango);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
+.drefs-table input.dist {
+  min-width: 70px;
+  max-width: 80px;
+  text-align: right;
 }
-
-.btn-save-row:hover { background: var(--color-yango-dark); }
-.btn-save-row:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Category tabs ───────────────────────────────────── */
 .drefs-cat-tabs {
@@ -210,7 +186,10 @@
   transition: all 0.15s;
 }
 
-.drefs-cat-tab:hover { border-color: var(--color-yango); color: var(--color-yango); }
+.drefs-cat-tab:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
 .drefs-cat-tab.active {
   background: var(--color-yango);
   color: #fff;
@@ -219,7 +198,7 @@
 }
 
 .drefs-cat-count {
-  background: rgba(0,0,0,0.15);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 10px;
   padding: 1px 7px;
   font-size: 10px;
@@ -228,7 +207,9 @@
   text-align: center;
 }
 
-.drefs-cat-tab.active .drefs-cat-count { background: rgba(255,255,255,0.3); }
+.drefs-cat-tab.active .drefs-cat-count {
+  background: rgba(255, 255, 255, 0.3);
+}
 
 /* ── Pending badge ────────────────────────────────────── */
 .drefs-pending-badge {
@@ -244,39 +225,12 @@
 }
 
 /* ── Row states ───────────────────────────────────────── */
-.drefs-table tr.row-edited td { background: #fffbeb; }
-.drefs-table tr.row-edited:hover td { background: #fef3c7; }
-
-/* ── Bulk save button ─────────────────────────────────── */
-.btn-save-all {
-  padding: 6px 14px;
-  background: #166534;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
+.drefs-table tr.row-edited td {
+  background: #fffbeb;
 }
-
-.btn-save-all:hover { background: #14532d; }
-.btn-save-all:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-add-category {
-  padding: 6px 14px;
-  background: var(--color-yango);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
+.drefs-table tr.row-edited:hover td {
+  background: #fef3c7;
 }
-
-.btn-add-category:hover { background: var(--color-yango-dark); }
-.btn-add-category:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Bulk messages ────────────────────────────────────── */
 .drefs-bulk-msg {
@@ -286,8 +240,16 @@
   margin-bottom: 10px;
 }
 
-.drefs-bulk-msg--ok  { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
-.drefs-bulk-msg--err { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.drefs-bulk-msg--ok {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+.drefs-bulk-msg--err {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
 
 /* ── State ───────────────────────────────────────────── */
 .drefs-empty {

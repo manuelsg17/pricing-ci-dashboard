@@ -5,6 +5,7 @@ import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
 import { SkeletonTable } from '../components/ui/Skeleton'
+import { Button } from '../components/ui/shadcn/button'
 import '../styles/distance-refs.css'
 
 import { useCountry } from '../context/CountryContext'
@@ -219,30 +220,29 @@ export default function DistanceRefs() {
           </span>
           <div className="drefs-section__actions">
             {pendingCount > 0 && (
-              <button
-                className="btn-save-all"
+              <Button
+                size="sm"
+                className="bg-green-700 hover:bg-green-800"
                 onClick={handleSaveAll}
                 disabled={bulkSaving || saving}
               >
                 {bulkSaving ? 'Guardando…' : `💾 Guardar todos (${pendingCount})`}
-              </button>
+              </Button>
             )}
-            <button
-              className="btn-add-category"
-              onClick={handleAddCategory}
-              disabled={saving || bulkSaving}
-            >
+            <Button size="sm" onClick={handleAddCategory} disabled={saving || bulkSaving}>
               + Agregar {uiCat} completa
-            </button>
-            <button
-              className="btn-add-row"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-yango text-yango hover:bg-yango hover:text-white"
               onClick={() => {
                 addRow()
               }}
               disabled={saving}
             >
               + Fila individual
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -332,20 +332,18 @@ export default function DistanceRefs() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button
-                          className="btn-save-row"
-                          onClick={() => handleSave(row)}
-                          disabled={saving}
-                        >
+                        <Button size="sm" onClick={() => handleSave(row)} disabled={saving}>
                           Guardar
-                        </button>
-                        <button
-                          className="btn-delete-row"
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-200 text-red-600 hover:border-red-600 hover:bg-red-50"
                           onClick={() => handleDelete(row.id)}
                           disabled={saving}
                         >
                           ✕
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
