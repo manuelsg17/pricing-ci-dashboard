@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { getCountryConfig, dbConfigToInternal, COUNTRIES } from '../lib/constants'
+import { botRulesRowsToInternal } from '../lib/botMapping'
 import { sb } from '../lib/supabase'
 
 const CountryContext = createContext(null)
@@ -88,15 +89,40 @@ export function CountryProvider({ children }) {
 
   const fetchAllConfigs = useCallback(async () => {
     try {
-      const { data, error } = await sb.from('country_config').select('*').order('sort_order')
+      const [{ data, error }, botRulesRes] = await Promise.all([
+        sb.from('country_config').select('*').order('sort_order'),
+        sb
+          .from('bot_rules')
+          .select('country, app, vc, ovc, competition_name, category, cities')
+          .eq('active', true),
+      ])
       if (error) {
         console.warn('[CountryContext] Could not load country_config:', error.message)
         return
       }
       if (!data?.length) return
+
+      // bot_rules en vivo, agrupado por país — pisa el snapshot JSONB de
+      // country_config.bot_rules (dbConfigToInternal) para que un edit en
+      // BotRulesTable.jsx se refleje sin depender de que alguien recuerde
+      // sincronizar el snapshot (ver mig 131). Si el fetch de bot_rules
+      // falla, se deja el snapshot JSONB como fallback en vez de vaciarlo.
+      const botRulesByCountry = {}
+      if (!botRulesRes.error) {
+        for (const r of botRulesRes.data || []) {
+          ;(botRulesByCountry[r.country] ??= []).push(r)
+        }
+      } else {
+        console.warn('[CountryContext] Could not load bot_rules:', botRulesRes.error.message)
+      }
+
       const mapped = {}
       data.forEach((row) => {
-        mapped[row.country_key] = dbConfigToInternal(row)
+        const internal = dbConfigToInternal(row)
+        if (!botRulesRes.error) {
+          internal.botRules = botRulesRowsToInternal(botRulesByCountry[row.country_key] || [])
+        }
+        mapped[row.country_key] = internal
       })
       setDbConfigs(mapped)
       writeCache(mapped)

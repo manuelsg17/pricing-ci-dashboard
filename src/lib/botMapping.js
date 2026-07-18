@@ -16,34 +16,61 @@ import { getCountryConfig } from './constants.js'
 // App del CSV → clave de regla (botRules.app). Se mantiene 'Yango' como
 // competition_name por defecto si la regla no lo sobrescribe.
 const APP_KEY_MAP = {
-  uber:      'uber',
-  yango:     'yango',
+  uber: 'uber',
+  yango: 'yango',
   yango_api: 'yango',
-  didi:      'didi',
-  indrive:   'indrive',
-  cabify:    'cabify',
-  picap:     'picap',  // Colombia: app moto-only
+  didi: 'didi',
+  indrive: 'indrive',
+  cabify: 'cabify',
+  picap: 'picap', // Colombia: app moto-only
+}
+
+// Convierte filas crudas de la tabla SQL bot_rules (fuente de verdad — la
+// que edita BotRulesTable.jsx y la que usa el sync automático real) a la
+// forma que espera resolveByRules(): { app, vc, ovc, name, category, cities }.
+// Usado por CountryContext.fetchAllConfigs() para que dbConfigs[country].
+// botRules SIEMPRE refleje el estado vivo de la tabla, no un snapshot
+// JSONB que puede quedar desincronizado (ver mig 131 — bot_rules vacío
+// para Peru/Colombia descartaba el 100% de los uploads manuales).
+//
+// Dos ajustes de forma respecto a la fila SQL cruda:
+//   - competition_name (columna) → name (campo que lee resolveByRules).
+//   - cities='{}' (convención SQL de "sin restricción") → undefined
+//     (convención JS — un array VACÍO en resolveByRules se interpreta
+//     como "no matchea ninguna ciudad", lo opuesto de "todas").
+//   - app se normaliza con el mismo APP_KEY_MAP que usa el matching real
+//     (ej. 'yango_api' → 'yango'), así una regla creada en BotRulesTable
+//     con app='yango_api' matchea igual que una hardcodeada con 'yango'.
+export function botRulesRowsToInternal(rows) {
+  return (rows || []).map((r) => ({
+    app: APP_KEY_MAP[r.app] || r.app,
+    vc: r.vc,
+    ovc: r.ovc,
+    name: r.competition_name,
+    category: r.category,
+    cities: Array.isArray(r.cities) && r.cities.length > 0 ? r.cities : undefined,
+  }))
 }
 
 // competition_name por defecto cuando no se usan reglas (fallback legacy)
 const APP_MAP = {
-  uber:      'Uber',
-  yango:     'Yango',
+  uber: 'Uber',
+  yango: 'Yango',
   yango_api: 'Yango',
-  didi:      'Didi',
-  indrive:   'InDrive',
-  cabify:    'Cabify',
-  picap:     'Picap',
+  didi: 'Didi',
+  indrive: 'InDrive',
+  cabify: 'Cabify',
+  picap: 'Picap',
 }
 
 // ── Legacy path (países sin botRules) ─────────────────────
 // vehicle_category del bot: economy, comfort, premium, tuktuk, xl, moto, taxi, courier, etc.
 const VEHICLE_CATEGORY_MAP = {
-  economy:  'Economy',
-  comfort:  'Comfort',
-  premium:  'Comfort',
-  tuktuk:   'TukTuk',
-  xl:       'XL',
+  economy: 'Economy',
+  comfort: 'Comfort',
+  premium: 'Comfort',
+  tuktuk: 'TukTuk',
+  xl: 'XL',
 }
 
 const LEGACY_VALID_CATEGORIES = new Set(['Economy', 'Comfort', 'Premier', 'TukTuk', 'XL', 'Corp'])
@@ -51,13 +78,13 @@ const LEGACY_VALID_CATEGORIES = new Set(['Economy', 'Comfort', 'Premier', 'TukTu
 // Normalización de distance_bracket del bot → bracket de la BD
 const BRACKET_MAP = {
   'very short': 'very_short',
-  'very_short': 'very_short',
-  'short':      'short',
-  'median':     'median',
-  'average':    'average',
-  'long':       'long',
-  'very long':  'very_long',
-  'very_long':  'very_long',
+  very_short: 'very_short',
+  short: 'short',
+  median: 'median',
+  average: 'average',
+  long: 'long',
+  'very long': 'very_long',
+  very_long: 'very_long',
 }
 
 /**
@@ -66,7 +93,7 @@ const BRACKET_MAP = {
  */
 function parsePrice(val, maxPrice) {
   if (val === null || val === undefined || val === '') return null
-  const s = String(val).trim().replace(/,/g, '')  // quitar comas (Colombia)
+  const s = String(val).trim().replace(/,/g, '') // quitar comas (Colombia)
   const n = parseFloat(s)
   if (isNaN(n) || n <= 0 || n > maxPrice) return null
   return n
@@ -89,7 +116,7 @@ function parseTimestamp(ts) {
 function resolveByRules(rules, { appKey, vcRaw, ovcRaw, dbCity }) {
   for (const r of rules) {
     if (r.app !== appKey) continue
-    if (r.vc  !== vcRaw)  continue
+    if (r.vc !== vcRaw) continue
     if (r.ovc !== '*' && r.ovc !== ovcRaw) continue
     if (r.cities && !r.cities.includes(dbCity)) continue
     return { competition_name: r.name, category: r.category }
@@ -110,7 +137,7 @@ function resolveByRules(rules, { appKey, vcRaw, ovcRaw, dbCity }) {
  * @returns {{ ok: object[], skipped: { row: object, reason: string }[] }}
  */
 export function mapBotRows(rows, activeCountry = 'Peru', dbConfigs = null) {
-  const ok      = []
+  const ok = []
   const skipped = []
   const config = getCountryConfig(activeCountry, dbConfigs)
   const maxPrice = config.maxPrice || 300
@@ -121,18 +148,22 @@ export function mapBotRows(rows, activeCountry = 'Peru', dbConfigs = null) {
 
   for (const row of rows) {
     // 1. Filtrar solo el país activo y status ok
-    const rowCountry = String(row.country || '').trim().toLowerCase()
-    const status     = String(row.status  || '').trim().toLowerCase()
+    const rowCountry = String(row.country || '')
+      .trim()
+      .toLowerCase()
+    const status = String(row.status || '')
+      .trim()
+      .toLowerCase()
 
     // El bot a veces registra "Peru", a veces "Columbia" (typo común)
     if (rowCountry !== targetCountry && rowCountry !== 'peru' && targetCountry === 'peru') {
-       skipped.push({ row, reason: `País: ${row.country} (se esperaba ${activeCountry})` })
-       continue
+      skipped.push({ row, reason: `País: ${row.country} (se esperaba ${activeCountry})` })
+      continue
     }
     // Para Colombia, el bot suele decir "colombia"
     if (targetCountry === 'colombia' && rowCountry !== 'colombia') {
-       skipped.push({ row, reason: `País: ${row.country} (se esperaba Colombia)` })
-       continue
+      skipped.push({ row, reason: `País: ${row.country} (se esperaba Colombia)` })
+      continue
     }
 
     if (status !== 'ok') {
@@ -141,7 +172,9 @@ export function mapBotRows(rows, activeCountry = 'Peru', dbConfigs = null) {
     }
 
     // 2. App → clave de regla (y fallback competition_name)
-    const appRaw = String(row.app || '').trim().toLowerCase()
+    const appRaw = String(row.app || '')
+      .trim()
+      .toLowerCase()
     const appKey = APP_KEY_MAP[appRaw]
     if (!appKey) {
       skipped.push({ row, reason: `App desconocida: ${row.app}` })
@@ -149,15 +182,19 @@ export function mapBotRows(rows, activeCountry = 'Peru', dbConfigs = null) {
     }
 
     // 3. City → dbCity
-    const cityRaw = String(row.city || '').trim().toLowerCase()
-    const dbCity  = botCityMap[cityRaw]
+    const cityRaw = String(row.city || '')
+      .trim()
+      .toLowerCase()
+    const dbCity = botCityMap[cityRaw]
     if (!dbCity) {
       skipped.push({ row, reason: `Ciudad desconocida o no mapeada: ${row.city}` })
       continue
     }
 
     // 4. Resolver (competition_name, category)
-    const vcRaw  = String(row.vehicle_category || '').trim().toLowerCase()
+    const vcRaw = String(row.vehicle_category || '')
+      .trim()
+      .toLowerCase()
     // Null/empty ovc se trata como '*' para que matchee reglas wildcard (ej: TukTuk)
     const ovcRaw = row.observed_vehicle_category
       ? String(row.observed_vehicle_category).trim().toLowerCase()
@@ -192,26 +229,28 @@ export function mapBotRows(rows, activeCountry = 'Peru', dbConfigs = null) {
     }
 
     // 6. distance_bracket
-    const bracketRaw = String(row.distance_bracket || '').trim().toLowerCase()
-    const bracket    = BRACKET_MAP[bracketRaw]
+    const bracketRaw = String(row.distance_bracket || '')
+      .trim()
+      .toLowerCase()
+    const bracket = BRACKET_MAP[bracketRaw]
 
     // 7. Precios
-    const priceRegular    = parsePrice(row.price_regular_value, maxPrice)
+    const priceRegular = parsePrice(row.price_regular_value, maxPrice)
     const priceDiscounted = parsePrice(row.price_discounted_value, maxPrice)
 
     // Para InDrive: regular = recommended, discounted = minimal_bid
     // Para otros:   regular = price_without_discount, discounted = price_with_discount
-    let recommended_price      = null
+    let recommended_price = null
     let price_without_discount = null
-    let price_with_discount    = null
-    let minimal_bid            = null
+    let price_with_discount = null
+    let minimal_bid = null
 
     if (appKey === 'indrive') {
       recommended_price = priceRegular
-      minimal_bid       = priceDiscounted
+      minimal_bid = priceDiscounted
     } else {
       price_without_discount = priceRegular
-      price_with_discount    = priceDiscounted
+      price_with_discount = priceDiscounted
     }
 
     // 8. Timestamp
@@ -222,36 +261,49 @@ export function mapBotRows(rows, activeCountry = 'Peru', dbConfigs = null) {
     }
 
     // 9. Surge
-    const surgeVal = String(row.surge || '').trim().toUpperCase()
-    const surge    = surgeVal === 'TRUE' || surgeVal === '1' || surgeVal === 'YES' || surgeVal === 'SÍ'
-      ? true
-      : surgeVal === 'FALSE' || surgeVal === '0' || surgeVal === 'NO'
-        ? false
-        : null
+    const surgeVal = String(row.surge || '')
+      .trim()
+      .toUpperCase()
+    const surge =
+      surgeVal === 'TRUE' || surgeVal === '1' || surgeVal === 'YES' || surgeVal === 'SÍ'
+        ? true
+        : surgeVal === 'FALSE' || surgeVal === '0' || surgeVal === 'NO'
+          ? false
+          : null
 
     // 10. ETA
-    const eta_min = row.eta_mins !== '' && row.eta_mins !== undefined
-      ? parseFloat(row.eta_mins) || null
-      : null
+    const eta_min =
+      row.eta_mins !== '' && row.eta_mins !== undefined ? parseFloat(row.eta_mins) || null : null
 
     // 11. Rush hour — usar columna del bot si existe, si no el trigger lo deriva del horario
-    const rushRaw  = String(row.rush_hour ?? row['rush hour'] ?? row.is_rush_hour ?? row.isRushHour ?? '').trim().toUpperCase()
-    const rush_hour = rushRaw === 'TRUE' || rushRaw === '1' || rushRaw === 'YES' || rushRaw === 'SÍ'
-      ? true
-      : rushRaw === 'FALSE' || rushRaw === '0' || rushRaw === 'NO'
-        ? false
-        : null  // null → trigger asigna desde observed_time
+    const rushRaw = String(
+      row.rush_hour ?? row['rush hour'] ?? row.is_rush_hour ?? row.isRushHour ?? ''
+    )
+      .trim()
+      .toUpperCase()
+    const rush_hour =
+      rushRaw === 'TRUE' || rushRaw === '1' || rushRaw === 'YES' || rushRaw === 'SÍ'
+        ? true
+        : rushRaw === 'FALSE' || rushRaw === '0' || rushRaw === 'NO'
+          ? false
+          : null // null → trigger asigna desde observed_time
 
     ok.push({
-      city:                   dbCity,
+      city: dbCity,
       category,
       competition_name,
-      observed_date:          date,
-      observed_time:          time,
-      point_a:                String(row.start_address || '').trim().slice(0, 200) || null,
-      point_b:                String(row.end_address   || '').trim().slice(0, 200) || null,
-      distance_km:            null,
-      distance_bracket:       bracket || null,
+      observed_date: date,
+      observed_time: time,
+      point_a:
+        String(row.start_address || '')
+          .trim()
+          .slice(0, 200) || null,
+      point_b:
+        String(row.end_address || '')
+          .trim()
+          .slice(0, 200) || null,
+      distance_km: null,
+      distance_bracket: bracket || null,
       surge,
       rush_hour,
       recommended_price,
