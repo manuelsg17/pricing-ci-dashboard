@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Button } from '../ui/shadcn/button'
 
 /**
  * OutlierReview — muestra filas con precios sospechosos antes del insert.
@@ -13,7 +14,7 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
   // Estado local: { [idx]: { price: string, exclude: bool } }
   const [edits, setEdits] = useState(() => {
     const init = {}
-    suspects.forEach(s => {
+    suspects.forEach((s) => {
       init[s.idx] = { price: String(s.value ?? ''), exclude: false }
     })
     return init
@@ -21,13 +22,13 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
   const [search, setSearch] = useState('')
 
   function setPrice(idx, val) {
-    setEdits(prev => ({ ...prev, [idx]: { ...prev[idx], price: val } }))
+    setEdits((prev) => ({ ...prev, [idx]: { ...prev[idx], price: val } }))
   }
   function toggleExclude(idx) {
-    setEdits(prev => ({ ...prev, [idx]: { ...prev[idx], exclude: !prev[idx].exclude } }))
+    setEdits((prev) => ({ ...prev, [idx]: { ...prev[idx], exclude: !prev[idx].exclude } }))
   }
   function setAllExclude(exclude) {
-    setEdits(prev => {
+    setEdits((prev) => {
       const next = { ...prev }
       for (const s of suspects) {
         next[s.idx] = { ...next[s.idx], exclude }
@@ -39,14 +40,15 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return suspects
-    return suspects.filter(s => {
-      const hay = `${s.row.city||''} ${s.row.category||''} ${s.row.competition_name||''} ${s.row.observed_date||''} ${s.row.distance_bracket||''}`.toLowerCase()
+    return suspects.filter((s) => {
+      const hay =
+        `${s.row.city || ''} ${s.row.category || ''} ${s.row.competition_name || ''} ${s.row.observed_date || ''} ${s.row.distance_bracket || ''}`.toLowerCase()
       return hay.includes(q)
     })
   }, [suspects, search])
 
-  const toInclude  = suspects.filter(s => !edits[s.idx]?.exclude).length
-  const toExclude  = suspects.filter(s =>  edits[s.idx]?.exclude).length
+  const toInclude = suspects.filter((s) => !edits[s.idx]?.exclude).length
+  const toExclude = suspects.filter((s) => edits[s.idx]?.exclude).length
 
   return (
     <div className="outlier-review">
@@ -55,8 +57,8 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
         <div>
           <div className="outlier-review__title">Precios sospechosos detectados</div>
           <div className="outlier-review__sub">
-            {suspects.length} {suspects.length === 1 ? 'fila supera' : 'filas superan'} el límite configurado.
-            Corrige el valor o marca "Excluir" para no insertarla.
+            {suspects.length} {suspects.length === 1 ? 'fila supera' : 'filas superan'} el límite
+            configurado. Corrige el valor o marca "Excluir" para no insertarla.
           </div>
         </div>
       </div>
@@ -67,25 +69,27 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
           className="outlier-review__search"
           placeholder="🔍 Filtrar (ciudad, categoría, competidor, fecha…)"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
         />
         <div className="outlier-review__bulk">
-          <button
+          <Button
             type="button"
-            className="outlier-review__bulk-btn"
+            variant="outline"
+            size="sm"
             onClick={() => setAllExclude(true)}
             title="Marcar todas las filas como excluidas"
           >
             ✕ Excluir todas
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="outlier-review__bulk-btn"
+            variant="outline"
+            size="sm"
             onClick={() => setAllExclude(false)}
             title="Desmarcar todas (incluir todas con su precio actual)"
           >
             ✓ Incluir todas
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -107,12 +111,15 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ textAlign:'center', padding:'24px 12px', color:'var(--color-muted)' }}>
+                <td
+                  colSpan={9}
+                  style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--color-muted)' }}
+                >
                   Sin filas que coincidan con "{search}"
                 </td>
               </tr>
             )}
-            {filtered.map(s => {
+            {filtered.map((s) => {
               const edit = edits[s.idx]
               return (
                 <tr key={s.idx} className={edit.exclude ? 'outlier-row--excluded' : ''}>
@@ -130,7 +137,7 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
                       min="0"
                       className="outlier-input"
                       value={edit.price}
-                      onChange={e => setPrice(s.idx, e.target.value)}
+                      onChange={(e) => setPrice(s.idx, e.target.value)}
                       disabled={edit.exclude}
                       placeholder="Corregir…"
                     />
@@ -152,17 +159,20 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
 
       <div className="outlier-review__footer">
         <div className="outlier-review__summary">
-          Se insertarán <strong>{toInclude}</strong> filas corregidas ·
-          Se excluirán <strong>{toExclude}</strong> filas
+          Se insertarán <strong>{toInclude}</strong> filas corregidas · Se excluirán{' '}
+          <strong>{toExclude}</strong> filas
         </div>
         <div className="outlier-review__actions">
-          <button className="btn-clear" onClick={onCancel}>Cancelar</button>
-          <button
-            className="btn-ingest"
-            onClick={() => onConfirm(edits)}
+          <Button
+            variant="outline"
+            className="hover:border-yango hover:bg-[var(--color-yango-light)] hover:text-yango"
+            onClick={onCancel}
           >
+            Cancelar
+          </Button>
+          <Button className="bg-[#2e7d32] hover:bg-[#1b5e20]" onClick={() => onConfirm(edits)}>
             Confirmar y continuar →
-          </button>
+          </Button>
         </div>
       </div>
     </div>

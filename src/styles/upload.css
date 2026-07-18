@@ -21,7 +21,9 @@
   border-bottom: 1px solid #fde68a;
 }
 
-.outlier-review__icon { font-size: 22px; }
+.outlier-review__icon {
+  font-size: 22px;
+}
 
 .outlier-review__title {
   font-size: 14px;
@@ -59,21 +61,6 @@
 .outlier-review__bulk {
   display: flex;
   gap: 6px;
-}
-.outlier-review__bulk-btn {
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--color-text, #1f2937);
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-}
-.outlier-review__bulk-btn:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
 }
 
 .outlier-review__table-wrap {
@@ -134,7 +121,9 @@
   outline: none;
 }
 
-.outlier-input:focus { border-color: var(--color-yango); }
+.outlier-input:focus {
+  border-color: var(--color-yango);
+}
 
 .outlier-checkbox {
   width: 16px;
@@ -203,7 +192,9 @@
   transition: color 0.15s;
 }
 
-.upload-tab:hover { color: var(--color-text); }
+.upload-tab:hover {
+  color: var(--color-text);
+}
 .upload-tab.active {
   color: var(--color-yango);
   font-weight: 700;
@@ -217,7 +208,10 @@
   padding: 40px 32px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    box-shadow 0.2s;
   background: var(--color-panel);
   margin-bottom: 16px;
   box-shadow: var(--shadow-xs);
@@ -230,9 +224,20 @@
   box-shadow: 0 0 0 3px var(--color-yango-mid);
 }
 
-.dropzone__icon { font-size: 40px; margin-bottom: 10px; }
-.dropzone__text { font-size: 14px; color: var(--color-muted); font-weight: 500; }
-.dropzone__hint { font-size: 11px; color: var(--color-subtle); margin-top: 6px; }
+.dropzone__icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+.dropzone__text {
+  font-size: 14px;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.dropzone__hint {
+  font-size: 11px;
+  color: var(--color-subtle);
+  margin-top: 6px;
+}
 
 /* ── Upload meta selectors ─────────────────────────── */
 .upload-meta {
@@ -265,7 +270,9 @@
   transition: border-color 0.15s;
 }
 
-.upload-meta select:focus { border-color: var(--color-yango); }
+.upload-meta select:focus {
+  border-color: var(--color-yango);
+}
 
 /* ── Preview ─────────────────────────────────────────── */
 .preview-section {
@@ -288,7 +295,9 @@
   border-bottom: 1px solid var(--color-border-soft);
 }
 
-.preview-wrap { overflow-x: auto; }
+.preview-wrap {
+  overflow-x: auto;
+}
 
 .preview-table {
   border-collapse: collapse;
@@ -316,8 +325,14 @@
   border-right: 1px solid var(--color-border-soft);
 }
 
-.preview-table tbody tr:hover td { background: #f8fafc; }
-.preview-table .col-computed { background: #d4edda; color: #155724; font-weight: 700; }
+.preview-table tbody tr:hover td {
+  background: #f8fafc;
+}
+.preview-table .col-computed {
+  background: #d4edda;
+  color: #155724;
+  font-weight: 700;
+}
 
 /* ── Ingest progress ────────────────────────────────── */
 .ingest-bar {
@@ -335,43 +350,13 @@
   transition: width 0.3s ease;
 }
 
-.ingest-status { font-size: 12px; color: var(--color-muted); margin-bottom: 12px; }
+.ingest-status {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-bottom: 12px;
+}
 
 /* ── Buttons ─────────────────────────────────────────── */
-.btn-ingest {
-  padding: 9px 22px;
-  background: #2e7d32;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-}
-
-.btn-ingest:hover { background: #1b5e20; }
-.btn-ingest:active { transform: scale(0.98); }
-.btn-ingest:disabled { background: var(--color-subtle); cursor: not-allowed; transform: none; }
-
-.btn-clear {
-  padding: 8px 16px;
-  background: transparent;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-clear:hover {
-  border-color: var(--color-yango);
-  color: var(--color-yango);
-  background: var(--color-yango-light);
-}
-
 .upload-actions {
   display: flex;
   gap: 8px;
@@ -413,7 +398,9 @@
   line-height: 1.5;
 }
 
-.bot-converter__intro p { margin: 0 0 4px; }
+.bot-converter__intro p {
+  margin: 0 0 4px;
+}
 
 .bot-converter__header {
   display: flex;

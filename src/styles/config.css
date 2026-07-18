@@ -210,32 +210,6 @@
   border-top: 1px solid var(--color-border-soft);
 }
 
-.btn-save {
-  padding: 8px 20px;
-  background: var(--color-yango);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    transform 0.1s;
-}
-
-.btn-save:hover {
-  background: var(--color-yango-dark);
-}
-.btn-save:active {
-  transform: scale(0.98);
-}
-.btn-save:disabled {
-  background: var(--color-subtle);
-  cursor: not-allowed;
-  transform: none;
-}
-
 .config-save-ok {
   color: var(--sem-green-fg);
   font-size: 12px;

@@ -3,14 +3,15 @@ import * as XLSX from 'xlsx'
 import { convertBotToExcel } from '../../lib/botToExcel'
 import { useCountry } from '../../context/CountryContext'
 import { usePriceRules } from '../../hooks/usePriceRules'
+import { Button } from '../ui/shadcn/button'
 
 export default function BotConverter() {
-  const [result,    setResult]    = useState(null)   // { files, summary, skipped, ok }
-  const [outliers,  setOutliers]  = useState([])     // filas con precio sobre el límite
-  const [loading,   setLoading]   = useState(false)
-  const [fileName,  setFileName]  = useState(null)
-  const [dragOver,  setDragOver]  = useState(false)
-  const [showSkip,  setShowSkip]  = useState(false)
+  const [result, setResult] = useState(null) // { files, summary, skipped, ok }
+  const [outliers, setOutliers] = useState([]) // filas con precio sobre el límite
+  const [loading, setLoading] = useState(false)
+  const [fileName, setFileName] = useState(null)
+  const [dragOver, setDragOver] = useState(false)
+  const [showSkip, setShowSkip] = useState(false)
   const inputRef = useRef()
 
   const { country, countryConfig, dbConfigs } = useCountry()
@@ -24,9 +25,9 @@ export default function BotConverter() {
     setShowSkip(false)
 
     try {
-      const buf  = await file.arrayBuffer()
-      const wb   = XLSX.read(buf, { type: 'array', cellDates: false })
-      const ws   = wb.Sheets[wb.SheetNames[0]]
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array', cellDates: false })
+      const ws = wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(ws, { defval: null })
 
       const converted = convertBotToExcel(rows, country, dbConfigs)
@@ -45,7 +46,7 @@ export default function BotConverter() {
   }
 
   function handleFiles(files) {
-    const file = Array.from(files).find(f => /\.(xlsx|xls|csv)$/i.test(f.name))
+    const file = Array.from(files).find((f) => /\.(xlsx|xls|csv)$/i.test(f.name))
     if (file) processFile(file)
   }
 
@@ -63,8 +64,8 @@ export default function BotConverter() {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })
     const url = URL.createObjectURL(blob)
-    const a   = document.createElement('a')
-    a.href     = url
+    const a = document.createElement('a')
+    a.href = url
     a.download = getDownloadName(city)
     a.click()
     URL.revokeObjectURL(url)
@@ -84,8 +85,8 @@ export default function BotConverter() {
     <div className="bot-converter">
       <div className="bot-converter__intro">
         <p>
-          Convierte el xlsx del bot al formato <strong>CI Final Claude</strong>.
-          Genera un archivo por ciudad listo para usar en el upload manual.
+          Convierte el xlsx del bot al formato <strong>CI Final Claude</strong>. Genera un archivo
+          por ciudad listo para usar en el upload manual.
         </p>
         <p style={{ fontSize: 12, color: '#888' }}>
           Competidores incluidos: Yango, Uber, Didi, InDrive · Cabify excluido en esta etapa
@@ -97,13 +98,21 @@ export default function BotConverter() {
         <div
           className={`dropzone${dragOver ? ' dropzone--over' : ''}`}
           onClick={() => inputRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+            handleFiles(e.dataTransfer.files)
+          }}
         >
           <div className="dropzone__icon">📥</div>
           <div className="dropzone__label">
-            Arrastra el xlsx del bot aquí<br />
+            Arrastra el xlsx del bot aquí
+            <br />
             <span style={{ fontSize: 12, color: '#aaa' }}>o haz clic para seleccionar</span>
           </div>
           <input
@@ -111,7 +120,7 @@ export default function BotConverter() {
             type="file"
             accept=".xlsx,.xls,.csv"
             style={{ display: 'none' }}
-            onChange={e => handleFiles(e.target.files)}
+            onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
       )}
@@ -136,9 +145,14 @@ export default function BotConverter() {
         <>
           <div className="bot-converter__header">
             <span style={{ fontWeight: 600, fontSize: 14 }}>📄 {fileName}</span>
-            <button className="btn-clear" onClick={handleClear} style={{ marginLeft: 'auto' }}>
+            <Button
+              variant="outline"
+              className="hover:border-yango hover:bg-[var(--color-yango-light)] hover:text-yango"
+              onClick={handleClear}
+              style={{ marginLeft: 'auto' }}
+            >
               Limpiar
-            </button>
+            </Button>
           </div>
 
           {/* Resumen por ciudad */}
@@ -154,24 +168,24 @@ export default function BotConverter() {
                 </tr>
               </thead>
               <tbody>
-                {uiCities.map(city => (
+                {uiCities.map((city) => (
                   <tr key={city}>
                     <td style={{ textAlign: 'left', fontWeight: 600 }}>{city}</td>
                     <td style={{ textAlign: 'right' }}>
-                      {(result.summary[city] || 0) .toLocaleString()}
+                      {(result.summary[city] || 0).toLocaleString()}
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: 11, textAlign: 'left' }}>
                       {getDownloadName(city)}
                     </td>
                     <td>
                       {result.files[city] ? (
-                        <button
-                          className="btn-ingest"
-                          style={{ fontSize: 12, padding: '4px 12px' }}
+                        <Button
+                          size="sm"
+                          className="bg-[#2e7d32] hover:bg-[#1b5e20]"
                           onClick={() => downloadCity(city)}
                         >
                           ⬇ Descargar
-                        </button>
+                        </Button>
                       ) : (
                         <span style={{ color: '#aaa', fontSize: 12 }}>Sin datos</span>
                       )}
@@ -190,13 +204,17 @@ export default function BotConverter() {
 
           {/* Precios sobre el límite configurado */}
           {outliers.length > 0 && (
-            <div className="config-section" style={{ marginBottom: 16, borderLeft: '3px solid #f59e0b', paddingLeft: 12 }}>
+            <div
+              className="config-section"
+              style={{ marginBottom: 16, borderLeft: '3px solid #f59e0b', paddingLeft: 12 }}
+            >
               <h2 style={{ color: '#92400e', margin: '0 0 6px' }}>
-                ⚠ {outliers.length} precio{outliers.length > 1 ? 's' : ''} sobre el límite configurado
+                ⚠ {outliers.length} precio{outliers.length > 1 ? 's' : ''} sobre el límite
+                configurado
               </h2>
               <p style={{ fontSize: 12, color: '#78350f', marginBottom: 10 }}>
-                Estas filas se incluyen en los archivos Excel pero superan los límites de Config → Límites Precio.
-                Revísalas antes de hacer el upload manual.
+                Estas filas se incluyen en los archivos Excel pero superan los límites de Config →
+                Límites Precio. Revísalas antes de hacer el upload manual.
               </p>
               <table className="config-table" style={{ fontSize: 11 }}>
                 <thead>
@@ -242,10 +260,14 @@ export default function BotConverter() {
                   Filas omitidas ({result.skipped.length.toLocaleString()})
                 </h2>
                 <button
-                  onClick={() => setShowSkip(s => !s)}
+                  onClick={() => setShowSkip((s) => !s)}
                   style={{
-                    fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                    border: '1px solid #d1d5db', background: '#f9fafb', cursor: 'pointer',
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    border: '1px solid #d1d5db',
+                    background: '#f9fafb',
+                    cursor: 'pointer',
                   }}
                 >
                   {showSkip ? 'Ocultar' : 'Ver detalle'}
@@ -269,7 +291,9 @@ export default function BotConverter() {
                         <td style={{ textAlign: 'left', color: '#dc2626' }}>{s.reason}</td>
                         <td style={{ textAlign: 'left' }}>{s.row?.app ?? '—'}</td>
                         <td style={{ textAlign: 'left' }}>{s.row?.city ?? '—'}</td>
-                        <td style={{ textAlign: 'left' }}>{s.row?.vehicle_category ?? s.row?.category ?? '—'}</td>
+                        <td style={{ textAlign: 'left' }}>
+                          {s.row?.vehicle_category ?? s.row?.category ?? '—'}
+                        </td>
                         <td style={{ textAlign: 'left' }}>{s.row?.status ?? '—'}</td>
                       </tr>
                     ))}

@@ -5,6 +5,7 @@ import { mapBotRows } from '../../lib/botMapping'
 import { useCountry } from '../../context/CountryContext'
 import { usePriceRules } from '../../hooks/usePriceRules'
 import OutlierReview from './OutlierReview'
+import { Button } from '../ui/shadcn/button'
 
 const BATCH_SIZE = 500
 
@@ -326,11 +327,12 @@ export default function BotUpload() {
       {/* Actions */}
       {rows.length > 0 && !loading && !progress && !suspects && (
         <div className="upload-actions">
-          <button className="btn-ingest" onClick={handleIngestClick}>
+          <Button className="bg-[#2e7d32] hover:bg-[#1b5e20]" onClick={handleIngestClick}>
             Insertar {rows.length} filas en la BD
-          </button>
-          <button
-            className="btn-clear"
+          </Button>
+          <Button
+            variant="outline"
+            className="hover:border-yango hover:bg-[var(--color-yango-light)] hover:text-yango"
             onClick={() => {
               setRows([])
               setSkipped([])
@@ -338,7 +340,7 @@ export default function BotUpload() {
             }}
           >
             Limpiar
-          </button>
+          </Button>
         </div>
       )}
     </div>
