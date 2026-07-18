@@ -3,6 +3,7 @@
    Fast Refresh no vale la fragmentación. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { TOAST_DURATION_MS } from '../../lib/timing'
+import { Button } from './shadcn/button'
 
 const ToastCtx = createContext(null)
 
@@ -132,21 +133,16 @@ function ToastItem({ toast, onClose }) {
         {toast.title && <div style={{ fontWeight: 700, marginBottom: 2 }}>{toast.title}</div>}
         <div>{toast.text}</div>
       </div>
-      <button
+      <Button
+        type="button"
+        variant="ghost"
         onClick={onClose}
         aria-label="Cerrar"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: s.fg,
-          cursor: 'pointer',
-          fontSize: 16,
-          lineHeight: '20px',
-          padding: 0,
-        }}
+        className="h-auto w-auto p-0 text-base leading-5 hover:bg-transparent"
+        style={{ color: s.fg }}
       >
         ×
-      </button>
+      </Button>
     </div>
   )
 }

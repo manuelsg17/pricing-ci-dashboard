@@ -2,6 +2,7 @@
    mismo archivo es el patrón establecido de este proyecto (ver Toast.jsx,
    FilterContext.jsx); separar solo por Fast Refresh no vale la fragmentación. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { Button } from './shadcn/button'
 
 const ConfirmCtx = createContext(null)
 
@@ -109,36 +110,22 @@ export function ConfirmProvider({ children }) {
               {state.message}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
+              <Button
+                variant="outline"
                 onClick={() => close(false)}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 6,
-                  border: '1px solid #cbd5e1',
-                  background: '#fff',
-                  color: '#1f2937',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                }}
+                className="border-slate-300 text-slate-800"
               >
                 {state.cancelText}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => close(true)}
                 autoFocus
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: state.danger ? '#dc2626' : '#E53935',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
+                className={
+                  state.danger ? 'bg-red-600 font-semibold hover:bg-red-600/90' : 'font-semibold'
+                }
               >
                 {state.confirmText}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
