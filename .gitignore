@@ -1,6 +1,8 @@
 node_modules
 dist
 .env.local
-.env
 .DS_Store
 *.local
+# .env (sin punto extra) SÍ se commitea a propósito — solo tiene defaults
+# sin secretos (ver comentario en ese archivo). Los secretos reales viven
+# en .env.local, cubierto arriba y también por *.local.

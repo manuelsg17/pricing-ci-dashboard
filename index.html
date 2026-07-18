@@ -21,6 +21,14 @@
 
       Para self-hostear flagcdn.com y fonts (eliminar deps externos sin SRI):
       ver L3 del audit. Mientras tanto, allowlist explícita.
+
+      Fase 0 (workflow local): el placeholder VITE_CSP_EXTRA_CONNECT_SRC
+      (ver más abajo en connect-src) agrega el Supabase LOCAL — reemplazo
+      de Vite vía HTML env replacement, solo seteado en .env.local
+      (gitignoreado, nunca en .env.production.local ni en el build real).
+      Si esa var no está seteada, el placeholder se reemplaza por string
+      vacío y el CSP de producción queda exactamente igual de estricto
+      que siempre.
     -->
     <!--
       NOTA: frame-ancestors NO se incluye porque el browser lo ignora
@@ -35,7 +43,7 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https://flagcdn.com;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co %VITE_CSP_EXTRA_CONNECT_SRC%;
       base-uri 'self';
       form-action 'self';
     " />
