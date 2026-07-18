@@ -72,7 +72,9 @@
   background: var(--color-bg);
   color: var(--color-text);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .login-card input:focus {
@@ -80,24 +82,6 @@
   box-shadow: 0 0 0 3px var(--color-yango-mid);
   background: #fff;
 }
-
-.login-card__btn {
-  width: 100%;
-  padding: 12px;
-  background: var(--color-yango);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  margin-top: 4px;
-}
-
-.login-card__btn:hover { background: var(--color-yango-dark); }
-.login-card__btn:active { transform: scale(0.98); }
-.login-card__btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 .login-card__error {
   padding: 10px 12px;

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { KeyRound, X } from 'lucide-react'
 import { useI18n } from '../../context/LanguageContext'
+import { Button } from '../ui/shadcn/button'
 import '../../styles/login.css'
 
 // Modal self-service de cambio de contraseña. Reutiliza los estilos de
@@ -76,23 +77,16 @@ export default function ChangePasswordModal({ open, onClose, onSubmit }) {
         onSubmit={handleSubmit}
         style={{ maxWidth: 380, position: 'relative' }}
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={close}
           aria-label={t('app.cancel')}
-          style={{
-            position: 'absolute',
-            top: 12,
-            right: 12,
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            color: 'var(--color-muted)',
-            display: 'inline-flex',
-          }}
+          className="absolute top-3 right-3 h-auto w-auto p-1 text-muted"
         >
           <X size={18} />
-        </button>
+        </Button>
 
         <div className="login-card__logo" style={{ fontSize: 16, gap: 8 }}>
           <KeyRound size={18} /> {t('account.change_password')}
@@ -128,9 +122,9 @@ export default function ChangePasswordModal({ open, onClose, onSubmit }) {
           required
         />
 
-        <button className="login-card__btn" type="submit" disabled={loading || !!okMsg}>
+        <Button className="w-full" type="submit" disabled={loading || !!okMsg}>
           {loading ? t('account.saving') : t('account.change_password')}
-        </button>
+        </Button>
 
         {errMsg && <div className="login-card__error">{errMsg}</div>}
         {okMsg && (

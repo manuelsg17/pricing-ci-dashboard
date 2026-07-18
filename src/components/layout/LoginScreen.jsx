@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { Button } from '../ui/shadcn/button'
 import '../../styles/login.css'
 
 export default function LoginScreen({ onLogin }) {
-  const [email,    setEmail]    = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [errMsg,   setErrMsg]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [errMsg, setErrMsg] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -31,7 +32,7 @@ export default function LoginScreen({ onLogin }) {
           type="email"
           autoComplete="email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           required
           placeholder="usuario@yango.com"
         />
@@ -42,13 +43,13 @@ export default function LoginScreen({ onLogin }) {
           type="password"
           autoComplete="current-password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           required
         />
 
-        <button className="login-card__btn" type="submit" disabled={loading}>
+        <Button className="w-full" type="submit" disabled={loading}>
           {loading ? 'Ingresando...' : 'Ingresar'}
-        </button>
+        </Button>
 
         {errMsg && <div className="login-card__error">{errMsg}</div>}
       </form>
