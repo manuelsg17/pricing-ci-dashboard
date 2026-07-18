@@ -10,39 +10,73 @@ Venezuela, Zambia.
 
 ---
 
-## Quick start
+## Quick start — desarrollo local (Supabase local, no producción)
+
+Desde la Fase 0 de la modernización dirigida, `npm run dev` apunta por
+default a un Supabase **local** (Postgres + Auth + REST corriendo en
+Docker vía Colima), no a producción. Esto es así a propósito — el
+workflow ahora es: rama → verificar en local → push → merge a `main`, no
+tocar producción directo.
+
+**Setup (una sola vez):**
 
 ```bash
+brew install supabase/tap/supabase colima docker libpq
+colima start --cpu 2 --memory 4 --disk 20
+```
+
+**Día a día:**
+
+```bash
+supabase start        # levanta el stack local (aplica las 129 migraciones + seed.sql)
 npm install
-npm run dev          # http://localhost:5173
-npm run build        # produce ./dist
-npm run test:bot-mapping   # corre tests del pipeline del bot
+npm run dev            # http://localhost:5173 — ya apunta a local, ver .env.local
+npm run test:all        # suite de regresión (bot mapping, normalización, brackets, etc.) — no toca DB
 ```
 
-`.env.local` (ya existe en el repo, no commitear nuevas credenciales):
+`.env.local` ya está seteado para apuntar al stack local
+(`http://127.0.0.1:54321`). El puntero a producción real quedó guardado
+en `.env.production.local` (gitignoreado igual, no se commitea) por si
+hace falta compararlo o volver a apuntar ahí puntualmente — no lo uses
+como default de trabajo.
 
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-```
+**Login local**: `admin@local.test` / `local12345` (usuario seed, rol
+admin, solo existe en el Postgres local — no es una cuenta real).
+
+**Data local**: `supabase/seed.sql` siembra un usuario admin + ~150 filas
+sintéticas de `pricing_observations` (Perú/Colombia, últimas semanas) —
+deliberadamente chico, no busca replicar el volumen real de producción
+(1.3M+ filas). Para resetear todo a este estado limpio: `supabase db
+reset`.
+
+**Migraciones**: los archivos numerados en `supabase/*.sql` (`01_...` a
+`129_...`) siguen siendo el registro histórico real de lo aplicado a
+producción — no se tocan. `supabase/migrations/` es un espejo generado
+para que el CLI local pueda re-aplicar todo (timestamps en vez de
+números, mismo orden). Al crear una migración nueva: escribila primero
+como archivo numerado nuevo en `supabase/` (como siempre), corré
+`supabase migration new <nombre>` para generar su copia en
+`supabase/migrations/` con el mismo contenido, verificá con
+`supabase db reset` + `npm run dev` en local, y solo después aplicala a
+producción (`apply_migration` / SQL Editor) y pusheá.
 
 ---
 
 ## Arquitectura — qué hace cada página
 
-| Tab | Archivo | Para qué sirve |
-|---|---|---|
-| **Dashboard** | [src/pages/Dashboard.jsx](src/pages/Dashboard.jsx) | La vista principal. Matriz Yango vs competidores por bracket de distancia. Soporta vista semanal / diaria / histórica. |
-| **Análisis · Ganancias** | [src/pages/DriverEarnings.jsx](src/pages/DriverEarnings.jsx) | Simulador de earnings del conductor según escenarios de comisión y bonos. |
-| **Análisis · Reporte** | [src/pages/WeeklyReport.jsx](src/pages/WeeklyReport.jsx) | Genera PDF semanal de pricing CI por ciudad/categoría. |
-| **Gestión · Ingresar CI** | [src/pages/DataEntry.jsx](src/pages/DataEntry.jsx) | Captura manual de observaciones (cuando el equipo de campo levanta data). |
-| **Gestión · Cargar Data** | [src/pages/Upload.jsx](src/pages/Upload.jsx) | 4 sub-tabs: Excel/CSV manual, Bot Data (CSV del bot), Bot→Excel, Bot DB Sync (live). |
-| **Gestión · Data Raw** | [src/pages/RawData.jsx](src/pages/RawData.jsx) | Browser de filas crudas en `pricing_observations`. Filtros para encontrar y borrar outliers. |
-| **Gestión · Bot vs Hubs** | [src/pages/BotVsHubs.jsx](src/pages/BotVsHubs.jsx) | Compara la data del bot contra la captura manual de los hubs (calidad). |
-| **Config · Eventos** | [src/pages/MarketEvents.jsx](src/pages/MarketEvents.jsx) | Marca eventos de mercado (huelgas, copas, etc.) que aparecen como anotaciones en charts diarios. |
-| **Config · Distancias Ref.** | [src/pages/DistanceRefs.jsx](src/pages/DistanceRefs.jsx) | Edita los umbrales de km que definen brackets por ciudad+categoría. |
-| **Config · Configuración** | [src/pages/Config.jsx](src/pages/Config.jsx) | Pesos de bracket, semáforo, comisiones, países, reglas de validación de precio, rush hour. |
-| **Config · Accesos** | [src/pages/AccessManagement.jsx](src/pages/AccessManagement.jsx) | RBAC — qué emails pueden ver qué tabs y qué países. |
+| Tab                          | Archivo                                                          | Para qué sirve                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Dashboard**                | [src/pages/Dashboard.jsx](src/pages/Dashboard.jsx)               | La vista principal. Matriz Yango vs competidores por bracket de distancia. Soporta vista semanal / diaria / histórica. |
+| **Análisis · Ganancias**     | [src/pages/DriverEarnings.jsx](src/pages/DriverEarnings.jsx)     | Simulador de earnings del conductor según escenarios de comisión y bonos.                                              |
+| **Análisis · Reporte**       | [src/pages/WeeklyReport.jsx](src/pages/WeeklyReport.jsx)         | Genera PDF semanal de pricing CI por ciudad/categoría.                                                                 |
+| **Gestión · Ingresar CI**    | [src/pages/DataEntry.jsx](src/pages/DataEntry.jsx)               | Captura manual de observaciones (cuando el equipo de campo levanta data).                                              |
+| **Gestión · Cargar Data**    | [src/pages/Upload.jsx](src/pages/Upload.jsx)                     | 4 sub-tabs: Excel/CSV manual, Bot Data (CSV del bot), Bot→Excel, Bot DB Sync (live).                                   |
+| **Gestión · Data Raw**       | [src/pages/RawData.jsx](src/pages/RawData.jsx)                   | Browser de filas crudas en `pricing_observations`. Filtros para encontrar y borrar outliers.                           |
+| **Gestión · Bot vs Hubs**    | [src/pages/BotVsHubs.jsx](src/pages/BotVsHubs.jsx)               | Compara la data del bot contra la captura manual de los hubs (calidad).                                                |
+| **Config · Eventos**         | [src/pages/MarketEvents.jsx](src/pages/MarketEvents.jsx)         | Marca eventos de mercado (huelgas, copas, etc.) que aparecen como anotaciones en charts diarios.                       |
+| **Config · Distancias Ref.** | [src/pages/DistanceRefs.jsx](src/pages/DistanceRefs.jsx)         | Edita los umbrales de km que definen brackets por ciudad+categoría.                                                    |
+| **Config · Configuración**   | [src/pages/Config.jsx](src/pages/Config.jsx)                     | Pesos de bracket, semáforo, comisiones, países, reglas de validación de precio, rush hour.                             |
+| **Config · Accesos**         | [src/pages/AccessManagement.jsx](src/pages/AccessManagement.jsx) | RBAC — qué emails pueden ver qué tabs y qué países.                                                                    |
 
 ---
 
@@ -111,13 +145,13 @@ El flujo es enteramente self-service desde la UI (sin tocar código ni redeploy)
 
 ## Tips de debugging
 
-| Síntoma | Por dónde empezar |
-|---|---|
-| "Sin observaciones para esta celda" en el modal | El query a `pricing_observations` falló — abrí Network tab y mirá el error. Probable: columna inexistente o filtro de categoría incorrecto. |
-| Bot dejó de meter data | Header del dashboard muestra el badge en rojo (>90 min). Andá a `Gestión > Cargar Data > Bot DB Sync` para ver el log y disparar manualmente. |
-| Precios raros se cuelan | Reglas en Config > Límites Precio (`price_validation_rules`). Outlier count en KPI bar te dice cuántos descartó el bot en los últimos 7 días. |
-| Vista rompió | El error está contenido por `<ErrorBoundary>`. Abrí consola para el stack. |
-| WoW callout no aparece | Solo se muestra cuando hay >1 período visible y al menos un competidor con cambio ≥5%. |
+| Síntoma                                         | Por dónde empezar                                                                                                                             |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Sin observaciones para esta celda" en el modal | El query a `pricing_observations` falló — abrí Network tab y mirá el error. Probable: columna inexistente o filtro de categoría incorrecto.   |
+| Bot dejó de meter data                          | Header del dashboard muestra el badge en rojo (>90 min). Andá a `Gestión > Cargar Data > Bot DB Sync` para ver el log y disparar manualmente. |
+| Precios raros se cuelan                         | Reglas en Config > Límites Precio (`price_validation_rules`). Outlier count en KPI bar te dice cuántos descartó el bot en los últimos 7 días. |
+| Vista rompió                                    | El error está contenido por `<ErrorBoundary>`. Abrí consola para el stack.                                                                    |
+| WoW callout no aparece                          | Solo se muestra cuando hay >1 período visible y al menos un competidor con cambio ≥5%.                                                        |
 
 ---
 
@@ -156,17 +190,17 @@ El wizard de onboarding (`Config → Países → Nuevo país`) ya cubre el flujo
 completo descrito en la sección "Cómo agregar un país" más arriba. Las
 siguientes tablas se siembran automáticamente al completar el wizard:
 
-| Tabla                  | UI dedicada                       |
-|------------------------|-----------------------------------|
-| `country_config`       | Config > Países                   |
-| `bracket_weights`      | Config > Pesos                    |
-| `distance_thresholds`  | Config > Distancias               |
+| Tabla                    | UI dedicada                     |
+| ------------------------ | ------------------------------- |
+| `country_config`         | Config > Países                 |
+| `bracket_weights`        | Config > Pesos                  |
+| `distance_thresholds`    | Config > Distancias             |
 | `price_validation_rules` | Config > Límites Precio         |
-| `semaforo_config`      | Config > Semáforo                 |
-| `bot_rules`            | (siembra automática del wizard)   |
-| `rush_hour_windows`    | (siembra automática del wizard)   |
-| `indrive_config`       | (siembra automática del wizard)   |
-| `ci_timeslots`         | (siembra automática del wizard)   |
+| `semaforo_config`        | Config > Semáforo               |
+| `bot_rules`              | (siembra automática del wizard) |
+| `rush_hour_windows`      | (siembra automática del wizard) |
+| `indrive_config`         | (siembra automática del wizard) |
+| `ci_timeslots`           | (siembra automática del wizard) |
 
 Peru y Colombia están sembrados en `country_config` desde la mig 67. El
 selector de país en el topbar y la matriz dinámica del workflow
