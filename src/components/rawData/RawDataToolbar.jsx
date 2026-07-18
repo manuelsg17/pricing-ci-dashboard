@@ -1,3 +1,5 @@
+import { Button } from '../ui/shadcn/button'
+
 export default function RawDataToolbar({
   loading,
   total,
@@ -32,38 +34,30 @@ export default function RawDataToolbar({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-gray-300"
           onClick={handleExport}
           disabled={exporting || total === 0}
-          style={{
-            padding: '4px 10px',
-            fontSize: 12,
-            border: '1px solid #d1d5db',
-            borderRadius: 4,
-            background: exporting ? '#f3f4f6' : '#fff',
-            cursor: exporting || total === 0 ? 'default' : 'pointer',
-          }}
           title="Descarga todas las filas que matcheen los filtros actuales en un archivo Excel (.xlsx)"
         >
           {exporting
             ? `Exportando… ${exportProgress ? `${exportProgress.loaded.toLocaleString()}/${exportProgress.total.toLocaleString()}` : ''}`
             : '⬇ Exportar (.xlsx)'}
-        </button>
-        <button
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-gray-300"
           onClick={handleSyncInDrive}
           disabled={syncing}
-          style={{
-            padding: '4px 10px',
-            fontSize: 12,
-            border: '1px solid #d1d5db',
-            borderRadius: 4,
-            background: syncing ? '#f3f4f6' : '#fff',
-            cursor: syncing ? 'default' : 'pointer',
-          }}
           title="Recalcula price_without_discount para datos bot de InDrive usando los % configurados en Config > InDrive"
         >
           {syncing ? 'Sincronizando…' : '⟳ Precios InDrive (bot)'}
-        </button>
+        </Button>
         {syncMsg && (
           <span
             style={{
@@ -79,37 +73,49 @@ export default function RawDataToolbar({
 
       {total > pageSize && (
         <div className="raw-data__pagination">
-          <button
-            className="raw-data__page-btn"
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-sm border-border bg-panel px-2.5 text-foreground hover:border-yango hover:bg-panel hover:text-yango disabled:opacity-40"
             onClick={() => fetch(0)}
             disabled={page === 0 || loading}
           >
             «
-          </button>
-          <button
-            className="raw-data__page-btn"
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-sm border-border bg-panel px-2.5 text-foreground hover:border-yango hover:bg-panel hover:text-yango disabled:opacity-40"
             onClick={() => fetch(page - 1)}
             disabled={page === 0 || loading}
           >
             ‹
-          </button>
+          </Button>
           <span className="raw-data__page-label">
             Pág. {page + 1} / {totalPages}
           </span>
-          <button
-            className="raw-data__page-btn"
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-sm border-border bg-panel px-2.5 text-foreground hover:border-yango hover:bg-panel hover:text-yango disabled:opacity-40"
             onClick={() => fetch(page + 1)}
             disabled={page >= totalPages - 1 || loading}
           >
             ›
-          </button>
-          <button
-            className="raw-data__page-btn"
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-sm border-border bg-panel px-2.5 text-foreground hover:border-yango hover:bg-panel hover:text-yango disabled:opacity-40"
             onClick={() => fetch(totalPages - 1)}
             disabled={page >= totalPages - 1 || loading}
           >
             »
-          </button>
+          </Button>
         </div>
       )}
     </div>

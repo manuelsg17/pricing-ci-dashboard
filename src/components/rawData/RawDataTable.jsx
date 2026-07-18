@@ -1,4 +1,5 @@
 import { BRACKET_LABELS } from '../../lib/constants'
+import { Button } from '../ui/shadcn/button'
 
 function fmt(val, decimals = 2) {
   if (val === null || val === undefined || val === '') return '—'
@@ -219,14 +220,17 @@ export default function RawDataTable({
               <td className="col-bid">{renderEditable(r, 'bid_3')}</td>
               <td className="col-eta">{fmt(r.eta_min, 1)}</td>
               <td className="col-actions">
-                <button
-                  className="raw-data__delete-btn"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-auto w-auto rounded-[3px] px-1 py-0.5 text-[13px] opacity-40 hover:bg-red-100 hover:opacity-100"
                   onClick={() => handleDelete(r.id)}
                   disabled={exporting}
                   title={exporting ? 'Esperá a que termine la exportación' : 'Eliminar fila'}
                 >
                   🗑
-                </button>
+                </Button>
               </td>
             </tr>
           ))}

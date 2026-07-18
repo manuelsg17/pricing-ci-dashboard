@@ -1,4 +1,5 @@
 import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { Button } from '../ui/shadcn/button'
 
 const BRACKET_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -128,9 +129,16 @@ export default function RawDataFilterBar({
           </span>
         </label>
       </div>
-      <button className="raw-data__filter-reset" onClick={resetFilters} title="Limpiar filtros">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 self-end border-border bg-background text-muted hover:border-yango hover:bg-background hover:text-yango"
+        onClick={resetFilters}
+        title="Limpiar filtros"
+      >
         ✕ Limpiar
-      </button>
+      </Button>
     </div>
   )
 }

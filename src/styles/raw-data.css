@@ -87,11 +87,11 @@
   box-shadow: 0 0 0 2px var(--color-yango-mid);
 }
 
-.raw-data__filter-group input[type="date"] {
+.raw-data__filter-group input[type='date'] {
   width: 130px;
 }
 
-.raw-data__filter-group input[type="text"] {
+.raw-data__filter-group input[type='text'] {
   width: 120px;
 }
 
@@ -102,24 +102,6 @@
   background-repeat: no-repeat;
   background-position: right 8px center;
   min-width: 110px;
-}
-
-.raw-data__filter-reset {
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-muted);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s;
-  align-self: flex-end;
-}
-
-.raw-data__filter-reset:hover {
-  border-color: var(--color-yango);
-  color: var(--color-yango);
 }
 
 /* ── Info bar ──────────────────────────────────────────────── */
@@ -146,28 +128,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.raw-data__page-btn {
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-panel);
-  color: var(--color-text);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.raw-data__page-btn:hover:not(:disabled) {
-  border-color: var(--color-yango);
-  color: var(--color-yango);
-}
-
-.raw-data__page-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .raw-data__page-label {
@@ -266,20 +226,54 @@
 }
 
 /* Column-specific widths */
-.raw-data__table .col-year    { width: 46px; }
-.raw-data__table .col-week    { width: 40px; }
-.raw-data__table .col-date    { width: 90px; }
-.raw-data__table .col-time    { width: 64px; }
-.raw-data__table .col-rush    { width: 50px; }
-.raw-data__table .col-surge   { width: 50px; }
-.raw-data__table .col-cat     { width: 80px; }
-.raw-data__table .col-comp    { min-width: 90px; }
-.raw-data__table .col-bracket { min-width: 80px; }
-.raw-data__table .col-zone    { width: 80px; }
-.raw-data__table .col-point   { min-width: 130px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
-.raw-data__table .col-price   { width: 68px; text-align: right; }
-.raw-data__table .col-bid     { width: 52px; text-align: right; }
-.raw-data__table .col-eta     { width: 50px; text-align: right; }
+.raw-data__table .col-year {
+  width: 46px;
+}
+.raw-data__table .col-week {
+  width: 40px;
+}
+.raw-data__table .col-date {
+  width: 90px;
+}
+.raw-data__table .col-time {
+  width: 64px;
+}
+.raw-data__table .col-rush {
+  width: 50px;
+}
+.raw-data__table .col-surge {
+  width: 50px;
+}
+.raw-data__table .col-cat {
+  width: 80px;
+}
+.raw-data__table .col-comp {
+  min-width: 90px;
+}
+.raw-data__table .col-bracket {
+  min-width: 80px;
+}
+.raw-data__table .col-zone {
+  width: 80px;
+}
+.raw-data__table .col-point {
+  min-width: 130px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.raw-data__table .col-price {
+  width: 68px;
+  text-align: right;
+}
+.raw-data__table .col-bid {
+  width: 52px;
+  text-align: right;
+}
+.raw-data__table .col-eta {
+  width: 50px;
+  text-align: right;
+}
 
 /* Badges */
 .badge-rush {
@@ -357,7 +351,10 @@
   letter-spacing: 0.3px;
 }
 
-.col-source { width: 52px; text-align: center; }
+.col-source {
+  width: 52px;
+  text-align: center;
+}
 
 /* ── Outlier highlighting ─────────────────────────────────── */
 .cell-outlier {
@@ -374,20 +371,4 @@
   width: 36px;
   text-align: center;
   padding: 0 4px !important;
-}
-
-.raw-data__delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  opacity: 0.4;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: opacity 0.15s;
-}
-
-.raw-data__delete-btn:hover {
-  opacity: 1;
-  background: #fee2e2;
 }
