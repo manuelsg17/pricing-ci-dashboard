@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 export default function PriceRulesTable({ country }) {
   const config = getCountryConfig(country)
@@ -248,21 +249,25 @@ export default function PriceRulesTable({ country }) {
                   />
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    className="btn-save-sm"
+                  <Button
+                    type="button"
+                    size="sm"
                     onClick={() => saveRule(rule)}
                     disabled={saving || !dirty}
                     title={!dirty ? 'Sin cambios' : undefined}
                   >
                     {rule._new ? 'Crear' : 'Guardar'}
-                  </button>
-                  <button
-                    className="btn-delete-sm"
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-red-300 text-red-600 hover:bg-red-100"
                     aria-label="Eliminar"
                     onClick={() => deleteRule(rule.id)}
                   >
                     ✕
-                  </button>
+                  </Button>
                 </td>
               </tr>
             )
@@ -270,9 +275,15 @@ export default function PriceRulesTable({ country }) {
         </tbody>
       </table>
 
-      <button className="btn-add-row" onClick={addRule} style={{ marginTop: 10 }}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
+        onClick={addRule}
+      >
         + Agregar regla
-      </button>
+      </Button>
     </div>
   )
 }

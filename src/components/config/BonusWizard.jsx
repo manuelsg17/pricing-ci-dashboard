@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { rowWeeklyCash, describeBonus } from '../../lib/competitorBonus'
+import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
@@ -97,16 +98,6 @@ const inputStyle = {
   padding: '6px 8px',
   border: '1px solid var(--color-border, #e2e8f0)',
   borderRadius: 6,
-}
-const btnPrimary = {
-  padding: '8px 18px',
-  borderRadius: 8,
-  border: 'none',
-  cursor: 'pointer',
-  background: 'var(--color-yango, #E53935)',
-  color: '#fff',
-  fontWeight: 600,
-  fontSize: 13,
 }
 const btnGhost = {
   padding: '8px 14px',
@@ -451,12 +442,15 @@ export default function BonusWizard({
                     </button>
                   </div>
                 ))}
-                <button
-                  style={{ ...btnGhost, borderStyle: 'dashed' }}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-dashed text-muted"
                   onClick={() => set('tiers', [...draft.tiers, blankTier])}
                 >
                   + agregar meta
-                </button>
+                </Button>
                 {!isGmv && (
                   <div style={{ marginTop: 10 }}>
                     <Lbl>Tope global opcional ({currency})</Lbl>
@@ -823,22 +817,23 @@ export default function BonusWizard({
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-          <button style={btnGhost} onClick={onClose}>
+          <Button type="button" variant="outline" className="text-muted" onClick={onClose}>
             Cancelar
-          </button>
+          </Button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             {step > 0 && (
-              <button style={btnGhost} onClick={() => setStep(step - 1)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-muted"
+                onClick={() => setStep(step - 1)}
+              >
                 ← Atrás
-              </button>
+              </Button>
             )}
             {step < 4 ? (
-              <button
-                style={{
-                  ...btnPrimary,
-                  opacity: canNext ? 1 : 0.45,
-                  cursor: canNext ? 'pointer' : 'not-allowed',
-                }}
+              <Button
+                type="button"
                 disabled={!canNext}
                 onClick={() => {
                   // al entrar a "números" con escalera vacía, arrancar con una meta
@@ -857,15 +852,11 @@ export default function BonusWizard({
                 }}
               >
                 Siguiente →
-              </button>
+              </Button>
             ) : (
-              <button
-                style={{ ...btnPrimary, opacity: numbersOk ? 1 : 0.45 }}
-                disabled={saving || !numbersOk}
-                onClick={() => onSave(draft)}
-              >
+              <Button type="button" disabled={saving || !numbersOk} onClick={() => onSave(draft)}>
                 {saving ? 'Guardando…' : '✓ Crear bono'}
-              </button>
+              </Button>
             )}
           </div>
         </div>

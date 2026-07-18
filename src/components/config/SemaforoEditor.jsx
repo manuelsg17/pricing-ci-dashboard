@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import SaveStatusBanner from './SaveStatusBanner'
+import { Button } from '../ui/shadcn/button'
 
 const BAND_LABELS = { green: 'Verde', yellow: 'Amarillo', red: 'Rojo' }
 const BAND_COLORS = { green: '#c8e6c9', yellow: '#fff9c4', red: '#ffcdd2' }
@@ -92,21 +93,15 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
           }}
         >
           <span>⚠ Hay cambios sin guardar</span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="bg-transparent border-[#b45309] text-[#78350f]"
             onClick={handleDiscard}
-            style={{
-              background: 'transparent',
-              border: '1px solid #b45309',
-              color: '#78350f',
-              padding: '4px 10px',
-              borderRadius: 4,
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
           >
             Descartar
-          </button>
+          </Button>
         </div>
       )}
 
@@ -157,14 +152,13 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
       </table>
 
       <div className="config-footer" style={{ marginTop: 14 }}>
-        <button
-          className="btn-save"
+        <Button
           onClick={handleSave}
           disabled={saving || !hasUnsavedChanges}
           title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
         >
           {saving ? 'Guardando…' : 'Guardar semáforo'}
-        </button>
+        </Button>
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 // Editor del bono Yango por % de GMV (tabla yango_gmv_tiers, mig 116).
 // Una fila = un peldaño. variant ∈ unbranded|branded|vip (VIP = Premier en Lima).
@@ -241,21 +242,25 @@ export default function YangoGmvConfig({ country }) {
                   />
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    className="btn-save-sm"
+                  <Button
+                    type="button"
+                    size="sm"
                     onClick={() => saveTier(t)}
                     disabled={saving || !dirty}
                     title={!dirty ? 'Sin cambios' : 'Guardar peldaño'}
                   >
                     {t._new ? 'Crear' : 'Guardar'}
-                  </button>
-                  <button
-                    className="btn-delete-sm"
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-red-300 text-red-600 hover:bg-red-100"
                     aria-label="Eliminar"
                     onClick={() => deleteTier(t)}
                   >
                     ✕
-                  </button>
+                  </Button>
                 </td>
               </tr>
             )
@@ -263,9 +268,15 @@ export default function YangoGmvConfig({ country }) {
         </tbody>
       </table>
 
-      <button className="btn-add-row" onClick={addTier} style={{ marginTop: 10 }}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
+        onClick={addTier}
+      >
         + Agregar peldaño
-      </button>
+      </Button>
     </div>
   )
 }

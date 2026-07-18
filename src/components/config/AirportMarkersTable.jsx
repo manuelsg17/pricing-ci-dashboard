@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 // CRUD de airport_markers. Cada fila define cómo el bot separa viajes de
 // aeropuerto en dos "ciudades" según el aeropuerto esté en el origen
@@ -20,12 +21,17 @@ import { useConfirm } from '../ui/ConfirmDialog'
 export default function AirportMarkersTable({ country }) {
   const confirm = useConfirm()
 
-  const { data: serverRows, loading, reload } = useStaleWhileRevalidate({
+  const {
+    data: serverRows,
+    loading,
+    reload,
+  } = useStaleWhileRevalidate({
     key: `cfg.airport_markers.${country}`,
     enabled: !!country,
     liveSyncTable: 'airport_markers',
     fetcher: async () => {
-      const { data, error } = await sb.from('airport_markers')
+      const { data, error } = await sb
+        .from('airport_markers')
         .select('*')
         .eq('country', country)
         .order('base_city')
@@ -34,24 +40,24 @@ export default function AirportMarkersTable({ country }) {
     },
   })
 
-  const [rows,     setRows]     = useState([])
+  const [rows, setRows] = useState([])
   const [original, setOriginal] = useState([])
-  const [saving,   setSaving]   = useState(false)
-  const [msg,      setMsg]      = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState(null)
 
   // Helper de dirty-check contra un snapshot dado. Lo usa tanto el render
   // (vs `original`) como el sync effect (vs el `original` previo al merge).
   function isRowDirtyAgainst(r, snapshot) {
     if (r._new) return true
-    const orig = snapshot.find(o => o.id === r.id)
+    const orig = snapshot.find((o) => o.id === r.id)
     if (!orig) return true
     return (
-      r.base_city       !== orig.base_city       ||
-      r.city_from       !== orig.city_from       ||
-      r.city_to         !== orig.city_to         ||
+      r.base_city !== orig.base_city ||
+      r.city_from !== orig.city_from ||
+      r.city_to !== orig.city_to ||
       (r.zone_from_value || '') !== (orig.zone_from_value || '') ||
-      (r.zone_to_value   || '') !== (orig.zone_to_value   || '') ||
-      r.active          !== orig.active          ||
+      (r.zone_to_value || '') !== (orig.zone_to_value || '') ||
+      r.active !== orig.active ||
       JSON.stringify(r.keywords || []) !== JSON.stringify(orig.keywords || [])
     )
   }
@@ -62,14 +68,14 @@ export default function AirportMarkersTable({ country }) {
   // Las filas no-dirty se reemplazan con la versión del server.
   useEffect(() => {
     if (!serverRows) return
-    setRows(prev => {
-      const dirtyRows = prev.filter(r => isRowDirtyAgainst(r, original))
-      const dirtyIds = new Set(dirtyRows.map(r => r.id))
-      const cleanFromServer = serverRows.filter(s => !dirtyIds.has(s.id))
+    setRows((prev) => {
+      const dirtyRows = prev.filter((r) => isRowDirtyAgainst(r, original))
+      const dirtyIds = new Set(dirtyRows.map((r) => r.id))
+      const cleanFromServer = serverRows.filter((s) => !dirtyIds.has(s.id))
       return [...cleanFromServer, ...dirtyRows]
     })
-    setOriginal(serverRows.map(r => ({ ...r, keywords: [...(r.keywords || [])] })))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    setOriginal(serverRows.map((r) => ({ ...r, keywords: [...(r.keywords || [])] })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverRows])
 
   // Después de un save/delete local, forzamos refetch para reflejar
@@ -80,24 +86,27 @@ export default function AirportMarkersTable({ country }) {
 
   function updateRow(id, field, val) {
     setMsg(null)
-    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r))
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: val } : r)))
   }
 
   function addRow() {
     const tempId = `new_${Date.now()}_${Math.random()}`
     setMsg(null)
-    setRows(prev => [...prev, {
-      id:               tempId,
-      country,
-      base_city:        '',
-      city_from:        '',
-      city_to:          '',
-      keywords:         [],
-      zone_from_value:  '',
-      zone_to_value:    '',
-      active:           true,
-      _new:             true,
-    }])
+    setRows((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        country,
+        base_city: '',
+        city_from: '',
+        city_to: '',
+        keywords: [],
+        zone_from_value: '',
+        zone_to_value: '',
+        active: true,
+        _new: true,
+      },
+    ])
   }
 
   const isRowDirty = (r) => isRowDirtyAgainst(r, original)
@@ -111,7 +120,7 @@ export default function AirportMarkersTable({ country }) {
   function stringToKeywords(s) {
     return (s || '')
       .split(',')
-      .map(k => k.trim())
+      .map((k) => k.trim())
       .filter(Boolean)
   }
 
@@ -128,33 +137,34 @@ export default function AirportMarkersTable({ country }) {
     setMsg(null)
     const payload = {
       country,
-      base_city:        row.base_city.trim(),
-      city_from:        row.city_from.trim(),
-      city_to:          row.city_to.trim(),
-      keywords:         (row.keywords || []).map(k => k.toLowerCase().trim()).filter(Boolean),
+      base_city: row.base_city.trim(),
+      city_from: row.city_from.trim(),
+      city_to: row.city_to.trim(),
+      keywords: (row.keywords || []).map((k) => k.toLowerCase().trim()).filter(Boolean),
       // zone_from/to: NULL si vienen vacíos (PG distingue NULL de '')
-      zone_from_value:  (row.zone_from_value || '').trim() || null,
-      zone_to_value:    (row.zone_to_value   || '').trim() || null,
-      active:           !!row.active,
+      zone_from_value: (row.zone_from_value || '').trim() || null,
+      zone_to_value: (row.zone_to_value || '').trim() || null,
+      active: !!row.active,
     }
     let err
     if (row._new) {
       ;({ error: err } = await sb.from('airport_markers').insert(payload))
     } else {
-      ;({ error: err } = await sb.from('airport_markers')
-        .update(payload)
-        .eq('id', row.id))
+      ;({ error: err } = await sb.from('airport_markers').update(payload).eq('id', row.id))
     }
     if (err) {
       setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
     } else {
-      setMsg({ type: 'ok', text: `Marker guardado: ${payload.base_city} → ${payload.city_from} / ${payload.city_to}` })
+      setMsg({
+        type: 'ok',
+        text: `Marker guardado: ${payload.base_city} → ${payload.city_from} / ${payload.city_to}`,
+      })
       // Sacar la fila local recién guardada para que el sync effect
       // tras el reload la reemplace por la versión canónica del server
       // (con id real si era _new, con timestamps actualizados, etc.).
       // Sin esto, el dirty-tracking detectaría la fila local como
       // todavía dirty y la dejaría duplicada / con _new=true.
-      setRows(prev => prev.filter(r => r.id !== row.id))
+      setRows((prev) => prev.filter((r) => r.id !== row.id))
       await load()
     }
     setSaving(false)
@@ -162,12 +172,13 @@ export default function AirportMarkersTable({ country }) {
 
   async function deleteRow(id) {
     if (String(id).startsWith('new_')) {
-      setRows(prev => prev.filter(r => r.id !== id))
+      setRows((prev) => prev.filter((r) => r.id !== id))
       return
     }
     const ok = await confirm({
       title: 'Eliminar marker',
-      message: 'Si lo eliminás, el bot dejará de separar viajes de aeropuerto para esta ciudad. Las observaciones nuevas caerán en la ciudad base.',
+      message:
+        'Si lo eliminás, el bot dejará de separar viajes de aeropuerto para esta ciudad. Las observaciones nuevas caerán en la ciudad base.',
       danger: true,
       confirmText: 'Eliminar',
     })
@@ -184,10 +195,10 @@ export default function AirportMarkersTable({ country }) {
   if (loading) return <div className="config-loading">Cargando markers de aeropuerto…</div>
 
   const dirtyCellStyle = {
-    background:  '#fef3c7',
+    background: '#fef3c7',
     borderColor: '#f59e0b',
-    fontWeight:  600,
-    boxShadow:   '0 0 0 2px rgba(245, 158, 11, 0.2)',
+    fontWeight: 600,
+    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
   }
 
   return (
@@ -195,21 +206,31 @@ export default function AirportMarkersTable({ country }) {
       <h2>Aeropuertos — {country}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
         Cada marker mapea <code>(country, base_city)</code> a dos ciudades virtuales:
-        <code>city_from</code> (viajes <strong>desde</strong> el aeropuerto) y
-        <code>city_to</code> (viajes <strong>hacia</strong> el aeropuerto).
+        <code>city_from</code> (viajes <strong>desde</strong> el aeropuerto) y<code>city_to</code>{' '}
+        (viajes <strong>hacia</strong> el aeropuerto).
         <br />
         El bot detecta en este orden: <strong>(1)</strong> si <code>raw.zone</code> matchea
-        <code>zone_from_value</code> o <code>zone_to_value</code> (source-of-truth si tu bot etiqueta);
+        <code>zone_from_value</code> o <code>zone_to_value</code> (source-of-truth si tu bot
+        etiqueta);
         <strong>(2)</strong> fallback a substring match de <code>keywords</code> en
         <code>point_a</code>/<code>point_b</code>.
         <br />
-        Zone match es exacto y case-sensitive; keywords es substring case-insensitive (no necesitan ser exactos).
+        Zone match es exacto y case-sensitive; keywords es substring case-insensitive (no necesitan
+        ser exactos).
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        <button className="btn-add-row" onClick={addRow}>+ Nuevo aeropuerto</button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-dashed border-border text-muted hover:border-yango hover:text-yango"
+          onClick={addRow}
+        >
+          + Nuevo aeropuerto
+        </Button>
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -219,15 +240,27 @@ export default function AirportMarkersTable({ country }) {
               <th scope="col">BASE CITY</th>
               <th scope="col">CITY FROM</th>
               <th scope="col">CITY TO</th>
-              <th scope="col">ZONE FROM<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
-              <th scope="col">ZONE TO<br /><small style={{ fontWeight: 400 }}>(raw.zone exacto)</small></th>
-              <th scope="col">KEYWORDS<br /><small style={{ fontWeight: 400 }}>(coma-separado, fallback)</small></th>
+              <th scope="col">
+                ZONE FROM
+                <br />
+                <small style={{ fontWeight: 400 }}>(raw.zone exacto)</small>
+              </th>
+              <th scope="col">
+                ZONE TO
+                <br />
+                <small style={{ fontWeight: 400 }}>(raw.zone exacto)</small>
+              </th>
+              <th scope="col">
+                KEYWORDS
+                <br />
+                <small style={{ fontWeight: 400 }}>(coma-separado, fallback)</small>
+              </th>
               <th scope="col">ACTIVA</th>
               <th scope="col"></th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => {
+            {rows.map((r) => {
               const dirty = isRowDirty(r)
               return (
                 <tr key={r.id}>
@@ -235,7 +268,7 @@ export default function AirportMarkersTable({ country }) {
                     <input
                       type="text"
                       value={r.base_city || ''}
-                      onChange={e => updateRow(r.id, 'base_city', e.target.value)}
+                      onChange={(e) => updateRow(r.id, 'base_city', e.target.value)}
                       placeholder="Lima"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
@@ -244,7 +277,7 @@ export default function AirportMarkersTable({ country }) {
                     <input
                       type="text"
                       value={r.city_from || ''}
-                      onChange={e => updateRow(r.id, 'city_from', e.target.value)}
+                      onChange={(e) => updateRow(r.id, 'city_from', e.target.value)}
                       placeholder="Lima_Airport_A"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
@@ -253,7 +286,7 @@ export default function AirportMarkersTable({ country }) {
                     <input
                       type="text"
                       value={r.city_to || ''}
-                      onChange={e => updateRow(r.id, 'city_to', e.target.value)}
+                      onChange={(e) => updateRow(r.id, 'city_to', e.target.value)}
                       placeholder="Lima_Airport_B"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
@@ -262,7 +295,7 @@ export default function AirportMarkersTable({ country }) {
                     <input
                       type="text"
                       value={r.zone_from_value || ''}
-                      onChange={e => updateRow(r.id, 'zone_from_value', e.target.value)}
+                      onChange={(e) => updateRow(r.id, 'zone_from_value', e.target.value)}
                       placeholder="Airport_A"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
@@ -271,7 +304,7 @@ export default function AirportMarkersTable({ country }) {
                     <input
                       type="text"
                       value={r.zone_to_value || ''}
-                      onChange={e => updateRow(r.id, 'zone_to_value', e.target.value)}
+                      onChange={(e) => updateRow(r.id, 'zone_to_value', e.target.value)}
                       placeholder="Airport_B"
                       style={dirty ? dirtyCellStyle : undefined}
                     />
@@ -280,12 +313,14 @@ export default function AirportMarkersTable({ country }) {
                     <textarea
                       rows={2}
                       value={keywordsToString(r.keywords)}
-                      onChange={e => updateRow(r.id, 'keywords', stringToKeywords(e.target.value))}
+                      onChange={(e) =>
+                        updateRow(r.id, 'keywords', stringToKeywords(e.target.value))
+                      }
                       placeholder="jorge chavez, aicc, lim airport"
                       style={{
-                        width:    '100%',
+                        width: '100%',
                         minWidth: 240,
-                        resize:   'vertical',
+                        resize: 'vertical',
                         ...(dirty ? dirtyCellStyle : {}),
                       }}
                     />
@@ -294,33 +329,41 @@ export default function AirportMarkersTable({ country }) {
                     <input
                       type="checkbox"
                       checked={!!r.active}
-                      onChange={e => updateRow(r.id, 'active', e.target.checked)}
+                      onChange={(e) => updateRow(r.id, 'active', e.target.checked)}
                     />
                   </td>
                   <td>
-                    <button
-                      className="btn-save"
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mr-1"
                       disabled={saving || !dirty}
                       onClick={() => saveRow(r)}
-                      style={{ marginRight: 4 }}
                     >
                       Guardar
-                    </button>
-                    <button
-                      className="btn-delete"
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
                       disabled={saving}
                       onClick={() => deleteRow(r.id)}
                     >
                       Eliminar
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               )
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--color-muted)', padding: 16 }}>
-                No hay aeropuertos configurados para este país. Agregá uno con el botón de arriba.
-              </td></tr>
+              <tr>
+                <td
+                  colSpan={8}
+                  style={{ textAlign: 'center', color: 'var(--color-muted)', padding: 16 }}
+                >
+                  No hay aeropuertos configurados para este país. Agregá uno con el botón de arriba.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

@@ -5,6 +5,7 @@ import { isoWeekMonday } from '../../lib/dateUtils'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { sb } from '../../lib/supabase'
+import { Button } from '../ui/shadcn/button'
 
 // Fechas del corte Ponderado→Simple, derivadas de SIMPLE_AVG_SINCE (sin drift).
 const WA_WEIGHTED_UNTIL = isoWeekMonday(
@@ -256,21 +257,15 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
               {activeCategory === 'all' ? 'Todas las categorías' : activeCategory}
             </strong>
           </span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="bg-transparent border-[#b45309] text-[#78350f]"
             onClick={handleDiscard}
-            style={{
-              background: 'transparent',
-              border: '1px solid #b45309',
-              color: '#78350f',
-              padding: '4px 10px',
-              borderRadius: 4,
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
           >
             Descartar
-          </button>
+          </Button>
         </div>
       )}
 
@@ -333,8 +328,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
         style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
       >
         {/* Primario: sin snapshot — el usuario lo usa frecuentemente */}
-        <button
-          className="btn-save"
+        <Button
           onClick={handleSaveNoSnapshot}
           disabled={saving || !hasUnsavedChanges}
           title={
@@ -346,24 +340,17 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           }
         >
           {saving ? 'Guardando…' : 'Guardar cambios'}
-        </button>
+        </Button>
         {/* Secundario: con snapshot — para cambios que afectan data histórica significativa */}
-        <button
+        <Button
+          variant="outline"
+          className="border-slate-300 text-slate-600"
           onClick={handleSave}
           disabled={saving || !hasUnsavedChanges}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 6,
-            fontSize: 13,
-            border: '1px solid #cbd5e1',
-            background: '#fff',
-            cursor: saving || !hasUnsavedChanges ? 'not-allowed' : 'pointer',
-            color: '#475569',
-          }}
           title="Crea snapshot (hard copy) antes de guardar. Útil cuando el cambio afecta data histórica significativa que no querés que se recalcule."
         >
           📸 Guardar con snapshot
-        </button>
+        </Button>
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
       </div>
     </div>

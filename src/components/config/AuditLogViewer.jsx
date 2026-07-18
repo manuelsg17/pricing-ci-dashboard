@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { useI18n } from '../../context/LanguageContext'
 import { useAccessControl } from '../../hooks/useAccessControl'
+import { Button } from '../ui/shadcn/button'
 
 // ════════════════════════════════════════════════════════════════════════
 // AuditLogViewer — UI para audit_log (admin-only)
@@ -208,9 +209,15 @@ export default function AuditLogViewer() {
           />
         </label>
 
-        <button onClick={load} disabled={loading} className="audit-refresh-btn">
+        <Button
+          type="button"
+          variant="outline"
+          className="border-slate-300 bg-slate-100 hover:bg-slate-200 text-foreground"
+          onClick={load}
+          disabled={loading}
+        >
           {t('audit.refresh')}
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -255,9 +262,14 @@ export default function AuditLogViewer() {
                     {r.session_id ? r.session_id.slice(0, 8) : '—'}
                   </td>
                   <td>
-                    <button onClick={() => setDiff(r)} className="audit-link-btn">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="h-auto p-0 text-xs text-blue-600 underline"
+                      onClick={() => setDiff(r)}
+                    >
                       {t('audit.view_diff')}
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -274,12 +286,6 @@ export default function AuditLogViewer() {
           padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px;
           font-size: 13px;
         }
-        .audit-refresh-btn {
-          padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px;
-          background: #f1f5f9; cursor: pointer; font-size: 13px;
-        }
-        .audit-refresh-btn:hover:not(:disabled) { background: #e2e8f0; }
-        .audit-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .audit-table {
           width: 100%; border-collapse: collapse; font-size: 13px;
         }
@@ -294,10 +300,6 @@ export default function AuditLogViewer() {
         .audit-badge--insert { background: #dcfce7; color: #166534; }
         .audit-badge--update { background: #dbeafe; color: #1e40af; }
         .audit-badge--delete { background: #fee2e2; color: #991b1b; }
-        .audit-link-btn {
-          background: transparent; border: none; color: #2563eb;
-          cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline;
-        }
       `}</style>
     </div>
   )
@@ -348,12 +350,15 @@ function DiffModal({ row, onClose, t }) {
           <h3 style={{ margin: 0 }}>
             {row.action} · {row.table_name} · {row.row_id}
           </h3>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-auto w-auto p-1 text-xl leading-none"
             onClick={onClose}
-            style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer' }}
           >
             ×
-          </button>
+          </Button>
         </div>
 
         <div
@@ -414,18 +419,14 @@ function DiffModal({ row, onClose, t }) {
         </div>
 
         <div style={{ marginTop: 16, textAlign: 'right' }}>
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            className="border-slate-300 bg-slate-100 text-foreground"
             onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid #cbd5e1',
-              borderRadius: 4,
-              background: '#f1f5f9',
-              cursor: 'pointer',
-            }}
           >
             {t('audit.diff_close')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

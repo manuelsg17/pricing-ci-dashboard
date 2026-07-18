@@ -18,6 +18,7 @@ import { getCountryConfig } from '../../lib/constants'
 import { computeRecentRef } from '../../algorithms/indriveRef'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 export default function InDriveConfig({ country }) {
   const confirm = useConfirm()
@@ -307,21 +308,16 @@ export default function InDriveConfig({ country }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
           <h2 style={{ margin: 0 }}>Análisis histórico — Bids vs Precio recomendado</h2>
           <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => loadAnalysis()}
               disabled={analysisLoading}
-              style={{
-                padding: '5px 10px',
-                border: '1px solid #d1d5db',
-                borderRadius: 4,
-                background: '#f9fafb',
-                cursor: 'pointer',
-                fontSize: 12,
-              }}
+              className="rounded-[4px] border-gray-300 bg-gray-50 hover:bg-gray-100"
               title="Recargar datos"
             >
               ↻ Recargar
-            </button>
+            </Button>
             <button
               onClick={() => setAnalysisView('summary')}
               style={tabBtnStyle(analysisView === 'summary')}
@@ -577,21 +573,15 @@ export default function InDriveConfig({ country }) {
                 }}
               >
                 <span>⚠ Hay cambios sin guardar en los ajustes de InDrive</span>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={handleDiscardAll}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid #b45309',
-                    color: '#78350f',
-                    padding: '4px 10px',
-                    borderRadius: 4,
-                    fontSize: 12,
-                    cursor: 'pointer',
-                  }}
+                  className="rounded-[4px] border-amber-700 bg-transparent text-amber-900 hover:bg-amber-50"
                 >
                   Descartar cambios
-                </button>
+                </Button>
               </div>
             )}
 
@@ -692,8 +682,10 @@ export default function InDriveConfig({ country }) {
                                 ⚠
                               </span>
                             )}
-                            <button
+                            <Button
                               type="button"
+                              variant="outline"
+                              size="sm"
                               onClick={() =>
                                 setCfgField(
                                   city,
@@ -703,19 +695,10 @@ export default function InDriveConfig({ country }) {
                                 )
                               }
                               title="Usar esta referencia como % de ajuste"
-                              style={{
-                                border: '1px solid #d1d5db',
-                                borderRadius: 4,
-                                background: '#f9fafb',
-                                cursor: 'pointer',
-                                fontSize: 11,
-                                lineHeight: 1,
-                                padding: '2px 5px',
-                                color: '#374151',
-                              }}
+                              className="h-auto rounded-[4px] border-gray-300 bg-gray-50 px-1.5 py-0.5 text-[11px] leading-none text-gray-700 hover:bg-gray-100"
                             >
                               →
-                            </button>
+                            </Button>
                           </span>
                         ) : (
                           <span title="Sin datos en la ventana seleccionada">—</span>
@@ -729,16 +712,16 @@ export default function InDriveConfig({ country }) {
 
             <div style={{ marginTop: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button
-                  className="btn-save"
+                <Button
                   onClick={() => handleSave({ withSnapshot: true })}
                   disabled={saving || !hasUnsavedChanges}
                   title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
                 >
                   {saving ? 'Guardando…' : '💾 Guardar ajustes'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => handleSave({ withSnapshot: false })}
                   disabled={saving || !hasUnsavedChanges}
                   title={
@@ -746,19 +729,10 @@ export default function InDriveConfig({ country }) {
                       ? 'No hay cambios para guardar'
                       : 'Guardar sin crear snapshot de los promedios actuales'
                   }
-                  style={{
-                    padding: '8px 14px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 6,
-                    background: '#f9fafb',
-                    color: '#374151',
-                    fontSize: 13,
-                    cursor: saving || !hasUnsavedChanges ? 'not-allowed' : 'pointer',
-                    opacity: saving || !hasUnsavedChanges ? 0.6 : 1,
-                  }}
+                  className="rounded-sm border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100"
                 >
                   Guardar sin snapshot
-                </button>
+                </Button>
               </div>
               <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
             </div>

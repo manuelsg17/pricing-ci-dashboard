@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 export default function RushHourConfig({ country }) {
   const config = getCountryConfig(country)
@@ -220,21 +221,25 @@ export default function RushHourConfig({ country }) {
                   />
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    className="btn-save-sm"
+                  <Button
+                    type="button"
+                    size="sm"
                     onClick={() => saveWindow(w)}
                     disabled={saving || !dirty}
                     title={!dirty ? 'Sin cambios' : 'Guardar franja'}
                   >
                     {w._new ? 'Crear' : 'Guardar'}
-                  </button>
-                  <button
-                    className="btn-delete-sm"
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-red-300 text-red-600 hover:bg-red-100"
                     aria-label="Eliminar"
                     onClick={() => deleteWindow(w.id)}
                   >
                     ✕
-                  </button>
+                  </Button>
                 </td>
               </tr>
             )
@@ -242,9 +247,15 @@ export default function RushHourConfig({ country }) {
         </tbody>
       </table>
 
-      <button className="btn-add-row" onClick={addWindow} style={{ marginTop: 10 }}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
+        onClick={addWindow}
+      >
         + Agregar franja horaria
-      </button>
+      </Button>
     </div>
   )
 }

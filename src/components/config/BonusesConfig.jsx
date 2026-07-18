@@ -6,6 +6,7 @@ import { describeBonus } from '../../lib/competitorBonus'
 import SaveStatusBanner from './SaveStatusBanner'
 import BonusWizard from './BonusWizard'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 const SEGMENTS = [
@@ -357,18 +358,15 @@ export default function BonusesConfig({ country }) {
                       ))}
                     </select>
                   </Field>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleDelete(row)}
                     aria-label="Eliminar"
-                    style={{
-                      ...pill(false),
-                      marginLeft: 'auto',
-                      borderColor: '#fca5a5',
-                      color: '#dc2626',
-                    }}
+                    className="ml-auto rounded-full border-red-300 font-normal text-red-600 hover:bg-red-50"
                   >
                     ✕ Eliminar
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Segmento + recurrencia */}
@@ -461,20 +459,26 @@ export default function BonusesConfig({ country }) {
                             style={{ width: 90 }}
                             onChange={(e) => updateTier(row.id, tiers, i, 'reward', e.target.value)}
                           />
-                          <button
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => removeTier(row.id, tiers, i)}
-                            style={{ ...pill(false), padding: '2px 8px' }}
+                            className="h-auto rounded-full px-2 py-0.5 text-xs font-normal text-muted"
                           >
                             ✕
-                          </button>
+                          </Button>
                         </div>
                       ))}
-                      <button
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={() => addTier(row.id, tiers)}
-                        style={{ ...pill(false), borderStyle: 'dashed', marginTop: 2 }}
+                        className="mt-0.5 rounded-full border-dashed font-normal text-muted"
                       >
                         + peldaño
-                      </button>
+                      </Button>
                       {/* preview */}
                       {tiers.filter((t) => t.threshold !== '' && t.threshold != null).length >
                         0 && (
@@ -542,22 +546,28 @@ export default function BonusesConfig({ country }) {
                             style={{ width: 80 }}
                             onChange={(e) => updateTier(row.id, tiers, i, 'cap', e.target.value)}
                           />
-                          <button
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => removeTier(row.id, tiers, i)}
-                            style={{ ...pill(false), padding: '2px 8px' }}
+                            className="h-auto rounded-full px-2 py-0.5 text-xs font-normal text-muted"
                           >
                             ✕
-                          </button>
+                          </Button>
                         </div>
                       ))}
-                      <button
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={() =>
                           setTiers(row.id, [...tiers, { threshold: '', pct: '', cap: '' }])
                         }
-                        style={{ ...pill(false), borderStyle: 'dashed', marginTop: 2 }}
+                        className="mt-0.5 rounded-full border-dashed font-normal text-muted"
                       >
                         + meta
-                      </button>
+                      </Button>
                       <div style={hintStyle}>
                         GMV = lo facturado ANTES de comisión. Si el driver hace más viajes que la
                         meta, el % solo aplica sobre los primeros N. Se asume que elige la meta que
@@ -867,15 +877,15 @@ export default function BonusesConfig({ country }) {
                     />
                     Activo
                   </label>
-                  <button
-                    className="btn-save-sm"
+                  <Button
+                    size="sm"
                     onClick={() => handleSave(row)}
                     disabled={saving || !dirty}
                     title={!dirty ? 'Sin cambios' : undefined}
-                    style={{ marginLeft: 'auto' }}
+                    className="ml-auto"
                   >
                     {isNew(row) ? 'Crear' : 'Guardar'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -884,24 +894,14 @@ export default function BonusesConfig({ country }) {
       })}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-        <button
-          onClick={() => setWizardOpen(true)}
-          style={{
-            padding: '8px 18px',
-            borderRadius: 8,
-            border: 'none',
-            cursor: 'pointer',
-            background: 'var(--color-yango, #E53935)',
-            color: '#fff',
-            fontWeight: 600,
-            fontSize: 13,
-          }}
+        <Button onClick={() => setWizardOpen(true)}>+ Crear bono (asistente)</Button>
+        <Button
+          variant="outline"
+          onClick={addRow}
+          className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
         >
-          + Crear bono (asistente)
-        </button>
-        <button className="btn-add-row" onClick={addRow}>
           + Tarjeta vacía (modo experto)
-        </button>
+        </Button>
       </div>
 
       {wizardOpen && (

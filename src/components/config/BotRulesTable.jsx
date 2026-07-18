@@ -8,6 +8,7 @@ import { MultiCombobox } from '../ui/shadcn/multi-combobox'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 // Tabla CRUD de bot_rules. Cada fila mapea (app, vc, ovc, cities) →
 // (competition_name, category) para que sync_bot_quotes pueda matchear
@@ -331,14 +332,16 @@ export default function BotRulesTable({ country }) {
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
-        <button
-          className="btn-add-row"
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-dashed border-border text-muted hover:border-yango hover:text-yango"
           onClick={() => addRule()}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
           <Plus size={13} />
           Nueva regla
-        </button>
+        </Button>
         {unmatched.length > 0 && (
           <button
             onClick={() => setShowUnmatched((v) => !v)}
@@ -406,14 +409,10 @@ export default function BotRulesTable({ country }) {
                     {Number(c.total_n).toLocaleString()}
                   </td>
                   <td>
-                    <button
-                      className="btn-save-sm"
-                      onClick={() => addFromUnmatched(c)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                    >
+                    <Button type="button" size="sm" onClick={() => addFromUnmatched(c)}>
                       <Plus size={11} />
                       Agregar
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -549,24 +548,27 @@ export default function BotRulesTable({ country }) {
                   </label>
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    className="btn-save-sm"
+                  <Button
+                    type="button"
+                    size="sm"
                     onClick={() => saveRule(rule)}
                     disabled={saving || !dirty}
                     title={!dirty ? 'Sin cambios' : undefined}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                   >
                     <Save size={11} />
                     {rule._new ? 'Crear' : 'Guardar'}
-                  </button>
-                  <button
-                    className="btn-delete-sm"
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-red-300 text-red-600 hover:bg-red-100"
                     aria-label="Eliminar"
                     title="Eliminar"
                     onClick={() => deleteRule(rule.id)}
                   >
                     <Trash2 size={12} />
-                  </button>
+                  </Button>
                 </td>
               </tr>
             )

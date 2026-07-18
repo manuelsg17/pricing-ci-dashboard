@@ -5,6 +5,7 @@ import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
@@ -173,24 +174,27 @@ export default function CommissionsConfig({ country }) {
                   />
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    className="btn-save-sm"
+                  <Button
+                    type="button"
+                    size="sm"
                     onClick={() => handleSave(row)}
                     disabled={saving || !dirty}
                     title={!dirty ? 'Sin cambios' : undefined}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                   >
                     <Save size={11} />
                     {isNew(row) ? 'Crear' : 'Guardar'}
-                  </button>
-                  <button
-                    className="btn-delete-sm"
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-red-300 text-red-600 hover:bg-red-100"
                     aria-label="Eliminar"
                     title="Eliminar"
                     onClick={() => handleDelete(row)}
                   >
                     <Trash2 size={12} />
-                  </button>
+                  </Button>
                 </td>
               </tr>
             )
@@ -198,14 +202,16 @@ export default function CommissionsConfig({ country }) {
         </tbody>
       </table>
 
-      <button
-        className="btn-add-row"
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
         onClick={addRow}
-        style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}
       >
         <Plus size={13} />
         Agregar comisión
-      </button>
+      </Button>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { CURRENCY_PRESETS, DEFAULT_WEIGHTS_PCT, BRACKETS } from '../../lib/const
 import { stripAccents, toDbKey } from '../../lib/normalize'
 import { useConfirm } from '../ui/ConfirmDialog'
 import SaveStatusBanner from './SaveStatusBanner'
+import { Button } from '../ui/shadcn/button'
 
 const ISO_CODES = [
   'PE',
@@ -496,19 +497,14 @@ export default function CountryWizard({ onClose, onCreated }) {
         }}
       >
         <h2>Wizard — Crear país nuevo</h2>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleCancel}
-          style={{
-            padding: '4px 10px',
-            borderRadius: 4,
-            fontSize: 12,
-            border: '1px solid #cbd5e1',
-            background: '#fff',
-            cursor: 'pointer',
-          }}
+          className="rounded-[4px] border-slate-300"
         >
           ✕ Cerrar
-        </button>
+        </Button>
       </div>
 
       {/* Stepper */}
@@ -668,14 +664,25 @@ export default function CountryWizard({ onClose, onCreated }) {
                     placeholder="lima"
                   />
                 </Field>
-                <button onClick={() => removeCity(i)} style={btnDelete}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => removeCity(i)}
+                  className="rounded-[4px] border-red-300 bg-red-50 px-2 text-[11px] text-red-800 hover:bg-red-100"
+                >
                   ✕
-                </button>
+                </Button>
               </div>
             ))}
-            <button onClick={addCity} className="btn-add-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addCity}
+              className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
+            >
               + Agregar ciudad
-            </button>
+            </Button>
           </div>
         )}
 
@@ -934,24 +941,29 @@ export default function CountryWizard({ onClose, onCreated }) {
                         </select>
                       </td>
                       <td>
-                        <button
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
                           onClick={() =>
                             setDraft((d) => ({
                               ...d,
                               botRules: d.botRules.filter((_, j) => j !== i),
                             }))
                           }
-                          style={btnDelete}
+                          className="rounded-[4px] border-red-300 bg-red-50 px-2 text-[11px] text-red-800 hover:bg-red-100"
                         >
                           ✕
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={() =>
                 setDraft((d) => ({
                   ...d,
@@ -968,10 +980,10 @@ export default function CountryWizard({ onClose, onCreated }) {
                   ],
                 }))
               }
-              className="btn-add-row"
+              className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
             >
               + Regla
-            </button>
+            </Button>
           </div>
         )}
 
@@ -1068,13 +1080,14 @@ export default function CountryWizard({ onClose, onCreated }) {
 
       {/* Footer navegación */}
       <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'space-between' }}>
-        <button
+        <Button
+          variant="outline"
           onClick={() => setStep((s) => Math.max(0, s - 1))}
           disabled={step === 0}
-          style={btnSecondary}
+          className="rounded-[4px] border-slate-300"
         >
           ← Anterior
-        </button>
+        </Button>
 
         {stepErrors.length > 0 && (
           <div
@@ -1087,21 +1100,17 @@ export default function CountryWizard({ onClose, onCreated }) {
         )}
 
         {step < STEPS.length - 1 ? (
-          <button onClick={() => setStep((s) => s + 1)} disabled={!canAdvance} className="btn-save">
+          <Button onClick={() => setStep((s) => s + 1)} disabled={!canAdvance}>
             Siguiente →
-          </button>
+          </Button>
         ) : (
           // Bug previo: `validation` siendo `[]` se evaluaba truthy y dejaba
           // el botón disabled tras un save exitoso. Ahora chequeamos !== null
           // explícito para identificar "creado". Si saving o canAdvance, también
           // disabled — el resto del tiempo, habilitado.
-          <button
-            onClick={handleFinish}
-            disabled={saving || !canAdvance || validation !== null}
-            className="btn-save"
-          >
+          <Button onClick={handleFinish} disabled={saving || !canAdvance || validation !== null}>
             {saving ? 'Creando…' : validation !== null ? '✓ Creado' : 'Crear país (status=draft)'}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -1131,23 +1140,6 @@ function Field({ label, required, children }) {
   )
 }
 
-const btnSecondary = {
-  padding: '6px 12px',
-  borderRadius: 4,
-  fontSize: 12,
-  border: '1px solid #cbd5e1',
-  background: '#fff',
-  cursor: 'pointer',
-}
-const btnDelete = {
-  padding: '4px 8px',
-  borderRadius: 4,
-  fontSize: 11,
-  border: '1px solid #fca5a5',
-  background: '#fef2f2',
-  color: '#991b1b',
-  cursor: 'pointer',
-}
 const categoryTag = {
   display: 'inline-flex',
   alignItems: 'center',

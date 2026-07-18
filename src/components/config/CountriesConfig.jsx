@@ -5,6 +5,7 @@ import { CATALOG_CATEGORIES } from '../../lib/catalogs'
 import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
 import CountryWizard from './CountryWizard'
+import { Button } from '../ui/shadcn/button'
 
 const CONST_KEYS = Object.keys(COUNTRY_CONFIG)
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
@@ -74,16 +75,16 @@ function CompetitorAdder({ existing, onAdd }) {
         ))}
       </select>
       {val && (
-        <button
-          className="btn-save-sm"
-          style={{ height: 22, padding: '0 8px', fontSize: 10 }}
+        <Button
+          size="sm"
+          className="h-[22px] px-2 text-[10px]"
           onClick={() => {
             onAdd(val)
             setVal('')
           }}
         >
           OK
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -595,31 +596,24 @@ export default function CountriesConfig() {
             Países
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button
-              style={{
-                height: 24,
-                padding: '0 8px',
-                fontSize: 10,
-                borderRadius: 4,
-                background: '#dbeafe',
-                border: '1px solid #2563eb',
-                color: '#1e3a8a',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 rounded-[4px] border-blue-600 bg-blue-100 px-2 text-[10px] font-semibold text-blue-900 hover:bg-blue-200"
               onClick={() => setShowWizard(true)}
               title="Wizard guiado paso a paso para crear país nuevo"
             >
               ✨ Wizard
-            </button>
-            <button
-              className="btn-add-row"
-              style={{ height: 24, padding: '0 10px' }}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 rounded-sm border-dashed bg-transparent px-2.5 font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
               onClick={addNewCountry}
               title="Formulario avanzado (todos los campos a la vista)"
             >
               +
-            </button>
+            </Button>
           </div>
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -726,24 +720,15 @@ export default function CountriesConfig() {
                     Este país vive en <code>constants.js</code>. Para editarlo desde acá, copiá la
                     configuración a la base de datos.
                   </span>
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => makeEditable(selectedKey)}
                     disabled={savingKey === selectedKey}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 4,
-                      fontSize: 11,
-                      border: '1px solid #2563eb',
-                      background: '#2563eb',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                    }}
+                    className="h-auto whitespace-nowrap rounded-[4px] bg-blue-600 px-2.5 py-1 text-[11px] hover:bg-blue-700"
                     title="Copia la config hardcoded a country_config para desbloquear edición. No rompe nada: constants.js sigue como fallback."
                   >
                     {savingKey === selectedKey ? 'Promoviendo…' : '📥 Hacer editable'}
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -820,33 +805,20 @@ export default function CountriesConfig() {
                     flexWrap: 'wrap',
                   }}
                 >
-                  <button
-                    className="btn-save-sm"
+                  <Button
+                    size="sm"
                     disabled={savingKey === selectedKey}
                     onClick={() => handleSave(selectedKey)}
                   >
                     {savingKey === selectedKey ? 'Guardando…' : 'Guardar país'}
-                  </button>
+                  </Button>
                   {/* Cancelar — descarta cambios o el país en memoria.
                       Disabled si no hay nada que cancelar (defensivo). */}
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleCancel(selectedKey)}
                     disabled={!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 4,
-                      fontSize: 12,
-                      border: '1px solid var(--color-border)',
-                      background: 'transparent',
-                      color:
-                        !isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')
-                          ? '#94a3b8'
-                          : 'var(--color-text)',
-                      cursor:
-                        !isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')
-                          ? 'not-allowed'
-                          : 'pointer',
-                    }}
                     title={
                       selectedKey.startsWith('NewCountry_')
                         ? 'Descartar este país nuevo sin guardarlo'
@@ -856,14 +828,16 @@ export default function CountriesConfig() {
                     }
                   >
                     Cancelar
-                  </button>
+                  </Button>
                   {isDbManaged(selectedKey) && (
-                    <button
-                      className="btn-delete-sm"
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-red-300 text-red-600 hover:bg-red-100"
                       onClick={() => handleDeleteCountry(selectedKey)}
                     >
                       Eliminar
-                    </button>
+                    </Button>
                   )}
                   {msg && (
                     <span
@@ -902,14 +876,15 @@ export default function CountriesConfig() {
                   Ciudades
                 </span>
                 {!readonly && (
-                  <button
-                    className="btn-add-row"
-                    style={{ height: 24, padding: '0 10px' }}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 rounded-sm border-dashed bg-transparent px-2.5 font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
                     onClick={() => addCity(selectedKey)}
                     title="Agregar ciudad"
                   >
                     +
-                  </button>
+                  </Button>
                 )}
               </div>
               <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -950,9 +925,10 @@ export default function CountriesConfig() {
                       </span>
                     )}
                     {!readonly && (
-                      <button
-                        className="btn-delete-sm"
-                        style={{ height: 18, padding: '0 6px', fontSize: 10, flexShrink: 0 }}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-[18px] shrink-0 rounded-sm border-red-300 px-1.5 text-[10px] text-red-600 hover:bg-red-100"
                         onClick={(e) => {
                           e.stopPropagation()
                           deleteCity(selectedKey, idx)
@@ -960,7 +936,7 @@ export default function CountriesConfig() {
                         title="Eliminar ciudad"
                       >
                         ✕
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ))}
@@ -1073,12 +1049,13 @@ export default function CountriesConfig() {
               >
                 <h2 style={{ margin: 0 }}>Categorías y Competidores</h2>
                 {!readonly && (
-                  <button
-                    className="btn-add-row"
+                  <Button
+                    variant="outline"
+                    className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
                     onClick={() => addCategory(selectedKey, selectedCityIdx)}
                   >
                     + Agregar categoría
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -1171,13 +1148,14 @@ export default function CountriesConfig() {
                       />
                     </div>
                     {!readonly && (
-                      <button
-                        className="btn-delete-sm"
-                        style={{ marginBottom: 1 }}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mb-px border-red-300 text-red-600 hover:bg-red-100"
                         onClick={() => deleteCategory(selectedKey, selectedCityIdx, catIdx)}
                       >
                         ✕ Eliminar
-                      </button>
+                      </Button>
                     )}
                   </div>
 

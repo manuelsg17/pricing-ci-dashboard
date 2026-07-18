@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { sb } from '../../lib/supabase'
 import { useConfirm } from '../ui/ConfirmDialog'
 import SaveStatusBanner from './SaveStatusBanner'
+import { Button } from '../ui/shadcn/button'
 
 // Lista los snapshots (hard copies) creados por freeze_pricing_wa y
 // permite eliminarlos. Cada snapshot agrupa todas las filas que se
@@ -121,14 +122,17 @@ export default function SnapshotsManager({ country }) {
                 <td style={{ textAlign: 'right' }}>{Number(r.weeks_count).toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{Number(r.cities_count).toLocaleString()}</td>
                 <td>
-                  <button
-                    className="btn-delete-sm"
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-red-300 text-red-600 hover:bg-red-100"
                     onClick={() => handleDelete(r)}
                     disabled={deleting === r.frozen_label}
                     title="Eliminar este snapshot. Los períodos volverán a cálculo en vivo."
                   >
                     {deleting === r.frozen_label ? 'Eliminando…' : '✕ Eliminar'}
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
