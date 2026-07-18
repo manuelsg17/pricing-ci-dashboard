@@ -58,6 +58,27 @@ export const DEFAULT_WEIGHTS = {
   very_long: 0.297,
 }
 
+// Mismos pesos que DEFAULT_WEIGHTS, en porcentaje (0-100) — la forma que
+// espera el editor de pesos del wizard de onboarding de países.
+export const DEFAULT_WEIGHTS_PCT = Object.fromEntries(
+  Object.entries(DEFAULT_WEIGHTS).map(([bracket, w]) => [bracket, Number((w * 100).toFixed(2))])
+)
+
+// ── Presets de moneda (onboarding de países) ───────────────
+// Usado por CountryWizard.jsx (alta de país nuevo) y CountriesConfig.jsx
+// (edición). Única fuente: antes existían dos copias que podían
+// desincronizarse en silencio si se agregaba/ajustaba una moneda en un
+// solo lugar.
+export const CURRENCY_PRESETS = {
+  PEN: { locale: 'es-PE', outlier_threshold: 300, max_price: 1000 },
+  COP: { locale: 'es-CO', outlier_threshold: 300000, max_price: 1000000 },
+  BOB: { locale: 'es-BO', outlier_threshold: 500, max_price: 2000 },
+  VES: { locale: 'es-VE', outlier_threshold: 200, max_price: 1000 },
+  NPR: { locale: 'ne-NP', outlier_threshold: 5000, max_price: 20000 },
+  ZMW: { locale: 'en-ZM', outlier_threshold: 500, max_price: 2000 },
+  USD: { locale: 'en-US', outlier_threshold: 100, max_price: 1000 },
+}
+
 // ── Pesos históricos REALES de Perú (fijados en código) ────
 // Snapshot inmediato ANTES del parche de emergencia 16.6% (recuperado del
 // audit_log, 2026-07-07). El histórico de Perú (semanas <= 2026-W24, hasta el

@@ -17,7 +17,10 @@ export default function SnapshotsManager({ country }) {
   const [msg, setMsg] = useState(null)
   const confirm = useConfirm()
 
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [country])
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country])
 
   async function load() {
     setLoading(true)
@@ -34,14 +37,15 @@ export default function SnapshotsManager({ country }) {
 
   async function handleDelete(snap) {
     const ok = await confirm({
-      title:       'Eliminar snapshot',
-      message:     `Vas a eliminar el snapshot "${snap.frozen_label}" ` +
-                   `(${snap.rows_count.toLocaleString()} filas, ${snap.weeks_count} semanas, ${snap.cities_count} ciudades).\n\n` +
-                   `Después de eliminar, los períodos congelados volverán a calcularse EN VIVO desde la data actual, ` +
-                   `usando la configuración actual de pesos y umbrales.\n\nEsta acción NO se puede deshacer.`,
+      title: 'Eliminar snapshot',
+      message:
+        `Vas a eliminar el snapshot "${snap.frozen_label}" ` +
+        `(${snap.rows_count.toLocaleString()} filas, ${snap.weeks_count} semanas, ${snap.cities_count} ciudades).\n\n` +
+        `Después de eliminar, los períodos congelados volverán a calcularse EN VIVO desde la data actual, ` +
+        `usando la configuración actual de pesos y umbrales.\n\nEsta acción NO se puede deshacer.`,
       confirmText: 'Eliminar snapshot',
-      cancelText:  'Cancelar',
-      danger:      true,
+      cancelText: 'Cancelar',
+      danger: true,
     })
     if (!ok) return
 
@@ -49,12 +53,15 @@ export default function SnapshotsManager({ country }) {
     setMsg(null)
     const { data, error } = await sb.rpc('unfreeze_pricing_wa', {
       p_country: country,
-      p_label:   snap.frozen_label,
+      p_label: snap.frozen_label,
     })
     if (error) {
       setMsg({ type: 'err', text: 'Error: ' + error.message })
     } else {
-      setMsg({ type: 'ok', text: `Snapshot eliminado: ${data?.toLocaleString() ?? '?'} filas removidas.` })
+      setMsg({
+        type: 'ok',
+        text: `Snapshot eliminado: ${data?.toLocaleString() ?? '?'} filas removidas.`,
+      })
       await load()
     }
     setDeleting(null)
@@ -66,19 +73,25 @@ export default function SnapshotsManager({ country }) {
     <div className="config-section">
       <h2>Snapshots (hard copies) — {country}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Cada snapshot congela los promedios ponderados de un momento dado.
-        Se crean automáticamente al guardar cambios en <strong>Distancias</strong> o <strong>Pesos</strong>{' '}
-        (si usás "Guardar con snapshot"), o manualmente vía RPC.
-        Eliminar un snapshot devuelve los períodos a cálculo en vivo con la config actual.
+        Cada snapshot congela los promedios ponderados de un momento dado. Se crean automáticamente
+        al guardar cambios en <strong>Distancias</strong> o <strong>Pesos</strong> (si usás "Guardar
+        con snapshot"), o manualmente vía RPC. Eliminar un snapshot devuelve los períodos a cálculo
+        en vivo con la config actual.
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
       {rows.length === 0 ? (
-        <div style={{
-          padding: 20, textAlign: 'center', color: '#888',
-          background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1',
-        }}>
+        <div
+          style={{
+            padding: 20,
+            textAlign: 'center',
+            color: '#888',
+            background: '#f8fafc',
+            borderRadius: 8,
+            border: '1px dashed #cbd5e1',
+          }}
+        >
           Sin snapshots para {country}.
         </div>
       ) : (
@@ -105,12 +118,8 @@ export default function SnapshotsManager({ country }) {
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>
                   {Number(r.rows_count).toLocaleString()}
                 </td>
-                <td style={{ textAlign: 'right' }}>
-                  {Number(r.weeks_count).toLocaleString()}
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  {Number(r.cities_count).toLocaleString()}
-                </td>
+                <td style={{ textAlign: 'right' }}>{Number(r.weeks_count).toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{Number(r.cities_count).toLocaleString()}</td>
                 <td>
                   <button
                     className="btn-delete-sm"

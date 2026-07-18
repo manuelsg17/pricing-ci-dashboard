@@ -13,18 +13,16 @@ import { getCountryConfig } from './constants.js'
 import { sanitizeForSpreadsheet } from './csvSafety.js'
 
 // Competidores a incluir en la salida (Cabify excluido en esta etapa)
-const INCLUDE_COMPETITORS = new Set([
-  'Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive',
-])
+const INCLUDE_COMPETITORS = new Set(['Yango', 'YangoComfort', 'Uber', 'Didi', 'InDrive'])
 
 // Reverse: formato DB bracket → display Excel
 const BRACKET_DISPLAY = {
   very_short: 'Very short',
-  short:      'Short',
-  median:     'Median',
-  average:    'Average',
-  long:       'Long',
-  very_long:  'Very long',
+  short: 'Short',
+  median: 'Median',
+  average: 'Average',
+  long: 'Long',
+  very_long: 'Very long',
 }
 
 // ── Derivaciones desde fecha/hora ──────────────────────────────────────────
@@ -47,17 +45,15 @@ function deriveRushHour(timeStr) {
   if (!timeStr) return null
   const [h, m] = timeStr.split(':').map(Number)
   const mins = h * 60 + m
-  const isRush =
-    (mins >= 7 * 60 && mins <= 9 * 60) ||
-    (mins >= 17 * 60 && mins <= 20 * 60)
+  const isRush = (mins >= 7 * 60 && mins <= 9 * 60) || (mins >= 17 * 60 && mins <= 20 * 60)
   return isRush ? 'Rush hour' : 'Valley Hour'
 }
 
 function deriveTimeslot(timeStr) {
   if (!timeStr) return null
   const h = parseInt(timeStr.slice(0, 2), 10)
-  if (h < 12)  return 'Morning'
-  if (h < 17)  return 'Midday'
+  if (h < 12) return 'Morning'
+  if (h < 17) return 'Midday'
   return 'Evening'
 }
 
@@ -67,82 +63,124 @@ function deriveTimeslot(timeStr) {
  * Convierte una fila normalizada (salida de mapBotRows) al array de 29 valores
  * que corresponde a las columnas del formato CI Final Claude.xlsx.
  */
-function buildRow(row, city, countryConfig) {
+function buildRow(row) {
   // Use category label if available (though bot usually has raw names)
   const categoryDisplay = row.category
-  const bracketDisplay  = BRACKET_DISPLAY[row.distance_bracket] ?? row.distance_bracket ?? null
-  const surgeDisplay    = row.surge === true ? 'yes' : row.surge === false ? 'no' : null
-  const isInDrive       = row.competition_name === 'InDrive'
+  const bracketDisplay = BRACKET_DISPLAY[row.distance_bracket] ?? row.distance_bracket ?? null
+  const surgeDisplay = row.surge === true ? 'yes' : row.surge === false ? 'no' : null
+  const isInDrive = row.competition_name === 'InDrive'
 
   // Sprint 3.5: sanitizeForSpreadsheet() en los strings free-text que
   // vienen del bot (point_a / point_b son nombres de calles, vienen sin
   // validar de helioho). Sin sanitize, un payload tipo "=HYPERLINK(...)"
   // se ejecutaría como fórmula cuando el analista abre el .xlsx.
   return [
-    deriveYear(row.observed_date),          // 1  Year
-    deriveRushHour(row.observed_time),       // 2  Rush Hour
+    deriveYear(row.observed_date), // 1  Year
+    deriveRushHour(row.observed_time), // 2  Rush Hour
     sanitizeForSpreadsheet(row.point_a ?? null), // 3  Point A (sanitize: free text bot)
     sanitizeForSpreadsheet(row.point_b ?? null), // 4  Point B (sanitize: free text bot)
-    null,                                    // 5  Travel Distance (Km) — bot no entrega
-    categoryDisplay,                         // 6  Category (derivado de whitelist)
-    deriveWeek(row.observed_date),           // 7  Week
-    deriveTimeslot(row.observed_time),       // 8  Timeslot
-    bracketDisplay,                          // 9  Distance bracket (whitelist)
-    row.observed_date ?? null,               // 10 Date
-    row.observed_time ?? null,               // 11 Time
+    null, // 5  Travel Distance (Km) — bot no entrega
+    categoryDisplay, // 6  Category (derivado de whitelist)
+    deriveWeek(row.observed_date), // 7  Week
+    deriveTimeslot(row.observed_time), // 8  Timeslot
+    bracketDisplay, // 9  Distance bracket (whitelist)
+    row.observed_date ?? null, // 10 Date
+    row.observed_time ?? null, // 11 Time
     sanitizeForSpreadsheet(row.competition_name ?? null), // 12 Competition (defensive)
-    surgeDisplay,                            // 13 Surge
-    null,                                    // 14 Travel Time (Min)
-    row.eta_min ?? null,                     // 15 ETA (Min)
-    isInDrive ? row.recommended_price : null,// 16 Recommended Price (InDrive only)
-    isInDrive ? row.minimal_bid : null,      // 17 Minimal bid (InDrive only)
+    surgeDisplay, // 13 Surge
+    null, // 14 Travel Time (Min)
+    row.eta_min ?? null, // 15 ETA (Min)
+    isInDrive ? row.recommended_price : null, // 16 Recommended Price (InDrive only)
+    isInDrive ? row.minimal_bid : null, // 17 Minimal bid (InDrive only)
     isInDrive ? null : row.price_with_discount, // 18 Price With Discount
     isInDrive ? null : row.price_without_discount, // 19 PriceW/ODiscount
-    null,                                    // 20 Zone
-    null,                                    // 21 Bid 1
-    null,                                    // 22 Bid 2
-    null,                                    // 23 Bid 3
-    null,                                    // 24 Bid 4
-    null,                                    // 25 Bid 5
-    null,                                    // 26 Discount offer
-    null,                                    // 27 For pivot
-    null,                                    // 28 Diff (manualy calc)
-    null,                                    // 29 Minimal Bid Vs Recomm Price
+    null, // 20 Zone
+    null, // 21 Bid 1
+    null, // 22 Bid 2
+    null, // 23 Bid 3
+    null, // 24 Bid 4
+    null, // 25 Bid 5
+    null, // 26 Discount offer
+    null, // 27 For pivot
+    null, // 28 Diff (manualy calc)
+    null, // 29 Minimal Bid Vs Recomm Price
   ]
 }
 
 // ── Construcción del xlsx por ciudad ──────────────────────────────────────
 
 const META_HEADERS = [
-  null, null, null, null, null,
-  'colocar lista de eleccion',               // col 6
-  null, null, null, null, null, null, null, null, null,
-  'InDrive',                                 // col 16
-  'InDrive',                                 // col 17
-  'All exc. InDrive',                        // col 18
-  'All',                                     // col 19
   null,
-  'InDrive bids (4-5 bids) for analysis',   // col 21
-  null, null, null, null, null, null, null, null,
+  null,
+  null,
+  null,
+  null,
+  'colocar lista de eleccion', // col 6
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  'InDrive', // col 16
+  'InDrive', // col 17
+  'All exc. InDrive', // col 18
+  'All', // col 19
+  null,
+  'InDrive bids (4-5 bids) for analysis', // col 21
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
 ]
 
 const COL_HEADERS = [
-  'Year', 'Rush Hour', 'Point A', 'Point B', 'Travel Distance (Km)',
-  'Category', 'Week', 'Timeslot', 'Distance bracket', 'Date', 'Time',
-  'Competition Name', 'Surge', 'Travel Time (Min)', 'ETA (Min)',
-  'Recommended Price', 'Minimal bid', 'Price With Discount', 'PriceW/ODiscount',
-  'Zone', 'Bid 1', 'Bid 2', 'Bid 3', 'Bid 4', 'Bid 5',
-  'Discount offer', 'For pivot', 'Diff (manualy calc)', 'Minimal Bid Vs Recomm Price',
+  'Year',
+  'Rush Hour',
+  'Point A',
+  'Point B',
+  'Travel Distance (Km)',
+  'Category',
+  'Week',
+  'Timeslot',
+  'Distance bracket',
+  'Date',
+  'Time',
+  'Competition Name',
+  'Surge',
+  'Travel Time (Min)',
+  'ETA (Min)',
+  'Recommended Price',
+  'Minimal bid',
+  'Price With Discount',
+  'PriceW/ODiscount',
+  'Zone',
+  'Bid 1',
+  'Bid 2',
+  'Bid 3',
+  'Bid 4',
+  'Bid 5',
+  'Discount offer',
+  'For pivot',
+  'Diff (manualy calc)',
+  'Minimal Bid Vs Recomm Price',
 ]
 
-function buildCityXlsx(rows, city, countryConfig) {
+function buildCityXlsx(rows, city) {
   // Nombres de sheet: TRU_... ARQ_... para Peru, City_... para el resto
   let sheetName = `${city}_Pricing_CI_FINAL`
   if (city === 'Trujillo') sheetName = 'TRU_Pricing_CI_FINAL'
   if (city === 'Arequipa') sheetName = 'ARQ_Pricing_CI_FINAL'
 
-  const dataRows  = rows.map(r => buildRow(r, city, countryConfig))
-  const aoa       = [META_HEADERS, COL_HEADERS, ...dataRows]
+  const dataRows = rows.map((r) => buildRow(r))
+  const aoa = [META_HEADERS, COL_HEADERS, ...dataRows]
 
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   const wb = XLSX.utils.book_new()
@@ -172,31 +210,31 @@ export function convertBotToExcel(rawRows, country = 'Peru', dbConfigs = null) {
   const { ok, skipped } = mapBotRows(rawRows, country, dbConfigs)
 
   // 2. Filtrar solo los competidores del scope actual
-  const inScope           = ok.filter(r => INCLUDE_COMPETITORS.has(r.competition_name))
+  const inScope = ok.filter((r) => INCLUDE_COMPETITORS.has(r.competition_name))
   const skippedCompetitor = ok
-    .filter(r => !INCLUDE_COMPETITORS.has(r.competition_name))
-    .map(r => ({ row: r, reason: `Competidor fuera de scope: ${r.competition_name}` }))
+    .filter((r) => !INCLUDE_COMPETITORS.has(r.competition_name))
+    .map((r) => ({ row: r, reason: `Competidor fuera de scope: ${r.competition_name}` }))
 
   // 3. Filtrar filas sin precio en columna de salida
-  const filtered        = inScope.filter(r =>
+  const filtered = inScope.filter((r) =>
     r.competition_name === 'InDrive'
       ? r.recommended_price != null
-      : r.price_without_discount != null,
+      : r.price_without_discount != null
   )
-  const skippedNoPrice  = inScope
-    .filter(r =>
+  const skippedNoPrice = inScope
+    .filter((r) =>
       r.competition_name === 'InDrive'
         ? r.recommended_price == null
-        : r.price_without_discount == null,
+        : r.price_without_discount == null
     )
-    .map(r => ({ row: r, reason: 'Sin precio en columna de salida' }))
+    .map((r) => ({ row: r, reason: 'Sin precio en columna de salida' }))
 
   const allSkipped = [...skipped, ...skippedCompetitor, ...skippedNoPrice]
 
   // 4. Agrupar por ciudad definida en el país
   const byCity = {}
   const summary = { total: 0 }
-  
+
   for (const dbCity of config.dbCities) {
     byCity[dbCity] = []
     summary[dbCity] = 0
@@ -209,13 +247,13 @@ export function convertBotToExcel(rawRows, country = 'Peru', dbConfigs = null) {
   }
 
   // 5. Generar xlsx por ciudad (solo si tiene filas)
-  const files   = {}
+  const files = {}
 
   for (const city of config.dbCities) {
-    summary[city]  = byCity[city].length
+    summary[city] = byCity[city].length
     summary.total += byCity[city].length
     if (byCity[city].length > 0) {
-      files[city] = buildCityXlsx(byCity[city], city, config)
+      files[city] = buildCityXlsx(byCity[city], city)
     }
   }
 

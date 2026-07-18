@@ -7,44 +7,29 @@ import { sb } from '../../lib/supabase'
 export default function ThresholdsTable({ thresholds, onSave, saving, country }) {
   const config = getCountryConfig(country)
 
-  // Combinar todas las city+category configuradas (incluye 'all')
-  const cityCategories = useMemo(() => {
-    const pairs = new Set()
-    config.dbCities.forEach(city => {
-      const cats = config.categoriesByCity?.[city] || []
-      cats.forEach(cat => pairs.add(`${city}|||${cat}`))
-    })
-    // Agregar las que ya existen en DB y pertenezcan al país
-    thresholds.forEach(t => {
-      if (config.dbCities.includes(t.city)) {
-        pairs.add(`${t.city}|||${t.category}`)
-      }
-    })
-    return [...pairs].sort().map(p => {
-      const [city, category] = p.split('|||')
-      return { city, category }
-    })
-  }, [thresholds, config.dbCities, config.categoriesByCity])
-
   const [selectedCity, setSelectedCity] = useState(config.dbCities[0])
-  const [selectedCat,  setSelectedCat]  = useState(config.categoriesByCity?.[config.dbCities[0]]?.[0] || '')
+  const [selectedCat, setSelectedCat] = useState(
+    config.categoriesByCity?.[config.dbCities[0]]?.[0] || ''
+  )
 
   // Reseteo si cambia país
   useEffect(() => {
     if (!config.dbCities.includes(selectedCity)) {
-       const newCity = config.dbCities[0]
-       setSelectedCity(newCity)
-       setSelectedCat(config.categoriesByCity?.[newCity]?.[0] || '')
+      const newCity = config.dbCities[0]
+      setSelectedCity(newCity)
+      setSelectedCat(config.categoriesByCity?.[newCity]?.[0] || '')
     }
   }, [country, config.dbCities, config.categoriesByCity, selectedCity])
 
-  const [local,   setLocal]   = useState({})
-  const [saveMsg, setSaveMsg] = useState(null)   // { type: 'ok'|'warn'|'err', text } | null
+  const [local, setLocal] = useState({})
+  const [saveMsg, setSaveMsg] = useState(null) // { type: 'ok'|'warn'|'err', text } | null
 
   const getKey = (city, cat, bracket) => `${city}|||${cat}|||${bracket}`
 
   const getDbValue = (bracket) => {
-    const row = thresholds.find(t => t.city === selectedCity && t.category === selectedCat && t.bracket === bracket)
+    const row = thresholds.find(
+      (t) => t.city === selectedCity && t.category === selectedCat && t.bracket === bracket
+    )
     return row ? (row.max_km ?? '') : ''
   }
 
@@ -59,12 +44,12 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
     const key = getKey(selectedCity, selectedCat, bracket)
     if (!(key in local)) return false
     const localVal = String(local[key] ?? '')
-    const dbVal    = String(getDbValue(bracket) ?? '')
+    const dbVal = String(getDbValue(bracket) ?? '')
     return localVal !== dbVal
   }
 
   // Hay al menos un input modificado en la ciudad+categoría actual
-  const hasUnsavedChanges = BRACKETS.some(b => isDirty(b))
+  const hasUnsavedChanges = BRACKETS.some((b) => isDirty(b))
 
   // Validación monotónica: cada bracket debe ser estrictamente mayor al anterior.
   // El último bracket puede ser vacío (∞).
@@ -75,7 +60,8 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       const raw = getValue(b)
       const isLast = i === BRACKETS.length - 1
       if (raw === '' || raw === null || raw === undefined) {
-        if (!isLast) errs.push({ bracket: b, msg: 'Falta umbral (solo el último bracket puede quedar vacío)' })
+        if (!isLast)
+          errs.push({ bracket: b, msg: 'Falta umbral (solo el último bracket puede quedar vacío)' })
         return
       }
       const num = Number(raw)
@@ -89,20 +75,23 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       prev = num
     })
     return errs
+    // getValue no está memoizado pero sus únicas dependencias reales
+    // (local/thresholds/selectedCity/selectedCat) ya están en este array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local, thresholds, selectedCity, selectedCat])
 
   const hasErrors = validationErrors.length > 0
 
   const handleChange = (bracket, val) => {
     setSaveMsg(null)
-    setLocal(prev => ({ ...prev, [getKey(selectedCity, selectedCat, bracket)]: val }))
+    setLocal((prev) => ({ ...prev, [getKey(selectedCity, selectedCat, bracket)]: val }))
   }
 
   const handleDiscard = () => {
     setSaveMsg(null)
-    setLocal(prev => {
+    setLocal((prev) => {
       const next = { ...prev }
-      BRACKETS.forEach(b => delete next[getKey(selectedCity, selectedCat, b)])
+      BRACKETS.forEach((b) => delete next[getKey(selectedCity, selectedCat, b)])
       return next
     })
   }
@@ -121,26 +110,24 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
     }
 
     const ok = await confirm({
-      title:       withSnapshot
-                    ? '⚠ Cambio de umbrales — hard copy requerido'
-                    : 'Guardar sin snapshot',
-      message:     withSnapshot
-                    ? 'Cambiar los kilómetros por rango reclasificará los brackets de datos históricos. ' +
-                      'Antes de aplicar, se creará un snapshot de los promedios actuales para que ' +
-                      'los datos anteriores queden con valores fijos.\n\n¿Confirmar el snapshot y guardar?'
-                    : 'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán ' +
-                      'en vivo con los nuevos umbrales — los valores anteriores YA NO quedarán fijos.\n\n' +
-                      'Usar solo si el cambio es pequeño o no afecta data histórica significativa.',
+      title: withSnapshot ? '⚠ Cambio de umbrales — hard copy requerido' : 'Guardar sin snapshot',
+      message: withSnapshot
+        ? 'Cambiar los kilómetros por rango reclasificará los brackets de datos históricos. ' +
+          'Antes de aplicar, se creará un snapshot de los promedios actuales para que ' +
+          'los datos anteriores queden con valores fijos.\n\n¿Confirmar el snapshot y guardar?'
+        : 'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán ' +
+          'en vivo con los nuevos umbrales — los valores anteriores YA NO quedarán fijos.\n\n' +
+          'Usar solo si el cambio es pequeño o no afecta data histórica significativa.',
       confirmText: withSnapshot ? 'Crear snapshot y guardar' : 'Guardar sin snapshot',
-      cancelText:  'Cancelar',
-      danger:      withSnapshot,
+      cancelText: 'Cancelar',
+      danger: withSnapshot,
     })
     if (!ok) return
 
     if (withSnapshot) {
       const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
         p_country: country,
-        p_label:   `Umbrales km cambiados — ${new Date().toISOString()}`,
+        p_label: `Umbrales km cambiados — ${new Date().toISOString()}`,
       })
       if (snapErr) {
         setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
@@ -148,17 +135,17 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       }
     }
 
-    const rows = BRACKETS.map(b => ({
-      city:     selectedCity,
+    const rows = BRACKETS.map((b) => ({
+      city: selectedCity,
       category: selectedCat,
-      bracket:  b,
-      max_km:   getValue(b) === '' ? null : Number(getValue(b)),
+      bracket: b,
+      max_km: getValue(b) === '' ? null : Number(getValue(b)),
     }))
     try {
       const result = await onSave(rows)
       const recomputed = result?.recomputedCount ?? 0
-      const rpcError   = result?.rpcError
-      const snapNote   = withSnapshot ? ' (snapshot creado)' : ' (sin snapshot)'
+      const rpcError = result?.rpcError
+      const snapNote = withSnapshot ? ' (snapshot creado)' : ' (sin snapshot)'
 
       if (recomputed > 0) {
         setSaveMsg({
@@ -176,9 +163,9 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           text: `Guardado para ${selectedCity} — ${selectedCat}${snapNote}. No había filas para reclasificar.`,
         })
       }
-      setLocal(prev => {
+      setLocal((prev) => {
         const next = { ...prev }
-        BRACKETS.forEach(b => delete next[getKey(selectedCity, selectedCat, b)])
+        BRACKETS.forEach((b) => delete next[getKey(selectedCity, selectedCat, b)])
         return next
       })
     } catch (e) {
@@ -186,31 +173,36 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
     }
   }
 
-  const handleSave           = () => doSave(true)
+  const handleSave = () => doSave(true)
   const handleSaveNoSnapshot = () => doSave(false)
 
   return (
     <div className="config-section">
       <h2>Umbrales de Distancia (km)</h2>
       <p style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
-        Cada ciudad+categoría tiene su propia configuración. max_km vacío = sin límite (último bracket).
+        Cada ciudad+categoría tiene su propia configuración. max_km vacío = sin límite (último
+        bracket).
       </p>
 
       <div className="threshold-selector">
         <label>Ciudad</label>
         <select
           value={selectedCity}
-          onChange={e => {
+          onChange={(e) => {
             setSelectedCity(e.target.value)
             setSelectedCat(config.categoriesByCity?.[e.target.value]?.[0] || '')
           }}
         >
-          {config.dbCities.map(c => <option key={c}>{c}</option>)}
+          {config.dbCities.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
         </select>
 
         <label>Categoría</label>
-        <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)}>
-          {(config.categoriesByCity?.[selectedCity] || []).map(c => <option key={c}>{c}</option>)}
+        <select value={selectedCat} onChange={(e) => setSelectedCat(e.target.value)}>
+          {(config.categoriesByCity?.[selectedCity] || []).map((c) => (
+            <option key={c}>{c}</option>
+          ))}
         </select>
       </div>
 
@@ -218,21 +210,38 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       {hasUnsavedChanges && (
         <div
           style={{
-            marginTop: 8, marginBottom: 12,
-            padding: '10px 14px', borderRadius: 6,
-            background: '#fef3c7', border: '1px solid #f59e0b',
-            color: '#78350f', fontSize: 13, fontWeight: 500,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+            marginTop: 8,
+            marginBottom: 12,
+            padding: '10px 14px',
+            borderRadius: 6,
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            color: '#78350f',
+            fontSize: 13,
+            fontWeight: 500,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
           }}
         >
-          <span>⚠ Hay cambios sin guardar en <strong>{selectedCity} — {selectedCat}</strong></span>
+          <span>
+            ⚠ Hay cambios sin guardar en{' '}
+            <strong>
+              {selectedCity} — {selectedCat}
+            </strong>
+          </span>
           <button
             type="button"
             onClick={handleDiscard}
             style={{
-              background: 'transparent', border: '1px solid #b45309',
-              color: '#78350f', padding: '4px 10px', borderRadius: 4,
-              fontSize: 12, cursor: 'pointer',
+              background: 'transparent',
+              border: '1px solid #b45309',
+              color: '#78350f',
+              padding: '4px 10px',
+              borderRadius: 4,
+              fontSize: 12,
+              cursor: 'pointer',
             }}
           >
             Descartar
@@ -251,18 +260,22 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         <tbody>
           {BRACKETS.map((b, i) => {
             const dirty = isDirty(b)
-            const err = validationErrors.find(e => e.bracket === b)
-            const inputStyle = err ? {
-              background: '#fef2f2',
-              borderColor: '#ef4444',
-              fontWeight: 600,
-              boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.2)',
-            } : dirty ? {
-              background:   '#fef3c7',
-              borderColor:  '#f59e0b',
-              fontWeight:   600,
-              boxShadow:    '0 0 0 2px rgba(245, 158, 11, 0.2)',
-            } : undefined
+            const err = validationErrors.find((e) => e.bracket === b)
+            const inputStyle = err
+              ? {
+                  background: '#fef2f2',
+                  borderColor: '#ef4444',
+                  fontWeight: 600,
+                  boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.2)',
+                }
+              : dirty
+                ? {
+                    background: '#fef3c7',
+                    borderColor: '#f59e0b',
+                    fontWeight: 600,
+                    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
+                  }
+                : undefined
             return (
               <tr key={b}>
                 <td>{BRACKET_LABELS[b]}</td>
@@ -273,9 +286,15 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
                     min="0"
                     placeholder={i === BRACKETS.length - 1 ? '∞' : '0.00'}
                     value={getValue(b)}
-                    onChange={e => handleChange(b, e.target.value)}
+                    onChange={(e) => handleChange(b, e.target.value)}
                     style={inputStyle}
-                    title={err ? err.msg : (dirty ? `Valor en BD: ${getDbValue(b) || 'sin límite'} — sin guardar` : undefined)}
+                    title={
+                      err
+                        ? err.msg
+                        : dirty
+                          ? `Valor en BD: ${getDbValue(b) || 'sin límite'} — sin guardar`
+                          : undefined
+                    }
                   />
                   {err && (
                     <div style={{ fontSize: 10, color: '#b91c1c', marginTop: 2 }}>{err.msg}</div>
@@ -283,7 +302,9 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
                 </td>
                 <td style={{ textAlign: 'left', fontSize: 10, color: '#888', paddingLeft: 8 }}>
                   {i === 0 && `Viajes ≤ ${getValue(b) || '?'} km`}
-                  {i > 0 && i < BRACKETS.length - 1 && `Entre ${getValue(BRACKETS[i-1]) || '?'} y ${getValue(b) || '?'} km`}
+                  {i > 0 &&
+                    i < BRACKETS.length - 1 &&
+                    `Entre ${getValue(BRACKETS[i - 1]) || '?'} y ${getValue(b) || '?'} km`}
                   {i === BRACKETS.length - 1 && 'Sin límite superior'}
                 </td>
               </tr>
@@ -292,13 +313,22 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         </tbody>
       </table>
 
-      <div className="config-footer" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div
+        className="config-footer"
+        style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+      >
         {/* Primario: sin snapshot — el usuario lo usa frecuentemente */}
         <button
           className="btn-save"
           onClick={handleSaveNoSnapshot}
           disabled={saving || !hasUnsavedChanges || hasErrors}
-          title={hasErrors ? 'Corrige los errores de validación antes de guardar' : (!hasUnsavedChanges ? 'No hay cambios para guardar' : 'Aplica los nuevos umbrales sin crear snapshot. Los promedios históricos se recalculan en vivo.')}
+          title={
+            hasErrors
+              ? 'Corrige los errores de validación antes de guardar'
+              : !hasUnsavedChanges
+                ? 'No hay cambios para guardar'
+                : 'Aplica los nuevos umbrales sin crear snapshot. Los promedios históricos se recalculan en vivo.'
+          }
         >
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </button>
@@ -307,8 +337,11 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           onClick={handleSave}
           disabled={saving || !hasUnsavedChanges || hasErrors}
           style={{
-            padding: '8px 14px', borderRadius: 6, fontSize: 13,
-            border: '1px solid #cbd5e1', background: '#fff',
+            padding: '8px 14px',
+            borderRadius: 6,
+            fontSize: 13,
+            border: '1px solid #cbd5e1',
+            background: '#fff',
             cursor: saving || !hasUnsavedChanges || hasErrors ? 'not-allowed' : 'pointer',
             color: '#475569',
           }}

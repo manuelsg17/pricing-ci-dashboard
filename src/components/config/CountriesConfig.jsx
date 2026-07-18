@@ -1,52 +1,50 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../../lib/supabase'
-import { COUNTRY_CONFIG, COMPETITOR_COLORS } from '../../lib/constants'
+import { COUNTRY_CONFIG, COMPETITOR_COLORS, CURRENCY_PRESETS } from '../../lib/constants'
 import { CATALOG_CATEGORIES } from '../../lib/catalogs'
 import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
 import CountryWizard from './CountryWizard'
 
-const CONST_KEYS    = Object.keys(COUNTRY_CONFIG)
+const CONST_KEYS = Object.keys(COUNTRY_CONFIG)
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
-
-// Presets razonables por moneda. Evita que un usuario cree un país
-// COP/NPR con max_price=1000 (que en COP son ~0.25 USD → todos los
-// precios marcados como outliers). Usado en addNewCountry y como
-// sugerencia cuando el usuario cambia currency en el form.
-const CURRENCY_PRESETS = {
-  PEN: { locale: 'es-PE', outlier_threshold: 300,     max_price: 1000      },
-  COP: { locale: 'es-CO', outlier_threshold: 300000,  max_price: 1000000   },
-  BOB: { locale: 'es-BO', outlier_threshold: 500,     max_price: 2000      },
-  VES: { locale: 'es-VE', outlier_threshold: 200,     max_price: 1000      },
-  NPR: { locale: 'ne-NP', outlier_threshold: 5000,    max_price: 20000     },
-  ZMW: { locale: 'en-ZM', outlier_threshold: 500,     max_price: 2000      },
-  USD: { locale: 'en-US', outlier_threshold: 100,     max_price: 1000      },
-}
 
 // ── Style helpers ─────────────────────────────────────────────────────
 
 const fieldLabelStyle = {
-  display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-  letterSpacing: 0.4, color: 'var(--color-muted)', marginBottom: 3, marginTop: 8,
+  display: 'block',
+  fontSize: 10,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: 0.4,
+  color: 'var(--color-muted)',
+  marginBottom: 3,
+  marginTop: 8,
 }
 
 function inputStyle(disabled) {
   return {
-    width: '100%', padding: '4px 6px',
+    width: '100%',
+    padding: '4px 6px',
     border: '1.5px solid var(--color-border)',
-    borderRadius: 'var(--radius-sm)', fontSize: 12,
+    borderRadius: 'var(--radius-sm)',
+    fontSize: 12,
     background: disabled ? 'var(--color-bg)' : 'var(--color-panel)',
     color: disabled ? 'var(--color-muted)' : 'var(--color-text)',
-    boxSizing: 'border-box', outline: 'none',
+    boxSizing: 'border-box',
+    outline: 'none',
   }
 }
 
 const competitorTagStyle = {
-  display: 'inline-flex', alignItems: 'center',
-  padding: '2px 8px', fontSize: 11,
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '2px 8px',
+  fontSize: 11,
   background: 'rgba(229,57,53,0.08)',
   border: '1px solid rgba(229,57,53,0.25)',
-  borderRadius: 12, color: '#b71c1c',
+  borderRadius: 12,
+  color: '#b71c1c',
   fontWeight: 600,
 }
 
@@ -54,26 +52,35 @@ const competitorTagStyle = {
 
 function CompetitorAdder({ existing, onAdd }) {
   const [val, setVal] = useState('')
-  const available = ALL_COMPETITORS.filter(c => !existing.includes(c))
+  const available = ALL_COMPETITORS.filter((c) => !existing.includes(c))
   return (
     <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
       <select
         value={val}
-        onChange={e => setVal(e.target.value)}
+        onChange={(e) => setVal(e.target.value)}
         style={{
-          fontSize: 11, padding: '2px 4px',
+          fontSize: 11,
+          padding: '2px 4px',
           border: '1px dashed var(--color-border)',
-          borderRadius: 'var(--radius-sm)', background: 'var(--color-panel)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--color-panel)',
         }}
       >
         <option value="">+ Agregar...</option>
-        {available.map(c => <option key={c} value={c}>{c}</option>)}
+        {available.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
       </select>
       {val && (
         <button
           className="btn-save-sm"
           style={{ height: 22, padding: '0 8px', fontSize: 10 }}
-          onClick={() => { onAdd(val); setVal('') }}
+          onClick={() => {
+            onAdd(val)
+            setVal('')
+          }}
         >
           OK
         </button>
@@ -85,19 +92,19 @@ function CompetitorAdder({ existing, onAdd }) {
 // ── Main component ────────────────────────────────────────────────────
 
 export default function CountriesConfig() {
-  const { dbConfigs, refreshConfigs } = useCountry()
+  const { refreshConfigs } = useCountry()
   const confirm = useConfirm()
 
-  const [dbRows, setDbRows]                   = useState([])
-  const [loading, setLoading]                 = useState(true)
-  const [selectedKey, setSelectedKey]         = useState(null)
+  const [dbRows, setDbRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedKey, setSelectedKey] = useState(null)
   const [selectedCityIdx, setSelectedCityIdx] = useState(null)
-  const [draft, setDraft]                     = useState({})
-  const [savingKey, setSavingKey]             = useState(null)
-  const [msg, setMsg]                         = useState(null)
+  const [draft, setDraft] = useState({})
+  const [savingKey, setSavingKey] = useState(null)
+  const [msg, setMsg] = useState(null)
   // Modo wizard vs avanzado. El wizard guía paso a paso; el modo
   // avanzado es el formulario flat de siempre (sin breaking change).
-  const [showWizard, setShowWizard]           = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -106,16 +113,18 @@ export default function CountriesConfig() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { loadRows() }, [loadRows])
+  useEffect(() => {
+    loadRows()
+  }, [loadRows])
 
   // ── Derived helpers ───────────────────────────────────────────────
 
-  const dbKeys     = dbRows.map(r => r.country_key)
-  const dbOnlyKeys = dbKeys.filter(k => !CONST_KEYS.includes(k))
-  const allKeys    = [...CONST_KEYS, ...dbOnlyKeys]
+  const dbKeys = dbRows.map((r) => r.country_key)
+  const dbOnlyKeys = dbKeys.filter((k) => !CONST_KEYS.includes(k))
+  const allKeys = [...CONST_KEYS, ...dbOnlyKeys]
 
-  const isDbManaged = (key) => dbRows.some(r => r.country_key === key)
-  const isReadOnly  = (key) => CONST_KEYS.includes(key) && !isDbManaged(key)
+  const isDbManaged = (key) => dbRows.some((r) => r.country_key === key)
+  const isReadOnly = (key) => CONST_KEYS.includes(key) && !isDbManaged(key)
 
   // Detecta si el draft difiere del row de DB. Útil para mostrar
   // indicadores visuales y para confirmar antes de descartar cambios.
@@ -123,17 +132,26 @@ export default function CountriesConfig() {
   // (e.g. updated_at, id).
   function isDirty(key) {
     if (!draft[key]) return false
-    const dbRow = dbRows.find(r => r.country_key === key)
-    if (!dbRow) return true   // recién creado en memoria
+    const dbRow = dbRows.find((r) => r.country_key === key)
+    if (!dbRow) return true // recién creado en memoria
     // FIELDS incluye los campos JSONB de mig 58 (bot_rules,
     // airport_subcategories_by_city) — sin ellos, editar reglas o
     // subcategorías no se reflejaba en el botón Guardar/Cancelar.
     const FIELDS = [
-      'label','currency','locale','outlier_threshold','max_price','sort_order',
-      'cities','iso2','native_label','status',
-      'bot_rules','airport_subcategories_by_city',
+      'label',
+      'currency',
+      'locale',
+      'outlier_threshold',
+      'max_price',
+      'sort_order',
+      'cities',
+      'iso2',
+      'native_label',
+      'status',
+      'bot_rules',
+      'airport_subcategories_by_city',
     ]
-    return FIELDS.some(f => JSON.stringify(draft[key][f]) !== JSON.stringify(dbRow[f]))
+    return FIELDS.some((f) => JSON.stringify(draft[key][f]) !== JSON.stringify(dbRow[f]))
   }
 
   // Descarta cambios sin guardar. Tres casos:
@@ -141,7 +159,7 @@ export default function CountriesConfig() {
   //   2. País en DB con draft modificado → revertir draft a DB
   //   3. País sin cambios → no-op (botón estará disabled)
   async function handleCancel(key) {
-    const dbRow         = dbRows.find(r => r.country_key === key)
+    const dbRow = dbRows.find((r) => r.country_key === key)
     const isNewInMemory = !dbRow && key.startsWith('NewCountry_')
 
     if (isNewInMemory) {
@@ -149,28 +167,37 @@ export default function CountriesConfig() {
         title: 'Descartar país nuevo',
         message: `"${draft[key]?.label || key}" no se guardó todavía. ¿Descartarlo?`,
         confirmText: 'Descartar',
-        cancelText:  'Seguir editando',
+        cancelText: 'Seguir editando',
         danger: true,
       })
       if (!ok) return
-      setDbRows(prev => prev.filter(r => r.country_key !== key))
-      setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
-      setSelectedKey(null); setSelectedCityIdx(null)
+      setDbRows((prev) => prev.filter((r) => r.country_key !== key))
+      setDraft((prev) => {
+        const n = { ...prev }
+        delete n[key]
+        return n
+      })
+      setSelectedKey(null)
+      setSelectedCityIdx(null)
       setMsg({ type: 'ok', text: 'País descartado.' })
       return
     }
 
-    if (!isDirty(key)) return  // no-op defensivo
+    if (!isDirty(key)) return // no-op defensivo
 
     const ok = await confirm({
       title: 'Descartar cambios',
       message: `Vas a perder los cambios sin guardar en "${dbRow?.label || key}". ¿Continuar?`,
       confirmText: 'Descartar',
-      cancelText:  'Seguir editando',
+      cancelText: 'Seguir editando',
       danger: true,
     })
     if (!ok) return
-    setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
+    setDraft((prev) => {
+      const n = { ...prev }
+      delete n[key]
+      return n
+    })
     setSelectedCityIdx(null)
     setMsg({ type: 'ok', text: '✓ Cambios descartados.' })
   }
@@ -179,49 +206,63 @@ export default function CountriesConfig() {
 
   function getOrInitDraft(key) {
     if (draft[key]) return draft[key]
-    const existing = dbRows.find(r => r.country_key === key)
-    if (existing) return JSON.parse(JSON.stringify(existing))   // deep clone
+    const existing = dbRows.find((r) => r.country_key === key)
+    if (existing) return JSON.parse(JSON.stringify(existing)) // deep clone
     return {
-      country_key: key, label: key, currency: 'USD', locale: 'en-US',
-      outlier_threshold: 100, max_price: 1000, sort_order: dbRows.length, cities: [],
+      country_key: key,
+      label: key,
+      currency: 'USD',
+      locale: 'en-US',
+      outlier_threshold: 100,
+      max_price: 1000,
+      sort_order: dbRows.length,
+      cities: [],
     }
   }
 
   function setDraftField(key, field, value) {
     const base = getOrInitDraft(key)
-    setDraft(prev => ({ ...prev, [key]: { ...base, [field]: value } }))
+    setDraft((prev) => ({ ...prev, [key]: { ...base, [field]: value } }))
   }
 
   function setCity(key, cityIdx, cityObj) {
     const row = getOrInitDraft(key)
     const cities = [...(row.cities || [])]
     cities[cityIdx] = cityObj
-    setDraft(prev => ({ ...prev, [key]: { ...row, cities } }))
+    setDraft((prev) => ({ ...prev, [key]: { ...row, cities } }))
   }
 
   function addCity(key) {
     const row = getOrInitDraft(key)
-    const cities = [...(row.cities || []), { uiName: '', dbName: '', botKey: '', isVirtual: false, categories: [] }]
-    setDraft(prev => ({ ...prev, [key]: { ...row, cities } }))
+    const cities = [
+      ...(row.cities || []),
+      { uiName: '', dbName: '', botKey: '', isVirtual: false, categories: [] },
+    ]
+    setDraft((prev) => ({ ...prev, [key]: { ...row, cities } }))
     setSelectedCityIdx(cities.length - 1)
   }
 
   function deleteCity(key, cityIdx) {
     const row = getOrInitDraft(key)
     const cities = row.cities.filter((_, i) => i !== cityIdx)
-    setDraft(prev => ({ ...prev, [key]: { ...row, cities } }))
-    setSelectedCityIdx(prev => (prev >= cities.length ? Math.max(0, cities.length - 1) : prev))
+    setDraft((prev) => ({ ...prev, [key]: { ...row, cities } }))
+    setSelectedCityIdx((prev) => (prev >= cities.length ? Math.max(0, cities.length - 1) : prev))
   }
 
   function addCategory(key, cityIdx) {
-    const row  = getOrInitDraft(key)
+    const row = getOrInitDraft(key)
     const cities = row.cities.map((c, i) =>
-      i !== cityIdx ? c : {
-        ...c,
-        categories: [...(c.categories || []), { name: '', dbName: '', competitors: [], yangoDisplayName: 'Yango' }],
-      }
+      i !== cityIdx
+        ? c
+        : {
+            ...c,
+            categories: [
+              ...(c.categories || []),
+              { name: '', dbName: '', competitors: [], yangoDisplayName: 'Yango' },
+            ],
+          }
     )
-    setDraft(prev => ({ ...prev, [key]: { ...row, cities } }))
+    setDraft((prev) => ({ ...prev, [key]: { ...row, cities } }))
   }
 
   function deleteCategory(key, cityIdx, catIdx) {
@@ -229,7 +270,7 @@ export default function CountriesConfig() {
     const cities = row.cities.map((c, i) =>
       i !== cityIdx ? c : { ...c, categories: c.categories.filter((_, ci) => ci !== catIdx) }
     )
-    setDraft(prev => ({ ...prev, [key]: { ...row, cities } }))
+    setDraft((prev) => ({ ...prev, [key]: { ...row, cities } }))
   }
 
   function setCategoryField(key, cityIdx, catIdx, field, value) {
@@ -241,7 +282,7 @@ export default function CountriesConfig() {
       )
       return { ...c, categories }
     })
-    setDraft(prev => ({ ...prev, [key]: { ...row, cities } }))
+    setDraft((prev) => ({ ...prev, [key]: { ...row, cities } }))
   }
 
   function addCompetitor(key, cityIdx, catIdx, competitor) {
@@ -255,39 +296,49 @@ export default function CountriesConfig() {
   function removeCompetitor(key, cityIdx, catIdx, competitor) {
     const row = getOrInitDraft(key)
     const existing = row.cities[cityIdx].categories[catIdx].competitors
-    setCategoryField(key, cityIdx, catIdx, 'competitors', existing.filter(c => c !== competitor))
+    setCategoryField(
+      key,
+      cityIdx,
+      catIdx,
+      'competitors',
+      existing.filter((c) => c !== competitor)
+    )
   }
 
   // ── Save / Delete ─────────────────────────────────────────────────
 
   async function handleSave(key) {
-    const row = draft[key] || dbRows.find(r => r.country_key === key)
+    const row = draft[key] || dbRows.find((r) => r.country_key === key)
     if (!row) return
-    setSavingKey(key); setMsg(null)
+    setSavingKey(key)
+    setMsg(null)
     const payload = {
-      country_key:       row.country_key,
-      label:             row.label,
-      currency:          row.currency,
-      locale:            row.locale,
-      iso2:              row.iso2 || null,
-      native_label:      row.native_label || row.label,
-      status:            row.status || 'active',
+      country_key: row.country_key,
+      label: row.label,
+      currency: row.currency,
+      locale: row.locale,
+      iso2: row.iso2 || null,
+      native_label: row.native_label || row.label,
+      status: row.status || 'active',
       outlier_threshold: Number(row.outlier_threshold),
-      max_price:         Number(row.max_price),
-      sort_order:        Number(row.sort_order ?? 0),
-      cities:            row.cities || [],
+      max_price: Number(row.max_price),
+      sort_order: Number(row.sort_order ?? 0),
+      cities: row.cities || [],
       // ★ Mig 58: preservar botRules y airport subcategorías si vinieron
       // del row de DB (no perderlos en el save).
-      bot_rules:                       row.bot_rules || [],
-      airport_subcategories_by_city:   row.airport_subcategories_by_city || {},
-      updated_at:        new Date().toISOString(),
+      bot_rules: row.bot_rules || [],
+      airport_subcategories_by_city: row.airport_subcategories_by_city || {},
+      updated_at: new Date().toISOString(),
     }
-    const { error } = await sb.from('country_config')
-      .upsert(payload, { onConflict: 'country_key' })
+    const { error } = await sb.from('country_config').upsert(payload, { onConflict: 'country_key' })
     if (!error) {
       // Limpiar draft del país recién guardado — evita que isDirty
       // siga true después del save.
-      setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
+      setDraft((prev) => {
+        const n = { ...prev }
+        delete n[key]
+        return n
+      })
       setMsg({ type: 'ok', text: '✓ Guardado' })
       await loadRows()
       refreshConfigs()
@@ -301,13 +352,21 @@ export default function CountriesConfig() {
     const ok = await confirm({
       title: 'Eliminar configuración de país',
       message: `¿Eliminar la configuración de "${key}" de la base de datos? Esta acción no se puede deshacer.`,
-      danger: true, confirmText: 'Eliminar',
+      danger: true,
+      confirmText: 'Eliminar',
     })
     if (!ok) return
     await sb.from('country_config').delete().eq('country_key', key)
-    setDbRows(prev => prev.filter(r => r.country_key !== key))
-    setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
-    if (selectedKey === key) { setSelectedKey(null); setSelectedCityIdx(null) }
+    setDbRows((prev) => prev.filter((r) => r.country_key !== key))
+    setDraft((prev) => {
+      const n = { ...prev }
+      delete n[key]
+      return n
+    })
+    if (selectedKey === key) {
+      setSelectedKey(null)
+      setSelectedCityIdx(null)
+    }
     refreshConfigs()
   }
 
@@ -315,14 +374,17 @@ export default function CountriesConfig() {
     const key = `NewCountry_${Date.now()}`
     const preset = CURRENCY_PRESETS.USD
     const blank = {
-      country_key: key, label: 'Nuevo País', currency: 'USD',
+      country_key: key,
+      label: 'Nuevo País',
+      currency: 'USD',
       locale: preset.locale,
       outlier_threshold: preset.outlier_threshold,
       max_price: preset.max_price,
-      sort_order: dbRows.length, cities: [],
+      sort_order: dbRows.length,
+      cities: [],
     }
-    setDbRows(prev => [...prev, blank])
-    setDraft(prev => ({ ...prev, [key]: blank }))
+    setDbRows((prev) => [...prev, blank])
+    setDraft((prev) => ({ ...prev, [key]: blank }))
     setSelectedKey(key)
     setSelectedCityIdx(null)
   }
@@ -338,24 +400,25 @@ export default function CountriesConfig() {
     }
 
     // Check si ya existe row en DB — evita sobrescribir edits previos
-    const existing = dbRows.find(r => r.country_key === key)
+    const existing = dbRows.find((r) => r.country_key === key)
     if (existing) {
       const reOk = await confirm({
         title: `${key} ya está en DB`,
         message: `Este país ya fue promovido antes. Si continuás, vas a SOBRESCRIBIR los edits que tengas en DB con los valores hardcoded de constants.js.\n\n¿Querés realmente reemplazar la versión DB con la hardcoded?`,
         confirmText: 'Sí, sobrescribir',
-        cancelText:  'Cancelar',
+        cancelText: 'Cancelar',
         danger: true,
       })
       if (!reOk) return
     } else {
       const ok = await confirm({
         title: `Hacer editable ${key}`,
-        message: `Vas a copiar la configuración hardcoded de ${key} a la base de datos. Después podrás editarla desde esta UI.\n\n` +
-                 `La configuración hardcoded (constants.js) sigue intacta como fallback, pero la versión DB tendrá precedencia.\n\n` +
-                 `¿Continuar?`,
+        message:
+          `Vas a copiar la configuración hardcoded de ${key} a la base de datos. Después podrás editarla desde esta UI.\n\n` +
+          `La configuración hardcoded (constants.js) sigue intacta como fallback, pero la versión DB tendrá precedencia.\n\n` +
+          `¿Continuar?`,
         confirmText: 'Hacer editable',
-        cancelText:  'Cancelar',
+        cancelText: 'Cancelar',
       })
       if (!ok) return
     }
@@ -368,40 +431,44 @@ export default function CountriesConfig() {
     // se marca isVirtual=true para que no aparezca en el selector UI.
     const dbCities = (hardcoded.dbCities || []).map((dbName) => {
       const uiIdx = (hardcoded.cities || []).indexOf(dbName)
-      const isVirtual = uiIdx === -1   // no está en cities[] de UI
-      const uiName = isVirtual ? dbName : (hardcoded.cities[uiIdx] || dbName)
-      const categories = (hardcoded.categoriesByCity?.[dbName] || []).map(catName => ({
-        name:             catName,
-        dbName:           catName,
-        competitors:      hardcoded.competitorsByDbCityCategory?.[dbName]?.[catName] || [],
+      const isVirtual = uiIdx === -1 // no está en cities[] de UI
+      const uiName = isVirtual ? dbName : hardcoded.cities[uiIdx] || dbName
+      const categories = (hardcoded.categoriesByCity?.[dbName] || []).map((catName) => ({
+        name: catName,
+        dbName: catName,
+        competitors: hardcoded.competitorsByDbCityCategory?.[dbName]?.[catName] || [],
         yangoDisplayName: hardcoded.yangoDisplayName?.[dbName]?.[catName] || 'Yango',
       }))
       // Buscar botKey en botCityMap (primer alias que mapee al dbName)
-      const botKey = Object.entries(hardcoded.botCityMap || {})
-        .find(([, v]) => v === dbName)?.[0] || dbName.toLowerCase()
+      const botKey =
+        Object.entries(hardcoded.botCityMap || {}).find(([, v]) => v === dbName)?.[0] ||
+        dbName.toLowerCase()
       return {
-        uiName, dbName, botKey, isVirtual,
+        uiName,
+        dbName,
+        botKey,
+        isVirtual,
         categories,
       }
     })
 
     const row = {
-      country_key:       key,
-      label:             hardcoded.label || key,
-      currency:          hardcoded.currency || 'USD',
-      locale:            hardcoded.locale || 'es-PE',
+      country_key: key,
+      label: hardcoded.label || key,
+      currency: hardcoded.currency || 'USD',
+      locale: hardcoded.locale || 'es-PE',
       outlier_threshold: Number(hardcoded.outlierThreshold ?? 100),
-      max_price:         Number(hardcoded.maxPrice ?? 1000),
-      iso2:              hardcoded.iso2 || null,
-      native_label:      hardcoded.nativeLabel || hardcoded.label || key,
+      max_price: Number(hardcoded.maxPrice ?? 1000),
+      iso2: hardcoded.iso2 || null,
+      native_label: hardcoded.nativeLabel || hardcoded.label || key,
       // ★ Si row ya existe, preservar status y sort_order para no resetearlos
-      status:            existing?.status     ?? 'active',
-      sort_order:        existing?.sort_order ?? dbRows.length,
-      cities:            dbCities,
+      status: existing?.status ?? 'active',
+      sort_order: existing?.sort_order ?? dbRows.length,
+      cities: dbCities,
       // ★ Mig 58: persistir botRules y airport subcategorías para no
       // perderlos en el upload manual CSV / dropdown aeropuerto.
-      bot_rules:                       hardcoded.botRules || [],
-      airport_subcategories_by_city:   hardcoded.aeropuertoSubcategoriesByCity || {},
+      bot_rules: hardcoded.botRules || [],
+      airport_subcategories_by_city: hardcoded.aeropuertoSubcategoriesByCity || {},
     }
 
     setSavingKey(key)
@@ -415,7 +482,11 @@ export default function CountriesConfig() {
 
     // Limpiar draft del país recién promovido — evita que un draft stale
     // sobrescriba los datos recién hidratados de DB en el próximo save.
-    setDraft(prev => { const n = { ...prev }; delete n[key]; return n })
+    setDraft((prev) => {
+      const n = { ...prev }
+      delete n[key]
+      return n
+    })
 
     setMsg({ type: 'ok', text: `${key} promovido a DB. Ahora podés editarlo.` })
     await loadRows()
@@ -435,12 +506,13 @@ export default function CountriesConfig() {
       return
     }
     // Detectar si el row actual usa los defaults de algún preset conocido
-    const isUntouched = Object.values(CURRENCY_PRESETS).some(p =>
-      Number(row.outlier_threshold) === p.outlier_threshold &&
-      Number(row.max_price) === p.max_price
+    const isUntouched = Object.values(CURRENCY_PRESETS).some(
+      (p) =>
+        Number(row.outlier_threshold) === p.outlier_threshold &&
+        Number(row.max_price) === p.max_price
     )
     if (isUntouched) {
-      setDraft(prev => ({
+      setDraft((prev) => ({
         ...prev,
         [key]: {
           ...row,
@@ -457,10 +529,10 @@ export default function CountriesConfig() {
 
   // ── Derived active values ─────────────────────────────────────────
 
-  const activeRow      = selectedKey ? getOrInitDraft(selectedKey) : null
-  const activeCities   = activeRow?.cities || []
-  const activeCity     = selectedCityIdx != null ? activeCities[selectedCityIdx] : null
-  const readonly       = selectedKey ? isReadOnly(selectedKey) : false
+  const activeRow = selectedKey ? getOrInitDraft(selectedKey) : null
+  const activeCities = activeRow?.cities || []
+  const activeCity = selectedCityIdx != null ? activeCities[selectedCityIdx] : null
+  const readonly = selectedKey ? isReadOnly(selectedKey) : false
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -482,61 +554,114 @@ export default function CountriesConfig() {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 0, height: 'calc(100vh - 160px)', overflow: 'hidden', borderTop: '1px solid var(--color-border)' }}>
-
+    <div
+      style={{
+        display: 'flex',
+        gap: 0,
+        height: 'calc(100vh - 160px)',
+        overflow: 'hidden',
+        borderTop: '1px solid var(--color-border)',
+      }}
+    >
       {/* ── Panel 1: Country list ──────────────────────────────── */}
-      <div style={{
-        width: 210, borderRight: '1px solid var(--color-border)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0,
-      }}>
-        <div style={{
-          padding: '10px 12px', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)',
-        }}>
-          <span style={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase',
-                         letterSpacing: 0.5, color: 'var(--color-muted)' }}>
+      <div
+        style={{
+          width: 210,
+          borderRight: '1px solid var(--color-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            padding: '10px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid var(--color-border)',
+          }}
+        >
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: 11,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              color: 'var(--color-muted)',
+            }}
+          >
             Países
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button style={{
-              height: 24, padding: '0 8px', fontSize: 10, borderRadius: 4,
-              background: '#dbeafe', border: '1px solid #2563eb',
-              color: '#1e3a8a', cursor: 'pointer', fontWeight: 600,
-            }}
+            <button
+              style={{
+                height: 24,
+                padding: '0 8px',
+                fontSize: 10,
+                borderRadius: 4,
+                background: '#dbeafe',
+                border: '1px solid #2563eb',
+                color: '#1e3a8a',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
               onClick={() => setShowWizard(true)}
-              title="Wizard guiado paso a paso para crear país nuevo">
+              title="Wizard guiado paso a paso para crear país nuevo"
+            >
               ✨ Wizard
             </button>
-            <button className="btn-add-row" style={{ height: 24, padding: '0 10px' }}
-              onClick={addNewCountry} title="Formulario avanzado (todos los campos a la vista)">
+            <button
+              className="btn-add-row"
+              style={{ height: 24, padding: '0 10px' }}
+              onClick={addNewCountry}
+              title="Formulario avanzado (todos los campos a la vista)"
+            >
               +
             </button>
           </div>
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          {allKeys.map(key => {
-            const dbRow   = dbRows.find(r => r.country_key === key)
-            const label   = draft[key]?.label ?? dbRow?.label ?? key
+          {allKeys.map((key) => {
+            const dbRow = dbRows.find((r) => r.country_key === key)
+            const label = draft[key]?.label ?? dbRow?.label ?? key
             const isActive = selectedKey === key
-            const ro       = isReadOnly(key)
+            const ro = isReadOnly(key)
             return (
               <div
                 key={key}
-                onClick={() => { setSelectedKey(key); setSelectedCityIdx(null) }}
+                onClick={() => {
+                  setSelectedKey(key)
+                  setSelectedCityIdx(null)
+                }}
                 style={{
-                  padding: '8px 12px', cursor: 'pointer', fontSize: 13,
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: 13,
                   background: isActive ? 'rgba(229,57,53,0.07)' : 'transparent',
                   borderLeft: isActive ? '3px solid #e53935' : '3px solid transparent',
                   color: ro ? 'var(--color-muted)' : 'var(--color-text)',
                   fontStyle: ro ? 'italic' : 'normal',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                   gap: 6,
                 }}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span
+                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
                   {label}
                 </span>
-                {ro && <span title="Configurado en código (solo lectura)" style={{ fontSize: 9, flexShrink: 0 }}>🔒</span>}
+                {ro && (
+                  <span
+                    title="Configurado en código (solo lectura)"
+                    style={{ fontSize: 9, flexShrink: 0 }}
+                  >
+                    🔒
+                  </span>
+                )}
               </div>
             )
           })}
@@ -544,10 +669,16 @@ export default function CountriesConfig() {
       </div>
 
       {/* ── Panel 2: Country settings + City list ─────────────── */}
-      <div style={{
-        width: 290, borderRight: '1px solid var(--color-border)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0,
-      }}>
+      <div
+        style={{
+          width: 290,
+          borderRight: '1px solid var(--color-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
         {!selectedKey ? (
           <div style={{ padding: 20, color: 'var(--color-muted)', fontSize: 13 }}>
             Selecciona un país para ver su configuración.
@@ -555,31 +686,58 @@ export default function CountriesConfig() {
         ) : (
           <>
             {/* Country settings */}
-            <div style={{
-              padding: '12px 14px', borderBottom: '1px solid var(--color-border)',
-              overflowY: 'auto',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase',
-                            letterSpacing: 0.5, color: 'var(--color-muted)', marginBottom: 6 }}>
+            <div
+              style={{
+                padding: '12px 14px',
+                borderBottom: '1px solid var(--color-border)',
+                overflowY: 'auto',
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  color: 'var(--color-muted)',
+                  marginBottom: 6,
+                }}
+              >
                 {readonly ? 'Vista previa (solo lectura 🔒)' : 'Datos del país'}
               </div>
 
               {readonly && (
-                <div style={{
-                  marginBottom: 12, padding: '8px 10px', borderRadius: 6,
-                  background: '#dbeafe', border: '1px solid #93c5fd',
-                  fontSize: 11, color: '#1e3a8a',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                }}>
-                  <span>Este país vive en <code>constants.js</code>. Para editarlo desde acá,
-                    copiá la configuración a la base de datos.</span>
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    background: '#dbeafe',
+                    border: '1px solid #93c5fd',
+                    fontSize: 11,
+                    color: '#1e3a8a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                  }}
+                >
+                  <span>
+                    Este país vive en <code>constants.js</code>. Para editarlo desde acá, copiá la
+                    configuración a la base de datos.
+                  </span>
                   <button
                     onClick={() => makeEditable(selectedKey)}
                     disabled={savingKey === selectedKey}
                     style={{
-                      padding: '4px 10px', borderRadius: 4, fontSize: 11,
-                      border: '1px solid #2563eb', background: '#2563eb',
-                      color: '#fff', cursor: 'pointer', fontWeight: 600,
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontSize: 11,
+                      border: '1px solid #2563eb',
+                      background: '#2563eb',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontWeight: 600,
                       whiteSpace: 'nowrap',
                     }}
                     title="Copia la config hardcoded a country_config para desbloquear edición. No rompe nada: constants.js sigue como fallback."
@@ -594,28 +752,34 @@ export default function CountriesConfig() {
                 style={inputStyle(readonly)}
                 value={activeRow?.label || ''}
                 disabled={readonly}
-                onChange={e => setDraftField(selectedKey, 'label', e.target.value)}
+                onChange={(e) => setDraftField(selectedKey, 'label', e.target.value)}
               />
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
                   <label style={fieldLabelStyle}>Moneda</label>
-                  <input style={inputStyle(readonly)} disabled={readonly}
+                  <input
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
                     value={activeRow?.currency || ''}
-                    onChange={e => setCurrency(selectedKey, e.target.value)}
+                    onChange={(e) => setCurrency(selectedKey, e.target.value)}
                     placeholder="USD"
                     list="currency-presets-list"
                     title="PEN/COP/BOB/VES/NPR/ZMW/USD ajustan defaults de outlier y max_price automáticamente"
                   />
                   <datalist id="currency-presets-list">
-                    {Object.keys(CURRENCY_PRESETS).map(c => <option key={c} value={c} />)}
+                    {Object.keys(CURRENCY_PRESETS).map((c) => (
+                      <option key={c} value={c} />
+                    ))}
                   </datalist>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={fieldLabelStyle}>Locale</label>
-                  <input style={inputStyle(readonly)} disabled={readonly}
+                  <input
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
                     value={activeRow?.locale || ''}
-                    onChange={e => setDraftField(selectedKey, 'locale', e.target.value)}
+                    onChange={(e) => setDraftField(selectedKey, 'locale', e.target.value)}
                     placeholder="en-US"
                   />
                 </div>
@@ -624,25 +788,43 @@ export default function CountriesConfig() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
                   <label style={fieldLabelStyle}>Umbral outlier</label>
-                  <input type="number" style={inputStyle(readonly)} disabled={readonly}
+                  <input
+                    type="number"
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
                     value={activeRow?.outlier_threshold ?? 100}
-                    onChange={e => setDraftField(selectedKey, 'outlier_threshold', e.target.value)}
+                    onChange={(e) =>
+                      setDraftField(selectedKey, 'outlier_threshold', e.target.value)
+                    }
                   />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={fieldLabelStyle}>Precio máx.</label>
-                  <input type="number" style={inputStyle(readonly)} disabled={readonly}
+                  <input
+                    type="number"
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
                     value={activeRow?.max_price ?? 1000}
-                    onChange={e => setDraftField(selectedKey, 'max_price', e.target.value)}
+                    onChange={(e) => setDraftField(selectedKey, 'max_price', e.target.value)}
                   />
                 </div>
               </div>
 
               {!readonly && (
-                <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button className="btn-save-sm"
+                <div
+                  style={{
+                    marginTop: 10,
+                    display: 'flex',
+                    gap: 8,
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <button
+                    className="btn-save-sm"
                     disabled={savingKey === selectedKey}
-                    onClick={() => handleSave(selectedKey)}>
+                    onClick={() => handleSave(selectedKey)}
+                  >
                     {savingKey === selectedKey ? 'Guardando…' : 'Guardar país'}
                   </button>
                   {/* Cancelar — descarta cambios o el país en memoria.
@@ -651,11 +833,19 @@ export default function CountriesConfig() {
                     onClick={() => handleCancel(selectedKey)}
                     disabled={!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')}
                     style={{
-                      padding: '4px 10px', borderRadius: 4, fontSize: 12,
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontSize: 12,
                       border: '1px solid var(--color-border)',
                       background: 'transparent',
-                      color: (!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')) ? '#94a3b8' : 'var(--color-text)',
-                      cursor: (!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')) ? 'not-allowed' : 'pointer',
+                      color:
+                        !isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')
+                          ? '#94a3b8'
+                          : 'var(--color-text)',
+                      cursor:
+                        !isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')
+                          ? 'not-allowed'
+                          : 'pointer',
                     }}
                     title={
                       selectedKey.startsWith('NewCountry_')
@@ -668,16 +858,20 @@ export default function CountriesConfig() {
                     Cancelar
                   </button>
                   {isDbManaged(selectedKey) && (
-                    <button className="btn-delete-sm"
-                      onClick={() => handleDeleteCountry(selectedKey)}>
+                    <button
+                      className="btn-delete-sm"
+                      onClick={() => handleDeleteCountry(selectedKey)}
+                    >
                       Eliminar
                     </button>
                   )}
                   {msg && (
-                    <span style={{
-                      fontSize: 11,
-                      color: msg.type === 'ok' ? '#16a34a' : '#dc2626',
-                    }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: msg.type === 'ok' ? '#16a34a' : '#dc2626',
+                      }}
+                    >
                       {msg.text}
                     </span>
                   )}
@@ -687,17 +881,33 @@ export default function CountriesConfig() {
 
             {/* City list */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{
-                padding: '8px 12px', display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)',
-              }}>
-                <span style={{ fontWeight: 700, fontSize: 11, textTransform: 'uppercase',
-                               letterSpacing: 0.5, color: 'var(--color-muted)' }}>
+              <div
+                style={{
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid var(--color-border)',
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    color: 'var(--color-muted)',
+                  }}
+                >
                   Ciudades
                 </span>
                 {!readonly && (
-                  <button className="btn-add-row" style={{ height: 24, padding: '0 10px' }}
-                    onClick={() => addCity(selectedKey)} title="Agregar ciudad">
+                  <button
+                    className="btn-add-row"
+                    style={{ height: 24, padding: '0 10px' }}
+                    onClick={() => addCity(selectedKey)}
+                    title="Agregar ciudad"
+                  >
                     +
                   </button>
                 )}
@@ -713,23 +923,40 @@ export default function CountriesConfig() {
                     key={idx}
                     onClick={() => setSelectedCityIdx(idx)}
                     style={{
-                      padding: '7px 12px', cursor: 'pointer', fontSize: 13,
+                      padding: '7px 12px',
+                      cursor: 'pointer',
+                      fontSize: 13,
                       background: selectedCityIdx === idx ? 'rgba(229,57,53,0.07)' : 'transparent',
-                      borderLeft: selectedCityIdx === idx ? '3px solid #e53935' : '3px solid transparent',
-                      display: 'flex', alignItems: 'center', gap: 6,
+                      borderLeft:
+                        selectedCityIdx === idx ? '3px solid #e53935' : '3px solid transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
                   >
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span
+                      style={{
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {city.uiName || <em style={{ color: 'var(--color-muted)' }}>(sin nombre)</em>}
                     </span>
                     {city.isVirtual && (
-                      <span style={{ fontSize: 9, color: 'var(--color-muted)', flexShrink: 0 }}>virtual</span>
+                      <span style={{ fontSize: 9, color: 'var(--color-muted)', flexShrink: 0 }}>
+                        virtual
+                      </span>
                     )}
                     {!readonly && (
                       <button
                         className="btn-delete-sm"
                         style={{ height: 18, padding: '0 6px', fontSize: 10, flexShrink: 0 }}
-                        onClick={e => { e.stopPropagation(); deleteCity(selectedKey, idx) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteCity(selectedKey, idx)
+                        }}
                         title="Eliminar ciudad"
                       >
                         ✕
@@ -757,53 +984,99 @@ export default function CountriesConfig() {
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ minWidth: 130 }}>
                   <label style={fieldLabelStyle}>Nombre visible (UI)</label>
-                  <input style={inputStyle(readonly)} disabled={readonly}
+                  <input
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
                     placeholder="Ej: Lima"
                     value={activeCity.uiName || ''}
-                    onChange={e => setCity(selectedKey, selectedCityIdx, { ...activeCity, uiName: e.target.value })}
+                    onChange={(e) =>
+                      setCity(selectedKey, selectedCityIdx, {
+                        ...activeCity,
+                        uiName: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div style={{ minWidth: 130 }}>
                   <label style={fieldLabelStyle}>Nombre en base de datos</label>
-                  <input style={inputStyle(readonly)} disabled={readonly}
+                  <input
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
                     placeholder="Ej: Lima"
                     value={activeCity.dbName || ''}
-                    onChange={e => setCity(selectedKey, selectedCityIdx, { ...activeCity, dbName: e.target.value })}
+                    onChange={(e) =>
+                      setCity(selectedKey, selectedCityIdx, {
+                        ...activeCity,
+                        dbName: e.target.value,
+                      })
+                    }
                   />
                 </div>
                 <div style={{ minWidth: 120 }}>
                   <label style={fieldLabelStyle}>Bot key (minúsculas)</label>
-                  <input style={inputStyle(readonly)} disabled={readonly}
+                  <input
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
                     placeholder="Ej: lima"
                     value={activeCity.botKey || ''}
-                    onChange={e => setCity(selectedKey, selectedCityIdx, { ...activeCity, botKey: e.target.value })}
+                    onChange={(e) =>
+                      setCity(selectedKey, selectedCityIdx, {
+                        ...activeCity,
+                        botKey: e.target.value,
+                      })
+                    }
                   />
                 </div>
-                <label style={{
-                  display: 'flex', gap: 6, fontSize: 12, color: 'var(--color-muted)',
-                  alignItems: 'center', paddingBottom: 6, cursor: readonly ? 'default' : 'pointer',
-                }}>
+                <label
+                  style={{
+                    display: 'flex',
+                    gap: 6,
+                    fontSize: 12,
+                    color: 'var(--color-muted)',
+                    alignItems: 'center',
+                    paddingBottom: 6,
+                    cursor: readonly ? 'default' : 'pointer',
+                  }}
+                >
                   <input
                     type="checkbox"
                     disabled={readonly}
                     checked={!!activeCity.isVirtual}
-                    onChange={e => setCity(selectedKey, selectedCityIdx, { ...activeCity, isVirtual: e.target.checked })}
+                    onChange={(e) =>
+                      setCity(selectedKey, selectedCityIdx, {
+                        ...activeCity,
+                        isVirtual: e.target.checked,
+                      })
+                    }
                     style={{ accentColor: '#e53935' }}
                   />
                   Ciudad virtual
-                  <span title="Las ciudades virtuales no aparecen en el selector de la interfaz pero sí en los datos (ej: Aeropuerto, Corp)"
-                    style={{ cursor: 'help', opacity: 0.6 }}>ⓘ</span>
+                  <span
+                    title="Las ciudades virtuales no aparecen en el selector de la interfaz pero sí en los datos (ej: Aeropuerto, Corp)"
+                    style={{ cursor: 'help', opacity: 0.6 }}
+                  >
+                    ⓘ
+                  </span>
                 </label>
               </div>
             </div>
 
             {/* Categories + competitors */}
             <div className="config-section">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 12,
+                }}
+              >
                 <h2 style={{ margin: 0 }}>Categorías y Competidores</h2>
                 {!readonly && (
-                  <button className="btn-add-row"
-                    onClick={() => addCategory(selectedKey, selectedCityIdx)}>
+                  <button
+                    className="btn-add-row"
+                    onClick={() => addCategory(selectedKey, selectedCityIdx)}
+                  >
                     + Agregar categoría
                   </button>
                 )}
@@ -816,47 +1089,93 @@ export default function CountriesConfig() {
               )}
 
               {activeCity.categories?.map((cat, catIdx) => (
-                <div key={catIdx} style={{
-                  border: '1px solid var(--color-border-soft)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '10px 14px',
-                  marginBottom: 10,
-                  background: 'var(--color-bg)',
-                }}>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+                <div
+                  key={catIdx}
+                  style={{
+                    border: '1px solid var(--color-border-soft)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '10px 14px',
+                    marginBottom: 10,
+                    background: 'var(--color-bg)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      flexWrap: 'wrap',
+                      alignItems: 'flex-end',
+                      marginBottom: 10,
+                    }}
+                  >
                     <div style={{ minWidth: 110 }}>
                       <label style={fieldLabelStyle}>Nombre UI</label>
-                      <input style={{ ...inputStyle(readonly), width: 120 }}
+                      <input
+                        style={{ ...inputStyle(readonly), width: 120 }}
                         placeholder="Economy"
                         list="cat-catalog-list"
-                        disabled={readonly} value={cat.name || ''}
-                        onChange={e => setCategoryField(selectedKey, selectedCityIdx, catIdx, 'name', e.target.value)}
+                        disabled={readonly}
+                        value={cat.name || ''}
+                        onChange={(e) =>
+                          setCategoryField(
+                            selectedKey,
+                            selectedCityIdx,
+                            catIdx,
+                            'name',
+                            e.target.value
+                          )
+                        }
                         title="Datalist con el catálogo canónico para evitar typos. Podés escribir uno custom si necesitás."
                       />
                       <datalist id="cat-catalog-list">
-                        {CATALOG_CATEGORIES.map(c => <option key={c.value} value={c.value} />)}
+                        {CATALOG_CATEGORIES.map((c) => (
+                          <option key={c.value} value={c.value} />
+                        ))}
                       </datalist>
                     </div>
                     <div style={{ minWidth: 110 }}>
                       <label style={fieldLabelStyle}>Nombre DB</label>
-                      <input style={{ ...inputStyle(readonly), width: 120 }}
+                      <input
+                        style={{ ...inputStyle(readonly), width: 120 }}
                         placeholder="Economy"
                         list="cat-catalog-list"
-                        disabled={readonly} value={cat.dbName || ''}
-                        onChange={e => setCategoryField(selectedKey, selectedCityIdx, catIdx, 'dbName', e.target.value)}
+                        disabled={readonly}
+                        value={cat.dbName || ''}
+                        onChange={(e) =>
+                          setCategoryField(
+                            selectedKey,
+                            selectedCityIdx,
+                            catIdx,
+                            'dbName',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div style={{ minWidth: 130 }}>
                       <label style={fieldLabelStyle}>Yango display name</label>
-                      <input style={{ ...inputStyle(readonly), width: 150 }}
+                      <input
+                        style={{ ...inputStyle(readonly), width: 150 }}
                         placeholder="Yango"
-                        disabled={readonly} value={cat.yangoDisplayName || ''}
-                        onChange={e => setCategoryField(selectedKey, selectedCityIdx, catIdx, 'yangoDisplayName', e.target.value)}
+                        disabled={readonly}
+                        value={cat.yangoDisplayName || ''}
+                        onChange={(e) =>
+                          setCategoryField(
+                            selectedKey,
+                            selectedCityIdx,
+                            catIdx,
+                            'yangoDisplayName',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     {!readonly && (
-                      <button className="btn-delete-sm" style={{ marginBottom: 1 }}
-                        onClick={() => deleteCategory(selectedKey, selectedCityIdx, catIdx)}>
+                      <button
+                        className="btn-delete-sm"
+                        style={{ marginBottom: 1 }}
+                        onClick={() => deleteCategory(selectedKey, selectedCityIdx, catIdx)}
+                      >
                         ✕ Eliminar
                       </button>
                     )}
@@ -864,16 +1183,24 @@ export default function CountriesConfig() {
 
                   <label style={fieldLabelStyle}>Competidores</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
-                    {cat.competitors.map(comp => (
+                    {cat.competitors.map((comp) => (
                       <span key={comp} style={competitorTagStyle}>
                         {comp}
                         {!readonly && (
                           <button
-                            onClick={() => removeCompetitor(selectedKey, selectedCityIdx, catIdx, comp)}
+                            onClick={() =>
+                              removeCompetitor(selectedKey, selectedCityIdx, catIdx, comp)
+                            }
                             style={{
-                              background: 'none', border: 'none', cursor: 'pointer',
-                              color: '#dc2626', fontWeight: 700, marginLeft: 4,
-                              padding: '0 2px', fontSize: 12, lineHeight: 1,
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#dc2626',
+                              fontWeight: 700,
+                              marginLeft: 4,
+                              padding: '0 2px',
+                              fontSize: 12,
+                              lineHeight: 1,
                             }}
                             title={`Quitar ${comp}`}
                           >
@@ -885,7 +1212,7 @@ export default function CountriesConfig() {
                     {!readonly && (
                       <CompetitorAdder
                         existing={cat.competitors}
-                        onAdd={comp => addCompetitor(selectedKey, selectedCityIdx, catIdx, comp)}
+                        onAdd={(comp) => addCompetitor(selectedKey, selectedCityIdx, catIdx, comp)}
                       />
                     )}
                   </div>

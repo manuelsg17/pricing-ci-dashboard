@@ -19,13 +19,17 @@ const Command = React.forwardRef(({ className, ...props }, ref) => (
 Command.displayName = CommandPrimitive.displayName
 
 const CommandInput = React.forwardRef(({ className, ...props }, ref) => (
+  // Atributo que cmdk usa internamente para su propio CSS/targeting
+  // (boilerplate oficial de shadcn/cmdk, no un typo — renombrarlo a data-*
+  // rompería el selector que usa la librería).
+  // eslint-disable-next-line react/no-unknown-property
   <div className="flex items-center border-b border-border px-3" cmdk-input-wrapper="">
     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
     <CommandPrimitive.Input
       ref={ref}
       className={cn(
         'flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none ' +
-        'placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-50',
+          'placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-50',
         className
       )}
       {...props}
@@ -53,9 +57,9 @@ const CommandGroup = React.forwardRef(({ className, ...props }, ref) => (
     ref={ref}
     className={cn(
       'overflow-hidden p-1 text-foreground ' +
-      '[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 ' +
-      '[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium ' +
-      '[&_[cmdk-group-heading]]:text-muted',
+        '[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 ' +
+        '[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium ' +
+        '[&_[cmdk-group-heading]]:text-muted',
       className
     )}
     {...props}
@@ -67,10 +71,10 @@ const CommandItem = React.forwardRef(({ className, ...props }, ref) => (
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none " +
-      "data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent " +
-      "data-[selected='true']:text-foreground data-[disabled=true]:opacity-50 " +
-      "[&_svg]:size-4 [&_svg]:shrink-0",
+      'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none ' +
+        "data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent " +
+        "data-[selected='true']:text-foreground data-[disabled=true]:opacity-50 " +
+        '[&_svg]:size-4 [&_svg]:shrink-0',
       className
     )}
     {...props}

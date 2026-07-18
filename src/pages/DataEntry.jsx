@@ -1,27 +1,33 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { sb }               from '../lib/supabase'
-import { useAuth }          from '../lib/auth'
-import { BRACKETS, BRACKET_LABELS, COMPETITOR_COLORS, getCountryConfig, getCompetitors, resolveDbParams } from '../lib/constants'
+import { sb } from '../lib/supabase'
+import { useAuth } from '../lib/auth'
+import {
+  BRACKETS,
+  BRACKET_LABELS,
+  COMPETITOR_COLORS,
+  getCompetitors,
+  resolveDbParams,
+} from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
-import { useCITimeslots }    from '../hooks/useCITimeslots'
-import { useI18n }           from '../context/LanguageContext'
+import { useCITimeslots } from '../hooks/useCITimeslots'
+import { useI18n } from '../context/LanguageContext'
 import '../styles/data-entry.css'
 
 // (city/category/competitor constants are derived dynamically from COUNTRY_CONFIG via props)
 
 // Colores de sección por categoría
 const CAT_COLORS = {
-  'Economy/Comfort':  { bg:'#eff6ff', border:'#93c5fd', text:'#1d4ed8', accent:'#3b82f6' },
-  'Comfort+':         { bg:'#f0fdf4', border:'#86efac', text:'#15803d', accent:'#22c55e' },
-  'Premier':          { bg:'#fffbeb', border:'#fcd34d', text:'#b45309', accent:'#f59e0b' },
-  'TukTuk':           { bg:'#fdf4ff', border:'#e879f9', text:'#86198f', accent:'#d946ef' },
-  'XL':               { bg:'#fff7ed', border:'#fdba74', text:'#c2410c', accent:'#f97316' },
-  'Corp':             { bg:'#f8fafc', border:'#cbd5e1', text:'#334155', accent:'#64748b' },
+  'Economy/Comfort': { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8', accent: '#3b82f6' },
+  'Comfort+': { bg: '#f0fdf4', border: '#86efac', text: '#15803d', accent: '#22c55e' },
+  Premier: { bg: '#fffbeb', border: '#fcd34d', text: '#b45309', accent: '#f59e0b' },
+  TukTuk: { bg: '#fdf4ff', border: '#e879f9', text: '#86198f', accent: '#d946ef' },
+  XL: { bg: '#fff7ed', border: '#fdba74', text: '#c2410c', accent: '#f97316' },
+  Corp: { bg: '#f8fafc', border: '#cbd5e1', text: '#334155', accent: '#64748b' },
   // Legacy (por si queda data vieja en el form)
-  'Economy':          { bg:'#eff6ff', border:'#93c5fd', text:'#1d4ed8', accent:'#3b82f6' },
-  'Comfort':          { bg:'#f0fdf4', border:'#86efac', text:'#15803d', accent:'#22c55e' },
+  Economy: { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8', accent: '#3b82f6' },
+  Comfort: { bg: '#f0fdf4', border: '#86efac', text: '#15803d', accent: '#22c55e' },
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -34,12 +40,13 @@ function fmtElapsed(ms) {
   const h = Math.floor(total / 3600)
   const m = Math.floor((total % 3600) / 60)
   const s = total % 60
-  if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  if (h > 0)
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 function calcIndriveAvg(bids, minBid) {
-  const nums = bids.map(b => parseFloat(b)).filter(n => !isNaN(n) && n > 0)
+  const nums = bids.map((b) => parseFloat(b)).filter((n) => !isNaN(n) && n > 0)
   if (minBid) {
     const mn = parseFloat(minBid)
     if (!isNaN(mn) && mn > 0) nums.push(mn)
@@ -52,11 +59,18 @@ function compBadge(comp) {
   const color = COMPETITOR_COLORS[comp]
   if (!color) return <span className="de-comp-name">{comp}</span>
   return (
-    <span style={{
-      background: color, color: '#fff', borderRadius: 4,
-      padding: '2px 8px', fontWeight: 700, fontSize: 10,
-      whiteSpace: 'nowrap', display: 'inline-block',
-    }}>
+    <span
+      style={{
+        background: color,
+        color: '#fff',
+        borderRadius: 4,
+        padding: '2px 8px',
+        fontWeight: 700,
+        fontSize: 10,
+        whiteSpace: 'nowrap',
+        display: 'inline-block',
+      }}
+    >
       {comp}
     </span>
   )
@@ -65,7 +79,7 @@ function compBadge(comp) {
 // ── InDrive cell component ─────────────────────────────────────────────────
 function InDriveCell({ avg, extra, onChange, hasError }) {
   const [open, setOpen] = useState(false)
-  const bids   = extra?.bids   || ['']
+  const bids = extra?.bids || ['']
   const minBid = extra?.minBid || ''
 
   function updateBid(i, val) {
@@ -106,7 +120,7 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
         />
         <button
           className="indrive-toggle"
-          onClick={() => setOpen(o => !o)}
+          onClick={() => setOpen((o) => !o)}
           title={open ? 'Cerrar bids' : 'Agregar bids'}
         >
           {open ? '▲' : '▼'}
@@ -124,7 +138,7 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
               value={minBid}
               min="0"
               step="0.01"
-              onChange={e => updateMin(e.target.value)}
+              onChange={(e) => updateMin(e.target.value)}
             />
           </div>
           {bids.map((b, i) => (
@@ -137,15 +151,19 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
                 value={b}
                 min="0"
                 step="0.01"
-                onChange={e => updateBid(i, e.target.value)}
+                onChange={(e) => updateBid(i, e.target.value)}
               />
               {bids.length > 1 && (
-                <button className="indrive-bid-remove" onClick={() => removeBid(i)}>✕</button>
+                <button className="indrive-bid-remove" onClick={() => removeBid(i)}>
+                  ✕
+                </button>
               )}
             </div>
           ))}
           {bids.length < 5 && (
-            <button className="indrive-bid-add" onClick={addBid}>+ Bid</button>
+            <button className="indrive-bid-add" onClick={addBid}>
+              + Bid
+            </button>
           )}
         </div>
       )}
@@ -157,49 +175,54 @@ import { useCountry } from '../context/CountryContext'
 
 // ── Componente principal ───────────────────────────────────────────────────
 export default function DataEntry() {
-  const { session }    = useAuth()
-  const userEmail      = session?.user?.email || ''
-  const { t, locale }  = useI18n()
+  const { session } = useAuth()
+  const userEmail = session?.user?.email || ''
+  const { t, locale } = useI18n()
   const { country, countryConfig, dbConfigs } = useCountry()
 
-  const uiCities      = countryConfig.cities
+  const uiCities = countryConfig.cities
 
-  const [uiCity,   setUiCity]   = useState(uiCities[0] || 'Lima')
-  const [date,     setDate]     = useState(todayStr())
-  const [surge,    setSurge]    = useState(false)
-  const [refs,     setRefs]     = useState([])
+  const [uiCity, setUiCity] = useState(uiCities[0] || 'Lima')
+  const [date, setDate] = useState(todayStr())
+  const [surge, setSurge] = useState(false)
+  const [refs, setRefs] = useState([])
   const [refsLoading, setRefsLoading] = useState(false)
 
   // entries: key = `${uiCat}|${refId}|${tsLabel}|${comp}` → price string
-  const [entries,  setEntries]  = useState({})
+  const [entries, setEntries] = useState({})
   // indriveExtra: key = `${uiCat}|${refId}|${tsLabel}` → { bids, minBid }
   const [indriveExtra, setIndriveExtra] = useState({})
   // errorKeys: Set of price keys with error
-  const [errorKeys,    setErrorKeys]    = useState(new Set())
+  const [errorKeys, setErrorKeys] = useState(new Set())
 
-  const [saving,   setSaving]   = useState(false)
-  const [msg,      setMsg]      = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState(null)
 
   // Session management
-  const sessionStartRef    = useRef(null)
-  const [sessionActive,    setSessionActive]    = useState(false)
-  const [elapsed,          setElapsed]          = useState('00:00')
+  const sessionStartRef = useRef(null)
+  const [sessionActive, setSessionActive] = useState(false)
+  const [elapsed, setElapsed] = useState('00:00')
 
   // Session history
-  const [showHistory,      setShowHistory]      = useState(false)
-  const [sessionHistory,   setSessionHistory]   = useState([])
-  const [histLoading,      setHistLoading]      = useState(false)
-  const [histFrom,         setHistFrom]         = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
+  const [showHistory, setShowHistory] = useState(false)
+  const [sessionHistory, setSessionHistory] = useState([])
+  const [histLoading, setHistLoading] = useState(false)
+  const [histFrom, setHistFrom] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    return d.toISOString().slice(0, 10)
   })
-  const [histTo,           setHistTo]           = useState(() => new Date().toISOString().slice(0, 10))
-  const [histCity,         setHistCity]         = useState('')
-  const [histEmail,        setHistEmail]        = useState('')
+  const [histTo, setHistTo] = useState(() => new Date().toISOString().slice(0, 10))
+  const [histCity, setHistCity] = useState('')
+  const [histEmail, setHistEmail] = useState('')
 
-  const { isRushHour }  = useRushHourConfig(country)
-  const { timeslots }   = useCITimeslots()
+  const { isRushHour } = useRushHourConfig(country)
+  const { timeslots } = useCITimeslots()
 
-  const categories    = countryConfig.categoriesByCity[uiCity] || []
+  const categories = useMemo(
+    () => countryConfig.categoriesByCity[uiCity] || [],
+    [countryConfig, uiCity]
+  )
 
   // dbCity: the DB city for the current UI city (use first non-special category)
   const { dbCity } = useMemo(
@@ -226,7 +249,6 @@ export default function DataEntry() {
   useEffect(() => {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
-    const newCategories = countryConfig.categoriesByCity[firstCity] || []
     // dbCity es reactivo a uiCity y categories, así no hay problema
   }, [country, countryConfig])
 
@@ -250,12 +272,14 @@ export default function DataEntry() {
   // ── Load session history ───────────────────────────────
   async function loadSessionHistory() {
     setHistLoading(true)
-    let q = sb.from('ci_sessions').select('*')
+    let q = sb
+      .from('ci_sessions')
+      .select('*')
       .eq('country', country)
       .order('started_at', { ascending: false })
       .limit(200)
     if (histFrom) q = q.gte('observed_date', histFrom)
-    if (histTo)   q = q.lte('observed_date', histTo)
+    if (histTo) q = q.lte('observed_date', histTo)
     if (histCity) q = q.eq('city', histCity)
     if (histEmail) q = q.ilike('user_email', `%${histEmail}%`)
     const { data } = await q
@@ -265,7 +289,7 @@ export default function DataEntry() {
 
   useEffect(() => {
     if (showHistory) loadSessionHistory()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHistory])
 
   // ── Reset city when country changes ───────────────────
@@ -275,7 +299,7 @@ export default function DataEntry() {
     setRefs([]) // Limpiar rutas antiguas inmediatamente
     setEntries({})
     setIndriveExtra({})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, countryConfig])
 
   // ── Load refs ──────────────────────────────────────────
@@ -290,7 +314,9 @@ export default function DataEntry() {
       .select('*')
       .eq('country', country)
       .eq('city', dbCity)
-      .order('category').order('bracket').order('point_a')
+      .order('category')
+      .order('bracket')
+      .order('point_a')
       .then(({ data }) => {
         setRefs(data || [])
         setRefsLoading(false)
@@ -321,13 +347,20 @@ export default function DataEntry() {
         if (parsed.entries && Object.keys(parsed.entries).length > 0) {
           setEntries(parsed.entries)
           setIndriveExtra(parsed.indriveExtra || {})
-          setMsg({ type: 'ok', text: `📝 Borrador restaurado (${Object.keys(parsed.entries).length} celdas).` })
+          setMsg({
+            type: 'ok',
+            text: `📝 Borrador restaurado (${Object.keys(parsed.entries).length} celdas).`,
+          })
         }
       }
-    } catch { /* ignore corrupt draft */ }
+    } catch {
+      /* ignore corrupt draft */
+    }
     // Marcar hidratado en el siguiente tick para evitar que el effect de save
     // dispare con el estado vacío inicial antes de que cargue el draft.
-    const id = setTimeout(() => { draftHydratedRef.current = true }, 0)
+    const id = setTimeout(() => {
+      draftHydratedRef.current = true
+    }, 0)
     return () => clearTimeout(id)
   }, [draftKey])
 
@@ -337,17 +370,24 @@ export default function DataEntry() {
       try {
         const hasData = Object.keys(entries).length > 0 || Object.keys(indriveExtra).length > 0
         if (hasData) {
-          localStorage.setItem(draftKey, JSON.stringify({ entries, indriveExtra, savedAt: Date.now() }))
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({ entries, indriveExtra, savedAt: Date.now() })
+          )
         } else {
           localStorage.removeItem(draftKey)
         }
-      } catch { /* quota / disabled */ }
+      } catch {
+        /* quota / disabled */
+      }
     }, 2000)
     return () => clearTimeout(id)
   }, [entries, indriveExtra, draftKey])
 
   const clearDraft = useCallback(() => {
-    try { localStorage.removeItem(draftKey) } catch {}
+    try {
+      localStorage.removeItem(draftKey)
+    } catch {}
   }, [draftKey])
 
   // ── Group refs by UI category + bracket ───────────────
@@ -363,12 +403,12 @@ export default function DataEntry() {
 
   // ── Entry helpers ──────────────────────────────────────
   const priceKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
-  const indKey   = (uiCat, refId, tsLabel)       => `${uiCat}|${refId}|${tsLabel}`
+  const indKey = (uiCat, refId, tsLabel) => `${uiCat}|${refId}|${tsLabel}`
 
   const setEntry = useCallback((uiCat, refId, tsLabel, comp, val) => {
-    setEntries(prev => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
+    setEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
     // clear error on edit
-    setErrorKeys(prev => {
+    setErrorKeys((prev) => {
       const n = new Set(prev)
       n.delete(priceKey(uiCat, refId, tsLabel, comp))
       return n
@@ -379,9 +419,9 @@ export default function DataEntry() {
     entries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
 
   const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
-    setIndriveExtra(prev => ({ ...prev, [indKey(uiCat, refId, tsLabel)]: extra }))
-    setEntries(prev => ({ ...prev, [priceKey(uiCat, refId, tsLabel, 'InDrive')]: avg }))
-    setErrorKeys(prev => {
+    setIndriveExtra((prev) => ({ ...prev, [indKey(uiCat, refId, tsLabel)]: extra }))
+    setEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, 'InDrive')]: avg }))
+    setErrorKeys((prev) => {
       const n = new Set(prev)
       n.delete(priceKey(uiCat, refId, tsLabel, 'InDrive'))
       return n
@@ -392,16 +432,16 @@ export default function DataEntry() {
   // Returns 'empty' | 'full' | 'partial' for a (uiCat, ref, ts) row
   function rowState(uiCat, ref, ts) {
     const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
-    const vals  = comps.map(c => entries[priceKey(uiCat, ref.id, ts.label, c)] ?? '')
-    const filled = vals.filter(v => v !== '' && !isNaN(parseFloat(v)))
-    if (filled.length === 0)          return 'empty'
+    const vals = comps.map((c) => entries[priceKey(uiCat, ref.id, ts.label, c)] ?? '')
+    const filled = vals.filter((v) => v !== '' && !isNaN(parseFloat(v)))
+    if (filled.length === 0) return 'empty'
     if (filled.length === comps.length) return 'full'
     return 'partial'
   }
 
   // ── Count filled ───────────────────────────────────────
   const filledCount = useMemo(() => {
-    return Object.values(entries).filter(v => v !== '' && !isNaN(parseFloat(v))).length
+    return Object.values(entries).filter((v) => v !== '' && !isNaN(parseFloat(v))).length
   }, [entries])
 
   // ── Build rows to insert ───────────────────────────────
@@ -409,46 +449,56 @@ export default function DataEntry() {
     const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
     const { year, week } = getISOYearWeek(date)
     const rush = isRushHour(ts.start_time?.slice(0, 5), dbCity) ?? false
-    return comps.map(comp => {
-      const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
-      const price = parseFloat(raw)
-      const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
-      const bids  = comp === 'InDrive' ? (extra?.bids || []) : []
-      const minBid = comp === 'InDrive' ? (extra?.minBid || null) : null
-      return {
-        price: isNaN(price) ? null : price,
-        comp, ref, ts, uiCat, rush, year, week, bids, minBid,
-      }
-    }).filter(r => r.price !== null)
+    return comps
+      .map((comp) => {
+        const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
+        const price = parseFloat(raw)
+        const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
+        const bids = comp === 'InDrive' ? extra?.bids || [] : []
+        const minBid = comp === 'InDrive' ? extra?.minBid || null : null
+        return {
+          price: isNaN(price) ? null : price,
+          comp,
+          ref,
+          ts,
+          uiCat,
+          rush,
+          year,
+          week,
+          bids,
+          minBid,
+        }
+      })
+      .filter((r) => r.price !== null)
   }
 
   function buildInsertPayload(r) {
     const base = {
-      city:                   dbCity,
-      category:               resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory,
+      city: dbCity,
+      category: resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory,
       // Normalización context-aware: en city='Corp' el canónico usa
       // espacios ('Yango Comfort'), en E/C es pegado ('YangoComfort').
       // r.comp viene del catálogo getCompetitors() que ya tiene el canónico,
       // pero pasamos por normalize por defensa-en-profundidad (idempotente).
-      competition_name:       normalizeCompetitorName(r.comp, { city: dbCity }),
-      observed_date:          date,
-      observed_time:          r.ts.start_time?.slice(0, 5),
-      rush_hour:              r.rush,
+      competition_name: normalizeCompetitorName(r.comp, { city: dbCity }),
+      observed_date: date,
+      observed_time: r.ts.start_time?.slice(0, 5),
+      rush_hour: r.rush,
       surge,
-      distance_bracket:       r.ref.bracket,
-      distance_km:            r.ref.waze_distance ?? null,
-      point_a:                r.ref.point_a ?? null,
-      point_b:                r.ref.point_b ?? null,
+      distance_bracket: r.ref.bracket,
+      distance_km: r.ref.waze_distance ?? null,
+      point_a: r.ref.point_a ?? null,
+      point_b: r.ref.point_b ?? null,
       price_without_discount: r.price,
-      year:                   r.year,
-      week:                   r.week,
-      data_source:            'manual',
+      year: r.year,
+      week: r.week,
+      data_source: 'manual',
       country,
     }
     if (r.comp === 'InDrive') {
       r.bids.forEach((b, i) => {
         const n = parseFloat(b)
-        if (!isNaN(n)) base[`bid_${i+1}`] = n
+        if (!isNaN(n)) base[`bid_${i + 1}`] = n
       })
       const mn = parseFloat(r.minBid)
       if (!isNaN(mn)) base.minimal_bid = mn
@@ -460,18 +510,18 @@ export default function DataEntry() {
   function validateAndCollectErrors(requireAllFull = false) {
     const newErrors = new Set()
     let hasPartial = false
-    let hasEmpty   = false
+    let hasEmpty = false
 
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps   = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+      const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
       for (const ref of catRefs) {
         for (const ts of timeslots) {
           const state = rowState(uiCat, ref, ts)
           if (state === 'partial') {
             hasPartial = true
             // mark missing cells
-            comps.forEach(comp => {
+            comps.forEach((comp) => {
               const v = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
               if (v === '' || isNaN(parseFloat(v))) {
                 newErrors.add(priceKey(uiCat, ref.id, ts.label, comp))
@@ -480,7 +530,7 @@ export default function DataEntry() {
           }
           if (state === 'empty' && requireAllFull) {
             hasEmpty = true
-            comps.forEach(comp => {
+            comps.forEach((comp) => {
               newErrors.add(priceKey(uiCat, ref.id, ts.label, comp))
             })
           }
@@ -493,57 +543,72 @@ export default function DataEntry() {
 
   // ── Save shared logic ──────────────────────────────────
   async function performSave(rowsToInsert, isFinish = false) {
-    setSaving(true); setMsg(null)
+    setSaving(true)
+    setMsg(null)
 
     // Group by (dbCat, ts) for targeted delete
     const combos = new Set(
-      rowsToInsert.map(r => `${resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory}|${r.ts.start_time?.slice(0, 5)}`)
+      rowsToInsert.map(
+        (r) =>
+          `${resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory}|${r.ts.start_time?.slice(0, 5)}`
+      )
     )
     for (const combo of combos) {
       const [cat, time] = combo.split('|')
-      const { error: delErr } = await sb.from('pricing_observations')
+      const { error: delErr } = await sb
+        .from('pricing_observations')
         .delete()
-        .eq('country',       country)
-        .eq('city',         dbCity)
-        .eq('category',     cat)
+        .eq('country', country)
+        .eq('city', dbCity)
+        .eq('category', cat)
         .eq('observed_date', date)
         .eq('observed_time', time)
-        .eq('data_source',  'manual')
+        .eq('data_source', 'manual')
       if (delErr) {
         setMsg({ type: 'err', text: `Error al limpiar: ${delErr.message}` })
-        setSaving(false); return false
+        setSaving(false)
+        return false
       }
     }
 
     const payloads = rowsToInsert.map(buildInsertPayload)
     const BATCH = 200
     for (let i = 0; i < payloads.length; i += BATCH) {
-      const { error: insErr } = await sb.from('pricing_observations').insert(payloads.slice(i, i + BATCH))
+      const { error: insErr } = await sb
+        .from('pricing_observations')
+        .insert(payloads.slice(i, i + BATCH))
       if (insErr) {
         setMsg({ type: 'err', text: `Error al insertar: ${insErr.message}` })
-        setSaving(false); return false
+        setSaving(false)
+        return false
       }
     }
 
     if (isFinish) {
-      const now    = new Date()
-      const start  = sessionStartRef.current || Date.now()
-      const dur    = Math.round((now - new Date(start)) / 60000 * 10) / 10
+      const now = new Date()
+      const start = sessionStartRef.current || Date.now()
+      const dur = Math.round(((now - new Date(start)) / 60000) * 10) / 10
       await sb.from('ci_sessions').insert({
         country,
-        city:             dbCity,
-        observed_date:    date,
-        user_email:       userEmail,
-        started_at:       new Date(start).toISOString(),
-        ended_at:         now.toISOString(),
+        city: dbCity,
+        observed_date: date,
+        user_email: userEmail,
+        started_at: new Date(start).toISOString(),
+        ended_at: now.toISOString(),
         duration_minutes: dur,
-        rows_saved:       payloads.length,
+        rows_saved: payloads.length,
       })
       setSessionActive(false)
       setElapsed('00:00')
-      setMsg({ type: 'ok', text: `✓ Sesión completada en ${dur} min. ${payloads.length} registros guardados.` })
+      setMsg({
+        type: 'ok',
+        text: `✓ Sesión completada en ${dur} min. ${payloads.length} registros guardados.`,
+      })
     } else {
-      setMsg({ type: 'ok', text: `✓ ${payloads.length} registros guardados. Puedes seguir completando.` })
+      setMsg({
+        type: 'ok',
+        text: `✓ ${payloads.length} registros guardados. Puedes seguir completando.`,
+      })
     }
 
     // Guardado exitoso → el borrador local ya no es necesario
@@ -562,7 +627,7 @@ export default function DataEntry() {
     // Collect all full rows
     const rowsToInsert = []
     for (const uiCat of categories) {
-      for (const ref of (refsByUICat[uiCat] || [])) {
+      for (const ref of refsByUICat[uiCat] || []) {
         for (const ts of timeslots) {
           if (rowState(uiCat, ref, ts) === 'full') {
             rowsToInsert.push(...buildRows(uiCat, ref, ts))
@@ -571,7 +636,8 @@ export default function DataEntry() {
       }
     }
     if (!rowsToInsert.length) {
-      setMsg({ type: 'err', text: t('dataentry.err_no_full') }); return
+      setMsg({ type: 'err', text: t('dataentry.err_no_full') })
+      return
     }
     await performSave(rowsToInsert, false)
   }
@@ -585,7 +651,7 @@ export default function DataEntry() {
     }
     const rowsToInsert = []
     for (const uiCat of categories) {
-      for (const ref of (refsByUICat[uiCat] || [])) {
+      for (const ref of refsByUICat[uiCat] || []) {
         for (const ts of timeslots) {
           rowsToInsert.push(...buildRows(uiCat, ref, ts))
         }
@@ -599,11 +665,11 @@ export default function DataEntry() {
     let n = 0
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps   = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+      const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
       n += catRefs.length * timeslots.length * comps.length
     }
     return n
-  }, [refsByUICat, categories, timeslots, dbCity])
+  }, [refsByUICat, categories, timeslots, uiCity, country, dbConfigs])
 
   // ── Render ─────────────────────────────────────────────
   return (
@@ -620,11 +686,7 @@ export default function DataEntry() {
         </div>
         <div className="de-header__actions">
           {!sessionActive ? (
-            <button
-              className="de-btn-start"
-              onClick={handleStartSession}
-              disabled={saving}
-            >
+            <button className="de-btn-start" onClick={handleStartSession} disabled={saving}>
               {t('dataentry.start_session')}
             </button>
           ) : (
@@ -634,13 +696,11 @@ export default function DataEntry() {
                 onClick={handleSaveProgress}
                 disabled={saving || filledCount === 0}
               >
-                {saving ? t('dataentry.saving') : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
+                {saving
+                  ? t('dataentry.saving')
+                  : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
               </button>
-              <button
-                className="de-btn-finish"
-                onClick={handleFinishSession}
-                disabled={saving}
-              >
+              <button className="de-btn-finish" onClick={handleFinishSession} disabled={saving}>
                 {t('dataentry.end_session')}
               </button>
             </>
@@ -652,11 +712,14 @@ export default function DataEntry() {
       <div className="de-session-bar">
         {/* City tabs */}
         <div className="de-city-tabs">
-          {uiCities.map(c => (
+          {uiCities.map((c) => (
             <button
               key={c}
               className={`de-city-tab${uiCity === c ? ' active' : ''}`}
-              onClick={() => { setUiCity(c); setMsg(null) }}
+              onClick={() => {
+                setUiCity(c)
+                setMsg(null)
+              }}
             >
               {c}
             </button>
@@ -666,22 +729,18 @@ export default function DataEntry() {
         <div className="de-session-controls">
           <label className="de-ctrl">
             <span>{t('dataentry.date')}</span>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
 
           <label className="de-ctrl de-ctrl--surge">
-            <input
-              type="checkbox"
-              checked={surge}
-              onChange={e => setSurge(e.target.checked)}
-            />
+            <input type="checkbox" checked={surge} onChange={(e) => setSurge(e.target.checked)} />
             <span>Surge</span>
           </label>
 
           <div className="de-session-info">
-            {timeslots.map(ts => (
+            {timeslots.map((ts) => (
               <span key={ts.label} className="de-ts-badge">
-                {ts.label} ({ts.start_time?.slice(0,5)}–{ts.end_time?.slice(0,5)})
+                {ts.label} ({ts.start_time?.slice(0, 5)}–{ts.end_time?.slice(0, 5)})
               </span>
             ))}
           </div>
@@ -707,10 +766,10 @@ export default function DataEntry() {
         <div className="de-loading">{t('dataentry.loading_routes')}</div>
       ) : (
         <>
-          {categories.map(uiCat => {
-            const catRefs  = refsByUICat[uiCat] || []
-            const comps    = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
-            const colors   = CAT_COLORS[uiCat] || CAT_COLORS['Corp']
+          {categories.map((uiCat) => {
+            const catRefs = refsByUICat[uiCat] || []
+            const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+            const colors = CAT_COLORS[uiCat] || CAT_COLORS['Corp']
             const totalRows = catRefs.length * timeslots.length
 
             return (
@@ -724,16 +783,18 @@ export default function DataEntry() {
                     {uiCat}
                   </span>
                   <span className="de-cat-meta">
-                    {catRefs.length} {t('dataentry.routes')} ×{' '}
-                    {timeslots.length} timeslot{timeslots.length !== 1 ? 's' : ''} ={' '}
-                    {totalRows} {t('dataentry.rows')}
+                    {catRefs.length} {t('dataentry.routes')} × {timeslots.length} timeslot
+                    {timeslots.length !== 1 ? 's' : ''} = {totalRows} {t('dataentry.rows')}
                   </span>
                 </div>
 
                 {catRefs.length === 0 ? (
                   <div className="de-cat-empty">
-                    {t('dataentry.no_routes')} <strong>{uiCity} · {uiCat}</strong>.
-                    {t('dataentry.go_distances')}
+                    {t('dataentry.no_routes')}{' '}
+                    <strong>
+                      {uiCity} · {uiCat}
+                    </strong>
+                    .{t('dataentry.go_distances')}
                   </div>
                 ) : (
                   <div className="de-table-wrap">
@@ -745,7 +806,7 @@ export default function DataEntry() {
                           <th className="de-th de-th-route">{t('dataentry.col_point_a')}</th>
                           <th className="de-th de-th-route">{t('dataentry.col_point_b')}</th>
                           <th className="de-th de-th-ts">{t('dataentry.col_timeslot')}</th>
-                          {comps.map(comp => (
+                          {comps.map((comp) => (
                             <th key={comp} className="de-th de-th-price">
                               {compBadge(comp)}
                             </th>
@@ -753,77 +814,97 @@ export default function DataEntry() {
                         </tr>
                       </thead>
                       <tbody>
-                        {BRACKETS.filter(b => catRefs.some(r => r.bracket === b)).map(bracket => {
-                          const bracketRefs = catRefs.filter(r => r.bracket === bracket)
-                          return bracketRefs.map((ref, ri) =>
-                            timeslots.map((ts, ti) => {
-                              const state = rowState(uiCat, ref, ts)
-                              const rowClass = state === 'partial' ? ' de-row-partial' : ''
-                              return (
-                                <tr key={`${ref.id}|${ts.label}`} className={`de-row${rowClass}`}>
-                                  {/* Bracket: rowspan over all refs × timeslots in this bracket */}
-                                  {ri === 0 && ti === 0 && (
-                                    <td
-                                      rowSpan={bracketRefs.length * timeslots.length}
-                                      className="de-td-bracket"
-                                    >
-                                      {BRACKET_LABELS[bracket]}
+                        {BRACKETS.filter((b) => catRefs.some((r) => r.bracket === b)).map(
+                          (bracket) => {
+                            const bracketRefs = catRefs.filter((r) => r.bracket === bracket)
+                            return bracketRefs.map((ref, ri) =>
+                              timeslots.map((ts, ti) => {
+                                const state = rowState(uiCat, ref, ts)
+                                const rowClass = state === 'partial' ? ' de-row-partial' : ''
+                                return (
+                                  <tr key={`${ref.id}|${ts.label}`} className={`de-row${rowClass}`}>
+                                    {/* Bracket: rowspan over all refs × timeslots in this bracket */}
+                                    {ri === 0 && ti === 0 && (
+                                      <td
+                                        rowSpan={bracketRefs.length * timeslots.length}
+                                        className="de-td-bracket"
+                                      >
+                                        {BRACKET_LABELS[bracket]}
+                                      </td>
+                                    )}
+                                    {/* KM + Routes: rowspan over timeslots */}
+                                    {ti === 0 && (
+                                      <>
+                                        <td rowSpan={timeslots.length} className="de-td-km">
+                                          {ref.waze_distance != null ? ref.waze_distance : '—'}
+                                        </td>
+                                        <td rowSpan={timeslots.length} className="de-td-route">
+                                          {ref.point_a || '—'}
+                                        </td>
+                                        <td rowSpan={timeslots.length} className="de-td-route">
+                                          {ref.point_b || '—'}
+                                        </td>
+                                      </>
+                                    )}
+                                    {/* Timeslot */}
+                                    <td className="de-td-ts">
+                                      <span className="de-ts-pill">{ts.label}</span>
+                                      <span className="de-ts-time">
+                                        {ts.start_time?.slice(0, 5)}
+                                      </span>
                                     </td>
-                                  )}
-                                  {/* KM + Routes: rowspan over timeslots */}
-                                  {ti === 0 && (
-                                    <>
-                                      <td rowSpan={timeslots.length} className="de-td-km">
-                                        {ref.waze_distance != null ? ref.waze_distance : '—'}
-                                      </td>
-                                      <td rowSpan={timeslots.length} className="de-td-route">
-                                        {ref.point_a || '—'}
-                                      </td>
-                                      <td rowSpan={timeslots.length} className="de-td-route">
-                                        {ref.point_b || '—'}
-                                      </td>
-                                    </>
-                                  )}
-                                  {/* Timeslot */}
-                                  <td className="de-td-ts">
-                                    <span className="de-ts-pill">{ts.label}</span>
-                                    <span className="de-ts-time">{ts.start_time?.slice(0,5)}</span>
-                                  </td>
-                                  {/* Price cells */}
-                                  {comps.map(comp => {
-                                    const key = priceKey(uiCat, ref.id, ts.label, comp)
-                                    const hasErr = errorKeys.has(key)
-                                    if (comp === 'InDrive') {
+                                    {/* Price cells */}
+                                    {comps.map((comp) => {
+                                      const key = priceKey(uiCat, ref.id, ts.label, comp)
+                                      const hasErr = errorKeys.has(key)
+                                      if (comp === 'InDrive') {
+                                        return (
+                                          <td
+                                            key={comp}
+                                            className={`de-td-price${hasErr ? ' de-td-error' : ''}`}
+                                          >
+                                            <InDriveCell
+                                              avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
+                                              extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
+                                              onChange={(extra, avg) =>
+                                                setIndrive(uiCat, ref.id, ts.label, extra, avg)
+                                              }
+                                              hasError={hasErr}
+                                            />
+                                          </td>
+                                        )
+                                      }
                                       return (
-                                        <td key={comp} className={`de-td-price${hasErr ? ' de-td-error' : ''}`}>
-                                          <InDriveCell
-                                            avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
-                                            extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
-                                            onChange={(extra, avg) => setIndrive(uiCat, ref.id, ts.label, extra, avg)}
-                                            hasError={hasErr}
+                                        <td
+                                          key={comp}
+                                          className={`de-td-price${hasErr ? ' de-td-error' : ''}`}
+                                        >
+                                          <input
+                                            type="number"
+                                            className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
+                                            placeholder="—"
+                                            min="0"
+                                            step="0.01"
+                                            value={getEntry(uiCat, ref.id, ts.label, comp)}
+                                            onChange={(e) =>
+                                              setEntry(
+                                                uiCat,
+                                                ref.id,
+                                                ts.label,
+                                                comp,
+                                                e.target.value
+                                              )
+                                            }
                                           />
                                         </td>
                                       )
-                                    }
-                                    return (
-                                      <td key={comp} className={`de-td-price${hasErr ? ' de-td-error' : ''}`}>
-                                        <input
-                                          type="number"
-                                          className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
-                                          placeholder="—"
-                                          min="0"
-                                          step="0.01"
-                                          value={getEntry(uiCat, ref.id, ts.label, comp)}
-                                          onChange={e => setEntry(uiCat, ref.id, ts.label, comp, e.target.value)}
-                                        />
-                                      </td>
-                                    )
-                                  })}
-                                </tr>
-                              )
-                            })
-                          )
-                        })}
+                                    })}
+                                  </tr>
+                                )
+                              })
+                            )
+                          }
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -844,13 +925,11 @@ export default function DataEntry() {
                 onClick={handleSaveProgress}
                 disabled={saving || filledCount === 0}
               >
-                {saving ? t('dataentry.saving') : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
+                {saving
+                  ? t('dataentry.saving')
+                  : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
               </button>
-              <button
-                className="de-btn-finish"
-                onClick={handleFinishSession}
-                disabled={saving}
-              >
+              <button className="de-btn-finish" onClick={handleFinishSession} disabled={saving}>
                 {t('dataentry.end_session')}
               </button>
             </>
@@ -860,19 +939,14 @@ export default function DataEntry() {
             </button>
           )}
           {msg && (
-            <span className={msg.type === 'ok' ? 'de-footer-ok' : 'de-footer-err'}>
-              {msg.text}
-            </span>
+            <span className={msg.type === 'ok' ? 'de-footer-ok' : 'de-footer-err'}>{msg.text}</span>
           )}
         </div>
       )}
 
       {/* ── Session History ── */}
       <div className="de-session-history">
-        <button
-          className="de-history-toggle"
-          onClick={() => setShowHistory(p => !p)}
-        >
+        <button className="de-history-toggle" onClick={() => setShowHistory((p) => !p)}>
           {showHistory ? '▲' : '▼'} {t('dataentry.session_history')}
         </button>
 
@@ -882,18 +956,20 @@ export default function DataEntry() {
             <div className="de-history-filters">
               <label className="de-ctrl">
                 <span>{t('filter.from')}</span>
-                <input type="date" value={histFrom} onChange={e => setHistFrom(e.target.value)} />
+                <input type="date" value={histFrom} onChange={(e) => setHistFrom(e.target.value)} />
               </label>
               <label className="de-ctrl">
                 <span>{t('filter.to')}</span>
-                <input type="date" value={histTo} onChange={e => setHistTo(e.target.value)} />
+                <input type="date" value={histTo} onChange={(e) => setHistTo(e.target.value)} />
               </label>
               <label className="de-ctrl">
                 <span>{t('dataentry.col_city')}</span>
-                <select value={histCity} onChange={e => setHistCity(e.target.value)}>
+                <select value={histCity} onChange={(e) => setHistCity(e.target.value)}>
                   <option value="">{t('dataentry.all_cities')}</option>
-                  {countryConfig.dbCities.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                  {countryConfig.dbCities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -903,7 +979,7 @@ export default function DataEntry() {
                   type="text"
                   placeholder="@email"
                   value={histEmail}
-                  onChange={e => setHistEmail(e.target.value)}
+                  onChange={(e) => setHistEmail(e.target.value)}
                   style={{ width: 160 }}
                 />
               </label>
@@ -914,7 +990,9 @@ export default function DataEntry() {
 
             {/* Table */}
             {histLoading ? (
-              <div className="de-loading" style={{ padding: '12px 0' }}>{t('dataentry.loading_history')}</div>
+              <div className="de-loading" style={{ padding: '12px 0' }}>
+                {t('dataentry.loading_history')}
+              </div>
             ) : sessionHistory.length === 0 ? (
               <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: '12px 0' }}>
                 {t('dataentry.no_sessions')}
@@ -934,17 +1012,28 @@ export default function DataEntry() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sessionHistory.map(s => {
+                    {sessionHistory.map((s) => {
                       const start = new Date(s.started_at)
-                      const end   = new Date(s.ended_at)
+                      const end = new Date(s.ended_at)
                       return (
                         <tr key={s.id}>
                           <td>{start.toLocaleDateString(locale)}</td>
                           <td>{s.city}</td>
-                          <td style={{ color: 'var(--color-muted)', fontSize: 11 }}>{s.user_email || '—'}</td>
-                          <td>{start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</td>
-                          <td>{end.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</td>
-                          <td><strong>{s.duration_minutes} min</strong></td>
+                          <td style={{ color: 'var(--color-muted)', fontSize: 11 }}>
+                            {s.user_email || '—'}
+                          </td>
+                          <td>
+                            {start.toLocaleTimeString(locale, {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td>
+                            {end.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td>
+                            <strong>{s.duration_minutes} min</strong>
+                          </td>
                           <td>{s.rows_saved}</td>
                         </tr>
                       )

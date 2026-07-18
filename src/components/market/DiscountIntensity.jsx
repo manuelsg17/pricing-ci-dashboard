@@ -19,42 +19,50 @@ export default function DiscountIntensity({ filters, currency = '' }) {
       : toISO(new Date())
 
     sb.rpc('get_discount_stats', {
-      p_country:    filters.country,
-      p_city:       filters.dbCity,
-      p_category:   filters.dbCategory,
+      p_country: filters.country,
+      p_city: filters.dbCity,
+      p_category: filters.dbCategory,
       p_start_date: startDate,
-      p_end_date:   endDate,
+      p_end_date: endDate,
     }).then(({ data, error }) => {
       if (cancelled) return
       if (error) console.error('DiscountIntensity RPC error:', error)
       setRawRows(data || [])
       setLoading(false)
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [filters.country, filters.dbCity, filters.dbCategory, filters.weekColumns])
 
   // RPC ya agregó: { competition_name, list_avg, final_avg, with_discount, n_total }
   const rows = useMemo(() => {
     const out = (rawRows || [])
-      .filter(r => r && r.list_avg != null && r.final_avg != null && Number(r.list_avg) > 0)
-      .map(r => {
-        const listAvg  = Number(r.list_avg)
+      .filter((r) => r && r.list_avg != null && r.final_avg != null && Number(r.list_avg) > 0)
+      .map((r) => {
+        const listAvg = Number(r.list_avg)
         const finalAvg = Number(r.final_avg)
-        const obs      = Number(r.n_total || 0)
+        const obs = Number(r.n_total || 0)
         const withDisc = Number(r.with_discount || 0)
         const discountPct = listAvg > 0 ? ((finalAvg - listAvg) / listAvg) * 100 : 0
         const pctWithDisc = obs > 0 ? (withDisc / obs) * 100 : 0
-        const comp = normalizeCompetitorName(r.competition_name, { city: filters.dbCity }) || r.competition_name
+        const comp =
+          normalizeCompetitorName(r.competition_name, { city: filters.dbCity }) ||
+          r.competition_name
         return { comp, listAvg, finalAvg, discountPct, obs, pctWithDisc }
       })
     return out.sort((a, b) => a.discountPct - b.discountPct)
-  }, [rawRows])
+  }, [rawRows, filters.dbCity])
 
   if (loading && !rawRows.length) {
     return <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>Cargando…</div>
   }
   if (!rows.length) {
-    return <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>Ningún competidor en este rango tiene precios con/sin descuento comparables.</div>
+    return (
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>
+        Ningún competidor en este rango tiene precios con/sin descuento comparables.
+      </div>
+    )
   }
 
   return (
@@ -71,14 +79,21 @@ export default function DiscountIntensity({ filters, currency = '' }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
+          {rows.map((r) => (
             <tr key={r.comp} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
               <td style={{ ...td, textAlign: 'left' }}>
-                <span style={{
-                  background: COMPETITOR_COLORS[r.comp] || '#64748b',
-                  color: '#fff', padding: '1px 6px', borderRadius: 3,
-                  fontWeight: 700, fontSize: 11,
-                }}>{r.comp}</span>
+                <span
+                  style={{
+                    background: COMPETITOR_COLORS[r.comp] || '#64748b',
+                    color: '#fff',
+                    padding: '1px 6px',
+                    borderRadius: 3,
+                    fontWeight: 700,
+                    fontSize: 11,
+                  }}
+                >
+                  {r.comp}
+                </span>
                 {r.comp === 'InDrive' && (
                   <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--color-muted)' }}>
                     (recommended → minimal_bid)
@@ -87,8 +102,15 @@ export default function DiscountIntensity({ filters, currency = '' }) {
               </td>
               <td style={td}>{r.listAvg.toFixed(2)}</td>
               <td style={td}>{r.finalAvg.toFixed(2)}</td>
-              <td style={{ ...td, fontWeight: 700, color: r.discountPct < -5 ? '#15803d' : r.discountPct < 0 ? '#65a30d' : 'inherit' }}>
-                {r.discountPct >= 0 ? '+' : ''}{r.discountPct.toFixed(1)}%
+              <td
+                style={{
+                  ...td,
+                  fontWeight: 700,
+                  color: r.discountPct < -5 ? '#15803d' : r.discountPct < 0 ? '#65a30d' : 'inherit',
+                }}
+              >
+                {r.discountPct >= 0 ? '+' : ''}
+                {r.discountPct.toFixed(1)}%
               </td>
               <td style={td}>{r.pctWithDisc.toFixed(0)}%</td>
               <td style={tdMuted}>{r.obs.toLocaleString()}</td>
@@ -97,8 +119,9 @@ export default function DiscountIntensity({ filters, currency = '' }) {
         </tbody>
       </table>
       <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 8 }}>
-        Compara <code>price_with_discount</code> vs <code>price_without_discount</code>.
-        Para InDrive comparamos <code>minimal_bid</code> vs <code>recommended_price</code> (el descuento del bidder).
+        Compara <code>price_with_discount</code> vs <code>price_without_discount</code>. Para
+        InDrive comparamos <code>minimal_bid</code> vs <code>recommended_price</code> (el descuento
+        del bidder).
       </div>
     </div>
   )
@@ -106,15 +129,23 @@ export default function DiscountIntensity({ filters, currency = '' }) {
 
 function toISO(d) {
   const dt = new Date(d)
-  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
-function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r }
+function addDays(d, n) {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
 
 const th = {
-  padding: '6px 10px', textAlign: 'right',
+  padding: '6px 10px',
+  textAlign: 'right',
   borderBottom: '2px solid var(--color-border)',
-  fontSize: 10, fontWeight: 700, color: 'var(--color-muted)',
-  textTransform: 'uppercase', letterSpacing: '0.4px',
+  fontSize: 10,
+  fontWeight: 700,
+  color: 'var(--color-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.4px',
 }
 const td = { padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 const tdMuted = { ...td, color: 'var(--color-muted)', fontSize: 11 }

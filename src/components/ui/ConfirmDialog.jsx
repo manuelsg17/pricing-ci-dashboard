@@ -1,3 +1,6 @@
+/* eslint-disable react-refresh/only-export-components -- contexto + hook en el
+   mismo archivo es el patrón establecido de este proyecto (ver Toast.jsx,
+   FilterContext.jsx); separar solo por Fast Refresh no vale la fragmentación. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 const ConfirmCtx = createContext(null)
@@ -15,15 +18,15 @@ export function ConfirmProvider({ children }) {
   const resolverRef = useRef(null)
 
   const confirm = useCallback((opts) => {
-    const config = typeof opts === 'string' ? { message: opts } : (opts || {})
-    return new Promise(resolve => {
+    const config = typeof opts === 'string' ? { message: opts } : opts || {}
+    return new Promise((resolve) => {
       resolverRef.current = resolve
       setState({
-        title:       config.title       || 'Confirmar acción',
-        message:     config.message     || '¿Estás seguro?',
+        title: config.title || 'Confirmar acción',
+        message: config.message || '¿Estás seguro?',
         confirmText: config.confirmText || 'Confirmar',
-        cancelText:  config.cancelText  || 'Cancelar',
-        danger:      !!config.danger,
+        cancelText: config.cancelText || 'Cancelar',
+        danger: !!config.danger,
       })
     })
   }, [])
@@ -55,38 +58,67 @@ export function ConfirmProvider({ children }) {
           aria-modal="true"
           onClick={() => close(false)}
           style={{
-            position: 'fixed', inset: 0, zIndex: 10000,
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
             background: 'rgba(15, 23, 42, 0.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 16, backdropFilter: 'blur(2px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            backdropFilter: 'blur(2px)',
           }}
         >
           <div
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#fff', borderRadius: 12, maxWidth: 440, width: '100%',
-              padding: 22, boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+              background: '#fff',
+              borderRadius: 12,
+              maxWidth: 440,
+              width: '100%',
+              padding: 22,
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
               animation: 'confirmIn 140ms ease-out',
             }}
           >
-            <h3 style={{
-              fontSize: 16, fontWeight: 700, margin: 0, marginBottom: 8,
-              color: state.danger ? '#991b1b' : '#0f172a',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                margin: 0,
+                marginBottom: 8,
+                color: state.danger ? '#991b1b' : '#0f172a',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
               {state.danger && <span aria-hidden="true">⚠</span>}
               {state.title}
             </h3>
-            <p style={{ fontSize: 13, color: '#475569', margin: 0, marginBottom: 18, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            <p
+              style={{
+                fontSize: 13,
+                color: '#475569',
+                margin: 0,
+                marginBottom: 18,
+                lineHeight: 1.5,
+                whiteSpace: 'pre-wrap',
+              }}
+            >
               {state.message}
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => close(false)}
                 style={{
-                  padding: '8px 14px', borderRadius: 6,
-                  border: '1px solid #cbd5e1', background: '#fff',
-                  color: '#1f2937', cursor: 'pointer', fontSize: 13,
+                  padding: '8px 14px',
+                  borderRadius: 6,
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                  color: '#1f2937',
+                  cursor: 'pointer',
+                  fontSize: 13,
                 }}
               >
                 {state.cancelText}
@@ -95,9 +127,14 @@ export function ConfirmProvider({ children }) {
                 onClick={() => close(true)}
                 autoFocus
                 style={{
-                  padding: '8px 14px', borderRadius: 6, border: 'none',
+                  padding: '8px 14px',
+                  borderRadius: 6,
+                  border: 'none',
                   background: state.danger ? '#dc2626' : '#E53935',
-                  color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
                 }}
               >
                 {state.confirmText}

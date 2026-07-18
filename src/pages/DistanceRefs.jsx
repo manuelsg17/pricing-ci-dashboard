@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useDistanceRefs } from '../hooks/useDistanceRefs'
-import { BRACKETS, BRACKET_LABELS, getCountryConfig, getCityLabel } from '../lib/constants'
+import { BRACKETS, BRACKET_LABELS, getCityLabel } from '../lib/constants'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
@@ -11,23 +11,23 @@ import { useCountry } from '../context/CountryContext'
 
 export default function DistanceRefs() {
   const { country, countryConfig: config } = useCountry()
-  const toast   = useToast()
+  const toast = useToast()
   const confirm = useConfirm()
 
   // Reconstruimos la lista de "solapas" (UI Cities) basadas en la configuración del país
   const uiCities = config.dbCities
 
-  const [dbCity,    setDbCity]    = useState(config.dbCities[0] || 'Lima')
-  const [uiCat,     setUiCat]     = useState('')
-  
+  const [dbCity, setDbCity] = useState(config.dbCities[0] || 'Lima')
+  const [uiCat, setUiCat] = useState('')
+
   // Refuerzo: si cambiamos de país, re-centramos a la ciudad 0 de ese país
   useEffect(() => {
     if (!config.dbCities.includes(dbCity)) {
-       setDbCity(config.dbCities[0])
+      setDbCity(config.dbCities[0])
     }
   }, [country, config.dbCities, dbCity])
 
-  const categories = config.categoriesByCity?.[dbCity] || []
+  const categories = useMemo(() => config.categoriesByCity?.[dbCity] || [], [config, dbCity])
 
   // Inicializar uiCat al cambiar ciudad/país
   useEffect(() => {
@@ -40,21 +40,25 @@ export default function DistanceRefs() {
 
   // dbCat usa lookup o el mismo si no está mapeado
   const dbCat = config.uiToDbCategory?.[uiCat] || uiCat
-  const { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows } = useDistanceRefs(dbCity, country)
+  const { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows } =
+    useDistanceRefs(dbCity, country)
 
   // Local edits
   const [edits, setEdits] = useState({})
   const getField = (id, field, original) => edits[id]?.[field] ?? original ?? ''
-  const setField = (id, field, value) => setEdits(prev => ({
-    ...prev,
-    [id]: { ...prev[id], [field]: value },
-  }))
+  const setField = (id, field, value) =>
+    setEdits((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }))
 
   // Refs filtradas por categoría seleccionada (DB level)
-  const filteredRefs = refs.filter(r => r.category === dbCat || (r._isNew && r.category === dbCat))
+  const filteredRefs = refs.filter(
+    (r) => r.category === dbCat || (r._isNew && r.category === dbCat)
+  )
 
   // Filas "pending": nuevas o con edits
-  const pendingRefs = filteredRefs.filter(r => r._isNew || edits[r.id])
+  const pendingRefs = filteredRefs.filter((r) => r._isNew || edits[r.id])
   const pendingCount = pendingRefs.length
 
   function handleCityChange(city) {
@@ -70,20 +74,26 @@ export default function DistanceRefs() {
   const handleSave = async (row) => {
     const merged = { ...row, ...edits[row.id] }
     const payload = {
-      id:            String(row.id).startsWith('new_') ? undefined : row.id,
-      city:          dbCity,
-      category:      dbCat,
-      bracket:       merged.bracket || '',
-      point_a:       merged.point_a || '',
-      coordinate_a:  merged.coordinate_a || '',
-      point_b:       merged.point_b || '',
-      coordinate_b:  merged.coordinate_b || '',
-      waze_distance: merged.waze_distance !== '' && merged.waze_distance != null
-                     ? Number(merged.waze_distance) : null,
+      id: String(row.id).startsWith('new_') ? undefined : row.id,
+      city: dbCity,
+      category: dbCat,
+      bracket: merged.bracket || '',
+      point_a: merged.point_a || '',
+      coordinate_a: merged.coordinate_a || '',
+      point_b: merged.point_b || '',
+      coordinate_b: merged.coordinate_b || '',
+      waze_distance:
+        merged.waze_distance !== '' && merged.waze_distance != null
+          ? Number(merged.waze_distance)
+          : null,
     }
     const ok = await saveRef(payload)
     if (ok) {
-      setEdits(prev => { const n = { ...prev }; delete n[row.id]; return n })
+      setEdits((prev) => {
+        const n = { ...prev }
+        delete n[row.id]
+        return n
+      })
       toast.ok('Ruta guardada.')
     } else {
       toast.err('Error al guardar la ruta.')
@@ -92,13 +102,19 @@ export default function DistanceRefs() {
 
   const handleDelete = async (id) => {
     if (String(id).startsWith('new_')) {
-      setEdits(prev => { const n = { ...prev }; delete n[id]; return n })
+      setEdits((prev) => {
+        const n = { ...prev }
+        delete n[id]
+        return n
+      })
       return
     }
     const ok = await confirm({
       title: 'Eliminar ruta de referencia',
-      message: '¿Eliminar esta ruta? Si está usada en sesiones de CI activas, la sesión perderá esa referencia.',
-      danger: true, confirmText: 'Eliminar',
+      message:
+        '¿Eliminar esta ruta? Si está usada en sesiones de CI activas, la sesión perderá esa referencia.',
+      danger: true,
+      confirmText: 'Eliminar',
     })
     if (!ok) return
     const success = await deleteRef(id)
@@ -112,30 +128,43 @@ export default function DistanceRefs() {
 
   // Guardar todas las filas pendientes de la vista actual
   const handleSaveAll = async () => {
-    const toSave = filteredRefs.filter(r => r._isNew || edits[r.id])
-    if (!toSave.length) { toast.info('No hay cambios pendientes.'); return }
+    const toSave = filteredRefs.filter((r) => r._isNew || edits[r.id])
+    if (!toSave.length) {
+      toast.info('No hay cambios pendientes.')
+      return
+    }
     setBulkSaving(true)
-    let saved = 0, failed = 0
+    let saved = 0,
+      failed = 0
     for (const row of toSave) {
       const merged = { ...row, ...edits[row.id] }
       const payload = {
-        id:            String(row.id).startsWith('new_') ? undefined : row.id,
-        city:          dbCity,
-        category:      dbCat,
-        bracket:       merged.bracket || '',
-        point_a:       merged.point_a || '',
-        coordinate_a:  merged.coordinate_a || '',
-        point_b:       merged.point_b || '',
-        coordinate_b:  merged.coordinate_b || '',
-        waze_distance: merged.waze_distance !== '' && merged.waze_distance != null
-                       ? Number(merged.waze_distance) : null,
+        id: String(row.id).startsWith('new_') ? undefined : row.id,
+        city: dbCity,
+        category: dbCat,
+        bracket: merged.bracket || '',
+        point_a: merged.point_a || '',
+        coordinate_a: merged.coordinate_a || '',
+        point_b: merged.point_b || '',
+        coordinate_b: merged.coordinate_b || '',
+        waze_distance:
+          merged.waze_distance !== '' && merged.waze_distance != null
+            ? Number(merged.waze_distance)
+            : null,
       }
       const ok = await saveRef(payload)
-      if (ok) { saved++; setEdits(prev => { const n = { ...prev }; delete n[row.id]; return n }) }
-      else failed++
+      if (ok) {
+        saved++
+        setEdits((prev) => {
+          const n = { ...prev }
+          delete n[row.id]
+          return n
+        })
+      } else failed++
     }
     setBulkSaving(false)
-    if (failed === 0) toast.ok(`${saved} ruta${saved === 1 ? '' : 's'} guardada${saved === 1 ? '' : 's'}.`)
+    if (failed === 0)
+      toast.ok(`${saved} ruta${saved === 1 ? '' : 's'} guardada${saved === 1 ? '' : 's'}.`)
     else toast.warn(`${saved} guardadas, ${failed} con error. Revisa los campos faltantes.`)
   }
 
@@ -143,14 +172,19 @@ export default function DistanceRefs() {
     <div className="drefs-page">
       <h1>Distancias de Referencia</h1>
       <p className="drefs-page__desc">
-        Base de consulta de rutas usadas para el CI. Al agregar una categoría completa se crean los 6 brackets de una vez.
+        Base de consulta de rutas usadas para el CI. Al agregar una categoría completa se crean los
+        6 brackets de una vez.
       </p>
 
       {/* City selector */}
       <div className="drefs-filters">
         <span className="drefs-filters__label">Ciudad</span>
-        <select value={dbCity} onChange={e => handleCityChange(e.target.value)}>
-          {uiCities.map(c => <option key={c} value={c}>{getCityLabel(c)}</option>)}
+        <select value={dbCity} onChange={(e) => handleCityChange(e.target.value)}>
+          {uiCities.map((c) => (
+            <option key={c} value={c}>
+              {getCityLabel(c)}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -158,7 +192,7 @@ export default function DistanceRefs() {
 
       {/* Category tabs */}
       <div className="drefs-cat-tabs">
-        {categories.map(cat => (
+        {categories.map((cat) => (
           <button
             key={cat}
             className={`drefs-cat-tab${uiCat === cat ? ' active' : ''}`}
@@ -167,7 +201,7 @@ export default function DistanceRefs() {
             {cat}
             {/* badge de cuántas rutas tiene */}
             <span className="drefs-cat-count">
-              {refs.filter(r => r.category === (config.uiToDbCategory?.[cat] || cat)).length}
+              {refs.filter((r) => r.category === (config.uiToDbCategory?.[cat] || cat)).length}
             </span>
           </button>
         ))}
@@ -178,7 +212,9 @@ export default function DistanceRefs() {
           <span className="drefs-section__title">
             {dbCity} — {uiCat} — {filteredRefs.length} rutas
             {pendingCount > 0 && (
-              <span className="drefs-pending-badge">{pendingCount} pendiente{pendingCount > 1 ? 's' : ''}</span>
+              <span className="drefs-pending-badge">
+                {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+              </span>
             )}
           </span>
           <div className="drefs-section__actions">
@@ -200,7 +236,9 @@ export default function DistanceRefs() {
             </button>
             <button
               className="btn-add-row"
-              onClick={() => { addRow() }}
+              onClick={() => {
+                addRow()
+              }}
               disabled={saving}
             >
               + Fila individual
@@ -231,16 +269,21 @@ export default function DistanceRefs() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRefs.map(row => (
-                  <tr key={row.id} className={row._isNew ? 'row-new' : edits[row.id] ? 'row-edited' : ''}>
+                {filteredRefs.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={row._isNew ? 'row-new' : edits[row.id] ? 'row-edited' : ''}
+                  >
                     <td>
                       <select
                         value={getField(row.id, 'bracket', row.bracket)}
-                        onChange={e => setField(row.id, 'bracket', e.target.value)}
+                        onChange={(e) => setField(row.id, 'bracket', e.target.value)}
                       >
                         <option value="">— Elige —</option>
-                        {BRACKETS.map(b => (
-                          <option key={b} value={b}>{BRACKET_LABELS[b]}</option>
+                        {BRACKETS.map((b) => (
+                          <option key={b} value={b}>
+                            {BRACKET_LABELS[b]}
+                          </option>
                         ))}
                       </select>
                     </td>
@@ -249,7 +292,7 @@ export default function DistanceRefs() {
                         className="wide"
                         placeholder="Nombre punto A"
                         value={getField(row.id, 'point_a', row.point_a)}
-                        onChange={e => setField(row.id, 'point_a', e.target.value)}
+                        onChange={(e) => setField(row.id, 'point_a', e.target.value)}
                       />
                     </td>
                     <td>
@@ -257,7 +300,7 @@ export default function DistanceRefs() {
                         className="coord"
                         placeholder="-12.0464, -77.0428"
                         value={getField(row.id, 'coordinate_a', row.coordinate_a)}
-                        onChange={e => setField(row.id, 'coordinate_a', e.target.value)}
+                        onChange={(e) => setField(row.id, 'coordinate_a', e.target.value)}
                       />
                     </td>
                     <td>
@@ -265,7 +308,7 @@ export default function DistanceRefs() {
                         className="wide"
                         placeholder="Nombre punto B"
                         value={getField(row.id, 'point_b', row.point_b)}
-                        onChange={e => setField(row.id, 'point_b', e.target.value)}
+                        onChange={(e) => setField(row.id, 'point_b', e.target.value)}
                       />
                     </td>
                     <td>
@@ -273,7 +316,7 @@ export default function DistanceRefs() {
                         className="coord"
                         placeholder="-12.1050, -77.0365"
                         value={getField(row.id, 'coordinate_b', row.coordinate_b)}
-                        onChange={e => setField(row.id, 'coordinate_b', e.target.value)}
+                        onChange={(e) => setField(row.id, 'coordinate_b', e.target.value)}
                       />
                     </td>
                     <td>
@@ -284,7 +327,7 @@ export default function DistanceRefs() {
                         min="0"
                         placeholder="0.0"
                         value={getField(row.id, 'waze_distance', row.waze_distance)}
-                        onChange={e => setField(row.id, 'waze_distance', e.target.value)}
+                        onChange={(e) => setField(row.id, 'waze_distance', e.target.value)}
                       />
                     </td>
                     <td>

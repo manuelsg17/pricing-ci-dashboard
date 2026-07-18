@@ -49,17 +49,17 @@ export default function AuditLogViewer() {
   const { t, locale } = useI18n()
   const { isAdmin, loading: acLoading } = useAccessControl()
 
-  const [rows,    setRows]    = useState([])
+  const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState(null)
-  const [diff,    setDiff]    = useState(null)
+  const [error, setError] = useState(null)
+  const [diff, setDiff] = useState(null)
 
   // Filtros
-  const [fTable,   setFTable]   = useState('')
-  const [fUser,    setFUser]    = useState('')
+  const [fTable, setFTable] = useState('')
+  const [fUser, setFUser] = useState('')
   const [fCountry, setFCountry] = useState('')
-  const [fAction,  setFAction]  = useState('')
-  const [fSince,   setFSince]   = useState(() => {
+  const [fAction, setFAction] = useState('')
+  const [fSince, setFSince] = useState(() => {
     // Default: hoy - 7 días
     const d = new Date()
     d.setDate(d.getDate() - 7)
@@ -68,28 +68,35 @@ export default function AuditLogViewer() {
 
   const load = useCallback(async () => {
     if (!isAdmin) return
-    setLoading(true); setError(null)
+    setLoading(true)
+    setError(null)
     const sinceTs = fSince ? new Date(fSince + 'T00:00:00').toISOString() : null
     const { data, error } = await sb.rpc('list_audit_log', {
-      p_table:   fTable   || null,
-      p_user:    fUser    || null,
+      p_table: fTable || null,
+      p_user: fUser || null,
       p_country: fCountry || null,
-      p_action:  fAction  || null,
-      p_since:   sinceTs,
-      p_limit:   200,
-      p_offset:  0,
+      p_action: fAction || null,
+      p_since: sinceTs,
+      p_limit: 200,
+      p_offset: 0,
     })
-    if (error) { setError(error.message); setRows([]) }
-    else       { setRows(data || []) }
+    if (error) {
+      setError(error.message)
+      setRows([])
+    } else {
+      setRows(data || [])
+    }
     setLoading(false)
   }, [isAdmin, fTable, fUser, fCountry, fAction, fSince])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   // Live: si llega audit_log nuevo, refrescar (estamos viendo audit log
   // en realtime, irónicamente vía el mismo mecanismo de la mig 62).
   useEffect(() => {
-    function onChange(e) {
+    function onChange() {
       // No queremos refetch en cada cambio (sería ruidoso); solo
       // mostramos un hint y dejamos que el admin apriete refresh.
       // En cambio dejamos que el toast del RealtimeSyncProvider hable.
@@ -98,14 +105,23 @@ export default function AuditLogViewer() {
     return () => window.removeEventListener('config:changed', onChange)
   }, [])
 
-  const fmtTs = useCallback((ts) => {
-    try {
-      return new Date(ts).toLocaleString(locale, {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-      })
-    } catch { return ts }
-  }, [locale])
+  const fmtTs = useCallback(
+    (ts) => {
+      try {
+        return new Date(ts).toLocaleString(locale, {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      } catch {
+        return ts
+      }
+    },
+    [locale]
+  )
 
   if (acLoading) {
     return <div className="state-box">{t('audit.loading')}</div>
@@ -118,21 +134,31 @@ export default function AuditLogViewer() {
     <div className="audit-log-viewer">
       <header style={{ marginBottom: 12 }}>
         <h2 style={{ margin: 0 }}>{t('audit.title')}</h2>
-        <p style={{ marginTop: 4, color: '#64748b', fontSize: 13 }}>
-          {t('audit.desc')}
-        </p>
+        <p style={{ marginTop: 4, color: '#64748b', fontSize: 13 }}>{t('audit.desc')}</p>
       </header>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 8, marginBottom: 12, alignItems: 'end',
-      }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 8,
+          marginBottom: 12,
+          alignItems: 'end',
+        }}
+      >
         <label style={{ fontSize: 12 }}>
           {t('audit.filter_table')}
-          <select value={fTable} onChange={e => setFTable(e.target.value)} className="audit-input">
+          <select
+            value={fTable}
+            onChange={(e) => setFTable(e.target.value)}
+            className="audit-input"
+          >
             <option value="">{t('audit.filter_all')}</option>
-            {AUDITED_TABLES.map(tbl => <option key={tbl} value={tbl}>{tbl}</option>)}
+            {AUDITED_TABLES.map((tbl) => (
+              <option key={tbl} value={tbl}>
+                {tbl}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -140,7 +166,7 @@ export default function AuditLogViewer() {
           {t('audit.filter_user')}
           <input
             value={fUser}
-            onChange={e => setFUser(e.target.value)}
+            onChange={(e) => setFUser(e.target.value)}
             placeholder="user@example.com"
             className="audit-input"
           />
@@ -150,7 +176,7 @@ export default function AuditLogViewer() {
           {t('audit.filter_country')}
           <input
             value={fCountry}
-            onChange={e => setFCountry(e.target.value)}
+            onChange={(e) => setFCountry(e.target.value)}
             placeholder="Peru, Colombia…"
             className="audit-input"
           />
@@ -158,9 +184,17 @@ export default function AuditLogViewer() {
 
         <label style={{ fontSize: 12 }}>
           {t('audit.filter_action')}
-          <select value={fAction} onChange={e => setFAction(e.target.value)} className="audit-input">
+          <select
+            value={fAction}
+            onChange={(e) => setFAction(e.target.value)}
+            className="audit-input"
+          >
             <option value="">{t('audit.filter_all')}</option>
-            {ACTIONS.map(a => <option key={a} value={a}>{t(`audit.action.${a}`)}</option>)}
+            {ACTIONS.map((a) => (
+              <option key={a} value={a}>
+                {t(`audit.action.${a}`)}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -169,21 +203,21 @@ export default function AuditLogViewer() {
           <input
             type="date"
             value={fSince}
-            onChange={e => setFSince(e.target.value)}
+            onChange={(e) => setFSince(e.target.value)}
             className="audit-input"
           />
         </label>
 
-        <button
-          onClick={load}
-          disabled={loading}
-          className="audit-refresh-btn"
-        >
+        <button onClick={load} disabled={loading} className="audit-refresh-btn">
           {t('audit.refresh')}
         </button>
       </div>
 
-      {error && <div className="state-box state-box--error">{t('app.error')}: {error}</div>}
+      {error && (
+        <div className="state-box state-box--error">
+          {t('app.error')}: {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="state-box">{t('audit.loading')}</div>
@@ -205,7 +239,7 @@ export default function AuditLogViewer() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => (
+              {rows.map((r) => (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtTs(r.ts)}</td>
                   <td>{r.user_email || '—'}</td>
@@ -272,8 +306,8 @@ export default function AuditLogViewer() {
 // ── Modal con diff old/new ────────────────────────────────────────────
 
 function DiffModal({ row, onClose, t }) {
-  const oldData = row.old_data || {}
-  const newData = row.new_data || {}
+  const oldData = useMemo(() => row.old_data || {}, [row.old_data])
+  const newData = useMemo(() => row.new_data || {}, [row.new_data])
 
   // Calcular qué campos cambiaron (solo para UPDATE)
   const changedKeys = useMemo(() => {
@@ -289,42 +323,68 @@ function DiffModal({ row, onClose, t }) {
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000,
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9000,
       }}
     >
       <div
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'white', borderRadius: 8, padding: 24,
-          maxWidth: 900, width: '90%', maxHeight: '85vh', overflowY: 'auto',
+          background: 'white',
+          borderRadius: 8,
+          padding: 24,
+          maxWidth: 900,
+          width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>
             {row.action} · {row.table_name} · {row.row_id}
           </h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer' }}>
+          <button
+            onClick={onClose}
+            style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer' }}
+          >
             ×
           </button>
         </div>
 
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
-          fontSize: 12, fontFamily: 'monospace',
-        }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 16,
+            fontSize: 12,
+            fontFamily: 'monospace',
+          }}
+        >
           <div>
             <div style={{ fontWeight: 700, marginBottom: 6, color: '#991b1b' }}>
               {t('audit.diff_old')}
             </div>
-            <pre style={{
-              background: '#fef2f2', padding: 12, borderRadius: 4,
-              maxHeight: 400, overflow: 'auto', margin: 0,
-            }}>
+            <pre
+              style={{
+                background: '#fef2f2',
+                padding: 12,
+                borderRadius: 4,
+                maxHeight: 400,
+                overflow: 'auto',
+                margin: 0,
+              }}
+            >
               {Object.keys(oldData).length === 0
                 ? '∅'
                 : Object.entries(oldData)
-                    .map(([k, v]) => `${changedKeys.has(k) ? '★ ' : '  '}${k}: ${JSON.stringify(v)}`)
+                    .map(
+                      ([k, v]) => `${changedKeys.has(k) ? '★ ' : '  '}${k}: ${JSON.stringify(v)}`
+                    )
                     .join('\n')}
             </pre>
           </div>
@@ -332,14 +392,22 @@ function DiffModal({ row, onClose, t }) {
             <div style={{ fontWeight: 700, marginBottom: 6, color: '#166534' }}>
               {t('audit.diff_new')}
             </div>
-            <pre style={{
-              background: '#f0fdf4', padding: 12, borderRadius: 4,
-              maxHeight: 400, overflow: 'auto', margin: 0,
-            }}>
+            <pre
+              style={{
+                background: '#f0fdf4',
+                padding: 12,
+                borderRadius: 4,
+                maxHeight: 400,
+                overflow: 'auto',
+                margin: 0,
+              }}
+            >
               {Object.keys(newData).length === 0
                 ? '∅'
                 : Object.entries(newData)
-                    .map(([k, v]) => `${changedKeys.has(k) ? '★ ' : '  '}${k}: ${JSON.stringify(v)}`)
+                    .map(
+                      ([k, v]) => `${changedKeys.has(k) ? '★ ' : '  '}${k}: ${JSON.stringify(v)}`
+                    )
                     .join('\n')}
             </pre>
           </div>
@@ -349,8 +417,11 @@ function DiffModal({ row, onClose, t }) {
           <button
             onClick={onClose}
             style={{
-              padding: '8px 16px', border: '1px solid #cbd5e1',
-              borderRadius: 4, background: '#f1f5f9', cursor: 'pointer',
+              padding: '8px 16px',
+              border: '1px solid #cbd5e1',
+              borderRadius: 4,
+              background: '#f1f5f9',
+              cursor: 'pointer',
             }}
           >
             {t('audit.diff_close')}

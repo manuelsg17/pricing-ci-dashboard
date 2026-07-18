@@ -12,10 +12,13 @@ export default function RushHourConfig({ country }) {
   const [windows, setWindows] = useState([])
   const [original, setOriginal] = useState([])
   const [loading, setLoading] = useState(true)
-  const [saving,  setSaving]  = useState(false)
-  const [msg,     setMsg]     = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState(null)
 
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [country])
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country])
 
   // Live-sync: si otra sesión modifica rush_hour_windows, recargamos
   // preservando dirty rows. Mismo patrón que AirportMarkersTable.
@@ -35,9 +38,10 @@ export default function RushHourConfig({ country }) {
       .select('*')
       .eq('country', country)
       .in('city', allCities)
-      .order('city').order('start_time')
+      .order('city')
+      .order('start_time')
     setWindows(data || [])
-    setOriginal((data || []).map(r => ({ ...r })))
+    setOriginal((data || []).map((r) => ({ ...r })))
     setLoading(false)
   }
 
@@ -48,39 +52,48 @@ export default function RushHourConfig({ country }) {
       .select('*')
       .eq('country', country)
       .in('city', allCities)
-      .order('city').order('start_time')
+      .order('city')
+      .order('start_time')
     const fresh = data || []
-    setWindows(prev => {
+    setWindows((prev) => {
       const dirtyRows = prev.filter(isRowDirty)
-      const dirtyIds = new Set(dirtyRows.map(r => r.id))
-      const cleanFromServer = fresh.filter(s => !dirtyIds.has(s.id))
+      const dirtyIds = new Set(dirtyRows.map((r) => r.id))
+      const cleanFromServer = fresh.filter((s) => !dirtyIds.has(s.id))
       return [...cleanFromServer, ...dirtyRows]
     })
-    setOriginal(fresh.map(r => ({ ...r })))
+    setOriginal(fresh.map((r) => ({ ...r })))
   }
 
   function update(id, field, val) {
     setMsg(null)
-    setWindows(prev => prev.map(w => w.id === id ? { ...w, [field]: val } : w))
+    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, [field]: val } : w)))
   }
 
   function addWindow() {
     const tempId = `new_${Date.now()}`
     setMsg(null)
-    setWindows(prev => [...prev, {
-      id: tempId, city: 'all', label: '', start_time: '07:00', end_time: '09:00', _new: true,
-    }])
+    setWindows((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        city: 'all',
+        label: '',
+        start_time: '07:00',
+        end_time: '09:00',
+        _new: true,
+      },
+    ])
   }
 
   const isRowDirty = (w) => {
     if (w._new) return true
-    const orig = original.find(o => o.id === w.id)
+    const orig = original.find((o) => o.id === w.id)
     if (!orig) return true
     return (
-      String(w.city       ?? '') !== String(orig.city       ?? '') ||
-      String(w.label      ?? '') !== String(orig.label      ?? '') ||
+      String(w.city ?? '') !== String(orig.city ?? '') ||
+      String(w.label ?? '') !== String(orig.label ?? '') ||
       String(w.start_time ?? '') !== String(orig.start_time ?? '') ||
-      String(w.end_time   ?? '') !== String(orig.end_time   ?? '')
+      String(w.end_time ?? '') !== String(orig.end_time ?? '')
     )
   }
 
@@ -89,10 +102,10 @@ export default function RushHourConfig({ country }) {
     setMsg(null)
     const payload = {
       country,
-      city:       w.city,
-      label:      w.label || null,
+      city: w.city,
+      label: w.label || null,
       start_time: w.start_time,
-      end_time:   w.end_time,
+      end_time: w.end_time,
     }
     let err
     if (w._new) {
@@ -103,7 +116,10 @@ export default function RushHourConfig({ country }) {
     if (err) {
       setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
     } else {
-      setMsg({ type: 'ok', text: `Franja guardada: ${payload.city === 'all' ? 'Todas las ciudades' : payload.city} ${payload.start_time}–${payload.end_time}` })
+      setMsg({
+        type: 'ok',
+        text: `Franja guardada: ${payload.city === 'all' ? 'Todas las ciudades' : payload.city} ${payload.start_time}–${payload.end_time}`,
+      })
       await load()
     }
     setSaving(false)
@@ -111,10 +127,15 @@ export default function RushHourConfig({ country }) {
 
   async function deleteWindow(id) {
     if (String(id).startsWith('new_')) {
-      setWindows(prev => prev.filter(w => w.id !== id))
+      setWindows((prev) => prev.filter((w) => w.id !== id))
       return
     }
-    const ok = await confirm({ title: 'Eliminar franja', message: '¿Eliminar esta franja rush hour?', danger: true, confirmText: 'Eliminar' })
+    const ok = await confirm({
+      title: 'Eliminar franja',
+      message: '¿Eliminar esta franja rush hour?',
+      danger: true,
+      confirmText: 'Eliminar',
+    })
     if (!ok) return
     const { error } = await sb.from('rush_hour_windows').delete().eq('id', id)
     if (!error) {
@@ -128,20 +149,19 @@ export default function RushHourConfig({ country }) {
   if (loading) return <div className="config-loading">Cargando horarios…</div>
 
   const dirtyCellStyle = {
-    background:  '#fef3c7',
+    background: '#fef3c7',
     borderColor: '#f59e0b',
-    fontWeight:  600,
-    boxShadow:   '0 0 0 2px rgba(245, 158, 11, 0.2)',
+    fontWeight: 600,
+    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
   }
 
   return (
     <div className="config-section">
       <h2>Horarios Rush Hour</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Define las franjas horarias que se consideran "rush hour" al subir data.
-        Usa <strong>all</strong> para aplicar a todas las ciudades, o especifica una ciudad
-        para sobrescribir el horario global en esa ciudad.
-        Formato: <strong>HH:MM</strong> en 24 horas.
+        Define las franjas horarias que se consideran "rush hour" al subir data. Usa{' '}
+        <strong>all</strong> para aplicar a todas las ciudades, o especifica una ciudad para
+        sobrescribir el horario global en esa ciudad. Formato: <strong>HH:MM</strong> en 24 horas.
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -157,24 +177,28 @@ export default function RushHourConfig({ country }) {
           </tr>
         </thead>
         <tbody>
-          {windows.map(w => {
+          {windows.map((w) => {
             const dirty = isRowDirty(w)
             return (
               <tr key={w.id} style={dirty ? { background: '#fffbeb' } : undefined}>
                 <td>
                   <select
                     value={w.city}
-                    onChange={e => update(w.id, 'city', e.target.value)}
+                    onChange={(e) => update(w.id, 'city', e.target.value)}
                     style={dirty ? dirtyCellStyle : undefined}
                   >
-                    {allCities.map(c => <option key={c} value={c}>{c === 'all' ? 'Todas las ciudades' : c}</option>)}
+                    {allCities.map((c) => (
+                      <option key={c} value={c}>
+                        {c === 'all' ? 'Todas las ciudades' : c}
+                      </option>
+                    ))}
                   </select>
                 </td>
                 <td>
                   <input
                     type="text"
                     value={w.label || ''}
-                    onChange={e => update(w.id, 'label', e.target.value)}
+                    onChange={(e) => update(w.id, 'label', e.target.value)}
                     placeholder="Ej: Mañana"
                     style={{ width: 90, ...(dirty ? dirtyCellStyle : {}) }}
                   />
@@ -183,7 +207,7 @@ export default function RushHourConfig({ country }) {
                   <input
                     type="time"
                     value={w.start_time?.slice(0, 5) || ''}
-                    onChange={e => update(w.id, 'start_time', e.target.value)}
+                    onChange={(e) => update(w.id, 'start_time', e.target.value)}
                     style={{ width: 90, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
@@ -191,7 +215,7 @@ export default function RushHourConfig({ country }) {
                   <input
                     type="time"
                     value={w.end_time?.slice(0, 5) || ''}
-                    onChange={e => update(w.id, 'end_time', e.target.value)}
+                    onChange={(e) => update(w.id, 'end_time', e.target.value)}
                     style={{ width: 90, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
@@ -204,7 +228,13 @@ export default function RushHourConfig({ country }) {
                   >
                     {w._new ? 'Crear' : 'Guardar'}
                   </button>
-                  <button className="btn-delete-sm" aria-label="Eliminar" onClick={() => deleteWindow(w.id)}>✕</button>
+                  <button
+                    className="btn-delete-sm"
+                    aria-label="Eliminar"
+                    onClick={() => deleteWindow(w.id)}
+                  >
+                    ✕
+                  </button>
                 </td>
               </tr>
             )

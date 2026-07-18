@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { sb }      from '../lib/supabase'
+import { useState, useEffect, useCallback } from 'react'
+import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { getCountryConfig } from '../lib/constants'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
@@ -9,18 +8,18 @@ import { SkeletonTable } from '../components/ui/Skeleton'
 import '../styles/market-events.css'
 
 const EVENT_TYPES = [
-  { value: 'huelga',            label: 'Huelga' },
-  { value: 'lluvia',            label: 'Lluvia' },
-  { value: 'feriado',           label: 'Feriado' },
-  { value: 'promo_competidor',  label: 'Promo competidor' },
-  { value: 'regulacion',        label: 'Regulación' },
-  { value: 'otro',              label: 'Otro' },
+  { value: 'huelga', label: 'Huelga' },
+  { value: 'lluvia', label: 'Lluvia' },
+  { value: 'feriado', label: 'Feriado' },
+  { value: 'promo_competidor', label: 'Promo competidor' },
+  { value: 'regulacion', label: 'Regulación' },
+  { value: 'otro', label: 'Otro' },
 ]
 
 const IMPACT_OPTIONS = [
-  { value: 'alto',  label: 'Alto' },
+  { value: 'alto', label: 'Alto' },
   { value: 'medio', label: 'Medio' },
-  { value: 'bajo',  label: 'Bajo' },
+  { value: 'bajo', label: 'Bajo' },
 ]
 
 function todayStr() {
@@ -37,20 +36,20 @@ import { useCountry } from '../context/CountryContext'
 
 export default function MarketEvents() {
   const { session } = useAuth()
-  const userEmail   = session?.user?.email || ''
+  const userEmail = session?.user?.email || ''
   const { country, countryConfig } = useCountry()
-  const uiCities      = countryConfig.cities
-  const dbCities      = countryConfig.dbCities
-  const toast   = useToast()
+  const uiCities = countryConfig.cities
+  const dbCities = countryConfig.dbCities
+  const toast = useToast()
   const confirm = useConfirm()
 
-  const [filterCity,  setFilterCity]  = useState('Todas')
-  const [filterFrom,  setFilterFrom]  = useState(thirtyDaysAgo())
-  const [filterTo,    setFilterTo]    = useState(todayStr())
+  const [filterCity, setFilterCity] = useState('Todas')
+  const [filterFrom, setFilterFrom] = useState(thirtyDaysAgo())
+  const [filterTo, setFilterTo] = useState(todayStr())
 
-  const [events,  setEvents]  = useState([])
+  const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
-  const [saving,  setSaving]  = useState(false)
+  const [saving, setSaving] = useState(false)
 
   // Local edits (for both existing and new rows)
   const [edits, setEdits] = useState({})
@@ -75,23 +74,33 @@ export default function MarketEvents() {
     setLoading(false)
   }, [country, filterCity, filterFrom, filterTo])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   function getField(row, field, defaultVal = '') {
     return edits[row.id]?.[field] ?? row[field] ?? defaultVal
   }
 
   function setField(id, field, val) {
-    setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }))
+    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: val } }))
   }
 
   function addRow() {
     const tempId = `new_${Date.now()}`
-    setEvents(prev => [{
-      id: tempId, city: filterCity !== 'Todas' ? filterCity : (dbCities[0] || 'Lima'),
-      event_date: todayStr(), event_type: 'otro', description: '',
-      impact: 'medio', user_email: userEmail, _isNew: true,
-    }, ...prev])
+    setEvents((prev) => [
+      {
+        id: tempId,
+        city: filterCity !== 'Todas' ? filterCity : dbCities[0] || 'Lima',
+        event_date: todayStr(),
+        event_type: 'otro',
+        description: '',
+        impact: 'medio',
+        user_email: userEmail,
+        _isNew: true,
+      },
+      ...prev,
+    ])
   }
 
   async function handleSave(row) {
@@ -103,13 +112,13 @@ export default function MarketEvents() {
       return
     }
     const payload = {
-      city:        merged.city,
+      city: merged.city,
       country,
-      event_date:  merged.event_date,
-      event_type:  merged.event_type,
+      event_date: merged.event_date,
+      event_type: merged.event_type,
       description: merged.description,
-      impact:      merged.impact,
-      user_email:  userEmail,
+      impact: merged.impact,
+      user_email: userEmail,
     }
     let err
     if (String(row.id).startsWith('new_')) {
@@ -128,47 +137,53 @@ export default function MarketEvents() {
 
   async function handleDelete(id) {
     if (String(id).startsWith('new_')) {
-      setEvents(prev => prev.filter(e => e.id !== id))
+      setEvents((prev) => prev.filter((e) => e.id !== id))
       return
     }
     const ok = await confirm({
-      title:   'Eliminar evento',
+      title: 'Eliminar evento',
       message: '¿Eliminar este evento de mercado? Esta acción no se puede deshacer.',
-      danger:  true,
+      danger: true,
       confirmText: 'Eliminar',
     })
     if (!ok) return
     const { error } = await sb.from('market_events').delete().eq('id', id)
     if (error) toast.err(`Error al eliminar: ${error.message}`)
-    else { toast.ok('Evento eliminado.'); await load() }
+    else {
+      toast.ok('Evento eliminado.')
+      await load()
+    }
   }
 
   return (
     <div className="mevt-page">
       <h1>Anotaciones de Mercado</h1>
       <p className="mevt-page__desc">
-        Registra eventos externos (huelgas, lluvia, feriados, promos) que puedan explicar variaciones en los precios.
-        Los eventos aparecen en los gráficos del Dashboard en vista diaria.
+        Registra eventos externos (huelgas, lluvia, feriados, promos) que puedan explicar
+        variaciones en los precios. Los eventos aparecen en los gráficos del Dashboard en vista
+        diaria.
       </p>
 
       {/* ── Filters ── */}
       <div className="mevt-filters">
         <label className="mevt-ctrl">
           <span className="mevt-ctrl__label">Ciudad</span>
-          <select value={filterCity} onChange={e => setFilterCity(e.target.value)}>
+          <select value={filterCity} onChange={(e) => setFilterCity(e.target.value)}>
             <option value="Todas">Todas</option>
-            {uiCities.map(c => <option key={c}>{c}</option>)}
+            {uiCities.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
           </select>
         </label>
 
         <label className="mevt-ctrl">
           <span className="mevt-ctrl__label">Desde</span>
-          <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+          <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} />
         </label>
 
         <label className="mevt-ctrl">
           <span className="mevt-ctrl__label">Hasta</span>
-          <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+          <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} />
         </label>
 
         <button className="mevt-btn-add" onClick={addRow}>
@@ -180,7 +195,8 @@ export default function MarketEvents() {
       <div className="mevt-section">
         <div className="mevt-section__header">
           <span className="mevt-section__title">
-            {events.filter(e => !e._isNew).length} evento{events.filter(e => !e._isNew).length !== 1 ? 's' : ''}
+            {events.filter((e) => !e._isNew).length} evento
+            {events.filter((e) => !e._isNew).length !== 1 ? 's' : ''}
           </span>
         </div>
 
@@ -207,16 +223,20 @@ export default function MarketEvents() {
                 </tr>
               </thead>
               <tbody>
-                {events.map(row => (
+                {events.map((row) => (
                   <tr key={row.id} className={row._isNew ? 'mevt-row-new' : ''}>
                     <td>
                       <select
                         className="mevt-input"
                         value={getField(row, 'city', 'Lima')}
-                        onChange={e => setField(row.id, 'city', e.target.value)}
+                        onChange={(e) => setField(row.id, 'city', e.target.value)}
                         style={{ width: 100 }}
                       >
-                        {dbCities.map(c => <option key={c} value={c}>{c}</option>)}
+                        {dbCities.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
                       </select>
                     </td>
                     <td>
@@ -224,17 +244,19 @@ export default function MarketEvents() {
                         type="date"
                         className="mevt-input"
                         value={getField(row, 'event_date', todayStr())}
-                        onChange={e => setField(row.id, 'event_date', e.target.value)}
+                        onChange={(e) => setField(row.id, 'event_date', e.target.value)}
                       />
                     </td>
                     <td>
                       <select
                         className="mevt-input"
                         value={getField(row, 'event_type', 'otro')}
-                        onChange={e => setField(row.id, 'event_type', e.target.value)}
+                        onChange={(e) => setField(row.id, 'event_type', e.target.value)}
                       >
-                        {EVENT_TYPES.map(t => (
-                          <option key={t.value} value={t.value}>{t.label}</option>
+                        {EVENT_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
                         ))}
                       </select>
                     </td>
@@ -243,7 +265,7 @@ export default function MarketEvents() {
                         type="text"
                         className="mevt-input"
                         value={getField(row, 'description', '')}
-                        onChange={e => setField(row.id, 'description', e.target.value)}
+                        onChange={(e) => setField(row.id, 'description', e.target.value)}
                         placeholder="Describe el evento…"
                         style={{ width: '100%', minWidth: 200 }}
                       />
@@ -252,11 +274,13 @@ export default function MarketEvents() {
                       <select
                         className="mevt-input"
                         value={getField(row, 'impact', 'medio')}
-                        onChange={e => setField(row.id, 'impact', e.target.value)}
+                        onChange={(e) => setField(row.id, 'impact', e.target.value)}
                         style={{ width: 80 }}
                       >
-                        {IMPACT_OPTIONS.map(o => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
+                        {IMPACT_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
                         ))}
                       </select>
                     </td>
@@ -272,10 +296,7 @@ export default function MarketEvents() {
                         >
                           Guardar
                         </button>
-                        <button
-                          className="mevt-btn-del"
-                          onClick={() => handleDelete(row.id)}
-                        >
+                        <button className="mevt-btn-del" onClick={() => handleDelete(row.id)}>
                           ✕
                         </button>
                       </div>

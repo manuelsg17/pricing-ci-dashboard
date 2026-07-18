@@ -1,3 +1,6 @@
+/* eslint-disable react-refresh/only-export-components -- contexto + hook en el
+   mismo archivo es el patrón establecido de este proyecto; separar solo por
+   Fast Refresh no vale la fragmentación. */
 import { createContext, useContext, useMemo } from 'react'
 import { useCountry } from './CountryContext'
 import { useFilters } from '../hooks/useFilters'
@@ -17,11 +20,7 @@ export function FilterProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filterState.filters, filterState.zones, filterState.timeOfDay, country]
   )
-  return (
-    <FilterContext.Provider value={value}>
-      {children}
-    </FilterContext.Provider>
-  )
+  return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>
 }
 
 export function useFilterContext() {

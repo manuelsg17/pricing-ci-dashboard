@@ -11,60 +11,66 @@ const BATCH_SIZE = 500
 export default function BotUpload() {
   const { country, dbConfigs } = useCountry()
   const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
-  const [rows,      setRows]      = useState([])  // mapped rows OK
-  const [skipped,   setSkipped]   = useState([])  // skipped rows with reason
-  const [fileName,  setFileName]  = useState('')
-  const [loading,   setLoading]   = useState(false)
-  const [progress,  setProgress]  = useState(null) // { done, total }
-  const [message,   setMessage]   = useState(null) // { type: 'ok'|'err', text }
-  const [dragOver,  setDragOver]  = useState(false)
-  const [suspects,  setSuspects]  = useState(null) // null | array de filas sospechosas
+  const [rows, setRows] = useState([]) // mapped rows OK
+  const [skipped, setSkipped] = useState([]) // skipped rows with reason
+  const [fileName, setFileName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState(null) // { done, total }
+  const [message, setMessage] = useState(null) // { type: 'ok'|'err', text }
+  const [dragOver, setDragOver] = useState(false)
+  const [suspects, setSuspects] = useState(null) // null | array de filas sospechosas
 
-  const parseFile = useCallback(async (file) => {
-    setLoading(true)
-    setMessage(null)
-    setRows([])
-    setSkipped([])
-    setFileName(file.name)
+  const parseFile = useCallback(
+    async (file) => {
+      setLoading(true)
+      setMessage(null)
+      setRows([])
+      setSkipped([])
+      setFileName(file.name)
 
-    try {
-      const buffer = await file.arrayBuffer()
-      const wb     = XLSX.read(buffer, { type: 'array' })
-      const ws     = wb.Sheets[wb.SheetNames[0]]
-      const raw    = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      try {
+        const buffer = await file.arrayBuffer()
+        const wb = XLSX.read(buffer, { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const raw = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
-      const { ok, skipped: skip } = mapBotRows(raw, country, dbConfigs)
+        const { ok, skipped: skip } = mapBotRows(raw, country, dbConfigs)
 
-      // Filtrar filas sin precio en columna de salida:
-      // · No-InDrive: necesita price_without_discount
-      // · InDrive:    necesita recommended_price (bids son opcionales)
-      const validRows   = ok.filter(r =>
-        r.competition_name === 'InDrive'
-          ? r.recommended_price != null
-          : r.price_without_discount != null,
-      )
-      const noPriceRows = ok
-        .filter(r =>
+        // Filtrar filas sin precio en columna de salida:
+        // · No-InDrive: necesita price_without_discount
+        // · InDrive:    necesita recommended_price (bids son opcionales)
+        const validRows = ok.filter((r) =>
           r.competition_name === 'InDrive'
-            ? r.recommended_price == null
-            : r.price_without_discount == null,
+            ? r.recommended_price != null
+            : r.price_without_discount != null
         )
-        .map(r => ({ row: r, reason: 'Sin precio en columna de salida' }))
+        const noPriceRows = ok
+          .filter((r) =>
+            r.competition_name === 'InDrive'
+              ? r.recommended_price == null
+              : r.price_without_discount == null
+          )
+          .map((r) => ({ row: r, reason: 'Sin precio en columna de salida' }))
 
-      setRows(validRows)
-      setSkipped([...skip, ...noPriceRows])
-    } catch (e) {
-      setMessage({ type: 'err', text: 'Error al parsear el archivo: ' + e.message })
-    }
-    setLoading(false)
-  }, [])
+        setRows(validRows)
+        setSkipped([...skip, ...noPriceRows])
+      } catch (e) {
+        setMessage({ type: 'err', text: 'Error al parsear el archivo: ' + e.message })
+      }
+      setLoading(false)
+    },
+    [country, dbConfigs]
+  )
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault()
-    setDragOver(false)
-    const file = e.dataTransfer.files[0]
-    if (file) parseFile(file)
-  }, [parseFile])
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault()
+      setDragOver(false)
+      const file = e.dataTransfer.files[0]
+      if (file) parseFile(file)
+    },
+    [parseFile]
+  )
 
   const handleInput = (e) => {
     const file = e.target.files[0]
@@ -82,18 +88,20 @@ export default function BotUpload() {
 
   const handleOutlierConfirm = (corrections) => {
     const currentSuspects = suspects
-    const finalRows = rows.map((row, idx) => {
-      const corr = corrections[idx]
-      if (!corr) return row
-      if (corr.exclude) return null
-      const newPrice = parseFloat(corr.price)
-      if (!isNaN(newPrice)) {
-        const suspect = currentSuspects?.find(s => s.idx === idx)
-        const field = suspect?.field ?? 'price_without_discount'
-        if (newPrice !== row[field]) return { ...row, [field]: newPrice }
-      }
-      return row
-    }).filter(Boolean)
+    const finalRows = rows
+      .map((row, idx) => {
+        const corr = corrections[idx]
+        if (!corr) return row
+        if (corr.exclude) return null
+        const newPrice = parseFloat(corr.price)
+        if (!isNaN(newPrice)) {
+          const suspect = currentSuspects?.find((s) => s.idx === idx)
+          const field = suspect?.field ?? 'price_without_discount'
+          if (newPrice !== row[field]) return { ...row, [field]: newPrice }
+        }
+        return row
+      })
+      .filter(Boolean)
     setSuspects(null)
     handleIngest(finalRows)
   }
@@ -112,9 +120,12 @@ export default function BotUpload() {
       const cityDateRanges = {}
       for (const r of rowsToInsert) {
         if (!r.city || !r.observed_date) continue
-        if (!cityDateRanges[r.city]) cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
-        if (r.observed_date < cityDateRanges[r.city].min) cityDateRanges[r.city].min = r.observed_date
-        if (r.observed_date > cityDateRanges[r.city].max) cityDateRanges[r.city].max = r.observed_date
+        if (!cityDateRanges[r.city])
+          cityDateRanges[r.city] = { min: r.observed_date, max: r.observed_date }
+        if (r.observed_date < cityDateRanges[r.city].min)
+          cityDateRanges[r.city].min = r.observed_date
+        if (r.observed_date > cityDateRanges[r.city].max)
+          cityDateRanges[r.city].max = r.observed_date
       }
       for (const [city, { min, max }] of Object.entries(cityDateRanges)) {
         const { error: delErr } = await sb
@@ -129,7 +140,7 @@ export default function BotUpload() {
       }
 
       for (let i = 0; i < rowsToInsert.length; i += BATCH_SIZE) {
-        const chunk = rowsToInsert.slice(i, i + BATCH_SIZE).map(r => ({
+        const chunk = rowsToInsert.slice(i, i + BATCH_SIZE).map((r) => ({
           ...r,
           country,
           data_source: 'bot',
@@ -141,7 +152,10 @@ export default function BotUpload() {
         inserted += chunk.length
         setProgress({ done: inserted, total: rows.length })
       }
-      setMessage({ type: 'ok', text: `✓ ${inserted} filas del bot insertadas. Los datos de los hubs no fueron afectados.` })
+      setMessage({
+        type: 'ok',
+        text: `✓ ${inserted} filas del bot insertadas. Los datos de los hubs no fueron afectados.`,
+      })
       setRows([])
       setSkipped([])
       setFileName('')
@@ -159,13 +173,18 @@ export default function BotUpload() {
       <div
         className={`dropzone${dragOver ? ' drag-over' : ''}`}
         onClick={() => document.getElementById('bot-file-input').click()}
-        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
       >
         <div className="dropzone__icon">🤖</div>
         <div className="dropzone__text">
-          {fileName ? `Archivo: ${fileName}` : 'Arrastra el CSV del bot aquí o haz clic para seleccionar'}
+          {fileName
+            ? `Archivo: ${fileName}`
+            : 'Arrastra el CSV del bot aquí o haz clic para seleccionar'}
         </div>
         <div className="dropzone__hint">Formato: LATAM CI - Peru.csv (output del bot)</div>
         <input
@@ -220,9 +239,9 @@ export default function BotUpload() {
                     <td>{r.observed_time}</td>
                     <td>{r.distance_bracket || '—'}</td>
                     <td>{r.price_without_discount ?? '—'}</td>
-                    <td>{r.price_with_discount   ?? '—'}</td>
-                    <td>{r.recommended_price      ?? '—'}</td>
-                    <td>{r.minimal_bid            ?? '—'}</td>
+                    <td>{r.price_with_discount ?? '—'}</td>
+                    <td>{r.recommended_price ?? '—'}</td>
+                    <td>{r.minimal_bid ?? '—'}</td>
                     <td>{r.surge === true ? '✓' : r.surge === false ? '✗' : '—'}</td>
                   </tr>
                 ))}
@@ -240,7 +259,12 @@ export default function BotUpload() {
             <table className="preview-table">
               <thead>
                 <tr>
-                  <th>App</th><th>País</th><th>Ciudad</th><th>Categoría</th><th>Status</th><th>Razón de omisión</th>
+                  <th>App</th>
+                  <th>País</th>
+                  <th>Ciudad</th>
+                  <th>Categoría</th>
+                  <th>Status</th>
+                  <th>Razón de omisión</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,13 +290,18 @@ export default function BotUpload() {
           <div className="ingest-bar">
             <div className="ingest-bar__fill" style={{ width: `${pct}%` }} />
           </div>
-          <div className="ingest-status">Insertando… {progress.done} / {progress.total} ({pct}%)</div>
+          <div className="ingest-status">
+            Insertando… {progress.done} / {progress.total} ({pct}%)
+          </div>
         </div>
       )}
 
       {/* Message */}
       {message && (
-        <div className={message.type === 'ok' ? 'upload-ok' : 'upload-error'} style={{ marginBottom: 14 }}>
+        <div
+          className={message.type === 'ok' ? 'upload-ok' : 'upload-error'}
+          style={{ marginBottom: 14 }}
+        >
           {message.text}
         </div>
       )}
@@ -289,8 +318,8 @@ export default function BotUpload() {
       {/* Warning: sin reglas de precio cargadas */}
       {rulesLoaded && rules.length === 0 && rows.length > 0 && !loading && (
         <div className="upload-error" style={{ marginBottom: 10 }}>
-          ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se aplicará.
-          Ve a Config → Límites Precio para agregar reglas.
+          ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se
+          aplicará. Ve a Config → Límites Precio para agregar reglas.
         </div>
       )}
 
@@ -300,7 +329,14 @@ export default function BotUpload() {
           <button className="btn-ingest" onClick={handleIngestClick}>
             Insertar {rows.length} filas en la BD
           </button>
-          <button className="btn-clear" onClick={() => { setRows([]); setSkipped([]); setFileName('') }}>
+          <button
+            className="btn-clear"
+            onClick={() => {
+              setRows([])
+              setSkipped([])
+              setFileName('')
+            }}
+          >
             Limpiar
           </button>
         </div>

@@ -9,29 +9,29 @@ const rowsEqual = (a, b) => {
   for (let i = 0; i < a.length; i++) {
     if (String(a[i].min_pct ?? '') !== String(b[i].min_pct ?? '')) return false
     if (String(a[i].max_pct ?? '') !== String(b[i].max_pct ?? '')) return false
-    if (String(a[i].note    ?? '') !== String(b[i].note    ?? '')) return false
+    if (String(a[i].note ?? '') !== String(b[i].note ?? '')) return false
   }
   return true
 }
 
 export default function SemaforoEditor({ semaforo, onSave, saving }) {
-  const [rows,    setRows]    = useState([])
+  const [rows, setRows] = useState([])
   const [saveMsg, setSaveMsg] = useState(null)
 
   useEffect(() => {
-    if (semaforo.length) setRows(semaforo.map(r => ({ ...r })))
+    if (semaforo.length) setRows(semaforo.map((r) => ({ ...r })))
   }, [semaforo])
 
   const hasUnsavedChanges = rows.length > 0 && semaforo.length > 0 && !rowsEqual(rows, semaforo)
 
   const handleChange = (idx, field, val) => {
     setSaveMsg(null)
-    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r))
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: val } : r)))
   }
 
   const handleDiscard = () => {
     setSaveMsg(null)
-    setRows(semaforo.map(r => ({ ...r })))
+    setRows(semaforo.map((r) => ({ ...r })))
   }
 
   const isDirty = (idx, field) => {
@@ -42,25 +42,28 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
 
   const handleSave = async () => {
     setSaveMsg(null)
-    const clean = rows.map(({ id, ...r }) => ({
-      band:    r.band,
+    const clean = rows.map(({ id: _id, ...r }) => ({
+      band: r.band,
       min_pct: r.min_pct === '' || r.min_pct === null ? null : Number(r.min_pct),
       max_pct: r.max_pct === '' || r.max_pct === null ? null : Number(r.max_pct),
-      note:    r.note || null,
+      note: r.note || null,
     }))
     try {
       await onSave(clean)
-      setSaveMsg({ type: 'ok', text: 'Semáforo guardado. Los colores del dashboard reflejarán estas bandas.' })
+      setSaveMsg({
+        type: 'ok',
+        text: 'Semáforo guardado. Los colores del dashboard reflejarán estas bandas.',
+      })
     } catch (e) {
       setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
     }
   }
 
   const dirtyInputStyle = {
-    background:  '#fef3c7',
+    background: '#fef3c7',
     borderColor: '#f59e0b',
-    fontWeight:  600,
-    boxShadow:   '0 0 0 2px rgba(245, 158, 11, 0.2)',
+    fontWeight: 600,
+    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
   }
 
   return (
@@ -71,18 +74,37 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
       </p>
 
       {hasUnsavedChanges && (
-        <div style={{
-          marginTop: 8, marginBottom: 12,
-          padding: '10px 14px', borderRadius: 6,
-          background: '#fef3c7', border: '1px solid #f59e0b',
-          color: '#78350f', fontSize: 13, fontWeight: 500,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-        }}>
+        <div
+          style={{
+            marginTop: 8,
+            marginBottom: 12,
+            padding: '10px 14px',
+            borderRadius: 6,
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            color: '#78350f',
+            fontSize: 13,
+            fontWeight: 500,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
           <span>⚠ Hay cambios sin guardar</span>
-          <button type="button" onClick={handleDiscard} style={{
-            background: 'transparent', border: '1px solid #b45309', color: '#78350f',
-            padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer',
-          }}>
+          <button
+            type="button"
+            onClick={handleDiscard}
+            style={{
+              background: 'transparent',
+              border: '1px solid #b45309',
+              color: '#78350f',
+              padding: '4px 10px',
+              borderRadius: 4,
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
             Descartar
           </button>
         </div>
@@ -107,7 +129,7 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
                   step="0.01"
                   placeholder="∞"
                   value={row.min_pct ?? ''}
-                  onChange={e => handleChange(idx, 'min_pct', e.target.value)}
+                  onChange={(e) => handleChange(idx, 'min_pct', e.target.value)}
                   style={isDirty(idx, 'min_pct') ? dirtyInputStyle : undefined}
                 />
               </td>
@@ -117,7 +139,7 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
                   step="0.01"
                   placeholder="∞"
                   value={row.max_pct ?? ''}
-                  onChange={e => handleChange(idx, 'max_pct', e.target.value)}
+                  onChange={(e) => handleChange(idx, 'max_pct', e.target.value)}
                   style={isDirty(idx, 'max_pct') ? dirtyInputStyle : undefined}
                 />
               </td>
@@ -126,7 +148,7 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
                   type="text"
                   style={{ width: 200, ...(isDirty(idx, 'note') ? dirtyInputStyle : {}) }}
                   value={row.note || ''}
-                  onChange={e => handleChange(idx, 'note', e.target.value)}
+                  onChange={(e) => handleChange(idx, 'note', e.target.value)}
                 />
               </td>
             </tr>
