@@ -22,6 +22,7 @@ import { useEarningsScenarios } from '../hooks/useEarningsScenarios'
 import CommissionsConfig from '../components/config/CommissionsConfig'
 import BonusesConfig from '../components/config/BonusesConfig'
 import { useI18n } from '../context/LanguageContext'
+import { Button } from '../components/ui/shadcn/button'
 import '../styles/driver-earnings.css'
 
 // (city/category constants are derived dynamically from COUNTRY_CONFIG via props)
@@ -505,19 +506,25 @@ export default function DriverEarnings() {
                     onChange={(e) => updateScale(i, e.target.value)}
                   />
                   {tripScale.length > 1 && (
-                    <button className="earn-chip__remove" onClick={() => removeScalePoint(i)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-[18px] w-[18px] rounded-full p-0 text-[10px] text-muted hover:bg-red-100 hover:text-red-600"
+                      onClick={() => removeScalePoint(i)}
+                    >
                       ✕
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
-              <button
-                className="earn-chip__add"
+              <Button
+                variant="outline"
+                className="h-auto rounded-full border-dashed border-yango bg-transparent px-3 py-1 text-xs font-bold text-yango hover:bg-yango/10"
                 onClick={addScalePoint}
                 disabled={tripScale.length >= 8}
               >
                 {t('earnings.add')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -767,12 +774,20 @@ export default function DriverEarnings() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
-              <button className="earn-btn-pdf" onClick={generateEarningsPDF}>
+              <Button
+                variant="outline"
+                className="hover:border-blue-500 hover:bg-blue-50 hover:text-blue-500"
+                onClick={generateEarningsPDF}
+              >
                 {t('earnings.download_pdf')}
-              </button>
-              <button className="earn-btn-save" onClick={handleSave} disabled={saving}>
+              </Button>
+              <Button
+                className="bg-green-800 hover:bg-green-900"
+                onClick={handleSave}
+                disabled={saving}
+              >
                 {saving ? t('app.loading') : t('earnings.save_scenario')}
-              </button>
+              </Button>
               {saveMsg && (
                 <span className={saveMsg.type === 'ok' ? 'earn-msg--ok' : 'earn-msg--err'}>
                   {saveMsg.text}
@@ -847,9 +862,14 @@ export default function DriverEarnings() {
                       <td>{s.notes || '—'}</td>
                       <td style={{ color: 'var(--color-muted)' }}>{s.user_email || '—'}</td>
                       <td style={{ display: 'flex', gap: 4 }}>
-                        <button className="earn-btn-del" onClick={() => deleteScenario(s.id)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-auto rounded-sm border-[#f5c6c6] bg-transparent px-2 py-0.5 text-[11px] text-[#dc3545] hover:border-[#dc3545] hover:bg-[var(--sem-red-bg)]"
+                          onClick={() => deleteScenario(s.id)}
+                        >
                           ✕
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}

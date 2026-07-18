@@ -32,6 +32,7 @@ import { yangoGmvDetail, hasYangoGmvTable } from '../lib/yangoGmvBonus'
 import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 import CollapsibleSection from '../components/market/CollapsibleSection'
 import BonusSummaryByCity from '../components/dashboard/BonusSummaryByCity'
+import { Button } from '../components/ui/shadcn/button'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
@@ -404,15 +405,26 @@ export default function Rentabilidad() {
                       onChange={(e) => updateSegment(i, e.target.value)}
                     />
                     {segments.length > 1 && (
-                      <button onClick={() => removeSegment(i)} style={chipRemoveStyle}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 rounded-full p-0 text-[11px] text-slate-400 hover:bg-red-100 hover:text-red-600"
+                        onClick={() => removeSegment(i)}
+                      >
                         ✕
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ))}
-                <button onClick={addSegment} disabled={segments.length >= 5} style={chipAddStyle}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-auto rounded-md border-dashed border-border bg-transparent px-2 py-1 text-xs font-normal text-muted hover:bg-accent"
+                  onClick={addSegment}
+                  disabled={segments.length >= 5}
+                >
                   + {t('rentabilidad.add_segment')}
-                </button>
+                </Button>
               </div>
             </Field>
           </div>
@@ -612,12 +624,15 @@ export default function Rentabilidad() {
                 </div>
               )}
               {tools.mi_zona.zones.length > 0 && (
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-auto rounded-md border-dashed border-border bg-transparent px-2 py-1 text-xs font-normal text-muted hover:bg-accent"
+                  style={{ marginTop: 10 }}
                   onClick={() => setTools((s) => ({ ...s, mi_zona: { ...s.mi_zona, zones: [] } }))}
-                  style={{ ...chipAddStyle, marginTop: 10 }}
                 >
                   {t('rentabilidad.clear')}
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -1424,22 +1439,6 @@ const chipStyle = {
   border: '1px solid var(--color-border, #e2e8f0)',
   borderRadius: 6,
   padding: '2px 4px',
-}
-const chipRemoveStyle = {
-  border: 'none',
-  background: 'transparent',
-  cursor: 'pointer',
-  color: '#94a3b8',
-  fontSize: 11,
-}
-const chipAddStyle = {
-  border: '1px dashed var(--color-border, #cbd5e1)',
-  borderRadius: 6,
-  padding: '4px 8px',
-  background: 'transparent',
-  cursor: 'pointer',
-  fontSize: 12,
-  color: 'var(--color-muted)',
 }
 const selectStyle = {
   padding: '6px 10px',
