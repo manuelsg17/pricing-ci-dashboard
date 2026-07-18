@@ -31,6 +31,7 @@ import {
 } from '../components/ui/shadcn/sheet'
 import { BRACKETS } from '../lib/constants'
 import { SIMPLE_AVG_SINCE } from '../algorithms/weightedAverage'
+import { Button } from '../components/ui/shadcn/button'
 import { isoWeekMonday } from '../lib/dateUtils'
 import { useCountry } from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
@@ -526,22 +527,24 @@ function DashboardContent() {
       {!loading && kpis && (
         <>
           <div className="dash-toolbar">
-            <button
-              className="toolbar-btn"
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-sky-200 text-sky-800 hover:bg-sky-50"
               onClick={() => setH2hOpen(true)}
               title="Comparar Yango vs un competidor específico, bracket por bracket"
-              style={{ color: '#075985', borderColor: '#bae6fd' }}
             >
               <Swords size={14} style={{ color: '#0284c7' }} /> Head-to-Head
-            </button>
-            <button
-              className="toolbar-btn"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-green-200 text-green-700 hover:bg-green-50"
               onClick={() => setAnalyticsOpen(true)}
               title="Ver análisis avanzados: % liderazgo por bracket, timeline de posición"
-              style={{ color: '#15803d', borderColor: '#bbf7d0' }}
             >
               <LineChartIcon size={14} style={{ color: '#16a34a' }} /> Analytics
-            </button>
+            </Button>
             <button
               className={`toolbar-btn${simEnabled ? ' toolbar-btn--active' : ''}`}
               onClick={() => setSimEnabled((s) => !s)}
@@ -753,14 +756,14 @@ function DashboardContent() {
       <div className="filter-bar-wrapper">
         <div className="filter-bar-toggle">
           {sectionOrder && (
-            <button
-              className="filter-bar-toggle__btn"
-              style={{ marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            <Button
+              variant="outline"
+              className="mr-auto h-auto rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
               onClick={() => setSectionOrder(null)}
               title={t('dashboard.reset_order')}
             >
               <RotateCcw size={12} /> {t('dashboard.reset_order')}
-            </button>
+            </Button>
           )}
           <button
             className="filter-bar-toggle__btn"
