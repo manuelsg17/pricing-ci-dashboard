@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
 import { Search, ArrowRight } from 'lucide-react'
+import { Button } from '../ui/shadcn/button'
 
 // Versión compact: muestra los top 3 atípicos en una sola línea con
 // link a la pestaña Mercado para ver el detalle completo.
@@ -106,25 +107,14 @@ export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], c
           </span>
         ))}
       </div>
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={goToMarket}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '2px 10px',
-          fontSize: 11,
-          fontWeight: 600,
-          background: '#fff',
-          border: '1px solid #b45309',
-          color: '#92400e',
-          borderRadius: 6,
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-        }}
+        className="h-auto gap-1 whitespace-nowrap rounded-md border-amber-700 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-50"
       >
         Ver detalle <ArrowRight size={13} />
-      </button>
+      </Button>
     </div>
   )
 }

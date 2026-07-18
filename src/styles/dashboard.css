@@ -657,23 +657,6 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.fb-chip__x {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: none;
-  background: transparent;
-  color: var(--color-yango-dark);
-  border-radius: 50%;
-  cursor: pointer;
-  opacity: 0.7;
-}
-.fb-chip__x:hover {
-  opacity: 1;
-  background: rgba(198, 40, 40, 0.12);
-}
 
 /* ── Barra de herramientas del dashboard (acciones) ───────────────────── */
 .dash-toolbar {

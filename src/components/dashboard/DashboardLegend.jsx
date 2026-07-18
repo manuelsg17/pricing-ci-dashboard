@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { getCountryConfig, BRACKET_LABELS, BRACKETS, COMPETITOR_COLORS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { Info } from 'lucide-react'
+import { Button } from '../ui/shadcn/button'
 
 // Pretty-print de un par (vehicle_category, observed_vehicle_category) tal
 // como el bot lo registra. Si ovc='*' (wildcard) lo omitimos para no llenar
@@ -133,20 +134,15 @@ export default function DashboardLegend({ country, dbCity, dbCategory }) {
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
               {t('legend.heading')} · {dbCity} · {dbCategory}
             </h3>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setOpen(false)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 18,
-                color: '#64748b',
-                padding: 4,
-              }}
               aria-label={t('legend.close')}
+              className="h-auto w-auto p-1 text-[18px] leading-none text-slate-500 hover:bg-transparent hover:text-slate-700"
             >
               ✕
-            </button>
+            </Button>
           </div>
 
           {/* ── Sección 1: Categorías ─────────────────────────── */}

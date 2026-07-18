@@ -5,6 +5,7 @@ import { useCountry } from '../../context/CountryContext'
 import { useFilterContext } from '../../context/FilterContext'
 import { useFilterPresets } from '../../hooks/useFilterPresets'
 import { Clock, Star, ChevronDown, ChevronUp, Check, X, RotateCcw, Zap } from 'lucide-react'
+import { Button } from '../ui/shadcn/button'
 
 // Slots con keys estables y rangos (texto neutro entre idiomas). Los
 // labels se traducen dentro del componente vía t('filter.time_slot.<key>')
@@ -457,29 +458,17 @@ export default function FilterBar({ className = '' }) {
                     outline: 'none',
                   }}
                 />
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={handleSavePreset}
                   disabled={saving || !presetName.trim()}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: 34,
-                    padding: '4px 10px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: saveFeedback ? '#16a34a' : 'var(--color-yango)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: saving || !presetName.trim() ? 'default' : 'pointer',
-                    opacity: !presetName.trim() ? 0.5 : 1,
-                    transition: 'background 0.2s',
-                  }}
+                  className={
+                    saveFeedback ? 'min-w-[34px] bg-green-600 hover:bg-green-600' : 'min-w-[34px]'
+                  }
                 >
                   {saveFeedback ? <Check size={14} /> : t('app.save')}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -508,49 +497,29 @@ export default function FilterBar({ className = '' }) {
                       gap: 8,
                     }}
                   >
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
                       onClick={() => {
                         applyPreset(preset.filters)
                         setPresetOpen(false)
                       }}
-                      style={{
-                        flex: 1,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        textAlign: 'left',
-                        background: 'none',
-                        border: 'none',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: 'var(--color-text)',
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
                       title={t('dashboard.preset.load')}
+                      className="h-auto flex-1 justify-start gap-1.5 p-0 text-xs font-medium text-[var(--color-text)] hover:bg-transparent hover:text-[var(--color-text)]"
                     >
                       <Star size={12} style={{ color: 'var(--color-yango)', flexShrink: 0 }} />{' '}
                       {preset.name}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => deletePreset(preset.id)}
                       title={t('dashboard.preset.delete')}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        background: 'none',
-                        border: 'none',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        padding: '0 2px',
-                        opacity: 0.6,
-                        lineHeight: 1,
-                      }}
+                      className="h-auto w-auto p-0.5 text-red-500 opacity-60 hover:bg-transparent hover:opacity-100"
                     >
                       <X size={14} />
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -567,26 +536,28 @@ export default function FilterBar({ className = '' }) {
             {activeChips.map((c) => (
               <span key={c.key} className="fb-chip">
                 {c.label}
-                <button
+                <Button
                   type="button"
-                  className="fb-chip__x"
+                  variant="ghost"
+                  size="icon"
                   onClick={c.clear}
                   aria-label={`${t('filter.reset')} ${c.label}`}
                   title={`${t('filter.reset')} ${c.label}`}
+                  className="h-4 w-4 rounded-full p-0 text-[var(--color-yango-dark)] opacity-70 hover:bg-[rgba(198,40,40,0.12)] hover:text-[var(--color-yango-dark)] hover:opacity-100"
                 >
                   <X size={12} aria-hidden="true" />
-                </button>
+                </Button>
               </span>
             ))}
-            <button
+            <Button
               type="button"
-              className="fb-control"
+              variant="outline"
+              size="sm"
               onClick={handleResetFilters}
-              style={{ gap: 4 }}
               title={t('filter.reset_title') || 'Restablecer filtros a valores neutros'}
             >
               <RotateCcw size={13} /> {t('filter.reset') || 'Limpiar'}
-            </button>
+            </Button>
           </div>
         </>
       )}

@@ -20,6 +20,7 @@ import { formatPrice } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
 import DrillDownModal from './DrillDownModal'
+import { Button } from '../ui/shadcn/button'
 import {
   GripVertical,
   ChevronUp,
@@ -407,23 +408,13 @@ function BracketSection({
             }}
           >
             {/* #45 — copy section as image */}
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={handleCopySection}
               title={t('dashboard.copy_image')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '2px 8px',
-                fontSize: 10,
-                fontWeight: 600,
-                background: 'var(--color-bg)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-muted)',
-                borderRadius: 5,
-                cursor: 'pointer',
-              }}
+              className="h-auto gap-1 rounded-[5px] border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-muted)] hover:bg-[var(--color-bg)]"
             >
               {copyDone ? (
                 <>
@@ -432,7 +423,7 @@ function BracketSection({
               ) : (
                 <Copy size={12} />
               )}
-            </button>
+            </Button>
 
             {/* Sample counts */}
             <div
@@ -1054,23 +1045,16 @@ function MiniChart({
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {chartTypeToggle}
           {/* #43 — per-chart export */}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={handleExportChart}
             title={t('dashboard.export_chart')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '3px 6px',
-              border: '1px solid var(--color-border)',
-              background: 'transparent',
-              color: 'var(--color-muted)',
-              borderRadius: 5,
-              cursor: 'pointer',
-            }}
+            className="h-auto w-auto rounded-[5px] border-[var(--color-border)] bg-transparent p-1.5 text-[var(--color-muted)] hover:bg-transparent"
           >
             <Camera size={13} />
-          </button>
+          </Button>
         </div>
       </div>
 

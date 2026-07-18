@@ -4,6 +4,7 @@ import { useFilterContext } from '../../context/FilterContext'
 import { useI18n } from '../../context/LanguageContext'
 import { formatCurrency } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
+import { Button } from '../ui/shadcn/button'
 
 function getWeekDateRange(periodKey) {
   const [yearStr, weekStr] = periodKey.split('-W')
@@ -145,21 +146,14 @@ export default function DrillDownModal({
               {periodKey}
             </div>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: 20,
-              lineHeight: 1,
-              cursor: 'pointer',
-              color: 'var(--color-muted)',
-              padding: '0 4px',
-              borderRadius: 4,
-            }}
+            className="h-auto w-auto rounded p-1 text-[20px] leading-none text-[var(--color-muted)] hover:bg-transparent"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {loading ? (

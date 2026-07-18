@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { prettyCompetitor } from '../../lib/normalize'
 import { AlertTriangle, ArrowUp, ArrowDown, X } from 'lucide-react'
+import { Button } from '../ui/shadcn/button'
 
 const THRESHOLD = 5
 
@@ -105,22 +106,15 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
           )
         })}
       </div>
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={() => setDismissed(true)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          background: 'none',
-          border: 'none',
-          lineHeight: 1,
-          cursor: 'pointer',
-          color: '#92400e',
-          padding: '0 4px',
-        }}
         title="Ocultar"
+        className="h-auto w-auto p-1 leading-none text-amber-800 hover:bg-transparent hover:text-amber-900"
       >
         <X size={15} />
-      </button>
+      </Button>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { SlidersHorizontal, RotateCcw, X, AlertTriangle } from 'lucide-react'
+import { Button } from '../ui/shadcn/button'
 
 export default function WhatIfSimulator({ pct, setPct, onClose, compareVs = 'Yango' }) {
   return (
@@ -54,44 +55,23 @@ export default function WhatIfSimulator({ pct, setPct, onClose, compareVs = 'Yan
         {pct >= 0 ? '+' : ''}
         {pct.toFixed(1)}%
       </span>
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => setPct(0)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '4px 10px',
-          fontSize: 11,
-          fontWeight: 600,
-          border: '1px solid #b45309',
-          background: '#fff',
-          color: '#92400e',
-          borderRadius: 6,
-          cursor: 'pointer',
-        }}
         title="Reset a 0%"
+        className="h-auto gap-1 rounded-md border-amber-700 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-50"
       >
         <RotateCcw size={12} /> Reset
-      </button>
-      <button
+      </Button>
+      <Button
+        size="sm"
         onClick={onClose}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '4px 10px',
-          fontSize: 11,
-          fontWeight: 600,
-          border: '1px solid #b45309',
-          background: '#92400e',
-          color: '#fff',
-          borderRadius: 6,
-          cursor: 'pointer',
-        }}
         title="Cerrar simulación y volver a data real"
+        className="h-auto gap-1 rounded-md border border-amber-700 bg-amber-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-900"
       >
         <X size={12} /> Cerrar
-      </button>
+      </Button>
       <span
         style={{
           display: 'inline-flex',
