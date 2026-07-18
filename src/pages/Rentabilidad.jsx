@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   BarChart,
   Bar,
@@ -10,36 +10,25 @@ import {
   CartesianGrid,
   LabelList,
 } from 'recharts'
-import { sb } from '../lib/supabase'
-import {
-  COMPETITOR_COLORS,
-  DEFAULT_WEIGHTS,
-  LEGACY_WEIGHTS_PE,
-  getCompetitors,
-  resolveDbParams,
-  getYangoDisplayName,
-} from '../lib/constants'
-import { normalizeCompetitorName } from '../lib/normalize'
-import { computePeriodAvg, buildWeightsMap } from '../algorithms/weightedAverage'
+import { COMPETITOR_COLORS, resolveDbParams } from '../lib/constants'
 import { useConfigContext } from '../context/ConfigProvider'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
 import { useCountry } from '../context/CountryContext'
 import { useI18n } from '../context/LanguageContext'
+import { useRentabilidadPrices } from '../hooks/useRentabilidadPrices'
+import { useRentabilidadCompetitors } from '../hooks/useRentabilidadCompetitors'
+import { useRentabilidadEngine } from '../hooks/useRentabilidadEngine'
+import { useRentabilidadAnalysis } from '../hooks/useRentabilidadAnalysis'
 import {
   DEFAULT_TOOLS_STATE,
   YANGO_TOOLS,
   YANGO_PARTNER_PCT,
   MI_ZONA_MAX_PCT,
-  yangoBaseCommission,
-  yangoToolsExtra,
-  miZonaCommissionForRatio,
   yangoScenarioCommission,
 } from '../lib/yangoTools'
-import { gmvInsideRatio, miZonaCommissionForSelection } from '../lib/limaZones'
-import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
-import { yangoGmvBonus, yangoGmvDetail, hasYangoGmvTable } from '../lib/yangoGmvBonus'
+import { yangoGmvDetail, hasYangoGmvTable } from '../lib/yangoGmvBonus'
 import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 import CollapsibleSection from '../components/market/CollapsibleSection'
 import BonusSummaryByCity from '../components/dashboard/BonusSummaryByCity'
@@ -58,6 +47,11 @@ function formatWeekLabel(year, week) {
 // Reusa el motor de DriverEarnings (precios CI + competitor_commissions/bonuses).
 // Build 2: comisión de Yango apilable (base ciudad + partner + Mi Casa/Mis
 // Destinos/Flex/Mi Zona, ver lib/yangoTools.js) + matriz E1/E4 + notas de fórmulas.
+//
+// Fase 1.2: el motor de pricing (precios, competidores, comisión apilable,
+// análisis derivado) vive en 4 hooks dedicados (hooks/useRentabilidad*.js) —
+// esta page es el orquestador + todo el render. Extracción preservando
+// comportamiento: el JSX no cambió, solo de dónde vienen los valores.
 export default function Rentabilidad() {
   const { t } = useI18n()
   const { country, countryConfig, dbConfigs } = useCountry()
@@ -80,10 +74,6 @@ export default function Rentabilidad() {
   const [archetype, setArchetype] = useState({ segment: 'active', sharePeak: 0.25, streakDays: 3 })
   const [branded, setBranded] = useState(false) // bono Yango GMV: con/sin brandeo (default sin)
   const [showDetail, setShowDetail] = useState(false) // tabla composición: columnas extra (comisión, % bonos)
-
-  // dbCategory -> { comp -> { avg, count } }
-  const [pricesByCat, setPricesByCat] = useState({})
-  const [loading, setLoading] = useState(false)
 
   // Reset ciudad solo si la actual ya no existe en el país. Idempotente: así
   // un re-fetch de config (mount o edición de otro usuario vía realtime) que
@@ -117,430 +107,94 @@ export default function Rentabilidad() {
     loading: bonusesLoading,
   } = useCompetitorBonuses(dbCity, country)
 
-  // ── Comisión total de Yango = base ciudad + partner(3%) + herramientas ──────
-  // Reemplaza el % plano del DB (Yango figura 20%): el modelo real es apilable.
-  const yangoBasePct = yangoBaseCommission(dbCity)
-  const isLima = dbCity === 'Lima'
+  const { pricesByCat, loading } = useRentabilidadPrices({
+    dbCity,
+    dbCategories,
+    country,
+    refYear,
+    refWeek,
+    dbWeights,
+  })
 
-  // Mi Zona: en Lima la cobertura sale del mapa (gmv_inside_ratio de las zonas
-  // elegidas, mín. 2); en provincias del slider de respaldo.
-  const miZonaRatio = useMemo(() => {
-    if (!tools.mi_zona.on) return 1
-    if (isLima)
-      return tools.mi_zona.zones.length >= 2 ? (gmvInsideRatio(tools.mi_zona.zones) ?? 1) : 1
-    return tools.mi_zona.ratio
-  }, [tools.mi_zona, isLima])
-  const miZonaPct = useMemo(() => {
-    if (!tools.mi_zona.on) return 0
-    if (isLima)
-      return tools.mi_zona.zones.length >= 2 ? miZonaCommissionForSelection(tools.mi_zona.zones) : 0
-    return miZonaCommissionForRatio(tools.mi_zona.ratio)
-  }, [tools.mi_zona, isLima])
+  const { shownCompetitors, visibleCompetitors, toggleComp } = useRentabilidadCompetitors({
+    catMap,
+    uiCity,
+    dbCity,
+    country,
+    dbConfigs,
+    pricesByCat,
+    commRows,
+    setRefTierCat,
+  })
 
-  const yangoExtraPct = useMemo(() => yangoToolsExtra(tools, miZonaPct), [tools, miZonaPct])
-  const yangoCommission = yangoBasePct + YANGO_PARTNER_PCT + yangoExtraPct
+  const {
+    yangoBasePct,
+    isLima,
+    miZonaRatio,
+    miZonaPct,
+    yangoExtraPct,
+    yangoCommission,
+    netFor,
+    yangoNetAt,
+    yangoKeyFor,
+    netPerTrip,
+    bonusFor,
+  } = useRentabilidadEngine({
+    dbCity,
+    country,
+    tools,
+    archetype,
+    hoursPerWeek,
+    commissions,
+    bonuses,
+    pricesByCat,
+    metric,
+    branded,
+    yangoGmvTiers,
+  })
 
-  // ── Cargar precios de TODAS las categorías de la ciudad (1 query) ──────
-  const loadPrices = useCallback(async () => {
-    if (!dbCity || !dbCategories.length) {
-      setPricesByCat({})
-      return
-    }
-    setLoading(true)
-    // Mismo origen que el "Promedio Ponderado" del dashboard: el RPC _fast lee
-    // la MV (bot + manual, precio efectivo) y devuelve el promedio por bracket.
-    // Acá colapsamos surge por observación y aplicamos el WA con los mismos
-    // pesos (buildWeightsMap) → el número coincide con el WA del dashboard, y
-    // aparecen todos los competidores con data (Cabify, Didi, etc.).
-    const perCat = await Promise.all(
-      dbCategories.map((cat) =>
-        sb
-          .rpc('get_dashboard_data_weekly_fast', {
-            p_city: dbCity,
-            p_category: cat,
-            p_country: country,
-            p_week_start: refWeek,
-            p_year_start: refYear,
-            p_week_end: refWeek,
-            p_year_end: refYear,
-          })
-          .then(({ data }) => ({ cat, rows: data || [] }))
-      )
-    )
+  const hasData = Object.keys(pricesByCat).length > 0
 
-    const result = {}
-    for (const { cat, rows } of perCat) {
-      // (comp, bracket) → promedio ponderado por observation_count (colapsa surge)
-      const byComp = {}
-      for (const r of rows) {
-        const comp =
-          normalizeCompetitorName(r.competition_name, { city: dbCity }) || r.competition_name
-        if (!byComp[comp]) byComp[comp] = {}
-        const b = byComp[comp][r.distance_bracket] || { sum: 0, w: 0 }
-        b.sum += Number(r.avg_price) * Number(r.observation_count)
-        b.w += Number(r.observation_count)
-        byComp[comp][r.distance_bracket] = b
-      }
-      // Mismos pesos que el dashboard (ver usePricingData): Perú usa los pesos
-      // históricos reales fijados en código; otros países, la BD. Desde 2026-W25
-      // el WA es promedio simple (computePeriodAvg lo decide por refYear/refWeek).
-      const weights =
-        country === 'Peru'
-          ? buildWeightsMap(LEGACY_WEIGHTS_PE, dbCity, cat)
-          : buildWeightsMap(dbWeights || [], dbCity, cat) || DEFAULT_WEIGHTS
-      result[cat] = {}
-      for (const [comp, brackets] of Object.entries(byComp)) {
-        const bracketPrices = {}
-        let count = 0
-        for (const [bk, { sum, w }] of Object.entries(brackets)) {
-          if (w > 0) bracketPrices[bk] = sum / w
-          count += w
-        }
-        const wa = computePeriodAvg(bracketPrices, weights, refYear, refWeek)
-        if (wa != null) result[cat][comp] = { avg: wa, count }
-      }
-    }
-    setPricesByCat(result)
-    setLoading(false)
-  }, [country, dbCity, dbCategories, refYear, refWeek, dbWeights])
-
-  useEffect(() => {
-    loadPrices()
-  }, [loadPrices])
-
-  // ── Competidores a mostrar (catálogo + lo que haya en data/comisiones) ──
-  const competitors = useMemo(() => {
-    const set = new Set()
-    for (const { uiCat } of catMap) {
-      for (const c of getCompetitors(uiCity, uiCat, null, country, dbConfigs)) set.add(c)
-    }
-    for (const comps of Object.values(pricesByCat)) {
-      for (const c of Object.keys(comps)) set.add(c)
-    }
-    for (const r of commRows) {
-      if (!r.city || r.city === dbCity)
-        set.add(normalizeCompetitorName(r.competitor_name, { city: r.city }) || r.competitor_name)
-    }
-    return [...set].sort((a, b) =>
-      isYango(a) === isYango(b) ? a.localeCompare(b) : isYango(a) ? -1 : 1
-    )
-  }, [catMap, pricesByCat, commRows, uiCity, dbCity, country, dbConfigs])
-
-  // Solo los que tienen data real en la ciudad seleccionada: el union de arriba
-  // arrastra catálogos de otras dbCity (ej. Corp en Lima) que quedan siempre
-  // vacíos e inflan leyenda + barras fantasma. Si no hay nada, cae al catálogo
-  // completo para que la vista vacía siga mostrando el set esperado.
-  const shownCompetitors = useMemo(() => {
-    const withData = new Set()
-    for (const comps of Object.values(pricesByCat))
-      for (const c of Object.keys(comps)) withData.add(c)
-    const filtered = competitors.filter((c) => withData.has(c))
-    return filtered.length ? filtered : competitors
-  }, [competitors, pricesByCat])
-
-  // ── Selección de competidores (multiselect) ────────────────────────────
-  // null = automático (Yango + los 3 rivales con más data). Cuando el usuario
-  // toca un chip se vuelve una lista explícita. Se resetea a auto al cambiar
-  // ciudad/país para recalcular el default del nuevo mercado.
-  const [selectedComps, setSelectedComps] = useState(null)
-  useEffect(() => {
-    setSelectedComps(null)
-    setRefTierCat(null)
-  }, [uiCity, country])
-
-  const compCounts = useMemo(() => {
-    const counts = {}
-    for (const comps of Object.values(pricesByCat))
-      for (const [c, pd] of Object.entries(comps)) counts[c] = (counts[c] || 0) + pd.count
-    return counts
-  }, [pricesByCat])
-
-  // Por defecto se muestran TODOS los competidores con data (Yango primero,
-  // rivales ordenados por volumen) — el analista pidió no tener que activar
-  // Cabify/otros cada vez.
-  const defaultSelection = useMemo(() => {
-    const yangos = shownCompetitors.filter(isYango)
-    const others = shownCompetitors
-      .filter((c) => !isYango(c))
-      .sort((a, b) => (compCounts[b] || 0) - (compCounts[a] || 0))
-    return [...yangos, ...others]
-  }, [shownCompetitors, compCounts])
-
-  // Lo que realmente se grafica: respeta el orden de shownCompetitors (Yango
-  // primero) y descarta lo que ya no tiene data tras un cambio de semana.
-  const visibleCompetitors = useMemo(() => {
-    const base = selectedComps ?? defaultSelection
-    return shownCompetitors.filter((c) => base.includes(c))
-  }, [selectedComps, defaultSelection, shownCompetitors])
-
-  function toggleComp(c) {
-    setSelectedComps((prev) => {
-      const cur = prev ?? defaultSelection
-      return cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]
-    })
-  }
-
-  // ── Cálculo de ganancia ─────────────────────────────────────────────────
-  // Delega en el motor único (peldaño-máximo, sin el bug de suma). cash semanal.
-  const bonusFor = useCallback(
-    (comp, dbCategory, trips, fare) => {
-      const { total } = resolveBonusWeekly(bonuses[comp], {
-        trips,
-        hours: hoursPerWeek,
-        dbCategory,
-        fare,
-        commPct: commissions[comp] ?? 20,
-        segment: archetype.segment,
-        sharePeak: archetype.sharePeak,
-        streakDays: archetype.streakDays,
-      })
-      return total
-    },
-    [bonuses, hoursPerWeek, commissions, archetype]
-  )
-
-  const netFor = useCallback(
-    (dbCategory, comp, trips) => {
-      const pd = pricesByCat[dbCategory]?.[comp]
-      if (!pd || !trips || isNaN(pd.avg)) return null
-      // Yango: comisión apilable computada. Resto: % del DB con descuento de
-      // ventana (comm_discount InDrive) según el arquetipo.
-      const comm = isYango(comp)
-        ? yangoCommission
-        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
-            dbCategory,
-            segment: archetype.segment,
-          })
-      const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers)
-        : 0
-      const week =
-        pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg) + gmv
-      return metric === 'trip' ? week / trips : week
-    },
-    [
-      pricesByCat,
-      commissions,
-      bonuses,
-      bonusFor,
-      metric,
-      yangoCommission,
-      archetype,
-      dbCity,
-      branded,
-      yangoGmvTiers,
-    ]
-  )
-
-  // Ganancia de Yango a una comisión arbitraria (para la matriz de escenarios).
-  // La key de Yango varía por ciudad/categoría (ej. Corp usa 'YangoEconomy'),
-  // así que la resolvemos con getYangoDisplayName en vez de hardcodear 'Yango'.
-  const yangoNetAt = useCallback(
-    (dbCategory, trips, commPct) => {
-      const yangoKey = getYangoDisplayName(country, dbCity, dbCategory)
-      const pd = pricesByCat[dbCategory]?.[yangoKey]
-      if (!pd || !trips || isNaN(pd.avg)) return null
-      const week =
-        pd.avg * trips * (1 - commPct / 100) +
-        bonusFor(yangoKey, dbCategory, trips, pd.avg) +
-        yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers)
-      return metric === 'trip' ? week / trips : week
-    },
-    [pricesByCat, bonusFor, metric, country, dbCity, branded, yangoGmvTiers]
-  )
-
-  // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
-  const yangoKeyFor = useCallback(
-    (dbCategory) => getYangoDisplayName(country, dbCity, dbCategory),
-    [country, dbCity]
-  )
-
-  // Ganancia POR VIAJE a n viajes (siempre per-trip, para el break-even).
-  const netPerTrip = useCallback(
-    (dbCategory, comp, n) => {
-      const pd = pricesByCat[dbCategory]?.[comp]
-      if (!pd || !n || isNaN(pd.avg)) return null
-      const comm = isYango(comp)
-        ? yangoCommission
-        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
-            dbCategory,
-            segment: archetype.segment,
-          })
-      const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, n, yangoGmvTiers)
-        : 0
-      return pd.avg * (1 - comm / 100) + (bonusFor(comp, dbCategory, n, pd.avg) + gmv) / n
-    },
-    [
-      pricesByCat,
-      commissions,
-      bonuses,
-      bonusFor,
-      yangoCommission,
-      archetype,
-      dbCity,
-      branded,
-      yangoGmvTiers,
-    ]
-  )
-
-  // data para un valor de viajes: [{ tier, [comp]: value }]
-  const chartDataFor = useCallback(
-    (trips) =>
-      catMap.map(({ uiCat, dbCategory }) => {
-        const point = { tier: uiCat }
-        for (const comp of visibleCompetitors) {
-          const v = netFor(dbCategory, comp, trips)
-          point[comp] = v != null ? Number(v.toFixed(2)) : null
-        }
-        return point
-      }),
-    [catMap, visibleCompetitors, netFor]
-  )
-
-  // paneles: un small-multiple por segmento + uno "en vivo" (slider)
-  const panels = useMemo(() => {
-    const segs = [...new Set(segments.filter((n) => n > 0))].sort((a, b) => a - b)
-    return [
-      ...segs.map((n) => ({ key: `seg-${n}`, trips: n, live: false })),
-      { key: 'live', trips: liveTrips, live: true },
-    ]
-  }, [segments, liveTrips])
-
-  // Tier + competidor de referencia para la matriz E1/E4 (primer tier con data
-  // de Yango; primer rival visible). Sin fallback a catMap[0]: si ningún tier
-  // tiene Yango, refTier queda undefined y la matriz se oculta (guard abajo).
-  const tiersWithData = useMemo(
-    () =>
-      catMap.filter(
-        ({ dbCategory }) =>
-          pricesByCat[dbCategory]?.[getYangoDisplayName(country, dbCity, dbCategory)]
-      ),
-    [catMap, pricesByCat, country, dbCity]
-  )
-  const refTier = useMemo(() => {
-    if (refTierCat) {
-      const sel = tiersWithData.find((c) => c.dbCategory === refTierCat)
-      if (sel) return sel
-    }
-    return tiersWithData[0]
-  }, [tiersWithData, refTierCat])
-  // ── Análisis auto-generado (Build 3) ────────────────────────────────────
-  const rivalCols = useMemo(
-    () => visibleCompetitors.filter((c) => !isYango(c)),
-    [visibleCompetitors]
-  )
-
-  // Yango vs cada rival por tier — delta en la métrica actual, a liveTrips.
-  const tierComparison = useMemo(
-    () =>
-      catMap.map(({ uiCat, dbCategory }) => {
-        const yNet = netFor(dbCategory, yangoKeyFor(dbCategory), liveTrips)
-        const cells = rivalCols.map((comp) => {
-          const cNet = netFor(dbCategory, comp, liveTrips)
-          return { comp, cNet, delta: yNet != null && cNet != null ? yNet - cNet : null }
-        })
-        return { uiCat, yNet, cells }
-      }),
-    [catMap, rivalCols, netFor, liveTrips, yangoKeyFor]
-  )
-  const winSummary = useMemo(() => {
-    let wins = 0
-    let total = 0
-    for (const row of tierComparison)
-      for (const c of row.cells)
-        if (c.delta != null) {
-          total++
-          if (c.delta >= 0) wins++
-        }
-    return { wins, total }
-  }, [tierComparison])
-
-  // Costo de cada herramienta Yango en el tier de referencia (en la métrica actual).
-  const toolCosts = useMemo(() => {
-    if (!refTier) return null
-    const pd = pricesByCat[refTier.dbCategory]?.[yangoKeyFor(refTier.dbCategory)]
-    if (!pd) return null
-    const fare = pd.avg
-    const cost = (pct) => (metric === 'trip' ? fare * (pct / 100) : fare * (pct / 100) * liveTrips)
-    const items = [
-      {
-        key: 'mi_casa',
-        label: YANGO_TOOLS.mi_casa.label,
-        pct: YANGO_TOOLS.mi_casa.pct,
-        active: tools.mi_casa,
-      },
-      {
-        key: 'mis_destinos',
-        label: YANGO_TOOLS.mis_destinos.label,
-        pct: YANGO_TOOLS.mis_destinos.pct,
-        active: tools.mis_destinos,
-      },
-      { key: 'mi_zona', label: 'Mi Zona', pct: miZonaPct, active: tools.mi_zona.on },
-    ].map((it) => ({ ...it, cost: cost(it.pct) }))
-    return { fare, items, totalPct: yangoExtraPct, totalCost: cost(yangoExtraPct) }
-  }, [refTier, pricesByCat, metric, liveTrips, tools, miZonaPct, yangoExtraPct, yangoKeyFor])
-
-  // Break-even: a cuántos viajes/sem Yango supera a cada rival (tier ref, per-trip).
-  const breakEvens = useMemo(() => {
-    if (!refTier) return []
-    const yKey = yangoKeyFor(refTier.dbCategory)
-    const MAXN = 200
-    return rivalCols.map((comp) => {
-      let startWin = null
-      let flipN = null
-      let points = 0
-      for (let n = 1; n <= MAXN; n++) {
-        const y = netPerTrip(refTier.dbCategory, yKey, n)
-        const c = netPerTrip(refTier.dbCategory, comp, n)
-        if (y == null || c == null) continue
-        points++
-        const win = y >= c
-        if (startWin === null) startWin = win
-        else if (flipN === null && win !== startWin) flipN = n
-      }
-      let type
-      if (!points) type = 'nodata'
-      else if (flipN === null) type = startWin ? 'always' : 'never'
-      else type = startWin ? 'until' : 'from'
-      // 'until': flipN es el primer n donde Yango YA pierde; el último n ganador
-      // es flipN-1. 'from': flipN es el primer n ganador (inclusivo, correcto).
-      return { comp, type, n: type === 'until' ? flipN - 1 : flipN }
-    })
-  }, [refTier, rivalCols, netPerTrip, yangoKeyFor])
-
-  // Bonos "gancho 1 vez" (recurring=false) por competidor en el tier de ref, al
-  // volumen vivo. Solo aparecen si el segmento del arquetipo coincide (ej. un
-  // welcome 'new' o reconexión 'reactivado' no le salen a un activo).
-  const oneOffs = useMemo(() => {
-    if (!refTier) return []
-    const comps = [yangoKeyFor(refTier.dbCategory), ...rivalCols]
-    const out = []
-    for (const comp of comps) {
-      const { oneOff } = resolveBonusWeekly(bonuses[comp], {
-        trips: liveTrips,
-        hours: hoursPerWeek,
-        dbCategory: refTier.dbCategory,
-        fare: pricesByCat[refTier.dbCategory]?.[comp]?.avg,
-        commPct: commissions[comp] ?? 20,
-        segment: archetype.segment,
-        sharePeak: archetype.sharePeak,
-        streakDays: archetype.streakDays,
-      })
-      if (oneOff > 0) out.push({ comp, oneOff })
-    }
-    return out
-  }, [
+  const {
+    chartDataFor,
+    panels,
+    tiersWithData,
     refTier,
     rivalCols,
-    bonuses,
+    tierComparison,
+    winSummary,
+    toolCosts,
+    breakEvens,
+    oneOffs,
+    breakdown,
+    breakdownStats,
+    hero,
+  } = useRentabilidadAnalysis({
+    catMap,
+    visibleCompetitors,
+    netFor,
+    segments,
     liveTrips,
-    hoursPerWeek,
     pricesByCat,
+    country,
+    dbCity,
+    refTierCat,
+    yangoKeyFor,
+    metric,
+    tools,
+    miZonaPct,
+    yangoExtraPct,
+    netPerTrip,
+    bonuses,
+    hoursPerWeek,
     commissions,
     archetype,
-    yangoKeyFor,
-  ])
+    hasData,
+    yangoCommission,
+    branded,
+    bonusFor,
+    yangoGmvTiers,
+  })
 
   // ── Manejo de segmentos ────────────────────────────────────────────────
   function updateSegment(i, val) {
@@ -556,121 +210,10 @@ export default function Rentabilidad() {
     setSegments((prev) => prev.filter((_, j) => j !== i))
   }
 
-  const hasData = Object.keys(pricesByCat).length > 0
   const fmt = (n) =>
     n == null || isNaN(n) ? '—' : `${currency} ${n.toFixed(metric === 'trip' ? 2 : 0)}`
   // Formateador a 2 decimales para la tabla "espejo del Excel" (siempre semanal).
   const fmt2 = (n) => (n == null || isNaN(n) ? '—' : `${currency} ${n.toFixed(2)}`)
-
-  // ── Desglose de ganancia: tarifa (neto) vs bonos/incentivos por competidor ──
-  // Mismo cálculo que netFor: fare = precio·viajes·(1−comisión efectiva); bonos =
-  // bonusFor (competitor_bonuses) + GMV de Yango. Hace visible cuánto pesa cada parte.
-  const breakdown = useMemo(() => {
-    if (!refTier || !hasData || !liveTrips) return []
-    const div = metric === 'trip' ? liveTrips : 1
-    const out = []
-    for (const comp of visibleCompetitors) {
-      const pd = pricesByCat[refTier.dbCategory]?.[comp]
-      if (!pd || isNaN(pd.avg)) continue
-      const comm = isYango(comp)
-        ? yangoCommission
-        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
-            dbCategory: refTier.dbCategory,
-            segment: archetype.segment,
-          })
-      const fareWeek = pd.avg * liveTrips * (1 - comm / 100)
-      const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, refTier.dbCategory, branded, pd.avg, liveTrips, yangoGmvTiers)
-        : 0
-      const bonusWeek = bonusFor(comp, refTier.dbCategory, liveTrips, pd.avg) + gmv
-      out.push({
-        comp,
-        comm,
-        gross: (pd.avg * liveTrips) / div, // tarifa bruta (WA) en la misma métrica
-        fare: fareWeek / div,
-        bonus: bonusWeek / div,
-        total: (fareWeek + bonusWeek) / div,
-        // ── Magnitudes SEMANALES absolutas para la tabla "espejo del Excel" ──
-        avgFare: pd.avg, // tarifa promedio por viaje (Avg Fare)
-        trips: liveTrips, // # viajes/sem (constante por fila)
-        gmvGross: pd.avg * liveTrips, // GMV bruto semanal
-        gmvNet: fareWeek, // GMV − comisión (neto antes de bonos)
-        incentiveWeek: bonusWeek, // incentivos/bonos semanales
-        totalWeek: fareWeek + bonusWeek, // total semanal (neto + bonos)
-        perTrip: liveTrips > 0 ? (fareWeek + bonusWeek) / liveTrips : 0, // ganancia por viaje
-      })
-    }
-    return out
-  }, [
-    refTier,
-    hasData,
-    liveTrips,
-    metric,
-    visibleCompetitors,
-    pricesByCat,
-    yangoCommission,
-    commissions,
-    bonuses,
-    archetype,
-    dbCity,
-    branded,
-    bonusFor,
-    yangoGmvTiers,
-  ])
-
-  // Mejor competidor (mayor total) + posición de Yango en el ranking de rentabilidad.
-  const breakdownStats = useMemo(() => {
-    if (!breakdown.length) return { bestTotal: null, yangoRank: null, ranks: {} }
-    // Rank/best por Total SEMANAL (totalWeek), que es lo que muestra la tabla —
-    // así el rank no depende del toggle Por viaje/Semana (independiente de `metric`).
-    const sorted = [...breakdown].sort((a, b) => b.totalWeek - a.totalWeek)
-    const yangoBest = breakdown
-      .filter((b) => isYango(b.comp))
-      .sort((a, b) => b.totalWeek - a.totalWeek)[0]
-    const ranks = {}
-    sorted.forEach((b, i) => {
-      ranks[b.comp] = i + 1
-    })
-    return {
-      bestTotal: sorted[0].totalWeek,
-      yangoRank: yangoBest ? sorted.findIndex((b) => b === yangoBest) + 1 : null,
-      ranks,
-    }
-  }, [breakdown])
-
-  // ── Resultado (hero): Yango vs mejor rival al volumen vivo + tiers ganados ──
-  const hero = useMemo(() => {
-    if (!refTier || !hasData) return null
-    const netM = (dbCat, comp) =>
-      metric === 'trip' ? netPerTrip(dbCat, comp, liveTrips) : netFor(dbCat, comp, liveTrips)
-    const yNet = netM(refTier.dbCategory, yangoKeyFor(refTier.dbCategory))
-    let bestComp = null
-    let bestNet = null
-    for (const comp of rivalCols) {
-      const v = netM(refTier.dbCategory, comp)
-      if (v == null) continue
-      if (bestNet == null || v > bestNet) {
-        bestNet = v
-        bestComp = comp
-      }
-    }
-    let won = 0
-    let total = 0
-    for (const { dbCategory } of catMap) {
-      const y = netPerTrip(dbCategory, yangoKeyFor(dbCategory), liveTrips)
-      if (y == null) continue
-      let best = null
-      for (const comp of rivalCols) {
-        const v = netPerTrip(dbCategory, comp, liveTrips)
-        if (v != null && (best == null || v > best)) best = v
-      }
-      if (best == null) continue
-      total++
-      if (y >= best) won++
-    }
-    const delta = yNet != null && bestNet != null ? yNet - bestNet : null
-    return { yNet, bestComp, bestNet, delta, won, total }
-  }, [refTier, hasData, rivalCols, catMap, yangoKeyFor, netPerTrip, netFor, metric, liveTrips])
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
