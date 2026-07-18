@@ -19,6 +19,7 @@ import { normalizeCompetitorName, normalizeBracket, toSnakeCase } from '../lib/n
 import { TUKTUK_DISTRICTS, normalizeTukTukDistrict } from '../lib/tuktukDistricts'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
+import { Button } from '../components/ui/shadcn/button'
 import '../styles/upload.css'
 
 // Mapa: nombre de columna en Excel/CSV → nombre en BD
@@ -882,38 +883,24 @@ export default function Upload() {
               >
                 <h2 style={{ margin: 0 }}>Archivos detectados — verifica la ciudad asignada</h2>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setAllSheetsIncluded(true)}
-                    style={{
-                      fontSize: 12,
-                      padding: '5px 10px',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 6,
-                      background: '#fff',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
                     title="Marcar todas las pestañas como incluidas"
                   >
                     ✓ Incluir todas
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setAllSheetsIncluded(false)}
-                    style={{
-                      fontSize: 12,
-                      padding: '5px 10px',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 6,
-                      background: '#fff',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
                     title="Saltar todas — después incluís solo las que querés"
                   >
                     ✕ Saltar todas
-                  </button>
+                  </Button>
                 </div>
               </div>
               <table className="config-table">
@@ -1068,18 +1055,22 @@ export default function Upload() {
                     del mismo rango de fechas y ciudad, luego se insertan las nuevas. Subir el mismo
                     Excel dos veces no genera duplicados.
                   </div>
-                  <button
-                    className="btn-ingest"
+                  <Button
+                    className="bg-[#2e7d32] hover:bg-[#1b5e20]"
                     onClick={handleIngestClick}
                     disabled={!!progress && !progress.done && !progress.error}
                   >
                     Insertar {allRows.length.toLocaleString()} filas en Supabase
-                  </button>
+                  </Button>
                 </>
               )}
-              <button className="btn-clear" onClick={handleClear}>
+              <Button
+                variant="outline"
+                className="hover:border-yango hover:bg-[var(--color-yango-light)] hover:text-yango"
+                onClick={handleClear}
+              >
                 Limpiar
-              </button>
+              </Button>
             </div>
           )}
         </>
