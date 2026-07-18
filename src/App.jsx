@@ -26,7 +26,15 @@ const Competitividad = lazy(() => import('./pages/Competitividad'))
 export default function App() {
   const { loading, signIn, signOut, changePassword, session } = useAuth()
   const { country, setCountry, availableCountries } = useCountry()
-  const { profile, canAccess, canAccessCountry, loading: acLoading } = useAccessControl()
+  const {
+    profile,
+    role,
+    error: acError,
+    canAccess,
+    canAccessCountry,
+    loading: acLoading,
+    reload: reloadAccessControl,
+  } = useAccessControl()
   const [activeTab, setActiveTab] = useState('dashboard')
 
   // Sprint 2.4: dbWeights/dbSemaforo ya NO viven acá — ConfigProvider
@@ -101,6 +109,66 @@ export default function App() {
 
   if (!session) {
     return <LoginScreen onLogin={signIn} />
+  }
+
+  // canAccess ahora falla cerrado (ver useAccessControl.js) — sin este
+  // gate, un rol que no cargó dejaría la pantalla en blanco (ningún tab
+  // pasa canAccess) sin ninguna explicación de por qué. Distingue error
+  // de red (reintentable) de cuenta genuinamente sin perfil configurado.
+  if (!acLoading && !role) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          gap: 16,
+          textAlign: 'center',
+          padding: 20,
+        }}
+      >
+        <h2 style={{ color: '#d32f2f' }}>
+          {acError ? 'No pudimos cargar tu perfil' : 'Cuenta sin perfil configurado'}
+        </h2>
+        <p style={{ color: '#555', maxWidth: 420 }}>
+          {acError
+            ? 'Hubo un problema de conexión al verificar tus permisos. Probá de nuevo — si el problema sigue, avisá a un administrador.'
+            : 'Tu cuenta no tiene un perfil de acceso configurado en el dashboard. Contactá a un administrador para que te asigne un rol.'}
+        </p>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {acError && (
+            <button
+              onClick={reloadAccessControl}
+              style={{
+                padding: '8px 16px',
+                background: '#d32f2f',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              Reintentar
+            </button>
+          )}
+          <button
+            onClick={signOut}
+            style={{
+              padding: '8px 16px',
+              background: acError ? '#fff' : '#d32f2f',
+              color: acError ? '#d32f2f' : '#fff',
+              border: acError ? '1px solid #d32f2f' : 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (profile && profile.is_active === false) {

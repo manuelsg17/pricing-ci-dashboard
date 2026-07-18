@@ -50,6 +50,42 @@ BEGIN
   VALUES (v_email, 1, true); -- role_id 1 = admin
 END $$;
 
+-- ── 1b. Usuario SIN perfil (Fase 1.1) ───────────────────────────────────
+-- Simula una cuenta autenticada sin fila en user_profiles — el caso que
+-- el gate de "Cuenta sin perfil configurado" en App.jsx debe mostrar en
+-- vez de dejar la pantalla en blanco (canAccess ahora falla cerrado).
+-- Deliberadamente NO se le crea fila en user_profiles.
+DO $$
+DECLARE
+  v_user_id uuid := gen_random_uuid();
+  v_email   text := 'sinperfil@local.test';
+  v_password text := 'local12345';
+BEGIN
+  IF EXISTS (SELECT 1 FROM auth.users WHERE email = v_email) THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password,
+    email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, confirmation_token, recovery_token,
+    email_change_token_new, email_change
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000', v_user_id, 'authenticated', 'authenticated',
+    v_email, extensions.crypt(v_password, extensions.gen_salt('bf')),
+    now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+    now(), now(), '', '', '', ''
+  );
+
+  INSERT INTO auth.identities (
+    id, user_id, provider_id, identity_data, provider, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(), v_user_id, v_user_id::text,
+    jsonb_build_object('sub', v_user_id::text, 'email', v_email),
+    'email', now(), now()
+  );
+END $$;
+
 -- ── 2. Observaciones sintéticas — Perú (Lima) ───────────────────────────
 -- 4 semanas recientes x 3 días muestreados x 6 brackets x 4 competidores.
 -- Precio = base por bracket + jitter aleatorio, para que percentiles y

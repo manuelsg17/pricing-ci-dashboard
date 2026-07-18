@@ -73,9 +73,18 @@ export function useAccessControl() {
 
   // Stable identity tied to `role` so consumers can safely add these to
   // useEffect deps without causing re-mount loops.
+  // Fail-closed: sin rol cargado (perfil inexistente o falló la carga),
+  // no hay acceso. Antes era "sin perfil = acceso total" — en la ventana
+  // entre mig 60 y 66, ese MISMO patrón (fail-open) coexistiendo con RLS
+  // fue justo lo que dejó country_config editable por cualquiera. App.jsx
+  // ya bloquea el render de toda página mientras loading/acLoading es
+  // true, así que acá "role null" siempre significa "terminó de cargar y
+  // no hay rol" — nunca "todavía no sabemos". El estado dedicado que
+  // distingue error de red vs. cuenta sin perfil vive en App.jsx (no acá)
+  // para no dejar al usuario con una pantalla en blanco sin explicación.
   const canAccess = useCallback(
     (section) => {
-      if (!role) return true // No profile = unrestricted (backward compat)
+      if (!role) return false
       const sections = role.permissions?.sections || []
       if (sections.includes('all')) return true
       return sections.includes(section)
@@ -85,7 +94,7 @@ export function useAccessControl() {
 
   const canAccessCountry = useCallback(
     (country) => {
-      if (!role) return true
+      if (!role) return false
       const countries = role.permissions?.countries || []
       if (countries.includes('all')) return true
       return countries.includes(country)
