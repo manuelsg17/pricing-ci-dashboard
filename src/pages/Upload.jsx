@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ClipboardList, Bot, RefreshCw, Plug, Check, X, AlertTriangle } from 'lucide-react'
 // xlsx (475 KB) se carga dinámicamente solo cuando el usuario arrastra
 // un archivo. Sin esto, todo visitante a /upload baja el chunk vendor-xlsx
 // inmediatamente aunque nunca suba un archivo.
@@ -824,25 +825,25 @@ export default function Upload() {
           className={`upload-tab${uploadTab === 'manual' ? ' active' : ''}`}
           onClick={() => setUploadTab('manual')}
         >
-          📋 Excel / CSV Manual
+          <ClipboardList size={14} /> Excel / CSV Manual
         </button>
         <button
           className={`upload-tab${uploadTab === 'bot' ? ' active' : ''}`}
           onClick={() => setUploadTab('bot')}
         >
-          🤖 Bot Data
+          <Bot size={14} /> Bot Data
         </button>
         <button
           className={`upload-tab${uploadTab === 'convert' ? ' active' : ''}`}
           onClick={() => setUploadTab('convert')}
         >
-          🔄 Bot → Excel
+          <RefreshCw size={14} /> Bot → Excel
         </button>
         <button
           className={`upload-tab${uploadTab === 'dbsync' ? ' active' : ''}`}
           onClick={() => setUploadTab('dbsync')}
         >
-          🔌 Bot DB Sync
+          <Plug size={14} /> Bot DB Sync
         </button>
       </div>
 
@@ -890,7 +891,7 @@ export default function Upload() {
                     onClick={() => setAllSheetsIncluded(true)}
                     title="Marcar todas las pestañas como incluidas"
                   >
-                    ✓ Incluir todas
+                    <Check size={14} /> Incluir todas
                   </Button>
                   <Button
                     type="button"
@@ -899,7 +900,7 @@ export default function Upload() {
                     onClick={() => setAllSheetsIncluded(false)}
                     title="Saltar todas — después incluís solo las que querés"
                   >
-                    ✕ Saltar todas
+                    <X size={14} /> Saltar todas
                   </Button>
                 </div>
               </div>
@@ -987,7 +988,8 @@ export default function Upload() {
 
           {sheets.length > 0 && allRows.length === 0 && (
             <div className="upload-error" style={{ marginBottom: 10 }}>
-              ⚠ Todas las pestañas están saltadas. Incluí al menos una para poder insertar.
+              <AlertTriangle size={14} className="inline align-text-bottom" /> Todas las pestañas
+              están saltadas. Incluí al menos una para poder insertar.
             </div>
           )}
 
@@ -1010,9 +1012,10 @@ export default function Upload() {
                 </div>
                 {totalNo > 0 && (
                   <div style={{ marginTop: 6, color: '#b45309', fontWeight: 600 }}>
-                    ⚠ {totalNo} fila{totalNo === 1 ? '' : 's'} TukTuk sin distrito válido —
-                    completá/corregí la columna Zone. (No se descartan, pero no aparecerán en el
-                    selector de zona del dashboard.)
+                    <AlertTriangle size={14} className="inline align-text-bottom" /> {totalNo} fila
+                    {totalNo === 1 ? '' : 's'} TukTuk sin distrito válido — completá/corregí la
+                    columna Zone. (No se descartan, pero no aparecerán en el selector de zona del
+                    dashboard.)
                   </div>
                 )}
               </div>
@@ -1041,8 +1044,9 @@ export default function Upload() {
 
           {rulesLoaded && rules.length === 0 && allRows.length > 0 && (
             <div className="upload-error" style={{ marginBottom: 10 }}>
-              ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se
-              aplicará. Ve a Config → Límites Precio para agregar reglas.
+              <AlertTriangle size={14} className="inline align-text-bottom" /> Sin reglas de precio
+              configuradas para este país — la validación de límites no se aplicará. Ve a Config →
+              Límites Precio para agregar reglas.
             </div>
           )}
 
@@ -1051,9 +1055,10 @@ export default function Upload() {
               {!progress?.done && (
                 <>
                   <div className="upload-overwrite-notice">
-                    ⚠️ Al insertar se <strong>borrarán automáticamente</strong> las filas existentes
-                    del mismo rango de fechas y ciudad, luego se insertan las nuevas. Subir el mismo
-                    Excel dos veces no genera duplicados.
+                    <AlertTriangle size={14} className="inline align-text-bottom" /> Al insertar se{' '}
+                    <strong>borrarán automáticamente</strong> las filas existentes del mismo rango
+                    de fechas y ciudad, luego se insertan las nuevas. Subir el mismo Excel dos veces
+                    no genera duplicados.
                   </div>
                   <Button
                     className="bg-[#2e7d32] hover:bg-[#1b5e20]"
