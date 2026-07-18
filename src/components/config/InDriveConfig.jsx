@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { AlertTriangle, Save } from 'lucide-react'
 // useMemo kept for summary/weekly client-side mapping
 
 // Outlier threshold is now dynamic based on country configuration (cfgCountry.outlierThreshold)
@@ -221,7 +222,7 @@ export default function InDriveConfig({ country }) {
     // Confirmación. El snapshot (hard copy) es opcional: fija los promedios
     // actuales antes de que el reconcile recalcule los precios efectivos del bot.
     const ok = await confirm({
-      title: withSnapshot ? '⚠ Cambio InDrive — con snapshot' : '⚠ Cambio InDrive — sin snapshot',
+      title: withSnapshot ? 'Cambio InDrive — con snapshot' : 'Cambio InDrive — sin snapshot',
       message: withSnapshot
         ? 'Cambiar el % de ajuste de InDrive afecta cómo se calculan los precios ' +
           'efectivos históricos del bot. Antes de aplicar se creará un snapshot ' +
@@ -572,7 +573,9 @@ export default function InDriveConfig({ country }) {
                   gap: 12,
                 }}
               >
-                <span>⚠ Hay cambios sin guardar en los ajustes de InDrive</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} /> Hay cambios sin guardar en los ajustes de InDrive
+                </span>
                 <Button
                   type="button"
                   variant="outline"
@@ -717,7 +720,13 @@ export default function InDriveConfig({ country }) {
                   disabled={saving || !hasUnsavedChanges}
                   title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
                 >
-                  {saving ? 'Guardando…' : '💾 Guardar ajustes'}
+                  {saving ? (
+                    'Guardando…'
+                  ) : (
+                    <>
+                      <Save size={14} /> Guardar ajustes
+                    </>
+                  )}
                 </Button>
                 <Button
                   type="button"

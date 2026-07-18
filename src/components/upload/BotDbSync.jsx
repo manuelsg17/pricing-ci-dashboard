@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Zap, Search, RotateCcw, Check, AlertTriangle, ScrollText } from 'lucide-react'
 import { sb } from '../../lib/supabase'
 import { useCountry } from '../../context/CountryContext'
 import { useToast } from '../ui/Toast'
@@ -210,7 +211,7 @@ export default function BotDbSync() {
         throw new Error((json?.error || `HTTP ${res.status}`) + hint)
       }
       toast.ok(
-        '⚡ Workflow disparado. La corrida tarda ~30-60s en aparecer en "Últimas corridas". Auto-refresh en 60s.',
+        'Workflow disparado. La corrida tarda ~30-60s en aparecer en "Últimas corridas". Auto-refresh en 60s.',
         { duration: 8000 }
       )
       // Auto-refresh la tabla de corridas en 60s — guardamos el id en
@@ -250,7 +251,7 @@ export default function BotDbSync() {
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || `HTTP ${res.status}`)
       }
-      toast.ok('🔍 Probe disparado. Revisa el log del run en GitHub Actions en ~30s.', {
+      toast.ok('Probe disparado. Revisa el log del run en GitHub Actions en ~30s.', {
         duration: 7000,
       })
     } catch (e) {
@@ -281,12 +282,14 @@ export default function BotDbSync() {
             color: '#065f46',
           }}
         >
-          <strong>✓ Modo GitHub Actions activado</strong> — el workflow <code>bot-sync</code> lee
-          filas nuevas desde <code>fudobi.helioho.st</code>, aplica los <em>botRules</em> y los{' '}
-          <em>price_validation_rules</em>
-          configurados en este dashboard, e inserta solo las que pasan los filtros en{' '}
-          <code>pricing_observations</code>. Corre automáticamente cada <strong>30 minutos</strong>.
-          Click en <strong>⚡ Disparar sync ahora</strong> para forzar una corrida sin esperar.
+          <strong>
+            <Check size={13} className="inline align-text-bottom" /> Modo GitHub Actions activado
+          </strong>{' '}
+          — el workflow <code>bot-sync</code> lee filas nuevas desde <code>fudobi.helioho.st</code>,
+          aplica los <em>botRules</em> y los <em>price_validation_rules</em> configurados en este
+          dashboard, e inserta solo las que pasan los filtros en <code>pricing_observations</code>.
+          Corre automáticamente cada <strong>30 minutos</strong>. Click en{' '}
+          <strong>Disparar sync ahora</strong> para forzar una corrida sin esperar.
         </div>
 
         <div
@@ -320,7 +323,13 @@ export default function BotDbSync() {
             disabled={running}
             title="Dispara el workflow de GitHub Actions Bot Sync con el límite indicado"
           >
-            {running ? 'Disparando…' : '⚡ Disparar sync ahora'}
+            {running ? (
+              'Disparando…'
+            ) : (
+              <>
+                <Zap size={14} /> Disparar sync ahora
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
@@ -330,7 +339,13 @@ export default function BotDbSync() {
             disabled={probing}
             title="Dispara el workflow en modo probe (lista columnas, no inserta nada). Útil para test."
           >
-            {probing ? 'Disparando…' : '🔍 Probe'}
+            {probing ? (
+              'Disparando…'
+            ) : (
+              <>
+                <Search size={14} /> Probe
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
@@ -340,7 +355,7 @@ export default function BotDbSync() {
             disabled={running}
             title="Retrocede el watermark 30d y re-pide filas al bot. Útil después de cambiar bot_rules."
           >
-            ↺ Re-sync 30d
+            <RotateCcw size={14} /> Re-sync 30d
           </Button>
           <label
             style={{
@@ -379,7 +394,8 @@ export default function BotDbSync() {
                 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 8 }}>
-                  ⚠ El sync descartó {total.toLocaleString()} filas en la última corrida
+                  <AlertTriangle size={14} className="inline align-text-bottom" /> El sync descartó{' '}
+                  {total.toLocaleString()} filas en la última corrida
                 </div>
 
                 {/* Breakdown por razón — la info más accionable */}
@@ -472,7 +488,7 @@ export default function BotDbSync() {
           <SkeletonTable rows={4} cols={6} />
         ) : logRows.length === 0 ? (
           <EmptyState
-            icon="📜"
+            icon={<ScrollText size={28} />}
             title="Sin corridas todavía"
             message="Haz clic en Sync incremental para ingestar las primeras filas."
             compact

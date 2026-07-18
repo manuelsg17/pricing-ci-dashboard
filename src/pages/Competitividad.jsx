@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Download } from 'lucide-react'
+import { Download, Circle } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/shadcn/tabs'
 import { Button } from '../components/ui/shadcn/button'
 import { useFilterContext } from '../context/FilterContext'
@@ -27,9 +27,9 @@ const WEEK_RANGE_OPTIONS = [
 function verdictFor(withinPct) {
   const v = Number(withinPct)
   if (!Number.isFinite(v)) return null
-  if (v >= 60) return { emoji: '🟢', label: 'Mayormente competitivo', color: 'var(--sem-green-fg)' }
-  if (v >= 30) return { emoji: '🟡', label: 'Resultados mixtos', color: 'var(--sem-yellow-fg)' }
-  return { emoji: '🔴', label: 'Mayormente fuera de rango', color: 'var(--sem-red-fg)' }
+  if (v >= 60) return { label: 'Mayormente competitivo', color: 'var(--sem-green-fg)' }
+  if (v >= 30) return { label: 'Resultados mixtos', color: 'var(--sem-yellow-fg)' }
+  return { label: 'Mayormente fuera de rango', color: 'var(--sem-red-fg)' }
 }
 
 export default function Competitividad() {
@@ -345,7 +345,7 @@ export default function Competitividad() {
                         color: verdict.color,
                       }}
                     >
-                      <span style={{ fontSize: 22 }}>{verdict.emoji}</span>
+                      <Circle size={18} fill={verdict.color} color={verdict.color} />
                       {verdict.label}
                     </div>
                   )}
