@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { Combobox } from '../ui/shadcn/combobox'
+import { Button } from '../ui/shadcn/button'
 import { usePriceVolatility } from '../../hooks/usePriceVolatility'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { formatCurrency, formatCount } from '../../lib/format'
@@ -182,15 +183,18 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
             triggerClassName="w-auto min-w-[180px]"
           />
         </div>
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-dashed border-border text-muted hover:border-yango hover:text-yango"
           onClick={() => exportPriceVolatilityCsv({ country, category, city, currency, rows })}
           disabled={!rows.length}
-          className="btn-add-row"
-          style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          style={{ marginLeft: 'auto' }}
         >
           <Download size={13} />
           Exportar CSV
-        </button>
+        </Button>
       </div>
 
       {error && <div className="state-box state-box--error">Error: {error}</div>}

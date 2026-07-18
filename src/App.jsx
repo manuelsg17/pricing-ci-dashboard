@@ -7,6 +7,7 @@ import Topbar from './components/layout/Topbar'
 import LoginScreen from './components/layout/LoginScreen'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { SkeletonDashboard } from './components/ui/Skeleton'
+import { Button } from './components/ui/shadcn/button'
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Config = lazy(() => import('./pages/Config'))
 const Upload = lazy(() => import('./pages/Upload'))
@@ -139,33 +140,21 @@ export default function App() {
         </p>
         <div style={{ display: 'flex', gap: 12 }}>
           {acError && (
-            <button
-              onClick={reloadAccessControl}
-              style={{
-                padding: '8px 16px',
-                background: '#d32f2f',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
-            >
+            <Button onClick={reloadAccessControl} className="bg-[#d32f2f] hover:bg-[#d32f2f]">
               Reintentar
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={signOut}
-            style={{
-              padding: '8px 16px',
-              background: acError ? '#fff' : '#d32f2f',
-              color: acError ? '#d32f2f' : '#fff',
-              border: acError ? '1px solid #d32f2f' : 'none',
-              borderRadius: 4,
-              cursor: 'pointer',
-            }}
+            variant={acError ? 'outline' : 'default'}
+            className={
+              acError
+                ? 'border-[#d32f2f] text-[#d32f2f] hover:bg-panel hover:text-[#d32f2f]'
+                : 'bg-[#d32f2f] hover:bg-[#d32f2f]'
+            }
           >
             Cerrar sesión
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -189,19 +178,9 @@ export default function App() {
         <p style={{ color: '#555' }}>
           Tu cuenta ha sido desactivada. Por favor, contacta al administrador del sistema.
         </p>
-        <button
-          onClick={signOut}
-          style={{
-            padding: '8px 16px',
-            background: '#d32f2f',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
-        >
+        <Button onClick={signOut} className="bg-[#d32f2f] hover:bg-[#d32f2f]">
           Cerrar sesión
-        </button>
+        </Button>
       </div>
     )
   }
