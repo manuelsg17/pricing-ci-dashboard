@@ -13,6 +13,7 @@ import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
 import { useI18n } from '../context/LanguageContext'
+import { Button } from '../components/ui/shadcn/button'
 import '../styles/data-entry.css'
 
 // (city/category/competitor constants are derived dynamically from COUNTRY_CONFIG via props)
@@ -686,23 +687,27 @@ export default function DataEntry() {
         </div>
         <div className="de-header__actions">
           {!sessionActive ? (
-            <button className="de-btn-start" onClick={handleStartSession} disabled={saving}>
+            <Button
+              className="bg-green-600 shadow-[0_2px_6px_rgba(22,163,74,0.3)] hover:bg-green-700"
+              onClick={handleStartSession}
+              disabled={saving}
+            >
               {t('dataentry.start_session')}
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                className="de-btn-save"
-                onClick={handleSaveProgress}
-                disabled={saving || filledCount === 0}
-              >
+              <Button onClick={handleSaveProgress} disabled={saving || filledCount === 0}>
                 {saving
                   ? t('dataentry.saving')
                   : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
-              </button>
-              <button className="de-btn-finish" onClick={handleFinishSession} disabled={saving}>
+              </Button>
+              <Button
+                className="bg-green-800 hover:bg-green-900"
+                onClick={handleFinishSession}
+                disabled={saving}
+              >
                 {t('dataentry.end_session')}
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -920,23 +925,27 @@ export default function DataEntry() {
         <div className="de-footer">
           {sessionActive ? (
             <>
-              <button
-                className="de-btn-save"
-                onClick={handleSaveProgress}
-                disabled={saving || filledCount === 0}
-              >
+              <Button onClick={handleSaveProgress} disabled={saving || filledCount === 0}>
                 {saving
                   ? t('dataentry.saving')
                   : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
-              </button>
-              <button className="de-btn-finish" onClick={handleFinishSession} disabled={saving}>
+              </Button>
+              <Button
+                className="bg-green-800 hover:bg-green-900"
+                onClick={handleFinishSession}
+                disabled={saving}
+              >
                 {t('dataentry.end_session')}
-              </button>
+              </Button>
             </>
           ) : (
-            <button className="de-btn-start" onClick={handleStartSession} disabled={saving}>
+            <Button
+              className="bg-green-600 shadow-[0_2px_6px_rgba(22,163,74,0.3)] hover:bg-green-700"
+              onClick={handleStartSession}
+              disabled={saving}
+            >
               {t('dataentry.start_session')}
-            </button>
+            </Button>
           )}
           {msg && (
             <span className={msg.type === 'ok' ? 'de-footer-ok' : 'de-footer-err'}>{msg.text}</span>
@@ -983,9 +992,9 @@ export default function DataEntry() {
                   style={{ width: 160 }}
                 />
               </label>
-              <button className="de-btn-filter" onClick={loadSessionHistory} disabled={histLoading}>
+              <Button size="sm" onClick={loadSessionHistory} disabled={histLoading}>
                 {histLoading ? t('dataentry.searching') : t('dataentry.search')}
-              </button>
+              </Button>
             </div>
 
             {/* Table */}

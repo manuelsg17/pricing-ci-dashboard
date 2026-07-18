@@ -52,41 +52,6 @@
   align-items: center;
 }
 
-/* ── Action buttons ──────────────────────────────────────── */
-.de-btn-save {
-  padding: 7px 16px;
-  background: var(--color-yango);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  white-space: nowrap;
-}
-
-.de-btn-save:hover  { background: var(--color-yango-dark); }
-.de-btn-save:active { transform: scale(0.98); }
-.de-btn-save:disabled { background: var(--color-subtle); cursor: not-allowed; transform: none; }
-
-.de-btn-finish {
-  padding: 7px 16px;
-  background: #166534;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  white-space: nowrap;
-}
-
-.de-btn-finish:hover  { background: #14532d; }
-.de-btn-finish:active { transform: scale(0.98); }
-.de-btn-finish:disabled { background: var(--color-subtle); cursor: not-allowed; transform: none; }
-
 /* ── Session bar ─────────────────────────────────────────── */
 .de-session-bar {
   background: var(--color-panel);
@@ -118,7 +83,10 @@
   transition: all 0.15s;
 }
 
-.de-city-tab:hover { border-color: var(--color-yango); color: var(--color-yango); }
+.de-city-tab:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
 .de-city-tab.active {
   background: var(--color-yango);
   color: #fff;
@@ -151,7 +119,7 @@
 }
 
 .de-ctrl select,
-.de-ctrl input[type="date"] {
+.de-ctrl input[type='date'] {
   padding: 5px 8px;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -162,14 +130,16 @@
 }
 
 .de-ctrl select:focus,
-.de-ctrl input[type="date"]:focus { border-color: var(--color-yango); }
+.de-ctrl input[type='date']:focus {
+  border-color: var(--color-yango);
+}
 
 .de-ctrl--surge {
   gap: 5px;
   cursor: pointer;
 }
 
-.de-ctrl--surge input[type="checkbox"] {
+.de-ctrl--surge input[type='checkbox'] {
   width: 14px;
   height: 14px;
   accent-color: var(--color-yango);
@@ -213,10 +183,26 @@
   padding: 3px 12px;
 }
 
-.de-progress-filled { font-size: 13px; font-weight: 800; color: var(--color-yango); }
-.de-progress-sep    { font-size: 11px; color: var(--color-muted); margin: 0 2px; }
-.de-progress-total  { font-size: 12px; font-weight: 600; color: var(--color-muted); }
-.de-progress-label  { font-size: 10px; color: var(--color-muted); margin-left: 4px; }
+.de-progress-filled {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-yango);
+}
+.de-progress-sep {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin: 0 2px;
+}
+.de-progress-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.de-progress-label {
+  font-size: 10px;
+  color: var(--color-muted);
+  margin-left: 4px;
+}
 
 /* ── Messages ────────────────────────────────────────────── */
 .de-msg {
@@ -226,8 +212,16 @@
   font-weight: 500;
 }
 
-.de-msg--ok  { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
-.de-msg--err { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.de-msg--ok {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+.de-msg--err {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
 
 /* ── Loading ─────────────────────────────────────────────── */
 .de-loading {
@@ -275,7 +269,9 @@
   background: var(--color-panel);
 }
 
-.de-cat-empty strong { color: var(--color-text); }
+.de-cat-empty strong {
+  color: var(--color-text);
+}
 
 /* ── Table ───────────────────────────────────────────────── */
 .de-table-wrap {
@@ -306,19 +302,41 @@
   z-index: 1;
 }
 
-.de-th-bracket { width: 80px; text-align: left !important; padding-left: 10px !important; }
-.de-th-km      { width: 44px; }
-.de-th-route   { min-width: 110px; }
-.de-th-ts      { min-width: 90px; }
-.de-th-price   { min-width: 82px; }
+.de-th-bracket {
+  width: 80px;
+  text-align: left !important;
+  padding-left: 10px !important;
+}
+.de-th-km {
+  width: 44px;
+}
+.de-th-route {
+  min-width: 110px;
+}
+.de-th-ts {
+  min-width: 90px;
+}
+.de-th-price {
+  min-width: 82px;
+}
 
 /* Rows */
-.de-row { background: var(--color-panel); }
-.de-row:nth-child(even) { background: #f8fafc; }
-.de-row:hover td { background: var(--color-yango-mid) !important; }
+.de-row {
+  background: var(--color-panel);
+}
+.de-row:nth-child(even) {
+  background: #f8fafc;
+}
+.de-row:hover td {
+  background: var(--color-yango-mid) !important;
+}
 
-.de-row-partial td { background: #fff5f5 !important; }
-.de-row-partial:hover td { background: #fee2e2 !important; }
+.de-row-partial td {
+  background: #fff5f5 !important;
+}
+.de-row-partial:hover td {
+  background: #fee2e2 !important;
+}
 
 /* Cells */
 .de-td-bracket {
@@ -394,7 +412,9 @@
   text-align: right;
   font-size: 12px;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   background: var(--color-bg);
   font-weight: 600;
 }
@@ -463,7 +483,10 @@
   flex-shrink: 0;
 }
 
-.indrive-toggle:hover { background: var(--color-yango-mid); border-color: var(--color-yango); }
+.indrive-toggle:hover {
+  background: var(--color-yango-mid);
+  border-color: var(--color-yango);
+}
 
 .indrive-bids-panel {
   background: #f8fafc;
@@ -475,7 +498,7 @@
   gap: 4px;
   min-width: 130px;
   z-index: 10;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .indrive-bid-row {
@@ -505,7 +528,9 @@
   transition: border-color 0.15s;
 }
 
-.indrive-bid-input:focus { border-color: var(--color-yango); }
+.indrive-bid-input:focus {
+  border-color: var(--color-yango);
+}
 
 .indrive-bid-remove {
   width: 18px;
@@ -522,7 +547,9 @@
   flex-shrink: 0;
 }
 
-.indrive-bid-remove:hover { background: #fee2e2; }
+.indrive-bid-remove:hover {
+  background: #fee2e2;
+}
 
 .indrive-bid-add {
   font-size: 10px;
@@ -537,7 +564,9 @@
   transition: all 0.15s;
 }
 
-.indrive-bid-add:hover { background: var(--color-yango-mid); }
+.indrive-bid-add:hover {
+  background: var(--color-yango-mid);
+}
 
 /* ── Footer ──────────────────────────────────────────────── */
 .de-footer {
@@ -549,26 +578,16 @@
   flex-wrap: wrap;
 }
 
-.de-footer-ok  { font-size: 12px; font-weight: 600; color: #166534; }
-.de-footer-err { font-size: 12px; font-weight: 600; color: #991b1b; }
-
-/* ── Session start button ─────────────────────────────────── */
-.de-btn-start {
-  padding: 8px 20px;
-  background: #16a34a;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.3px;
-  transition: all 0.15s;
-  box-shadow: 0 2px 6px rgba(22,163,74,0.3);
+.de-footer-ok {
+  font-size: 12px;
+  font-weight: 600;
+  color: #166534;
 }
-.de-btn-start:hover  { background: #15803d; }
-.de-btn-start:active { transform: scale(0.98); }
-.de-btn-start:disabled { background: var(--color-subtle); cursor: not-allowed; }
+.de-footer-err {
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+}
 
 /* ── Active timer ──────────────────────────────────────────── */
 .de-timer--active {
@@ -579,8 +598,13 @@
   animation: pulse-green 2s infinite;
 }
 @keyframes pulse-green {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 /* ── Session History Section ──────────────────────────────── */
@@ -604,7 +628,9 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.de-history-toggle:hover { background: #f1f5f9; }
+.de-history-toggle:hover {
+  background: #f1f5f9;
+}
 
 .de-history-body {
   border-top: 1px solid var(--color-border);
@@ -618,20 +644,6 @@
   align-items: flex-end;
   margin-bottom: 14px;
 }
-
-.de-btn-filter {
-  padding: 6px 16px;
-  background: var(--color-yango);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.de-btn-filter:hover { background: var(--color-yango-dark); }
-.de-btn-filter:disabled { background: var(--color-subtle); cursor: not-allowed; }
 
 .de-history-table {
   width: 100%;
@@ -656,4 +668,6 @@
   vertical-align: middle;
   white-space: nowrap;
 }
-.de-history-table tbody tr:hover td { background: #f8fafc; }
+.de-history-table tbody tr:hover td {
+  background: #f8fafc;
+}
