@@ -352,20 +352,12 @@ export default function BotRulesTable({ country }) {
           {t('config.botrules.add_btn')}
         </Button>
         {unmatched.length > 0 && (
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100"
             onClick={() => setShowUnmatched((v) => !v)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: '1px solid #f59e0b',
-              background: '#fffbeb',
-              cursor: 'pointer',
-              fontSize: 12,
-              color: '#78350f',
-            }}
           >
             <AlertTriangle size={13} />
             {t('config.botrules.unmatched_count', {
@@ -373,7 +365,7 @@ export default function BotRulesTable({ country }) {
               count: unmatched.length,
             })}{' '}
             ({showUnmatched ? t('config.botrules.hide') : t('config.botrules.view')})
-          </button>
+          </Button>
         )}
       </div>
 

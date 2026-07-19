@@ -325,18 +325,22 @@ export default function InDriveConfig({ country }) {
             >
               ↻ {t('config.indrive.reload_btn')}
             </Button>
-            <button
+            <Button
+              variant={analysisView === 'summary' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-[4px]"
               onClick={() => setAnalysisView('summary')}
-              style={tabBtnStyle(analysisView === 'summary')}
             >
               {t('config.indrive.tab_by_city')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={analysisView === 'weekly' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-[4px]"
               onClick={() => setAnalysisView('weekly')}
-              style={tabBtnStyle(analysisView === 'weekly')}
             >
               {t('config.indrive.tab_by_week')}
-            </button>
+            </Button>
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
@@ -536,11 +540,13 @@ export default function InDriveConfig({ country }) {
               { v: 4, labelKey: 'config.indrive.window_4weeks' },
               { v: 'all', labelKey: 'config.indrive.window_all' },
             ].map((o) => (
-              <button
+              <Button
                 key={String(o.v)}
                 type="button"
+                variant={refWindow === o.v ? 'default' : 'outline'}
+                size="sm"
+                className="rounded-[4px]"
                 onClick={() => setRefWindow(o.v)}
-                style={tabBtnStyle(refWindow === o.v)}
                 title={
                   o.v === 'all'
                     ? t('config.indrive.window_all_title')
@@ -548,7 +554,7 @@ export default function InDriveConfig({ country }) {
                 }
               >
                 {t(o.labelKey)}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -762,17 +768,4 @@ export default function InDriveConfig({ country }) {
       </div>
     </div>
   )
-}
-
-function tabBtnStyle(active) {
-  return {
-    padding: '4px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: 4,
-    fontSize: 12,
-    cursor: 'pointer',
-    fontWeight: active ? 700 : 400,
-    background: active ? 'var(--color-yango)' : '#f9fafb',
-    color: active ? '#fff' : '#374151',
-  }
 }
