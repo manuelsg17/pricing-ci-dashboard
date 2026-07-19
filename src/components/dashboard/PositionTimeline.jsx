@@ -20,8 +20,10 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
+import { useI18n } from '../../context/LanguageContext'
 
 export default function PositionTimeline({ priceMatrix, periods, competitors, compareVs }) {
+  const { t } = useI18n()
   const data = useMemo(() => {
     if (!priceMatrix || !periods?.length) return []
     const yangoComp = compareVs
@@ -53,17 +55,21 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
     if (valid.length < 1) return null
     const first = valid[0]
     const last = valid[valid.length - 1]
-    const now = `Hoy Yango es el ${last.rank}° más barato de ${last.total}`
+    const now = t('dashboard.position_timeline.conclusion_now', {
+      rank: last.rank,
+      total: last.total,
+    })
     if (valid.length < 2 || first.rank === last.rank)
-      return `${now} — posición estable en el rango.`
-    if (last.rank < first.rank) return `${now}, mejorando: arrancó el rango en ${first.rank}°.`
-    return `${now}, empeorando: arrancó el rango en ${first.rank}°.`
-  }, [data])
+      return t('dashboard.position_timeline.conclusion_stable', { now })
+    if (last.rank < first.rank)
+      return t('dashboard.position_timeline.conclusion_improving', { now, first: first.rank })
+    return t('dashboard.position_timeline.conclusion_worsening', { now, first: first.rank })
+  }, [data, t])
 
   if (!hasData) {
     return (
       <div className="p-6 text-center text-sm text-muted">
-        Sin data suficiente para el timeline de posición.
+        {t('dashboard.position_timeline.no_data')}
       </div>
     )
   }
@@ -72,7 +78,7 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
     <div className="w-full">
       {conclusion && (
         <div className="mb-3 rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs leading-relaxed">
-          <strong>Lectura rápida:</strong> {conclusion}
+          <strong>{t('dashboard.position_timeline.quick_read_label')}</strong> {conclusion}
         </div>
       )}
       <ResponsiveContainer width="100%" height={260}>
@@ -85,9 +91,9 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
             domain={[1, maxRank]}
             allowDecimals={false}
             ticks={Array.from({ length: maxRank }, (_, i) => i + 1)}
-            tickFormatter={(v) => `${v}°`}
+            tickFormatter={(v) => `#${v}`}
             label={{
-              value: 'Posición',
+              value: t('dashboard.position_timeline.axis_label'),
               angle: -90,
               position: 'insideLeft',
               style: { fontSize: 10, fill: 'var(--color-muted)' },
@@ -96,10 +102,22 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
           <Tooltip
             contentStyle={{ fontSize: 11 }}
             formatter={(value, _name, props) => {
-              if (value == null) return ['Sin data', 'Posición']
-              return [`${value}° de ${props.payload.total}`, 'Posición Yango']
+              if (value == null)
+                return [
+                  t('dashboard.position_timeline.tooltip_no_data'),
+                  t('dashboard.position_timeline.axis_label'),
+                ]
+              return [
+                t('dashboard.position_timeline.tooltip_value', {
+                  rank: value,
+                  total: props.payload.total,
+                }),
+                t('dashboard.position_timeline.tooltip_position_label'),
+              ]
             }}
-            labelFormatter={(label) => `Período: ${label}`}
+            labelFormatter={(label) =>
+              t('dashboard.position_timeline.tooltip_period_label', { label })
+            }
           />
           {/* Línea de "podio" (top 3) */}
           <ReferenceLine y={3} stroke="var(--sem-yellow-fg)" strokeDasharray="2 4" />
@@ -113,10 +131,7 @@ export default function PositionTimeline({ priceMatrix, periods, competitors, co
           />
         </LineChart>
       </ResponsiveContainer>
-      <p className="text-xs text-muted mt-2">
-        Ranking de precio de Yango semana a semana (1° = el más barato del mercado). La línea
-        punteada amarilla marca el podio (top 3). Subir en el gráfico = mejorar.
-      </p>
+      <p className="text-xs text-muted mt-2">{t('dashboard.position_timeline.footer')}</p>
     </div>
   )
 }

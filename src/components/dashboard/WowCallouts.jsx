@@ -3,10 +3,12 @@ import { COMPETITOR_COLORS } from '../../lib/constants'
 import { prettyCompetitor } from '../../lib/normalize'
 import { AlertTriangle, ArrowUp, ArrowDown, X } from 'lucide-react'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 const THRESHOLD = 5
 
 export default function WowCallouts({ priceMatrix, competitors, periods }) {
+  const { t } = useI18n()
   const [dismissed, setDismissed] = useState(false)
 
   const movers = useMemo(() => {
@@ -61,7 +63,8 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
           flexShrink: 0,
         }}
       >
-        <AlertTriangle size={14} /> Cambios WoW {prevLabel} → {lastLabel}
+        <AlertTriangle size={14} />{' '}
+        {t('dashboard.wow_callouts.header', { prev: prevLabel, last: lastLabel })}
       </span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, flex: 1 }}>
         {movers.slice(0, 6).map((m) => {
@@ -110,7 +113,7 @@ export default function WowCallouts({ priceMatrix, competitors, periods }) {
         variant="ghost"
         size="icon"
         onClick={() => setDismissed(true)}
-        title="Ocultar"
+        title={t('dashboard.wow_callouts.hide_title')}
         className="h-auto w-auto p-1 leading-none text-amber-800 hover:bg-transparent hover:text-amber-900"
       >
         <X size={15} />

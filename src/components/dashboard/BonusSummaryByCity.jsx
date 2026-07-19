@@ -2,23 +2,12 @@ import { useMemo } from 'react'
 import { describeBonus } from '../../lib/competitorBonus'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import CollapsibleSection from '../market/CollapsibleSection'
+import { useI18n } from '../../context/LanguageContext'
 
 // Resumen READ-ONLY de los bonos mapeados para la ciudad seleccionada.
 // Misma fuente que Config → Bonos: recibe `bonusRows` (allRows de
 // competitor_bonuses) del hook que Rentabilidad ya tiene — sin re-fetch — y el
 // bono Yango por % de GMV (yango_gmv_tiers) por prop. No escribe nada.
-const SEGMENT_LABEL = {
-  active: 'Activo',
-  new: 'Nuevo',
-  reactivated: 'Reactivado',
-  all: '',
-}
-const VARIANT_LABEL = {
-  unbranded: 'Sin brandeo',
-  branded: 'Con brandeo',
-  vip: 'VIP (Premier)',
-}
-
 const tableStyle = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }
 const thS = {
   textAlign: 'left',
@@ -35,11 +24,17 @@ const tdS = {
 }
 
 // Chips de contexto (segmento / recurrencia / ventana / zona) de un bono.
-function metaOf(b) {
+function metaOf(b, t) {
   const parts = []
-  const seg = SEGMENT_LABEL[b.segment || 'all']
+  const segmentLabel = {
+    active: t('dashboard.bonus_summary.segment_active'),
+    new: t('dashboard.bonus_summary.segment_new'),
+    reactivated: t('dashboard.bonus_summary.segment_reactivated'),
+    all: '',
+  }
+  const seg = segmentLabel[b.segment || 'all']
   if (seg) parts.push(seg)
-  if (b.recurring === false) parts.push('gancho 1 vez')
+  if (b.recurring === false) parts.push(t('dashboard.bonus_summary.one_time_hook'))
   const win = [b.day_window, [b.time_from, b.time_to].filter(Boolean).join('–')]
     .filter(Boolean)
     .join(' ')
@@ -55,6 +50,13 @@ export default function BonusSummaryByCity({
   bonusRows = [],
   loading = false,
 }) {
+  const { t } = useI18n()
+  const variantLabel = {
+    unbranded: t('dashboard.bonus_summary.variant_unbranded'),
+    branded: t('dashboard.bonus_summary.variant_branded'),
+    vip: t('dashboard.bonus_summary.variant_vip'),
+  }
+
   // Bonos de competidores activos que aplican a la ciudad activa
   // (city = ciudad seleccionada, o city = null = "todas las ciudades").
   const compRows = useMemo(() => {
@@ -73,13 +75,13 @@ export default function BonusSummaryByCity({
     const out = []
     for (const variant of ['unbranded', 'branded', 'vip']) {
       const tiers = (yangoGmvTiers || [])
-        .filter((t) => t.city === dbCity && t.variant === variant)
+        .filter((tier) => tier.city === dbCity && tier.variant === variant)
         .sort((a, b) => Number(a.min_trips) - Number(b.min_trips))
       if (!tiers.length) continue
       const text = tiers
         .map(
-          (t) =>
-            `≥${t.min_trips}→${t.pct}%${Number(t.cap) > 0 ? ` (tope ${currency} ${t.cap})` : ''}`
+          (tier) =>
+            `≥${tier.min_trips}→${tier.pct}%${Number(tier.cap) > 0 ? ` (tope ${currency} ${tier.cap})` : ''}`
         )
         .join(' · ')
       out.push({ variant, text })
@@ -92,24 +94,26 @@ export default function BonusSummaryByCity({
   return (
     <CollapsibleSection
       id="bonos-mapeados"
-      title={`Bonos mapeados — ${dbCity}`}
-      subtitle="Lo que está cargado hoy en Config → Bonos para esta ciudad (solo lectura)."
+      title={t('dashboard.bonus_summary.title', { city: dbCity })}
+      subtitle={t('dashboard.bonus_summary.subtitle')}
       defaultOpen={true}
     >
       {loading ? (
-        <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>Cargando bonos…</div>
+        <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+          {t('dashboard.bonus_summary.loading')}
+        </div>
       ) : empty ? (
         <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>
-          Sin bonos mapeados para {dbCity}.
+          {t('dashboard.bonus_summary.empty', { city: dbCity })}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={tableStyle}>
             <thead>
               <tr>
-                <th style={thS}>Competidor</th>
-                <th style={thS}>Bono / incentivo</th>
-                <th style={thS}>Aplica</th>
+                <th style={thS}>{t('dashboard.table.competitor')}</th>
+                <th style={thS}>{t('dashboard.bonus_summary.col_bonus')}</th>
+                <th style={thS}>{t('dashboard.bonus_summary.col_applies')}</th>
               </tr>
             </thead>
             <tbody>
@@ -120,12 +124,12 @@ export default function BonusSummaryByCity({
                     <span style={{ color: COMPETITOR_COLORS['Yango'] || '#E53935' }}>●</span> Yango
                   </td>
                   <td style={tdS}>
-                    <span style={{ color: 'var(--color-muted)' }}>% GMV: </span>
+                    <span style={{ color: 'var(--color-muted)' }}>
+                      {t('dashboard.bonus_summary.gmv_label')}{' '}
+                    </span>
                     {y.text}
                   </td>
-                  <td style={{ ...tdS, color: 'var(--color-muted)' }}>
-                    {VARIANT_LABEL[y.variant]}
-                  </td>
+                  <td style={{ ...tdS, color: 'var(--color-muted)' }}>{variantLabel[y.variant]}</td>
                 </tr>
               ))}
 
@@ -150,19 +154,18 @@ export default function BonusSummaryByCity({
                       ) : null}
                       {!b.city && (
                         <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--color-muted)' }}>
-                          (todas las ciudades)
+                          {t('dashboard.bonus_summary.all_cities_tag')}
                         </span>
                       )}
                     </td>
-                    <td style={{ ...tdS, color: 'var(--color-muted)' }}>{metaOf(b) || '—'}</td>
+                    <td style={{ ...tdS, color: 'var(--color-muted)' }}>{metaOf(b, t) || '—'}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--color-muted)' }}>
-            Se edita en <strong>Config → Bonos</strong>. El bono de Yango por % de GMV se ajusta en
-            la sub-pestaña <strong>Bono Yango (% GMV)</strong>.
+            {t('dashboard.bonus_summary.footer')}
           </div>
         </div>
       )}

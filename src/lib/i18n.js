@@ -118,6 +118,43 @@ export const TRANSLATIONS = {
     'login.submit': 'Ingresar',
     'login.default_error': 'Credenciales incorrectas',
 
+    // ── Dashboard — WowCallouts / BonusSummaryByCity / PositionTimeline ──
+    'dashboard.wow_callouts.header': 'Cambios WoW {prev} → {last}',
+    'dashboard.wow_callouts.hide_title': 'Ocultar',
+    'dashboard.bonus_summary.segment_active': 'Activo',
+    'dashboard.bonus_summary.segment_new': 'Nuevo',
+    'dashboard.bonus_summary.segment_reactivated': 'Reactivado',
+    'dashboard.bonus_summary.one_time_hook': 'gancho 1 vez',
+    'dashboard.bonus_summary.variant_unbranded': 'Sin brandeo',
+    'dashboard.bonus_summary.variant_branded': 'Con brandeo',
+    'dashboard.bonus_summary.variant_vip': 'VIP (Premier)',
+    'dashboard.bonus_summary.title': 'Bonos mapeados — {city}',
+    'dashboard.bonus_summary.subtitle':
+      'Lo que está cargado hoy en Config → Bonos para esta ciudad (solo lectura).',
+    'dashboard.bonus_summary.loading': 'Cargando bonos…',
+    'dashboard.bonus_summary.empty': 'Sin bonos mapeados para {city}.',
+    'dashboard.bonus_summary.col_bonus': 'Bono / incentivo',
+    'dashboard.bonus_summary.col_applies': 'Aplica',
+    'dashboard.bonus_summary.gmv_label': '% GMV:',
+    'dashboard.bonus_summary.all_cities_tag': '(todas las ciudades)',
+    'dashboard.bonus_summary.footer':
+      'Se edita en Config → Bonos. El bono de Yango por % de GMV se ajusta en la sub-pestaña Bono Yango (% GMV).',
+    'dashboard.position_timeline.no_data': 'Sin data suficiente para el timeline de posición.',
+    'dashboard.position_timeline.quick_read_label': 'Lectura rápida:',
+    'dashboard.position_timeline.conclusion_now': 'Hoy Yango es el #{rank} más barato de {total}',
+    'dashboard.position_timeline.conclusion_stable': '{now} — posición estable en el rango.',
+    'dashboard.position_timeline.conclusion_improving':
+      '{now}, mejorando: arrancó el rango en #{first}.',
+    'dashboard.position_timeline.conclusion_worsening':
+      '{now}, empeorando: arrancó el rango en #{first}.',
+    'dashboard.position_timeline.axis_label': 'Posición',
+    'dashboard.position_timeline.tooltip_no_data': 'Sin data',
+    'dashboard.position_timeline.tooltip_position_label': 'Posición Yango',
+    'dashboard.position_timeline.tooltip_value': '#{rank} de {total}',
+    'dashboard.position_timeline.tooltip_period_label': 'Período: {label}',
+    'dashboard.position_timeline.footer':
+      'Ranking de precio de Yango semana a semana (#1 = el más barato del mercado). La línea punteada amarilla marca el podio (top 3). Subir en el gráfico = mejorar.',
+
     // ── Cuenta / contraseña ────────────────────────────
     'account.change_password': 'Cambiar contraseña',
     'account.current': 'Contraseña actual',
@@ -1889,6 +1926,43 @@ export const TRANSLATIONS = {
     'login.submit': 'Sign in',
     'login.default_error': 'Incorrect credentials',
 
+    // ── Dashboard — WowCallouts / BonusSummaryByCity / PositionTimeline ──
+    'dashboard.wow_callouts.header': 'WoW changes {prev} → {last}',
+    'dashboard.wow_callouts.hide_title': 'Hide',
+    'dashboard.bonus_summary.segment_active': 'Active',
+    'dashboard.bonus_summary.segment_new': 'New',
+    'dashboard.bonus_summary.segment_reactivated': 'Reactivated',
+    'dashboard.bonus_summary.one_time_hook': 'one-time hook',
+    'dashboard.bonus_summary.variant_unbranded': 'Unbranded',
+    'dashboard.bonus_summary.variant_branded': 'Branded',
+    'dashboard.bonus_summary.variant_vip': 'VIP (Premier)',
+    'dashboard.bonus_summary.title': 'Mapped bonuses — {city}',
+    'dashboard.bonus_summary.subtitle':
+      "What's currently loaded in Config → Bonuses for this city (read-only).",
+    'dashboard.bonus_summary.loading': 'Loading bonuses…',
+    'dashboard.bonus_summary.empty': 'No bonuses mapped for {city}.',
+    'dashboard.bonus_summary.col_bonus': 'Bonus / incentive',
+    'dashboard.bonus_summary.col_applies': 'Applies',
+    'dashboard.bonus_summary.gmv_label': '% GMV:',
+    'dashboard.bonus_summary.all_cities_tag': '(all cities)',
+    'dashboard.bonus_summary.footer':
+      "Edit this in Config → Bonuses. Yango's % GMV bonus is adjusted in the Yango Bonus (% GMV) sub-tab.",
+    'dashboard.position_timeline.no_data': 'Not enough data for the position timeline.',
+    'dashboard.position_timeline.quick_read_label': 'Quick read:',
+    'dashboard.position_timeline.conclusion_now': 'Today Yango is #{rank} cheapest out of {total}',
+    'dashboard.position_timeline.conclusion_stable': '{now} — stable position in the range.',
+    'dashboard.position_timeline.conclusion_improving':
+      '{now}, improving: started the range at #{first}.',
+    'dashboard.position_timeline.conclusion_worsening':
+      '{now}, worsening: started the range at #{first}.',
+    'dashboard.position_timeline.axis_label': 'Position',
+    'dashboard.position_timeline.tooltip_no_data': 'No data',
+    'dashboard.position_timeline.tooltip_position_label': 'Yango position',
+    'dashboard.position_timeline.tooltip_value': '#{rank} of {total}',
+    'dashboard.position_timeline.tooltip_period_label': 'Period: {label}',
+    'dashboard.position_timeline.footer':
+      "Yango's price ranking week by week (#1 = cheapest in the market). The dashed yellow line marks the podium (top 3). Going up in the chart = improving.",
+
     // ── Account / password ─────────────────────────────
     'account.change_password': 'Change password',
     'account.current': 'Current password',
@@ -3633,6 +3707,43 @@ export const TRANSLATIONS = {
     'login.submit_loading': 'Вход...',
     'login.submit': 'Войти',
     'login.default_error': 'Неверные учётные данные',
+
+    // ── Дашборд — WowCallouts / BonusSummaryByCity / PositionTimeline ──
+    'dashboard.wow_callouts.header': 'Изменения WoW {prev} → {last}',
+    'dashboard.wow_callouts.hide_title': 'Скрыть',
+    'dashboard.bonus_summary.segment_active': 'Активный',
+    'dashboard.bonus_summary.segment_new': 'Новый',
+    'dashboard.bonus_summary.segment_reactivated': 'Реактивированный',
+    'dashboard.bonus_summary.one_time_hook': 'разовый крючок',
+    'dashboard.bonus_summary.variant_unbranded': 'Без брендинга',
+    'dashboard.bonus_summary.variant_branded': 'С брендингом',
+    'dashboard.bonus_summary.variant_vip': 'VIP (Premier)',
+    'dashboard.bonus_summary.title': 'Настроенные бонусы — {city}',
+    'dashboard.bonus_summary.subtitle':
+      'То, что сейчас загружено в Настройки → Бонусы для этого города (только чтение).',
+    'dashboard.bonus_summary.loading': 'Загрузка бонусов…',
+    'dashboard.bonus_summary.empty': 'Нет настроенных бонусов для {city}.',
+    'dashboard.bonus_summary.col_bonus': 'Бонус / стимул',
+    'dashboard.bonus_summary.col_applies': 'Применяется',
+    'dashboard.bonus_summary.gmv_label': '% GMV:',
+    'dashboard.bonus_summary.all_cities_tag': '(все города)',
+    'dashboard.bonus_summary.footer':
+      'Редактируется в Настройки → Бонусы. Бонус Yango в % от GMV настраивается во вкладке Бонус Yango (% GMV).',
+    'dashboard.position_timeline.no_data': 'Недостаточно данных для таймлайна позиции.',
+    'dashboard.position_timeline.quick_read_label': 'Краткий вывод:',
+    'dashboard.position_timeline.conclusion_now': 'Сегодня Yango — #{rank} по дешевизне из {total}',
+    'dashboard.position_timeline.conclusion_stable': '{now} — позиция стабильна в этом диапазоне.',
+    'dashboard.position_timeline.conclusion_improving':
+      '{now}, улучшение: диапазон начался с #{first}.',
+    'dashboard.position_timeline.conclusion_worsening':
+      '{now}, ухудшение: диапазон начался с #{first}.',
+    'dashboard.position_timeline.axis_label': 'Позиция',
+    'dashboard.position_timeline.tooltip_no_data': 'Нет данных',
+    'dashboard.position_timeline.tooltip_position_label': 'Позиция Yango',
+    'dashboard.position_timeline.tooltip_value': '#{rank} из {total}',
+    'dashboard.position_timeline.tooltip_period_label': 'Период: {label}',
+    'dashboard.position_timeline.footer':
+      'Рейтинг цены Yango неделя за неделей (#1 = самый дешёвый на рынке). Жёлтая пунктирная линия отмечает подиум (топ-3). Подъём на графике = улучшение.',
 
     // ── Аккаунт / пароль ───────────────────────────────
     'account.change_password': 'Сменить пароль',
