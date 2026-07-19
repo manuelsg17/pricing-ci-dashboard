@@ -5,8 +5,8 @@
 // Catch principal: el bug histórico donde una regla con vc='premier' no
 // matcheaba filas del bot que llegan con vc='premium'.
 
-import { mapBotRows } from '../src/lib/botMapping.js'
-import { COUNTRY_CONFIG } from '../src/lib/constants.js'
+import { mapBotRows, botRulesRowsToInternal } from '../src/lib/botMapping.js'
+import { COUNTRY_CONFIG, dbConfigToInternal } from '../src/lib/constants.js'
 
 let passed = 0
 let failed = 0
@@ -177,6 +177,124 @@ console.log('\n══ Bot mapping tests — Perú ══')
   assert(ok[0].recommended_price === 14, 'recommended_price = price_regular')
   assert(ok[0].minimal_bid === 10, 'minimal_bid = price_discounted')
   assert(ok[0].price_without_discount === null, 'price_without_discount es null para InDrive')
+}
+
+// ── Path en vivo: botRulesRowsToInternal (CountryContext.fetchAllConfigs) ──
+// Hasta acá todos los tests corren contra COUNTRY_CONFIG.Peru.botRules, el
+// array hardcodeado — pero en producción, para prácticamente todos los
+// países (incluido Peru/Colombia salvo que falle el fetch), el path real
+// es CountryContext trayendo bot_rules de la tabla SQL y pisando botRules
+// vía botRulesRowsToInternal() (Fase 1.3c, commit a88998e). Esa función y
+// el path que la usa no tenían ningún test — se cubre acá.
+console.log('\n══ Bot mapping tests — path en vivo (botRulesRowsToInternal) ══')
+
+// ── Test 11: botRulesRowsToInternal — shape transform SQL → interno ───
+{
+  console.log('\n[11] botRulesRowsToInternal: shape transform SQL→interno')
+  const internalRules = botRulesRowsToInternal([
+    {
+      country: 'Bolivia', app: 'yango_api', vc: 'economy', ovc: '*',
+      competition_name: 'Yango', category: 'Economy', cities: [],
+    },
+    {
+      country: 'Bolivia', app: 'uber', vc: 'economy', ovc: '*',
+      competition_name: 'Uber', category: 'Economy', cities: ['La_Paz'],
+    },
+  ])
+  assert(internalRules[0].app === 'yango', 'app "yango_api" → "yango" (alias vía APP_KEY_MAP)')
+  assert(internalRules[0].name === 'Yango', 'competition_name (columna SQL) → name (campo que lee resolveByRules)')
+  assert(internalRules[0].cities === undefined, 'cities=[] (convención SQL "sin restricción") → undefined (convención JS)')
+  assert(
+    Array.isArray(internalRules[1].cities) && internalRules[1].cities.includes('La_Paz'),
+    'cities no vacío se preserva tal cual'
+  )
+  assert(
+    botRulesRowsToInternal([]).length === 0 && botRulesRowsToInternal(null).length === 0,
+    'input vacío/null no rompe, devuelve []'
+  )
+}
+
+// ── Test 12: end-to-end — país DB-only, exactamente el path de CountryContext ──
+{
+  console.log('\n[12] Simula CountryContext.fetchAllConfigs(): dbConfigToInternal + overlay de botRulesRowsToInternal, para un país que vive SOLO en DB (Bolivia)')
+
+  // country_config row tal como vendría de Supabase (bot_rules JSONB vacío
+  // a propósito — el path en vivo no debe depender de ese snapshot)
+  const boliviaRow = {
+    label: 'Bolivia',
+    currency: 'BOB',
+    locale: 'es-BO',
+    status: 'active',
+    outlier_threshold: 100,
+    max_price: 500,
+    cities: [
+      {
+        uiName: 'La Paz', dbName: 'La_Paz', botKey: 'la_paz',
+        categories: [{ name: 'Economy', dbName: 'Economy', competitors: ['Yango', 'Uber'] }],
+      },
+      {
+        uiName: 'Santa Cruz', dbName: 'Santa_Cruz', botKey: 'santa_cruz',
+        categories: [{ name: 'Economy', dbName: 'Economy', competitors: ['Yango', 'Uber'] }],
+      },
+    ],
+    bot_rules: [],
+  }
+  // Filas de la tabla SQL bot_rules tal como las trae CountryContext en paralelo
+  const rawBotRulesRows = [
+    {
+      country: 'Bolivia', app: 'yango_api', vc: 'economy', ovc: '*',
+      competition_name: 'Yango', category: 'Economy', cities: [],
+    },
+    {
+      country: 'Bolivia', app: 'uber', vc: 'economy', ovc: '*',
+      competition_name: 'Uber', category: 'Economy', cities: ['La_Paz'],
+    },
+  ]
+
+  const internal = dbConfigToInternal(boliviaRow)
+  internal.botRules = botRulesRowsToInternal(rawBotRulesRows) // mismo overlay que CountryContext.fetchAllConfigs()
+  const dbConfigs = { Bolivia: internal }
+
+  const yangoLaPaz = makeRow({
+    country: 'Bolivia', city: 'la_paz', app: 'yango',
+    vehicle_category: 'economy', observed_vehicle_category: 'economy',
+  })
+  const yangoSantaCruz = makeRow({
+    country: 'Bolivia', city: 'santa_cruz', app: 'yango',
+    vehicle_category: 'economy', observed_vehicle_category: 'economy',
+  })
+  const uberLaPaz = makeRow({
+    country: 'Bolivia', city: 'la_paz', app: 'uber',
+    vehicle_category: 'economy', observed_vehicle_category: 'economy',
+  })
+  const uberSantaCruz = makeRow({
+    country: 'Bolivia', city: 'santa_cruz', app: 'uber',
+    vehicle_category: 'economy', observed_vehicle_category: 'economy',
+  })
+
+  const r1 = mapBotRows([yangoLaPaz], 'Bolivia', dbConfigs)
+  assert(
+    r1.ok.length === 1 && r1.ok[0].competition_name === 'Yango',
+    'regla wildcard (cities=[] → undefined) matchea La Paz'
+  )
+
+  const r2 = mapBotRows([yangoSantaCruz], 'Bolivia', dbConfigs)
+  assert(
+    r2.ok.length === 1 && r2.ok[0].competition_name === 'Yango',
+    'regla wildcard matchea también Santa Cruz (sin restricción de ciudad)'
+  )
+
+  const r3 = mapBotRows([uberLaPaz], 'Bolivia', dbConfigs)
+  assert(
+    r3.ok.length === 1 && r3.ok[0].competition_name === 'Uber',
+    'regla con cities=[La_Paz] matchea La Paz'
+  )
+
+  const r4 = mapBotRows([uberSantaCruz], 'Bolivia', dbConfigs)
+  assert(
+    r4.ok.length === 0 && r4.skipped.length === 1,
+    'regla con cities=[La_Paz] NO matchea Santa Cruz — filtro de ciudad real del path en vivo'
+  )
 }
 
 // ── Resumen ───────────────────────────────────────────────────────────
