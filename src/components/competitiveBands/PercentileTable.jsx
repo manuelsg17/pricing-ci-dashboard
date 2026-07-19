@@ -1,17 +1,22 @@
+import { useI18n } from '../../context/LanguageContext'
+
 // Tabla de percentiles P10-P90 del Δ% (Yango vs rival) + promedio.
 export default function PercentileTable({ summary }) {
+  const { t } = useI18n()
   if (!summary || !summary.total_observations) return null
   const cols = [
     ['P10', summary.p10],
     ['P25', summary.p25],
-    ['P50 (mediana)', summary.p50],
+    [t('competitiveBands.p50_median'), summary.p50],
     ['P75', summary.p75],
     ['P90', summary.p90],
   ]
 
   return (
     <div className="config-section" style={{ marginBottom: 16 }}>
-      <h2 style={{ margin: 0, marginBottom: 10 }}>Distribución de Δ% (Yango vs rival)</h2>
+      <h2 style={{ margin: 0, marginBottom: 10 }}>
+        {t('competitiveBands.percentile_table.title')}
+      </h2>
       <table className="config-table config-table--modern">
         <thead>
           <tr>
@@ -20,7 +25,7 @@ export default function PercentileTable({ summary }) {
                 {label}
               </th>
             ))}
-            <th scope="col">Promedio</th>
+            <th scope="col">{t('competitiveBands.percentile_table.col_average')}</th>
           </tr>
         </thead>
         <tbody>
@@ -37,8 +42,7 @@ export default function PercentileTable({ summary }) {
         </tbody>
       </table>
       <p style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 8, marginBottom: 0 }}>
-        Negativo = Yango más barato que el rival. Ej: P90 positivo indica que el 10% más caro de las
-        cotizaciones de Yango queda por encima del rival.
+        {t('competitiveBands.percentile_table.footer_note')}
       </p>
     </div>
   )

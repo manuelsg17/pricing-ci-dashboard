@@ -1,4 +1,5 @@
 import { Badge } from '../ui/shadcn/badge'
+import { useI18n } from '../../context/LanguageContext'
 
 function KpiCard({ variant, title, pct, count, total, hint }) {
   return (
@@ -49,6 +50,7 @@ function KpiCard({ variant, title, pct, count, total, hint }) {
 // 3 tarjetas KPI con semáforo — reusa tokens --sem-green/yellow/red ya
 // existentes vía las variantes success/warning/danger del Badge shadcn.
 export default function ComplianceKpis({ summary }) {
+  const { t } = useI18n()
   if (!summary || !summary.total_observations) return null
   const total = Number(summary.total_observations)
 
@@ -56,27 +58,27 @@ export default function ComplianceKpis({ summary }) {
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
       <KpiCard
         variant="warning"
-        title="Por debajo de la banda"
+        title={t('competitiveBands.compliance.below_title')}
         pct={summary.below_pct}
         count={Number(summary.below_count)}
         total={total}
-        hint="Yango más barato de lo previsto — posible margen perdido"
+        hint={t('competitiveBands.compliance.below_hint')}
       />
       <KpiCard
         variant="success"
-        title="Dentro de la banda"
+        title={t('competitiveBands.compliance.within_title')}
         pct={summary.within_pct}
         count={Number(summary.within_count)}
         total={total}
-        hint="Cumple el rango competitivo definido"
+        hint={t('competitiveBands.compliance.within_hint')}
       />
       <KpiCard
         variant="danger"
-        title="Por encima de la banda"
+        title={t('competitiveBands.compliance.above_title')}
         pct={summary.above_pct}
         count={Number(summary.above_count)}
         total={total}
-        hint="Yango poco competitivo vs el rival"
+        hint={t('competitiveBands.compliance.above_hint')}
       />
     </div>
   )

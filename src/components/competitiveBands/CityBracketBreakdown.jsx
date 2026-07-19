@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { useI18n } from '../../context/LanguageContext'
 
 function cellColor(withinPct) {
   if (withinPct == null) return { background: '#f8fafc', color: '#9ca3af' }
@@ -11,6 +12,7 @@ function cellColor(withinPct) {
 // Grilla ciudad (filas) × distancia (columnas) — celda = % dentro de banda
 // + observaciones. Click hace drill-down al detalle de esa celda puntual.
 export default function CityBracketBreakdown({ breakdown, onCellClick }) {
+  const { t } = useI18n()
   const [selected, setSelected] = useState(null)
 
   const cities = useMemo(
@@ -32,15 +34,15 @@ export default function CityBracketBreakdown({ breakdown, onCellClick }) {
 
   return (
     <div className="config-section">
-      <h2 style={{ margin: 0, marginBottom: 4 }}>Desglose por ciudad y distancia</h2>
+      <h2 style={{ margin: 0, marginBottom: 4 }}>{t('competitiveBands.breakdown.title')}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 10 }}>
-        % de cotizaciones dentro de la banda. Click en una celda para ver el detalle.
+        {t('competitiveBands.breakdown.description')}
       </p>
       <div style={{ overflowX: 'auto' }}>
         <table className="config-table config-table--modern">
           <thead>
             <tr>
-              <th style={{ textAlign: 'left' }}>Ciudad</th>
+              <th style={{ textAlign: 'left' }}>{t('competitiveBands.breakdown.col_city')}</th>
               {BRACKETS.map((b) => (
                 <th key={b} scope="col">
                   {BRACKET_LABELS[b]}
@@ -68,8 +70,11 @@ export default function CityBracketBreakdown({ breakdown, onCellClick }) {
                       }}
                       title={
                         cell
-                          ? `${cell.total_observations} cotizaciones · mediana Δ% ${cell.p50}%`
-                          : 'Sin datos'
+                          ? t('competitiveBands.breakdown.tooltip_cell', {
+                              n: cell.total_observations,
+                              pct: cell.p50,
+                            })
+                          : t('competitiveBands.breakdown.tooltip_no_data')
                       }
                     >
                       {cell ? (

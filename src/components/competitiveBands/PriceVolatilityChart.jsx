@@ -8,10 +8,11 @@ import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { useCountry } from '../../context/CountryContext'
 import { formatCurrency, formatCount } from '../../lib/format'
 import { exportPriceVolatilityCsv } from '../../lib/competitiveBandsExport'
+import { useI18n } from '../../context/LanguageContext'
 
 const ALL_CITIES = '__all__'
 
-function VolatilityTooltip({ active, payload, currency }) {
+function VolatilityTooltip({ active, payload, currency, t }) {
   if (!active || !payload || !payload.length) return null
   const row = payload[0]?.payload
   if (!row) return null
@@ -27,13 +28,19 @@ function VolatilityTooltip({ active, payload, currency }) {
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{row.competitor_name}</div>
-      <div>Mín: {formatCurrency(row.min_price, currency)}</div>
+      <div>
+        {t('competitiveBands.volatility.tooltip_min')}: {formatCurrency(row.min_price, currency)}
+      </div>
       <div>P10: {formatCurrency(row.p10, currency)}</div>
-      <div>P50 (mediana): {formatCurrency(row.p50, currency)}</div>
+      <div>
+        {t('competitiveBands.p50_median')}: {formatCurrency(row.p50, currency)}
+      </div>
       <div>P90: {formatCurrency(row.p90, currency)}</div>
-      <div>Máx: {formatCurrency(row.max_price, currency)}</div>
+      <div>
+        {t('competitiveBands.volatility.tooltip_max')}: {formatCurrency(row.max_price, currency)}
+      </div>
       <div style={{ marginTop: 4, color: 'var(--color-muted)' }}>
-        {formatCount(row.n_buckets)} muestras (ciudad × distancia × semana)
+        {t('competitiveBands.volatility.tooltip_samples', { n: formatCount(row.n_buckets) })}
       </div>
     </div>
   )
@@ -45,6 +52,7 @@ function VolatilityTooltip({ active, payload, currency }) {
 // semanas del período). Rango ancho = precio inconsistente para
 // situaciones similares; rango angosto = precio predecible.
 export default function PriceVolatilityChart({ country, yearStart, weekStart, yearEnd, weekEnd }) {
+  const { t } = useI18n()
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
   const currency = config.currency
@@ -129,15 +137,13 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
   }, [chartData])
 
   if (!category) {
-    return <div className="state-box">No hay categorías disponibles para este país.</div>
+    return <div className="state-box">{t('competitiveBands.volatility.no_categories')}</div>
   }
 
   return (
     <div>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Compará qué tan estable es el precio típico de Yango vs cada competidor. Cuanto más ancha la
-        barra, más varía el precio para un tipo de viaje similar (misma categoría) según ciudad,
-        distancia y semana.
+        {t('competitiveBands.volatility.description')}
       </p>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', marginBottom: 14 }}>
@@ -151,15 +157,15 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
               textTransform: 'uppercase',
             }}
           >
-            Categoría
+            {t('competitiveBands.volatility.label_category')}
           </div>
           <Combobox
             items={categoryItems}
             value={category}
             onValueChange={setSelectedCategory}
-            placeholder="Elegí una categoría…"
-            searchPlaceholder="Buscar categoría…"
-            emptyText="Sin resultados."
+            placeholder={t('competitiveBands.volatility.placeholder_category')}
+            searchPlaceholder={t('competitiveBands.volatility.search_category')}
+            emptyText={t('common.no_results')}
             triggerClassName="w-auto min-w-[220px]"
           />
         </div>
@@ -173,15 +179,18 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
               textTransform: 'uppercase',
             }}
           >
-            Ciudad
+            {t('competitiveBands.volatility.label_city')}
           </div>
           <Combobox
-            items={[{ value: ALL_CITIES, label: 'Todas las ciudades' }, ...cityItems]}
+            items={[
+              { value: ALL_CITIES, label: t('competitiveBands.volatility.all_cities') },
+              ...cityItems,
+            ]}
             value={selectedCity}
             onValueChange={setSelectedCity}
-            placeholder="Todas las ciudades"
-            searchPlaceholder="Buscar ciudad…"
-            emptyText="Sin resultados."
+            placeholder={t('competitiveBands.volatility.all_cities')}
+            searchPlaceholder={t('competitiveBands.volatility.search_city')}
+            emptyText={t('common.no_results')}
             triggerClassName="w-auto min-w-[180px]"
           />
         </div>
@@ -195,18 +204,23 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
           style={{ marginLeft: 'auto' }}
         >
           <Download size={13} />
-          Exportar CSV
+          {t('competitiveBands.volatility.export_csv')}
         </Button>
       </div>
 
-      {error && <div className="state-box state-box--error">Error: {error}</div>}
+      {error && (
+        <div className="state-box state-box--error">
+          {t('app.error_prefix')}
+          {error}
+        </div>
+      )}
 
       {loading && !rows.length ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
-          Calculando…
+          {t('competitiveBands.volatility.calculating')}
         </div>
       ) : !rows.length ? (
-        <div className="state-box">Sin datos para esta categoría en el período elegido.</div>
+        <div className="state-box">{t('competitiveBands.volatility.no_data_period')}</div>
       ) : (
         <>
           {insight && (
@@ -220,11 +234,15 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
                 marginBottom: 14,
               }}
             >
-              <strong>{insight.widest.competitor_name}</strong> tiene el precio más variable:{' '}
-              {formatCurrency(insight.widest.spread, currency)} entre P10 y P90 —{' '}
-              <strong>{insight.factor.toFixed(1)}x</strong> más que{' '}
+              <strong>{insight.widest.competitor_name}</strong>{' '}
+              {t('competitiveBands.volatility.insight_most_variable')}{' '}
+              {formatCurrency(insight.widest.spread, currency)}{' '}
+              {t('competitiveBands.volatility.insight_between')}{' '}
+              <strong>{insight.factor.toFixed(1)}x</strong>{' '}
+              {t('competitiveBands.volatility.insight_more_than')}{' '}
               <strong>{insight.narrowest.competitor_name}</strong> (
-              {formatCurrency(insight.narrowest.spread, currency)}), el más estable.
+              {formatCurrency(insight.narrowest.spread, currency)}),{' '}
+              {t('competitiveBands.volatility.insight_most_stable')}.
             </div>
           )}
 
@@ -232,14 +250,14 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
             <table className="config-table config-table--modern">
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left' }}>Competidor</th>
-                  <th scope="col">Mín</th>
+                  <th style={{ textAlign: 'left' }}>{t('dashboard.table.competitor')}</th>
+                  <th scope="col">{t('competitiveBands.volatility.tooltip_min')}</th>
                   <th scope="col">P10</th>
                   <th scope="col">P25</th>
                   <th scope="col">P50</th>
                   <th scope="col">P75</th>
                   <th scope="col">P90</th>
-                  <th scope="col">Máx</th>
+                  <th scope="col">{t('competitiveBands.volatility.tooltip_max')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,7 +284,7 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
           </div>
 
           <h2 style={{ margin: 0, marginBottom: 4, fontSize: 15 }}>
-            Rango de precio típico (P10–P90)
+            {t('competitiveBands.volatility.chart_title')}
           </h2>
           <ResponsiveContainer width="100%" height={Math.max(160, chartData.length * 48)}>
             <BarChart
@@ -280,7 +298,7 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
                 tick={{ fontSize: 10 }}
               />
               <YAxis type="category" dataKey="competitor_name" width={90} tick={{ fontSize: 11 }} />
-              <Tooltip content={<VolatilityTooltip currency={currency} />} />
+              <Tooltip content={<VolatilityTooltip currency={currency} t={t} />} />
               {/* Barra flotante: base invisible (0→P10) + barra visible (P10→P90) */}
               <Bar dataKey="p10" stackId="range" fill="transparent" />
               <Bar dataKey="spread" stackId="range" radius={[0, 4, 4, 0]} barSize={18}>
@@ -294,8 +312,7 @@ export default function PriceVolatilityChart({ country, yearStart, weekStart, ye
             </BarChart>
           </ResponsiveContainer>
           <p style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 8 }}>
-            Cada barra va de P10 a P90: el 80% central de los precios típicos observados para esta
-            categoría. Barras más largas = precio menos predecible.
+            {t('competitiveBands.volatility.chart_footer')}
           </p>
         </>
       )}

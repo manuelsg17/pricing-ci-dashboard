@@ -60,6 +60,54 @@ export const TRANSLATIONS = {
     'app.account_suspended_title': 'Acceso Suspendido',
     'app.account_suspended_body':
       'Tu cuenta ha sido desactivada. Por favor, contacta al administrador del sistema.',
+    'common.no_results': 'Sin resultados.',
+
+    // ── Competitividad — bandas ─────────────────────────
+    'competitiveBands.p50_median': 'P50 (mediana)',
+    'competitiveBands.percentile_table.title': 'Distribución de Δ% (Yango vs rival)',
+    'competitiveBands.percentile_table.col_average': 'Promedio',
+    'competitiveBands.percentile_table.footer_note':
+      'Negativo = Yango más barato que el rival. Ej: P90 positivo indica que el 10% más caro de las cotizaciones de Yango queda por encima del rival.',
+    'competitiveBands.volatility.tooltip_min': 'Mín',
+    'competitiveBands.volatility.tooltip_max': 'Máx',
+    'competitiveBands.volatility.tooltip_samples': '{n} muestras (ciudad × distancia × semana)',
+    'competitiveBands.volatility.no_categories': 'No hay categorías disponibles para este país.',
+    'competitiveBands.volatility.description':
+      'Compará qué tan estable es el precio típico de Yango vs cada competidor. Cuanto más ancha la barra, más varía el precio para un tipo de viaje similar (misma categoría) según ciudad, distancia y semana.',
+    'competitiveBands.volatility.label_category': 'Categoría',
+    'competitiveBands.volatility.placeholder_category': 'Elegí una categoría…',
+    'competitiveBands.volatility.search_category': 'Buscar categoría…',
+    'competitiveBands.volatility.label_city': 'Ciudad',
+    'competitiveBands.volatility.all_cities': 'Todas las ciudades',
+    'competitiveBands.volatility.search_city': 'Buscar ciudad…',
+    'competitiveBands.volatility.export_csv': 'Exportar CSV',
+    'competitiveBands.volatility.calculating': 'Calculando…',
+    'competitiveBands.volatility.no_data_period':
+      'Sin datos para esta categoría en el período elegido.',
+    'competitiveBands.volatility.insight_most_variable': 'tiene el precio más variable:',
+    'competitiveBands.volatility.insight_between': 'entre P10 y P90 —',
+    'competitiveBands.volatility.insight_more_than': 'más que',
+    'competitiveBands.volatility.insight_most_stable': 'el más estable',
+    'competitiveBands.volatility.chart_title': 'Rango de precio típico (P10–P90)',
+    'competitiveBands.volatility.chart_footer':
+      'Cada barra va de P10 a P90: el 80% central de los precios típicos observados para esta categoría. Barras más largas = precio menos predecible.',
+    'competitiveBands.compliance.below_title': 'Por debajo de la banda',
+    'competitiveBands.compliance.below_hint':
+      'Yango más barato de lo previsto — posible margen perdido',
+    'competitiveBands.compliance.within_title': 'Dentro de la banda',
+    'competitiveBands.compliance.within_hint': 'Cumple el rango competitivo definido',
+    'competitiveBands.compliance.above_title': 'Por encima de la banda',
+    'competitiveBands.compliance.above_hint': 'Yango poco competitivo vs el rival',
+    'competitiveBands.breakdown.title': 'Desglose por ciudad y distancia',
+    'competitiveBands.breakdown.description':
+      '% de cotizaciones dentro de la banda. Click en una celda para ver el detalle.',
+    'competitiveBands.breakdown.col_city': 'Ciudad',
+    'competitiveBands.breakdown.tooltip_cell': '{n} cotizaciones · mediana Δ% {pct}%',
+    'competitiveBands.breakdown.tooltip_no_data': 'Sin datos',
+    'competitiveBands.band_selector.no_bands':
+      'No hay bandas configuradas todavía. Creá una en Config → Competidores → Bandas competitivas.',
+    'competitiveBands.band_selector.placeholder': 'Elegí una banda…',
+    'competitiveBands.band_selector.search_placeholder': 'Buscar competidor o categoría…',
 
     // ── Cuenta / contraseña ────────────────────────────
     'account.change_password': 'Cambiar contraseña',
@@ -1775,6 +1823,53 @@ export const TRANSLATIONS = {
     'app.account_suspended_title': 'Access Suspended',
     'app.account_suspended_body':
       'Your account has been deactivated. Please contact the system administrator.',
+    'common.no_results': 'No results.',
+
+    // ── Competitiveness — bands ─────────────────────────
+    'competitiveBands.p50_median': 'P50 (median)',
+    'competitiveBands.percentile_table.title': 'Δ% distribution (Yango vs rival)',
+    'competitiveBands.percentile_table.col_average': 'Average',
+    'competitiveBands.percentile_table.footer_note':
+      'Negative = Yango cheaper than the rival. E.g.: a positive P90 means the most expensive 10% of Yango quotes is above the rival.',
+    'competitiveBands.volatility.tooltip_min': 'Min',
+    'competitiveBands.volatility.tooltip_max': 'Max',
+    'competitiveBands.volatility.tooltip_samples': '{n} samples (city × distance × week)',
+    'competitiveBands.volatility.no_categories': 'No categories available for this country.',
+    'competitiveBands.volatility.description':
+      "Compare how stable Yango's typical price is vs each competitor. The wider the bar, the more the price varies for a similar trip type (same category) by city, distance and week.",
+    'competitiveBands.volatility.label_category': 'Category',
+    'competitiveBands.volatility.placeholder_category': 'Pick a category…',
+    'competitiveBands.volatility.search_category': 'Search category…',
+    'competitiveBands.volatility.label_city': 'City',
+    'competitiveBands.volatility.all_cities': 'All cities',
+    'competitiveBands.volatility.search_city': 'Search city…',
+    'competitiveBands.volatility.export_csv': 'Export CSV',
+    'competitiveBands.volatility.calculating': 'Calculating…',
+    'competitiveBands.volatility.no_data_period':
+      'No data for this category in the selected period.',
+    'competitiveBands.volatility.insight_most_variable': 'has the most variable price:',
+    'competitiveBands.volatility.insight_between': 'between P10 and P90 —',
+    'competitiveBands.volatility.insight_more_than': 'more than',
+    'competitiveBands.volatility.insight_most_stable': 'the most stable',
+    'competitiveBands.volatility.chart_title': 'Typical price range (P10–P90)',
+    'competitiveBands.volatility.chart_footer':
+      'Each bar spans P10 to P90: the central 80% of typical observed prices for this category. Longer bars = less predictable price.',
+    'competitiveBands.compliance.below_title': 'Below the band',
+    'competitiveBands.compliance.below_hint': 'Yango cheaper than expected — possible lost margin',
+    'competitiveBands.compliance.within_title': 'Within the band',
+    'competitiveBands.compliance.within_hint': 'Meets the defined competitive range',
+    'competitiveBands.compliance.above_title': 'Above the band',
+    'competitiveBands.compliance.above_hint': 'Yango not very competitive vs the rival',
+    'competitiveBands.breakdown.title': 'Breakdown by city and distance',
+    'competitiveBands.breakdown.description':
+      '% of quotes within the band. Click a cell to see the detail.',
+    'competitiveBands.breakdown.col_city': 'City',
+    'competitiveBands.breakdown.tooltip_cell': '{n} quotes · median Δ% {pct}%',
+    'competitiveBands.breakdown.tooltip_no_data': 'No data',
+    'competitiveBands.band_selector.no_bands':
+      'No bands configured yet. Create one in Config → Competitors → Competitive bands.',
+    'competitiveBands.band_selector.placeholder': 'Pick a band…',
+    'competitiveBands.band_selector.search_placeholder': 'Search competitor or category…',
 
     // ── Account / password ─────────────────────────────
     'account.change_password': 'Change password',
@@ -3462,6 +3557,55 @@ export const TRANSLATIONS = {
     'app.account_suspended_title': 'Доступ приостановлен',
     'app.account_suspended_body':
       'Ваш аккаунт был деактивирован. Пожалуйста, обратитесь к администратору системы.',
+    'common.no_results': 'Нет результатов.',
+
+    // ── Конкурентоспособность — коридоры ────────────────
+    'competitiveBands.p50_median': 'P50 (медиана)',
+    'competitiveBands.percentile_table.title': 'Распределение Δ% (Yango vs конкурент)',
+    'competitiveBands.percentile_table.col_average': 'Среднее',
+    'competitiveBands.percentile_table.footer_note':
+      'Отрицательное = Yango дешевле конкурента. Например: положительный P90 означает, что самые дорогие 10% предложений Yango выше конкурента.',
+    'competitiveBands.volatility.tooltip_min': 'Мин',
+    'competitiveBands.volatility.tooltip_max': 'Макс',
+    'competitiveBands.volatility.tooltip_samples': '{n} выборок (город × дистанция × неделя)',
+    'competitiveBands.volatility.no_categories': 'Нет доступных категорий для этой страны.',
+    'competitiveBands.volatility.description':
+      'Сравните, насколько стабильна типичная цена Yango по сравнению с каждым конкурентом. Чем шире полоса, тем сильнее меняется цена для похожего типа поездки (та же категория) в зависимости от города, дистанции и недели.',
+    'competitiveBands.volatility.label_category': 'Категория',
+    'competitiveBands.volatility.placeholder_category': 'Выберите категорию…',
+    'competitiveBands.volatility.search_category': 'Поиск категории…',
+    'competitiveBands.volatility.label_city': 'Город',
+    'competitiveBands.volatility.all_cities': 'Все города',
+    'competitiveBands.volatility.search_city': 'Поиск города…',
+    'competitiveBands.volatility.export_csv': 'Экспорт CSV',
+    'competitiveBands.volatility.calculating': 'Вычисление…',
+    'competitiveBands.volatility.no_data_period':
+      'Нет данных для этой категории за выбранный период.',
+    'competitiveBands.volatility.insight_most_variable': 'имеет самую нестабильную цену:',
+    'competitiveBands.volatility.insight_between': 'между P10 и P90 —',
+    'competitiveBands.volatility.insight_more_than': 'больше, чем у',
+    'competitiveBands.volatility.insight_most_stable': 'самый стабильный',
+    'competitiveBands.volatility.chart_title': 'Типичный диапазон цены (P10–P90)',
+    'competitiveBands.volatility.chart_footer':
+      'Каждая полоса охватывает диапазон от P10 до P90: центральные 80% типичных наблюдаемых цен для этой категории. Более длинные полосы = менее предсказуемая цена.',
+    'competitiveBands.compliance.below_title': 'Ниже коридора',
+    'competitiveBands.compliance.below_hint':
+      'Yango дешевле, чем предполагалось — возможная потеря маржи',
+    'competitiveBands.compliance.within_title': 'В пределах коридора',
+    'competitiveBands.compliance.within_hint': 'Соответствует заданному конкурентному диапазону',
+    'competitiveBands.compliance.above_title': 'Выше коридора',
+    'competitiveBands.compliance.above_hint':
+      'Yango недостаточно конкурентен по сравнению с конкурентом',
+    'competitiveBands.breakdown.title': 'Разбивка по городу и дистанции',
+    'competitiveBands.breakdown.description':
+      '% предложений в пределах коридора. Нажмите на ячейку, чтобы увидеть детали.',
+    'competitiveBands.breakdown.col_city': 'Город',
+    'competitiveBands.breakdown.tooltip_cell': '{n} предложений · медиана Δ% {pct}%',
+    'competitiveBands.breakdown.tooltip_no_data': 'Нет данных',
+    'competitiveBands.band_selector.no_bands':
+      'Коридоры пока не настроены. Создайте их в Настройки → Конкуренты → Конкурентные коридоры.',
+    'competitiveBands.band_selector.placeholder': 'Выберите коридор…',
+    'competitiveBands.band_selector.search_placeholder': 'Поиск конкурента или категории…',
 
     // ── Аккаунт / пароль ───────────────────────────────
     'account.change_password': 'Сменить пароль',

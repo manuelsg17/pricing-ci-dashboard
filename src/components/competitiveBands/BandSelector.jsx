@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
 import { Combobox } from '../ui/shadcn/combobox'
 import { COMPETITOR_COLORS } from '../../lib/constants'
+import { useI18n } from '../../context/LanguageContext'
 
 // Selector de banda configurada (competitor_name + category) — viene de
 // useConfigContext().competitiveBands, ya filtrado por país en el caller.
 export default function BandSelector({ bands, selectedId, onSelect }) {
+  const { t } = useI18n()
   const items = useMemo(
     () =>
       bands.map((b) => ({
@@ -18,7 +20,7 @@ export default function BandSelector({ bands, selectedId, onSelect }) {
   if (bands.length === 0) {
     return (
       <div style={{ fontSize: 13, color: 'var(--color-muted)' }}>
-        No hay bandas configuradas todavía. Creá una en Config → Competidores → Bandas competitivas.
+        {t('competitiveBands.band_selector.no_bands')}
       </div>
     )
   }
@@ -31,9 +33,9 @@ export default function BandSelector({ bands, selectedId, onSelect }) {
         const band = bands.find((b) => String(b.id) === v)
         if (band) onSelect(band)
       }}
-      placeholder="Elegí una banda…"
-      searchPlaceholder="Buscar competidor o categoría…"
-      emptyText="Sin resultados."
+      placeholder={t('competitiveBands.band_selector.placeholder')}
+      searchPlaceholder={t('competitiveBands.band_selector.search_placeholder')}
+      emptyText={t('common.no_results')}
       triggerClassName="w-auto min-w-[260px]"
     />
   )
