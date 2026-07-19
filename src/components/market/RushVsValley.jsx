@@ -2,8 +2,10 @@ import { useEffect, useState, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { normalizeCompetitorName } from '../../lib/normalize'
+import { useI18n } from '../../context/LanguageContext'
 
 export default function RushVsValley({ filters, currency = '' }) {
+  const { t } = useI18n()
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(false)
 
@@ -56,12 +58,16 @@ export default function RushVsValley({ filters, currency = '' }) {
   }, [rawRows, filters.dbCity])
 
   if (loading && !rawRows.length) {
-    return <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>Cargando…</div>
+    return (
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>
+        {t('app.loading')}
+      </div>
+    )
   }
   if (!rows.length) {
     return (
       <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>
-        Sin observaciones con rush_hour clasificado en este rango.
+        {t('market.rush_valley.no_data')}
       </div>
     )
   }
@@ -71,13 +77,13 @@ export default function RushVsValley({ filters, currency = '' }) {
       <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
         <thead>
           <tr style={{ background: '#f8fafc' }}>
-            <th style={th}>Competidor</th>
-            <th style={th}>Valley ({currency})</th>
-            <th style={th}>n valley</th>
-            <th style={th}>Rush ({currency})</th>
-            <th style={th}>n rush</th>
-            <th style={th}>Diff %</th>
-            <th style={{ ...th, textAlign: 'left' }}>Surge</th>
+            <th style={th}>{t('dashboard.table.competitor')}</th>
+            <th style={th}>{t('market.rush_valley.col_valley', { currency })}</th>
+            <th style={th}>{t('market.rush_valley.col_n_valley')}</th>
+            <th style={th}>{t('market.rush_valley.col_rush', { currency })}</th>
+            <th style={th}>{t('market.rush_valley.col_n_rush')}</th>
+            <th style={th}>{t('market.rush_valley.col_diff')}</th>
+            <th style={{ ...th, textAlign: 'left' }}>{t('market.rush_valley.col_surge')}</th>
           </tr>
         </thead>
         <tbody>
@@ -86,12 +92,12 @@ export default function RushVsValley({ filters, currency = '' }) {
               r.diffPct == null
                 ? null
                 : r.diffPct < 5
-                  ? { text: 'Suave', color: '#15803d' }
+                  ? { text: t('market.rush_valley.tag_soft'), color: '#15803d' }
                   : r.diffPct < 12
-                    ? { text: 'Moderado', color: '#65a30d' }
+                    ? { text: t('market.rush_valley.tag_moderate'), color: '#65a30d' }
                     : r.diffPct < 20
-                      ? { text: 'Fuerte', color: '#a16207' }
-                      : { text: 'Agresivo', color: '#b91c1c' }
+                      ? { text: t('market.rush_valley.tag_strong'), color: '#a16207' }
+                      : { text: t('market.rush_valley.tag_aggressive'), color: '#b91c1c' }
             return (
               <tr key={r.comp} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
                 <td style={{ ...td, textAlign: 'left' }}>

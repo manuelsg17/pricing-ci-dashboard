@@ -2,8 +2,10 @@ import { useEffect, useState, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { normalizeCompetitorName } from '../../lib/normalize'
+import { useI18n } from '../../context/LanguageContext'
 
 export default function DiscountIntensity({ filters, currency = '' }) {
+  const { t } = useI18n()
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(false)
 
@@ -55,12 +57,16 @@ export default function DiscountIntensity({ filters, currency = '' }) {
   }, [rawRows, filters.dbCity])
 
   if (loading && !rawRows.length) {
-    return <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>Cargando…</div>
+    return (
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>
+        {t('app.loading')}
+      </div>
+    )
   }
   if (!rows.length) {
     return (
       <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>
-        Ningún competidor en este rango tiene precios con/sin descuento comparables.
+        {t('market.discount_intensity.no_comparable')}
       </div>
     )
   }
@@ -70,12 +76,12 @@ export default function DiscountIntensity({ filters, currency = '' }) {
       <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
         <thead>
           <tr style={{ background: '#f8fafc' }}>
-            <th style={th}>Competidor</th>
-            <th style={th}>Lista ({currency})</th>
-            <th style={th}>Final ({currency})</th>
-            <th style={th}>% descuento promedio</th>
-            <th style={th}>% obs c/descuento</th>
-            <th style={th}>n obs</th>
+            <th style={th}>{t('dashboard.table.competitor')}</th>
+            <th style={th}>{t('market.discount_intensity.col_list', { currency })}</th>
+            <th style={th}>{t('market.discount_intensity.col_final', { currency })}</th>
+            <th style={th}>{t('market.discount_intensity.col_avg_discount')}</th>
+            <th style={th}>{t('market.discount_intensity.col_pct_with_discount')}</th>
+            <th style={th}>{t('market.discount_intensity.col_n_obs')}</th>
           </tr>
         </thead>
         <tbody>
@@ -96,7 +102,7 @@ export default function DiscountIntensity({ filters, currency = '' }) {
                 </span>
                 {r.comp === 'InDrive' && (
                   <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--color-muted)' }}>
-                    (recommended → minimal_bid)
+                    {t('market.discount_intensity.indrive_note')}
                   </span>
                 )}
               </td>
@@ -119,9 +125,11 @@ export default function DiscountIntensity({ filters, currency = '' }) {
         </tbody>
       </table>
       <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 8 }}>
-        Compara <code>price_with_discount</code> vs <code>price_without_discount</code>. Para
-        InDrive comparamos <code>minimal_bid</code> vs <code>recommended_price</code> (el descuento
-        del bidder).
+        {t('market.discount_intensity.footer_prefix')} <code>price_with_discount</code>{' '}
+        {t('market.discount_intensity.footer_mid')} <code>price_without_discount</code>.{' '}
+        {t('market.discount_intensity.footer_indrive')} <code>minimal_bid</code>{' '}
+        {t('market.discount_intensity.footer_mid')} <code>recommended_price</code>{' '}
+        {t('market.discount_intensity.footer_indrive_suffix')}
       </div>
     </div>
   )
