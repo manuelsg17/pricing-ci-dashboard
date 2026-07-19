@@ -15,30 +15,6 @@
   flex-wrap: wrap;
 }
 
-.raw-data__city-tab {
-  padding: 6px 16px;
-  border-radius: 20px;
-  border: 1.5px solid var(--color-border);
-  background: var(--color-panel);
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.raw-data__city-tab:hover {
-  border-color: var(--color-yango);
-  color: var(--color-yango);
-}
-
-.raw-data__city-tab--active {
-  background: var(--color-yango);
-  border-color: var(--color-yango);
-  color: #fff;
-}
-
 /* ── Filter bar ────────────────────────────────────────────── */
 .raw-data__filters {
   background: var(--color-panel);

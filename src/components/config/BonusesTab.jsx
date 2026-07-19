@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useI18n } from '../../context/LanguageContext'
 import BonusesConfig from './BonusesConfig'
 import YangoGmvConfig from './YangoGmvConfig'
+import { Button } from '../ui/shadcn/button'
 
 // Consolida en el tab "Bonos" todo lo de bonos, en sub-pestañas: los bonos de
 // competidores + el bono Yango por % de GMV. Antes "Bono Yango GMV" era un tab
@@ -22,24 +23,15 @@ export default function BonusesTab({ country }) {
         {SUBTABS.map((s) => {
           const active = sub === s.id
           return (
-            <button
+            <Button
               key={s.id}
+              variant={active ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-full"
               onClick={() => setSub(s.id)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 999,
-                fontSize: 13,
-                cursor: 'pointer',
-                fontWeight: active ? 600 : 400,
-                border:
-                  '1px solid ' +
-                  (active ? 'var(--color-yango, #E53935)' : 'var(--color-border, #e2e8f0)'),
-                background: active ? 'var(--color-yango, #E53935)' : '#fff',
-                color: active ? '#fff' : 'var(--color-muted)',
-              }}
             >
               {t(s.labelKey)}
-            </button>
+            </Button>
           )
         })}
       </div>

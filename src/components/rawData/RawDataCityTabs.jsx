@@ -1,14 +1,18 @@
+import { Button } from '../ui/shadcn/button'
+
 export default function RawDataCityTabs({ cityTabs, dbCity, onCityChange }) {
   return (
     <div className="raw-data__city-tabs">
       {cityTabs.map((t) => (
-        <button
+        <Button
           key={t.db}
-          className={`raw-data__city-tab${dbCity === t.db ? ' raw-data__city-tab--active' : ''}`}
+          variant={dbCity === t.db ? 'default' : 'outline'}
+          size="sm"
+          className="rounded-full"
           onClick={() => onCityChange(t.db)}
         >
           {t.label}
-        </button>
+        </Button>
       ))}
     </div>
   )

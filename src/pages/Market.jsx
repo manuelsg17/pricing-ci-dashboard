@@ -14,6 +14,7 @@ import RushVsValley from '../components/market/RushVsValley'
 import DiscountIntensity from '../components/market/DiscountIntensity'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
+import { Button } from '../components/ui/shadcn/button'
 
 function MarketContent() {
   const { countryConfig } = useCountry()
@@ -45,9 +46,13 @@ function MarketContent() {
       {/* Reusable filter bar */}
       <div className="filter-bar-wrapper" style={{ marginBottom: 12 }}>
         <div className="filter-bar-toggle">
-          <button className="filter-bar-toggle__btn" onClick={() => setFilterBarVisible((v) => !v)}>
+          <Button
+            variant="outline"
+            className="h-auto rounded-full border-border px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted hover:border-yango hover:text-yango"
+            onClick={() => setFilterBarVisible((v) => !v)}
+          >
             {filterBarVisible ? t('filter.collapse_long') : t('filter.expand_long')}
-          </button>
+          </Button>
         </div>
         <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
       </div>

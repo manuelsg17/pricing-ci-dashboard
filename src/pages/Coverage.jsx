@@ -9,6 +9,7 @@ import CoverageReport from '../components/market/CoverageReport'
 import BracketMix from '../components/market/BracketMix'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
+import { Button } from '../components/ui/shadcn/button'
 
 function CoverageContent() {
   const { filters } = useFilterContext()
@@ -18,10 +19,12 @@ function CoverageContent() {
   // con Dashboard y Market — 1 sola fuente de verdad).
   const { weights: dbWeights, semaforo: dbSemaforo } = useConfigContext()
 
-  const {
-    loading, error,
-    sampleMatrix, periods,
-  } = usePricingData(filters, dbWeights, locale, dbSemaforo)
+  const { loading, error, sampleMatrix, periods } = usePricingData(
+    filters,
+    dbWeights,
+    locale,
+    dbSemaforo
+  )
 
   return (
     <div style={{ padding: '16px 20px', maxWidth: '100%', overflowX: 'auto' }}>
@@ -32,25 +35,29 @@ function CoverageContent() {
 
       <div className="filter-bar-wrapper" style={{ marginBottom: 12 }}>
         <div className="filter-bar-toggle">
-          <button
-            className="filter-bar-toggle__btn"
-            onClick={() => setFilterBarVisible(v => !v)}
+          <Button
+            variant="outline"
+            className="h-auto rounded-full border-border px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted hover:border-yango hover:text-yango"
+            onClick={() => setFilterBarVisible((v) => !v)}
           >
             {filterBarVisible ? t('filter.collapse_long') : t('filter.expand_long')}
-          </button>
+          </Button>
         </div>
         <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
       </div>
 
       {error && (
-        <div className="state-box state-box--error">{t('app.error_prefix')}{humanizeError(error)}</div>
+        <div className="state-box state-box--error">
+          {t('app.error_prefix')}
+          {humanizeError(error)}
+        </div>
       )}
 
       {loading && (!periods || periods.length === 0) ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
           {t('app.loading')}
         </div>
-      ) : (!periods || periods.length === 0) ? (
+      ) : !periods || periods.length === 0 ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
           {t('market.empty_state')}
         </div>

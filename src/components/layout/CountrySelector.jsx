@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { getCountryIso } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import { Button } from '../ui/shadcn/button'
 
 // Custom dropdown que usa banderas SVG de flagcdn.com — así no dependemos
 // de que el sistema operativo renderice los emojis de bandera (Windows sin
@@ -32,32 +33,19 @@ export default function CountrySelector({ country, setCountry, allowedCountries,
       className="country-selector"
       style={{ position: 'relative', display: 'inline-block' }}
     >
-      <button
+      <Button
         type="button"
-        onClick={() => !disabled && setOpen(o => !o)}
+        variant="outline"
+        onClick={() => !disabled && setOpen((o) => !o)}
         disabled={disabled}
-        className="country-selector__trigger"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '4px 10px',
-          background: '#fff',
-          border: '1px solid #d1d5db',
-          borderRadius: 6,
-          cursor: disabled ? 'default' : 'pointer',
-          fontSize: 13,
-          fontWeight: 500,
-          color: '#1f2937',
-          minWidth: 130,
-        }}
+        className="h-auto min-w-[130px] justify-start gap-2 rounded-md border-[#d1d5db] bg-white px-2.5 py-1 text-[13px] font-medium text-[#1f2937] hover:bg-white"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
         <FlagImg iso={currentIso} alt={country} />
         <span style={{ flex: 1, textAlign: 'left' }}>{currentLabel}</span>
         {!disabled && <span style={{ fontSize: 10, color: '#6b7280' }}>▼</span>}
-      </button>
+      </Button>
 
       {open && (
         <div
@@ -77,7 +65,7 @@ export default function CountrySelector({ country, setCountry, allowedCountries,
             overflow: 'hidden',
           }}
         >
-          {allowedCountries.map(c => {
+          {allowedCountries.map((c) => {
             const iso = getCountryIso(c)
             const label = t(`country.${c}`) || c
             const isActive = c === country
@@ -103,10 +91,10 @@ export default function CountrySelector({ country, setCountry, allowedCountries,
                   fontWeight: isActive ? 600 : 400,
                   textAlign: 'left',
                 }}
-                onMouseEnter={e => {
+                onMouseEnter={(e) => {
                   if (!isActive) e.currentTarget.style.background = '#f9fafb'
                 }}
-                onMouseLeave={e => {
+                onMouseLeave={(e) => {
                   if (!isActive) e.currentTarget.style.background = '#fff'
                 }}
               >
@@ -127,17 +115,19 @@ function FlagImg({ iso, alt }) {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
-      <span style={{
-        display: 'inline-block',
-        width: 22,
-        fontSize: 9,
-        fontWeight: 700,
-        padding: '1px 3px',
-        background: '#e5e7eb',
-        borderRadius: 2,
-        textAlign: 'center',
-        color: '#374151',
-      }}>
+      <span
+        style={{
+          display: 'inline-block',
+          width: 22,
+          fontSize: 9,
+          fontWeight: 700,
+          padding: '1px 3px',
+          background: '#e5e7eb',
+          borderRadius: 2,
+          textAlign: 'center',
+          color: '#374151',
+        }}
+      >
         {iso.toUpperCase()}
       </span>
     )
