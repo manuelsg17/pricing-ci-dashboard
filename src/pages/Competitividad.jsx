@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/shadc
 import { Button } from '../components/ui/shadcn/button'
 import { useFilterContext } from '../context/FilterContext'
 import { useConfigContext } from '../context/ConfigProvider'
+import { useI18n } from '../context/LanguageContext'
 import { useCompetitiveBandAnalysis } from '../hooks/useCompetitiveBandAnalysis'
 import { getISOYearWeek, getMondayWeeksAgo } from '../lib/dateUtils'
 import { exportCompetitiveBandCsv } from '../lib/competitiveBandsExport'
@@ -15,26 +16,27 @@ import PriceVolatilityChart from '../components/competitiveBands/PriceVolatility
 import '../styles/config.css'
 
 const WEEK_RANGE_OPTIONS = [
-  { value: 1, label: 'Última semana' },
-  { value: 4, label: 'Últimas 4 semanas' },
-  { value: 8, label: 'Últimas 8 semanas' },
-  { value: 12, label: 'Últimas 12 semanas' },
-  { value: 26, label: 'Últimas 26 semanas' },
+  { value: 1, labelKey: 'competitividad.week_range.1' },
+  { value: 4, labelKey: 'competitividad.week_range.4' },
+  { value: 8, labelKey: 'competitividad.week_range.8' },
+  { value: 12, labelKey: 'competitividad.week_range.12' },
+  { value: 26, labelKey: 'competitividad.week_range.26' },
 ]
 
 // Lectura instantánea del cumplimiento, antes de los números detallados —
 // el pedido del usuario fue "que sea muy fácil de entender".
-function verdictFor(withinPct) {
+function verdictFor(withinPct, t) {
   const v = Number(withinPct)
   if (!Number.isFinite(v)) return null
-  if (v >= 60) return { label: 'Mayormente competitivo', color: 'var(--sem-green-fg)' }
-  if (v >= 30) return { label: 'Resultados mixtos', color: 'var(--sem-yellow-fg)' }
-  return { label: 'Mayormente fuera de rango', color: 'var(--sem-red-fg)' }
+  if (v >= 60) return { label: t('competitividad.verdict_good'), color: 'var(--sem-green-fg)' }
+  if (v >= 30) return { label: t('competitividad.verdict_mixed'), color: 'var(--sem-yellow-fg)' }
+  return { label: t('competitividad.verdict_bad'), color: 'var(--sem-red-fg)' }
 }
 
 export default function Competitividad() {
   const { filters } = useFilterContext()
   const { competitiveBands, loading: configLoading } = useConfigContext()
+  const { t } = useI18n()
   const country = filters.country
 
   const [selectedBand, setSelectedBand] = useState(null)
@@ -86,7 +88,7 @@ export default function Competitividad() {
     weekEnd,
   })
 
-  const verdict = summary?.total_observations ? verdictFor(summary.within_pct) : null
+  const verdict = summary?.total_observations ? verdictFor(summary.within_pct, t) : null
 
   async function handleCellClick(city, bracket, cell) {
     const detail = await drillInto(city, bracket)
@@ -108,10 +110,11 @@ export default function Competitividad() {
 
   return (
     <div style={{ padding: '16px 20px', maxWidth: '100%', overflowX: 'auto' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Competitividad</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
+        {t('competitividad.title')}
+      </h1>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 14 }}>
-        Comparación de precios de Yango vs la competencia: cumplimiento de tu meta y qué tan estable
-        es cada uno.
+        {t('competitividad.subtitle')}
       </p>
 
       <div
@@ -133,7 +136,7 @@ export default function Competitividad() {
               textTransform: 'uppercase',
             }}
           >
-            Período
+            {t('competitividad.period')}
           </div>
           <select
             value={weeksBack}
@@ -149,7 +152,7 @@ export default function Competitividad() {
           >
             {WEEK_RANGE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {t(o.labelKey)}
               </option>
             ))}
           </select>
@@ -163,7 +166,7 @@ export default function Competitividad() {
             checked={useCustomRange}
             onChange={(e) => setUseCustomRange(e.target.checked)}
           />
-          Rango de fechas personalizado
+          {t('competitividad.custom_range')}
         </label>
 
         {useCustomRange && (
@@ -178,7 +181,7 @@ export default function Competitividad() {
                   textTransform: 'uppercase',
                 }}
               >
-                Desde
+                {t('filter.from')}
               </div>
               <input
                 type="date"
@@ -202,7 +205,7 @@ export default function Competitividad() {
                   textTransform: 'uppercase',
                 }}
               >
-                Hasta
+                {t('filter.to')}
               </div>
               <input
                 type="date"
@@ -222,8 +225,8 @@ export default function Competitividad() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="cumplimiento">Cumplimiento de banda</TabsTrigger>
-          <TabsTrigger value="volatilidad">Volatilidad de precios</TabsTrigger>
+          <TabsTrigger value="cumplimiento">{t('competitividad.tab_compliance')}</TabsTrigger>
+          <TabsTrigger value="volatilidad">{t('competitividad.tab_volatility')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="cumplimiento" className="mt-4">
@@ -239,21 +242,14 @@ export default function Competitividad() {
             }}
           >
             <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-              ℹ️ ¿Cómo se calcula esto?
+              {t('competitividad.how_calculated')}
             </summary>
-            <p style={{ marginTop: 8, marginBottom: 0 }}>
-              No existe forma de emparejar una cotización de Yango con la del competidor para el{' '}
-              <strong>mismo viaje exacto</strong> (los datos no traen un identificador de
-              ruta/momento compartido). Por eso, cada cotización real de Yango se compara contra el{' '}
-              <strong>precio promedio del competidor</strong> en la misma ciudad, categoría,
-              distancia y semana — esto sí muestra la volatilidad real de Yango, aunque no sea un
-              pareo exacto viaje-por-viaje.
-            </p>
+            <p style={{ marginTop: 8, marginBottom: 0 }}>{t('competitividad.methodology_note')}</p>
           </details>
 
           {configLoading ? (
             <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
-              Cargando…
+              {t('app.loading')}
             </div>
           ) : countryBands.length === 0 ? (
             <div className="config-section">
@@ -285,7 +281,7 @@ export default function Competitividad() {
                       textTransform: 'uppercase',
                     }}
                   >
-                    Banda
+                    {t('competitividad.band_label')}
                   </div>
                   <BandSelector
                     bands={countryBands}
@@ -300,7 +296,7 @@ export default function Competitividad() {
                     </strong>
                     <span
                       style={{ fontSize: 11, color: 'var(--color-muted)', marginLeft: 6 }}
-                      title="Banda configurada, en Δ% (Yango vs rival)"
+                      title={t('competitividad.band_tooltip')}
                     >
                       ({activeBand.min_pct}% a {activeBand.max_pct}%)
                     </span>
@@ -315,22 +311,25 @@ export default function Competitividad() {
                   disabled={!summary}
                 >
                   <Download size={13} />
-                  Exportar CSV
+                  {t('competitividad.export_csv')}
                 </Button>
               </div>
 
-              {error && <div className="state-box state-box--error">Error: {error}</div>}
+              {error && (
+                <div className="state-box state-box--error">
+                  {t('app.error_prefix')}
+                  {error}
+                </div>
+              )}
 
               {loading && !summary ? (
                 <div
                   style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}
                 >
-                  Calculando…
+                  {t('competitividad.calculating')}
                 </div>
               ) : !summary || !summary.total_observations ? (
-                <div className="state-box">
-                  Sin observaciones para esta banda en el período elegido.
-                </div>
+                <div className="state-box">{t('competitividad.no_observations')}</div>
               ) : (
                 <>
                   {verdict && (
@@ -356,7 +355,10 @@ export default function Competitividad() {
                   {drillDown && (
                     <div className="config-section" style={{ marginTop: 16 }}>
                       <h2 style={{ margin: 0, marginBottom: 10 }}>
-                        Detalle — {drillDown.city} / {drillDown.bracket}
+                        {t('competitividad.drill_title', {
+                          city: drillDown.city,
+                          bracket: drillDown.bracket,
+                        })}
                       </h2>
                       {drillDown.detail ? (
                         <>
@@ -364,7 +366,9 @@ export default function Competitividad() {
                           <PercentileTable summary={drillDown.detail} />
                         </>
                       ) : (
-                        <div style={{ color: 'var(--color-muted)', fontSize: 13 }}>Sin datos.</div>
+                        <div style={{ color: 'var(--color-muted)', fontSize: 13 }}>
+                          {t('competitividad.drill_no_data')}
+                        </div>
                       )}
                     </div>
                   )}

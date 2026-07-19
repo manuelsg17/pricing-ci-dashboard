@@ -538,6 +538,33 @@ export const TRANSLATIONS = {
     'coverage.section.mix_subtitle':
       'Distribución relativa — desigualdades aquí desvirtúan comparaciones de WA',
 
+    // ── Competitividad page ───────────────────────────────────────────
+    'competitividad.title': 'Competitividad',
+    'competitividad.subtitle':
+      'Comparación de precios de Yango vs la competencia: cumplimiento de tu meta y qué tan estable es cada uno.',
+    'competitividad.period': 'Período',
+    'competitividad.custom_range': 'Rango de fechas personalizado',
+    'competitividad.tab_compliance': 'Cumplimiento de banda',
+    'competitividad.tab_volatility': 'Volatilidad de precios',
+    'competitividad.how_calculated': 'ℹ️ ¿Cómo se calcula esto?',
+    'competitividad.methodology_note':
+      'No existe forma de emparejar una cotización de Yango con la del competidor para el mismo viaje exacto (los datos no traen un identificador de ruta/momento compartido). Por eso, cada cotización real de Yango se compara contra el precio promedio del competidor en la misma ciudad, categoría, distancia y semana — esto sí muestra la volatilidad real de Yango, aunque no sea un pareo exacto viaje-por-viaje.',
+    'competitividad.band_label': 'Banda',
+    'competitividad.band_tooltip': 'Banda configurada, en Δ% (Yango vs rival)',
+    'competitividad.export_csv': 'Exportar CSV',
+    'competitividad.calculating': 'Calculando…',
+    'competitividad.no_observations': 'Sin observaciones para esta banda en el período elegido.',
+    'competitividad.drill_title': 'Detalle — {city} / {bracket}',
+    'competitividad.drill_no_data': 'Sin datos.',
+    'competitividad.verdict_good': 'Mayormente competitivo',
+    'competitividad.verdict_mixed': 'Resultados mixtos',
+    'competitividad.verdict_bad': 'Mayormente fuera de rango',
+    'competitividad.week_range.1': 'Última semana',
+    'competitividad.week_range.4': 'Últimas 4 semanas',
+    'competitividad.week_range.8': 'Últimas 8 semanas',
+    'competitividad.week_range.12': 'Últimas 12 semanas',
+    'competitividad.week_range.26': 'Últimas 26 semanas',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -1052,6 +1079,33 @@ export const TRANSLATIONS = {
     'coverage.section.mix_label': 'Bracket mix',
     'coverage.section.mix_title': '🥧 Bracket mix per competitor',
     'coverage.section.mix_subtitle': 'Relative distribution — imbalances here skew WA comparisons',
+
+    // ── Competitividad page ───────────────────────────────────────────
+    'competitividad.title': 'Competitiveness',
+    'competitividad.subtitle':
+      'Yango vs competitor price comparison: how well you meet your target and how stable each competitor is.',
+    'competitividad.period': 'Period',
+    'competitividad.custom_range': 'Custom date range',
+    'competitividad.tab_compliance': 'Band compliance',
+    'competitividad.tab_volatility': 'Price volatility',
+    'competitividad.how_calculated': 'ℹ️ How is this calculated?',
+    'competitividad.methodology_note':
+      "There's no way to pair a Yango quote with a competitor's quote for the exact same trip (the data has no shared route/moment identifier). So each real Yango quote is compared against the competitor's average price for the same city, category, distance and week — this does show Yango's real volatility, even if it's not an exact trip-by-trip match.",
+    'competitividad.band_label': 'Band',
+    'competitividad.band_tooltip': 'Configured band, in Δ% (Yango vs rival)',
+    'competitividad.export_csv': 'Export CSV',
+    'competitividad.calculating': 'Calculating…',
+    'competitividad.no_observations': 'No observations for this band in the selected period.',
+    'competitividad.drill_title': 'Detail — {city} / {bracket}',
+    'competitividad.drill_no_data': 'No data.',
+    'competitividad.verdict_good': 'Mostly competitive',
+    'competitividad.verdict_mixed': 'Mixed results',
+    'competitividad.verdict_bad': 'Mostly out of range',
+    'competitividad.week_range.1': 'Last week',
+    'competitividad.week_range.4': 'Last 4 weeks',
+    'competitividad.week_range.8': 'Last 8 weeks',
+    'competitividad.week_range.12': 'Last 12 weeks',
+    'competitividad.week_range.26': 'Last 26 weeks',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -1575,6 +1629,33 @@ export const TRANSLATIONS = {
     'coverage.section.mix_title': '🥧 Микс брекетов по конкурентам',
     'coverage.section.mix_subtitle':
       'Относительное распределение — дисбалансы здесь искажают сравнения WA',
+
+    // ── Competitividad page ───────────────────────────────────────────
+    'competitividad.title': 'Конкурентоспособность',
+    'competitividad.subtitle':
+      'Сравнение цен Yango с конкурентами: выполнение цели и насколько стабилен каждый конкурент.',
+    'competitividad.period': 'Период',
+    'competitividad.custom_range': 'Произвольный диапазон дат',
+    'competitividad.tab_compliance': 'Соответствие диапазону',
+    'competitividad.tab_volatility': 'Волатильность цен',
+    'competitividad.how_calculated': 'ℹ️ Как это рассчитывается?',
+    'competitividad.methodology_note':
+      'Невозможно сопоставить котировку Yango с котировкой конкурента для одной и той же поездки (в данных нет общего идентификатора маршрута/момента). Поэтому каждая реальная котировка Yango сравнивается со средней ценой конкурента в том же городе, категории, дистанции и неделе — это показывает реальную волатильность Yango, хотя и не является точным сопоставлением поездка-к-поездке.',
+    'competitividad.band_label': 'Диапазон',
+    'competitividad.band_tooltip': 'Настроенный диапазон, в Δ% (Yango против конкурента)',
+    'competitividad.export_csv': 'Экспорт CSV',
+    'competitividad.calculating': 'Вычисление…',
+    'competitividad.no_observations': 'Нет наблюдений для этого диапазона за выбранный период.',
+    'competitividad.drill_title': 'Детали — {city} / {bracket}',
+    'competitividad.drill_no_data': 'Нет данных.',
+    'competitividad.verdict_good': 'В основном конкурентоспособен',
+    'competitividad.verdict_mixed': 'Смешанные результаты',
+    'competitividad.verdict_bad': 'В основном вне диапазона',
+    'competitividad.week_range.1': 'Последняя неделя',
+    'competitividad.week_range.4': 'Последние 4 недели',
+    'competitividad.week_range.8': 'Последние 8 недель',
+    'competitividad.week_range.12': 'Последние 12 недель',
+    'competitividad.week_range.26': 'Последние 26 недель',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
