@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { sb } from '../../lib/supabase'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useI18n } from '../../context/LanguageContext'
 import SaveStatusBanner from './SaveStatusBanner'
 import { Button } from '../ui/shadcn/button'
 
@@ -17,6 +18,7 @@ export default function SnapshotsManager({ country }) {
   const [deleting, setDeleting] = useState(null)
   const [msg, setMsg] = useState(null)
   const confirm = useConfirm()
+  const { t } = useI18n()
 
   useEffect(() => {
     load()
@@ -28,7 +30,7 @@ export default function SnapshotsManager({ country }) {
     setMsg(null)
     const { data, error } = await sb.rpc('list_pricing_wa_snapshots', { p_country: country })
     if (error) {
-      setMsg({ type: 'err', text: 'Error al cargar snapshots: ' + error.message })
+      setMsg({ type: 'err', text: t('config.snapshots.load_error', { msg: error.message }) })
       setRows([])
     } else {
       setRows(data || [])
@@ -38,14 +40,15 @@ export default function SnapshotsManager({ country }) {
 
   async function handleDelete(snap) {
     const ok = await confirm({
-      title: 'Eliminar snapshot',
-      message:
-        `Vas a eliminar el snapshot "${snap.frozen_label}" ` +
-        `(${snap.rows_count.toLocaleString()} filas, ${snap.weeks_count} semanas, ${snap.cities_count} ciudades).\n\n` +
-        `Después de eliminar, los períodos congelados volverán a calcularse EN VIVO desde la data actual, ` +
-        `usando la configuración actual de pesos y umbrales.\n\nEsta acción NO se puede deshacer.`,
-      confirmText: 'Eliminar snapshot',
-      cancelText: 'Cancelar',
+      title: t('config.snapshots.delete_confirm_title'),
+      message: t('config.snapshots.delete_confirm_message', {
+        label: snap.frozen_label,
+        rows: snap.rows_count.toLocaleString(),
+        weeks: snap.weeks_count,
+        cities: snap.cities_count,
+      }),
+      confirmText: t('config.snapshots.delete_confirm_btn'),
+      cancelText: t('app.cancel'),
       danger: true,
     })
     if (!ok) return
@@ -57,27 +60,24 @@ export default function SnapshotsManager({ country }) {
       p_label: snap.frozen_label,
     })
     if (error) {
-      setMsg({ type: 'err', text: 'Error: ' + error.message })
+      setMsg({ type: 'err', text: t('app.error_prefix') + error.message })
     } else {
       setMsg({
         type: 'ok',
-        text: `Snapshot eliminado: ${data?.toLocaleString() ?? '?'} filas removidas.`,
+        text: t('config.snapshots.delete_success', { n: data?.toLocaleString() ?? '?' }),
       })
       await load()
     }
     setDeleting(null)
   }
 
-  if (loading) return <div className="config-loading">Cargando snapshots…</div>
+  if (loading) return <div className="config-loading">{t('config.snapshots.loading')}</div>
 
   return (
     <div className="config-section">
-      <h2>Snapshots (hard copies) — {country}</h2>
+      <h2>{t('config.snapshots.title', { country })}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Cada snapshot congela los promedios ponderados de un momento dado. Se crean automáticamente
-        al guardar cambios en <strong>Distancias</strong> o <strong>Pesos</strong> (si usás "Guardar
-        con snapshot"), o manualmente vía RPC. Eliminar un snapshot devuelve los períodos a cálculo
-        en vivo con la config actual.
+        {t('config.snapshots.description')}
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -93,17 +93,17 @@ export default function SnapshotsManager({ country }) {
             border: '1px dashed #cbd5e1',
           }}
         >
-          Sin snapshots para {country}.
+          {t('config.snapshots.empty', { country })}
         </div>
       ) : (
         <table className="config-table" style={{ marginTop: 8 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: 'left' }}>Etiqueta</th>
-              <th style={{ textAlign: 'left' }}>Creado</th>
-              <th style={{ textAlign: 'right' }}>Filas</th>
-              <th style={{ textAlign: 'right' }}>Semanas</th>
-              <th style={{ textAlign: 'right' }}>Ciudades</th>
+              <th style={{ textAlign: 'left' }}>{t('config.snapshots.col_label')}</th>
+              <th style={{ textAlign: 'left' }}>{t('config.snapshots.col_created')}</th>
+              <th style={{ textAlign: 'right' }}>{t('dataentry.rows')}</th>
+              <th style={{ textAlign: 'right' }}>{t('config.snapshots.col_weeks')}</th>
+              <th style={{ textAlign: 'right' }}>{t('config.snapshots.col_cities')}</th>
               <th scope="col"></th>
             </tr>
           </thead>
@@ -129,9 +129,11 @@ export default function SnapshotsManager({ country }) {
                     className="border-red-300 text-red-600 hover:bg-red-100"
                     onClick={() => handleDelete(r)}
                     disabled={deleting === r.frozen_label}
-                    title="Eliminar este snapshot. Los períodos volverán a cálculo en vivo."
+                    title={t('config.snapshots.delete_btn_title')}
                   >
-                    {deleting === r.frozen_label ? 'Eliminando…' : '✕ Eliminar'}
+                    {deleting === r.frozen_label
+                      ? t('config.snapshots.deleting')
+                      : `✕ ${t('app.delete')}`}
                   </Button>
                 </td>
               </tr>

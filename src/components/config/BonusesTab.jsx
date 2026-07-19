@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useI18n } from '../../context/LanguageContext'
 import BonusesConfig from './BonusesConfig'
 import YangoGmvConfig from './YangoGmvConfig'
 
@@ -8,12 +9,13 @@ import YangoGmvConfig from './YangoGmvConfig'
 // (carga/guarda a su propia tabla: competitor_bonuses vs yango_gmv_tiers), así
 // que solo alternamos cuál se renderiza.
 const SUBTABS = [
-  { id: 'competidores', label: 'Bonos de competidores' },
-  { id: 'yango_gmv', label: 'Bono Yango (% GMV)' },
+  { id: 'competidores', labelKey: 'config.bonuses_tab.subtab_competitors' },
+  { id: 'yango_gmv', labelKey: 'config.bonuses_tab.subtab_yango_gmv' },
 ]
 
 export default function BonusesTab({ country }) {
   const [sub, setSub] = useState('competidores')
+  const { t } = useI18n()
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -36,7 +38,7 @@ export default function BonusesTab({ country }) {
                 color: active ? '#fff' : 'var(--color-muted)',
               }}
             >
-              {s.label}
+              {t(s.labelKey)}
             </button>
           )
         })}

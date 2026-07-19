@@ -6,6 +6,7 @@ import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
@@ -31,6 +32,7 @@ export default function CommissionsConfig({ country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
+  const { t } = useI18n()
 
   const competitorItems = useMemo(
     () => ALL_COMPETITORS.map((c) => ({ value: c, label: c, color: COMPETITOR_COLORS[c] })),
@@ -44,10 +46,10 @@ export default function CommissionsConfig({ country }) {
   const ALL_CITIES_SENTINEL = '__all__'
   const cityItems = useMemo(
     () => [
-      { value: ALL_CITIES_SENTINEL, label: 'Todas las ciudades' },
+      { value: ALL_CITIES_SENTINEL, label: t('config.commissions.all_cities') },
       ...config.dbCities.map((c) => ({ value: c, label: c })),
     ],
-    [config]
+    [config, t]
   )
 
   const { allRows, loading, saveCommission, deleteCommission, addRow } = useCompetitorCommissions(
@@ -79,15 +81,19 @@ export default function CommissionsConfig({ country }) {
         delete n[row.id]
         return n
       })
-      const cityLabel = merged.city || 'Todas las ciudades'
+      const cityLabel = merged.city || t('config.commissions.all_cities')
       setMsg({
         type: 'ok',
-        text: `Guardado: ${merged.competitor_name} (${cityLabel}) — ${merged.commission_pct}%`,
+        text: t('config.commissions.saved_toast', {
+          competitor: merged.competitor_name,
+          city: cityLabel,
+          pct: merged.commission_pct,
+        }),
       })
     } else {
       setMsg({
         type: 'err',
-        text: 'Error al guardar. Verifica que el competidor no esté duplicado en la misma ciudad.',
+        text: t('config.commissions.save_error'),
       })
     }
     setSaving(false)
@@ -96,29 +102,29 @@ export default function CommissionsConfig({ country }) {
   async function handleDelete(row) {
     if (!String(row.id).startsWith('new_')) {
       const confirmed = await confirm({
-        title: 'Eliminar comisión',
-        message: '¿Eliminar esta comisión?',
+        title: t('config.commissions.delete_confirm_title'),
+        message: t('config.commissions.delete_confirm_message'),
         danger: true,
-        confirmText: 'Eliminar',
+        confirmText: t('app.delete'),
       })
       if (!confirmed) return
     }
     const ok = await deleteCommission(row.id)
-    if (!ok) setMsg({ type: 'err', text: 'No se pudo eliminar.' })
-    else if (!String(row.id).startsWith('new_')) setMsg({ type: 'ok', text: 'Comisión eliminada.' })
+    if (!ok) setMsg({ type: 'err', text: t('config.commissions.delete_error') })
+    else if (!String(row.id).startsWith('new_'))
+      setMsg({ type: 'ok', text: t('config.commissions.delete_success') })
   }
 
-  if (loading) return <div className="config-loading">Cargando comisiones…</div>
+  if (loading) return <div className="config-loading">{t('config.commissions.loading')}</div>
 
   return (
     <div className="config-section">
       <h2 className="with-icon">
         <Percent size={15} />
-        Comisiones por Competidor
+        {t('config.commissions.title')}
       </h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Define el porcentaje de comisión que cobra cada app al conductor. Puedes tener un valor
-        global (Todas las ciudades) o sobrescribirlo por ciudad.
+        {t('config.commissions.subtitle')}
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -126,9 +132,9 @@ export default function CommissionsConfig({ country }) {
       <table className="config-table config-table--modern" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th scope="col">Competidor</th>
-            <th scope="col">Ciudad</th>
-            <th scope="col">Comisión %</th>
+            <th scope="col">{t('config.commissions.col_competitor')}</th>
+            <th scope="col">{t('filter.city')}</th>
+            <th scope="col">{t('config.commissions.col_pct')}</th>
             <th scope="col"></th>
           </tr>
         </thead>
@@ -144,9 +150,9 @@ export default function CommissionsConfig({ country }) {
                     items={competitorItems}
                     value={getField(row, 'competitor_name') || ''}
                     onValueChange={(v) => setField(row.id, 'competitor_name', v)}
-                    placeholder="— Seleccionar —"
-                    searchPlaceholder="Buscar competidor…"
-                    emptyText="Sin resultados."
+                    placeholder={t('config.commissions.select_placeholder')}
+                    searchPlaceholder={t('config.commissions.search_competitor')}
+                    emptyText={t('config.commissions.no_results')}
                     triggerClassName="text-xs"
                     style={triggerStyle}
                   />
@@ -158,8 +164,8 @@ export default function CommissionsConfig({ country }) {
                     onValueChange={(v) =>
                       setField(row.id, 'city', v === ALL_CITIES_SENTINEL ? null : v)
                     }
-                    searchPlaceholder="Buscar ciudad…"
-                    emptyText="Sin resultados."
+                    searchPlaceholder={t('config.commissions.search_city')}
+                    emptyText={t('config.commissions.no_results')}
                     triggerClassName="text-xs"
                     style={triggerStyle}
                   />
@@ -181,18 +187,18 @@ export default function CommissionsConfig({ country }) {
                     size="sm"
                     onClick={() => handleSave(row)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : undefined}
+                    title={!dirty ? t('config.commissions.no_changes_title') : undefined}
                   >
                     <Save size={11} />
-                    {isNew(row) ? 'Crear' : 'Guardar'}
+                    {isNew(row) ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label="Eliminar"
-                    title="Eliminar"
+                    aria-label={t('app.delete')}
+                    title={t('app.delete')}
                     onClick={() => handleDelete(row)}
                   >
                     <Trash2 size={12} />
@@ -212,7 +218,7 @@ export default function CommissionsConfig({ country }) {
         onClick={addRow}
       >
         <Plus size={13} />
-        Agregar comisión
+        {t('config.commissions.add_btn')}
       </Button>
     </div>
   )

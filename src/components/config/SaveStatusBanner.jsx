@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 /**
@@ -11,6 +12,7 @@ import { Button } from '../ui/shadcn/button'
  *   <SaveStatusBanner status={status} onDismiss={() => setStatus(null)} />
  */
 export default function SaveStatusBanner({ status, onDismiss, autoHideMs = 4000 }) {
+  const { t } = useI18n()
   useEffect(() => {
     if (!status) return
     if (status.type !== 'ok') return // solo auto-oculta OK; warn/err se quedan
@@ -53,7 +55,7 @@ export default function SaveStatusBanner({ status, onDismiss, autoHideMs = 4000 
           variant="ghost"
           className="h-auto w-auto p-0.5 text-base leading-none hover:bg-transparent"
           onClick={onDismiss}
-          aria-label="Cerrar mensaje"
+          aria-label={t('config.save_status.dismiss')}
           style={{ color: scheme.fg }}
         >
           ×

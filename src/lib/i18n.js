@@ -922,6 +922,73 @@ export const TRANSLATIONS = {
       'Probe disparado. Revisa el log del run en GitHub Actions en ~30s.',
     'botdbsync.probe_trigger_error': 'No se pudo disparar el probe: {msg}',
 
+    // ── BonusesTab ──────────────────────────────────────────────────
+    'config.bonuses_tab.subtab_competitors': 'Bonos de competidores',
+    'config.bonuses_tab.subtab_yango_gmv': 'Bono Yango (% GMV)',
+
+    // ── SaveStatusBanner ────────────────────────────────────────────
+    'config.save_status.dismiss': 'Cerrar mensaje',
+
+    // ── SnapshotsManager ────────────────────────────────────────────
+    'config.snapshots.title': 'Snapshots (hard copies) — {country}',
+    'config.snapshots.description':
+      'Cada snapshot congela los promedios ponderados de un momento dado. Se crean automáticamente al guardar cambios en Distancias o Pesos (si usás "Guardar con snapshot"), o manualmente vía RPC. Eliminar un snapshot devuelve los períodos a cálculo en vivo con la config actual.',
+    'config.snapshots.loading': 'Cargando snapshots…',
+    'config.snapshots.load_error': 'Error al cargar snapshots: {msg}',
+    'config.snapshots.empty': 'Sin snapshots para {country}.',
+    'config.snapshots.col_label': 'Etiqueta',
+    'config.snapshots.col_created': 'Creado',
+    'config.snapshots.col_weeks': 'Semanas',
+    'config.snapshots.col_cities': 'Ciudades',
+    'config.snapshots.delete_btn_title':
+      'Eliminar este snapshot. Los períodos volverán a cálculo en vivo.',
+    'config.snapshots.deleting': 'Eliminando…',
+    'config.snapshots.delete_confirm_title': 'Eliminar snapshot',
+    'config.snapshots.delete_confirm_message':
+      'Vas a eliminar el snapshot "{label}" ({rows} filas, {weeks} semanas, {cities} ciudades).\n\nDespués de eliminar, los períodos congelados volverán a calcularse EN VIVO desde la data actual, usando la configuración actual de pesos y umbrales.\n\nEsta acción NO se puede deshacer.',
+    'config.snapshots.delete_confirm_btn': 'Eliminar snapshot',
+    'config.snapshots.delete_success': 'Snapshot eliminado: {n} filas removidas.',
+
+    // ── SemaforoEditor ──────────────────────────────────────────────
+    'config.semaforo.title': 'Semáforo — Bandas de color',
+    'config.semaforo.subtitle':
+      'Define los rangos de Δ% vs Yango para cada color. Vacío = sin límite.',
+    'config.semaforo.unsaved_warning': 'Hay cambios sin guardar',
+    'config.semaforo.col_color': 'Color',
+    'config.semaforo.col_min': 'Δ% mínimo',
+    'config.semaforo.col_max': 'Δ% máximo',
+    'config.semaforo.col_note': 'Nota',
+    'config.semaforo.no_changes_title': 'No hay cambios para guardar',
+    'config.semaforo.save_btn': 'Guardar semáforo',
+    'config.semaforo.save_success':
+      'Semáforo guardado. Los colores del dashboard reflejarán estas bandas.',
+    'config.semaforo.band_green': 'Verde',
+    'config.semaforo.band_yellow': 'Amarillo',
+    'config.semaforo.band_red': 'Rojo',
+
+    // ── CommissionsConfig ───────────────────────────────────────────
+    'config.commissions.title': 'Comisiones por Competidor',
+    'config.commissions.subtitle':
+      'Define el porcentaje de comisión que cobra cada app al conductor. Puedes tener un valor global (Todas las ciudades) o sobrescribirlo por ciudad.',
+    'config.commissions.loading': 'Cargando comisiones…',
+    'config.commissions.all_cities': 'Todas las ciudades',
+    'config.commissions.col_competitor': 'Competidor',
+    'config.commissions.col_pct': 'Comisión %',
+    'config.commissions.select_placeholder': '— Seleccionar —',
+    'config.commissions.search_competitor': 'Buscar competidor…',
+    'config.commissions.search_city': 'Buscar ciudad…',
+    'config.commissions.no_results': 'Sin resultados.',
+    'config.commissions.no_changes_title': 'Sin cambios',
+    'config.commissions.create_btn': 'Crear',
+    'config.commissions.add_btn': 'Agregar comisión',
+    'config.commissions.saved_toast': 'Guardado: {competitor} ({city}) — {pct}%',
+    'config.commissions.save_error':
+      'Error al guardar. Verifica que el competidor no esté duplicado en la misma ciudad.',
+    'config.commissions.delete_confirm_title': 'Eliminar comisión',
+    'config.commissions.delete_confirm_message': '¿Eliminar esta comisión?',
+    'config.commissions.delete_error': 'No se pudo eliminar.',
+    'config.commissions.delete_success': 'Comisión eliminada.',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -1814,6 +1881,72 @@ export const TRANSLATIONS = {
     'botdbsync.probe_triggered_toast':
       'Probe triggered. Check the run log in GitHub Actions in ~30s.',
     'botdbsync.probe_trigger_error': 'Could not trigger the probe: {msg}',
+
+    // ── BonusesTab ──────────────────────────────────────────────────
+    'config.bonuses_tab.subtab_competitors': 'Competitor bonuses',
+    'config.bonuses_tab.subtab_yango_gmv': 'Yango bonus (% GMV)',
+
+    // ── SaveStatusBanner ────────────────────────────────────────────
+    'config.save_status.dismiss': 'Dismiss message',
+
+    // ── SnapshotsManager ────────────────────────────────────────────
+    'config.snapshots.title': 'Snapshots (hard copies) — {country}',
+    'config.snapshots.description':
+      'Each snapshot freezes the weighted averages at a given moment. They\'re created automatically when saving changes in Distances or Weights (if you use "Save with snapshot"), or manually via RPC. Deleting a snapshot returns those periods to live calculation with the current config.',
+    'config.snapshots.loading': 'Loading snapshots…',
+    'config.snapshots.load_error': 'Error loading snapshots: {msg}',
+    'config.snapshots.empty': 'No snapshots for {country}.',
+    'config.snapshots.col_label': 'Label',
+    'config.snapshots.col_created': 'Created',
+    'config.snapshots.col_weeks': 'Weeks',
+    'config.snapshots.col_cities': 'Cities',
+    'config.snapshots.delete_btn_title':
+      'Delete this snapshot. Those periods will return to live calculation.',
+    'config.snapshots.deleting': 'Deleting…',
+    'config.snapshots.delete_confirm_title': 'Delete snapshot',
+    'config.snapshots.delete_confirm_message':
+      'You\'re about to delete the snapshot "{label}" ({rows} rows, {weeks} weeks, {cities} cities).\n\nAfter deleting, those frozen periods will go back to LIVE calculation from current data, using the current weights and thresholds config.\n\nThis action CANNOT be undone.',
+    'config.snapshots.delete_confirm_btn': 'Delete snapshot',
+    'config.snapshots.delete_success': 'Snapshot deleted: {n} rows removed.',
+
+    // ── SemaforoEditor ──────────────────────────────────────────────
+    'config.semaforo.title': 'Semaforo — Color bands',
+    'config.semaforo.subtitle': 'Define the Δ% vs Yango ranges for each color. Empty = no limit.',
+    'config.semaforo.unsaved_warning': 'Unsaved changes',
+    'config.semaforo.col_color': 'Color',
+    'config.semaforo.col_min': 'Δ% min',
+    'config.semaforo.col_max': 'Δ% max',
+    'config.semaforo.col_note': 'Note',
+    'config.semaforo.no_changes_title': 'No changes to save',
+    'config.semaforo.save_btn': 'Save semaforo',
+    'config.semaforo.save_success':
+      'Semaforo saved. The dashboard colors will reflect these bands.',
+    'config.semaforo.band_green': 'Green',
+    'config.semaforo.band_yellow': 'Yellow',
+    'config.semaforo.band_red': 'Red',
+
+    // ── CommissionsConfig ───────────────────────────────────────────
+    'config.commissions.title': 'Commissions by Competitor',
+    'config.commissions.subtitle':
+      'Define the commission percentage each app charges the driver. You can set a global value (All cities) or override it per city.',
+    'config.commissions.loading': 'Loading commissions…',
+    'config.commissions.all_cities': 'All cities',
+    'config.commissions.col_competitor': 'Competitor',
+    'config.commissions.col_pct': 'Commission %',
+    'config.commissions.select_placeholder': '— Select —',
+    'config.commissions.search_competitor': 'Search competitor…',
+    'config.commissions.search_city': 'Search city…',
+    'config.commissions.no_results': 'No results.',
+    'config.commissions.no_changes_title': 'No changes',
+    'config.commissions.create_btn': 'Create',
+    'config.commissions.add_btn': 'Add commission',
+    'config.commissions.saved_toast': 'Saved: {competitor} ({city}) — {pct}%',
+    'config.commissions.save_error':
+      "Error saving. Check that the competitor isn't duplicated in the same city.",
+    'config.commissions.delete_confirm_title': 'Delete commission',
+    'config.commissions.delete_confirm_message': 'Delete this commission?',
+    'config.commissions.delete_error': 'Could not delete.',
+    'config.commissions.delete_success': 'Commission deleted.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -2735,6 +2868,72 @@ export const TRANSLATIONS = {
     'botdbsync.probe_triggered_toast':
       'Probe запущен. Проверьте лог прогона в GitHub Actions через ~30с.',
     'botdbsync.probe_trigger_error': 'Не удалось запустить probe: {msg}',
+
+    // ── BonusesTab ──────────────────────────────────────────────────
+    'config.bonuses_tab.subtab_competitors': 'Бонусы конкурентов',
+    'config.bonuses_tab.subtab_yango_gmv': 'Бонус Yango (% GMV)',
+
+    // ── SaveStatusBanner ────────────────────────────────────────────
+    'config.save_status.dismiss': 'Закрыть сообщение',
+
+    // ── SnapshotsManager ────────────────────────────────────────────
+    'config.snapshots.title': 'Снимки (hard copies) — {country}',
+    'config.snapshots.description':
+      'Каждый снимок замораживает средневзвешенные значения на определённый момент. Создаются автоматически при сохранении изменений в разделах Расстояния или Веса (если используете «Сохранить со снимком»), либо вручную через RPC. Удаление снимка возвращает эти периоды к живому расчёту с текущей конфигурацией.',
+    'config.snapshots.loading': 'Загрузка снимков…',
+    'config.snapshots.load_error': 'Ошибка загрузки снимков: {msg}',
+    'config.snapshots.empty': 'Нет снимков для {country}.',
+    'config.snapshots.col_label': 'Метка',
+    'config.snapshots.col_created': 'Создан',
+    'config.snapshots.col_weeks': 'Недели',
+    'config.snapshots.col_cities': 'Города',
+    'config.snapshots.delete_btn_title': 'Удалить этот снимок. Периоды вернутся к живому расчёту.',
+    'config.snapshots.deleting': 'Удаление…',
+    'config.snapshots.delete_confirm_title': 'Удалить снимок',
+    'config.snapshots.delete_confirm_message':
+      'Вы собираетесь удалить снимок "{label}" ({rows} строк, {weeks} недель, {cities} городов).\n\nПосле удаления эти замороженные периоды вернутся к ЖИВОМУ расчёту из текущих данных, с текущей конфигурацией весов и порогов.\n\nЭто действие НЕЛЬЗЯ отменить.',
+    'config.snapshots.delete_confirm_btn': 'Удалить снимок',
+    'config.snapshots.delete_success': 'Снимок удалён: {n} строк удалено.',
+
+    // ── SemaforoEditor ──────────────────────────────────────────────
+    'config.semaforo.title': 'Светофор — Цветовые диапазоны',
+    'config.semaforo.subtitle':
+      'Задайте диапазоны Δ% относительно Yango для каждого цвета. Пусто = без ограничения.',
+    'config.semaforo.unsaved_warning': 'Есть несохранённые изменения',
+    'config.semaforo.col_color': 'Цвет',
+    'config.semaforo.col_min': 'Δ% мин.',
+    'config.semaforo.col_max': 'Δ% макс.',
+    'config.semaforo.col_note': 'Заметка',
+    'config.semaforo.no_changes_title': 'Нет изменений для сохранения',
+    'config.semaforo.save_btn': 'Сохранить светофор',
+    'config.semaforo.save_success':
+      'Светофор сохранён. Цвета дашборда будут отражать эти диапазоны.',
+    'config.semaforo.band_green': 'Зелёный',
+    'config.semaforo.band_yellow': 'Жёлтый',
+    'config.semaforo.band_red': 'Красный',
+
+    // ── CommissionsConfig ───────────────────────────────────────────
+    'config.commissions.title': 'Комиссии по конкурентам',
+    'config.commissions.subtitle':
+      'Задайте процент комиссии, который каждое приложение берёт с водителя. Можно задать глобальное значение (Все города) или переопределить по городу.',
+    'config.commissions.loading': 'Загрузка комиссий…',
+    'config.commissions.all_cities': 'Все города',
+    'config.commissions.col_competitor': 'Конкурент',
+    'config.commissions.col_pct': 'Комиссия %',
+    'config.commissions.select_placeholder': '— Выбрать —',
+    'config.commissions.search_competitor': 'Поиск конкурента…',
+    'config.commissions.search_city': 'Поиск города…',
+    'config.commissions.no_results': 'Нет результатов.',
+    'config.commissions.no_changes_title': 'Нет изменений',
+    'config.commissions.create_btn': 'Создать',
+    'config.commissions.add_btn': 'Добавить комиссию',
+    'config.commissions.saved_toast': 'Сохранено: {competitor} ({city}) — {pct}%',
+    'config.commissions.save_error':
+      'Ошибка сохранения. Проверьте, что конкурент не дублируется в том же городе.',
+    'config.commissions.delete_confirm_title': 'Удалить комиссию',
+    'config.commissions.delete_confirm_message': 'Удалить эту комиссию?',
+    'config.commissions.delete_error': 'Не удалось удалить.',
+    'config.commissions.delete_success': 'Комиссия удалена.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',

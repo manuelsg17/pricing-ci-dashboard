@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react'
 import SaveStatusBanner from './SaveStatusBanner'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
-const BAND_LABELS = { green: 'Verde', yellow: 'Amarillo', red: 'Rojo' }
 const BAND_COLORS = { green: '#c8e6c9', yellow: '#fff9c4', red: '#ffcdd2' }
+
+function bandLabel(band, t) {
+  const key = `config.semaforo.band_${band}`
+  const label = t(key)
+  return label === key ? band : label
+}
 
 const rowsEqual = (a, b) => {
   if (a.length !== b.length) return false
@@ -18,6 +24,7 @@ const rowsEqual = (a, b) => {
 export default function SemaforoEditor({ semaforo, onSave, saving }) {
   const [rows, setRows] = useState([])
   const [saveMsg, setSaveMsg] = useState(null)
+  const { t } = useI18n()
 
   useEffect(() => {
     if (semaforo.length) setRows(semaforo.map((r) => ({ ...r })))
@@ -53,10 +60,10 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
       await onSave(clean)
       setSaveMsg({
         type: 'ok',
-        text: 'Semáforo guardado. Los colores del dashboard reflejarán estas bandas.',
+        text: t('config.semaforo.save_success'),
       })
     } catch (e) {
-      setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
+      setSaveMsg({ type: 'err', text: t('app.error_prefix') + e.message })
     }
   }
 
@@ -69,9 +76,9 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
 
   return (
     <div className="config-section">
-      <h2>Semáforo — Bandas de color</h2>
+      <h2>{t('config.semaforo.title')}</h2>
       <p style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
-        Define los rangos de Δ% vs Yango para cada color. Vacío = sin límite.
+        {t('config.semaforo.subtitle')}
       </p>
 
       {hasUnsavedChanges && (
@@ -92,7 +99,7 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
             gap: 12,
           }}
         >
-          <span>⚠ Hay cambios sin guardar</span>
+          <span>⚠ {t('config.semaforo.unsaved_warning')}</span>
           <Button
             type="button"
             variant="outline"
@@ -100,7 +107,7 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
             className="bg-transparent border-[#b45309] text-[#78350f]"
             onClick={handleDiscard}
           >
-            Descartar
+            {t('config.discard_changes')}
           </Button>
         </div>
       )}
@@ -108,16 +115,16 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
       <table className="config-table">
         <thead>
           <tr>
-            <th style={{ textAlign: 'left' }}>Color</th>
-            <th scope="col">Δ% mínimo</th>
-            <th scope="col">Δ% máximo</th>
-            <th style={{ textAlign: 'left' }}>Nota</th>
+            <th style={{ textAlign: 'left' }}>{t('config.semaforo.col_color')}</th>
+            <th scope="col">{t('config.semaforo.col_min')}</th>
+            <th scope="col">{t('config.semaforo.col_max')}</th>
+            <th style={{ textAlign: 'left' }}>{t('config.semaforo.col_note')}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, idx) => (
             <tr key={idx} style={{ background: BAND_COLORS[row.band] }}>
-              <td style={{ fontWeight: 700 }}>{BAND_LABELS[row.band] || row.band}</td>
+              <td style={{ fontWeight: 700 }}>{bandLabel(row.band, t)}</td>
               <td>
                 <input
                   type="number"
@@ -155,9 +162,9 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
         <Button
           onClick={handleSave}
           disabled={saving || !hasUnsavedChanges}
-          title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
+          title={!hasUnsavedChanges ? t('config.semaforo.no_changes_title') : undefined}
         >
-          {saving ? 'Guardando…' : 'Guardar semáforo'}
+          {saving ? t('account.saving') : t('config.semaforo.save_btn')}
         </Button>
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
       </div>
