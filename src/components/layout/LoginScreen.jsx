@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 import '../../styles/login.css'
 
 export default function LoginScreen({ onLogin }) {
+  const { t } = useI18n()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -13,7 +15,7 @@ export default function LoginScreen({ onLogin }) {
     setLoading(true)
     setErrMsg('')
     const error = await onLogin(email, password)
-    if (error) setErrMsg(error.message || 'Credenciales incorrectas')
+    if (error) setErrMsg(error.message || t('login.default_error'))
     setLoading(false)
   }
 
@@ -24,9 +26,9 @@ export default function LoginScreen({ onLogin }) {
           <span className="login-card__logo-icon">Y</span>
           Pricing CI
         </div>
-        <div className="login-card__subtitle">Yango LATAM — Inteligencia Competitiva</div>
+        <div className="login-card__subtitle">{t('login.subtitle')}</div>
 
-        <label htmlFor="email">Correo</label>
+        <label htmlFor="email">{t('login.email_label')}</label>
         <input
           id="email"
           type="email"
@@ -34,10 +36,10 @@ export default function LoginScreen({ onLogin }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          placeholder="usuario@yango.com"
+          placeholder={t('login.email_placeholder')}
         />
 
-        <label htmlFor="password">Contraseña</label>
+        <label htmlFor="password">{t('login.password_label')}</label>
         <input
           id="password"
           type="password"
@@ -48,7 +50,7 @@ export default function LoginScreen({ onLogin }) {
         />
 
         <Button className="w-full" type="submit" disabled={loading}>
-          {loading ? 'Ingresando...' : 'Ingresar'}
+          {loading ? t('login.submit_loading') : t('login.submit')}
         </Button>
 
         {errMsg && <div className="login-card__error">{errMsg}</div>}

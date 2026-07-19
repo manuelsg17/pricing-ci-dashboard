@@ -109,6 +109,15 @@ export const TRANSLATIONS = {
     'competitiveBands.band_selector.placeholder': 'Elegí una banda…',
     'competitiveBands.band_selector.search_placeholder': 'Buscar competidor o categoría…',
 
+    // ── Login ────────────────────────────────────────────
+    'login.subtitle': 'Yango LATAM — Inteligencia Competitiva',
+    'login.email_label': 'Correo',
+    'login.email_placeholder': 'usuario@yango.com',
+    'login.password_label': 'Contraseña',
+    'login.submit_loading': 'Ingresando...',
+    'login.submit': 'Ingresar',
+    'login.default_error': 'Credenciales incorrectas',
+
     // ── Cuenta / contraseña ────────────────────────────
     'account.change_password': 'Cambiar contraseña',
     'account.current': 'Contraseña actual',
@@ -1871,6 +1880,15 @@ export const TRANSLATIONS = {
     'competitiveBands.band_selector.placeholder': 'Pick a band…',
     'competitiveBands.band_selector.search_placeholder': 'Search competitor or category…',
 
+    // ── Login ────────────────────────────────────────────
+    'login.subtitle': 'Yango LATAM — Competitive Intelligence',
+    'login.email_label': 'Email',
+    'login.email_placeholder': 'user@yango.com',
+    'login.password_label': 'Password',
+    'login.submit_loading': 'Signing in...',
+    'login.submit': 'Sign in',
+    'login.default_error': 'Incorrect credentials',
+
     // ── Account / password ─────────────────────────────
     'account.change_password': 'Change password',
     'account.current': 'Current password',
@@ -3606,6 +3624,15 @@ export const TRANSLATIONS = {
       'Коридоры пока не настроены. Создайте их в Настройки → Конкуренты → Конкурентные коридоры.',
     'competitiveBands.band_selector.placeholder': 'Выберите коридор…',
     'competitiveBands.band_selector.search_placeholder': 'Поиск конкурента или категории…',
+
+    // ── Вход ─────────────────────────────────────────────
+    'login.subtitle': 'Yango LATAM — Конкурентная разведка',
+    'login.email_label': 'Почта',
+    'login.email_placeholder': 'user@yango.com',
+    'login.password_label': 'Пароль',
+    'login.submit_loading': 'Вход...',
+    'login.submit': 'Войти',
+    'login.default_error': 'Неверные учётные данные',
 
     // ── Аккаунт / пароль ───────────────────────────────
     'account.change_password': 'Сменить пароль',
