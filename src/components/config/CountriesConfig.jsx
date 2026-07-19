@@ -10,6 +10,36 @@ import { Button } from '../ui/shadcn/button'
 const CONST_KEYS = Object.keys(COUNTRY_CONFIG)
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
+// COMPETITOR_COLORS mezcla, a propósito (ver constants.js), 3 grupos:
+// competidores normales (Uber, Didi, InDrive...), tiers exclusivos del
+// negocio B2B "Corp" de Perú (YangoEconomy/Premier/XL/Plus, CabifyLite/
+// ExtraComfort/XL), y formas legacy con espacio pre-mig-72 (retrocompat
+// para leer reportes viejos, nunca válidas para elegir de nuevo). El
+// dropdown de "agregar competidor" no debe ofrecer ninguno de los dos
+// últimos grupos salvo que se esté editando la ciudad "Corp" de Perú —
+// si no, cualquier país nuevo ve una lista de 29 opciones sin sentido
+// para su caso (bug reportado onboardeando Bolivia).
+const LEGACY_SPACE_FORM_COMPETITORS = new Set([
+  'Yango Economy',
+  'Yango Comfort',
+  'Yango Comfort+',
+  'Yango Premier',
+  'Yango XL',
+  'Cabify Lite',
+  'Cabify Extra Comfort',
+  'Cabify XL',
+])
+const CORP_ONLY_COMPETITORS = new Set([
+  'YangoEconomy',
+  'YangoComfort+',
+  'YangoPremier',
+  'YangoXL',
+  'YangoPlus',
+  'CabifyLite',
+  'CabifyExtraComfort',
+  'CabifyXL',
+])
+
 // ── Style helpers ─────────────────────────────────────────────────────
 
 const fieldLabelStyle = {
@@ -51,9 +81,14 @@ const competitorTagStyle = {
 
 // ── Sub-component: add-competitor dropdown ────────────────────────────
 
-function CompetitorAdder({ existing, onAdd }) {
+function CompetitorAdder({ existing, onAdd, allowCorpTiers }) {
   const [val, setVal] = useState('')
-  const available = ALL_COMPETITORS.filter((c) => !existing.includes(c))
+  const available = ALL_COMPETITORS.filter(
+    (c) =>
+      !existing.includes(c) &&
+      !LEGACY_SPACE_FORM_COMPETITORS.has(c) &&
+      (allowCorpTiers || !CORP_ONLY_COMPETITORS.has(c))
+  )
   return (
     <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
       <select
@@ -1254,6 +1289,7 @@ export default function CountriesConfig() {
                       <CompetitorAdder
                         existing={cat.competitors}
                         onAdd={(comp) => addCompetitor(selectedKey, selectedCityIdx, catIdx, comp)}
+                        allowCorpTiers={selectedKey === 'Peru' && activeCity.dbName === 'Corp'}
                       />
                     )}
                   </div>
