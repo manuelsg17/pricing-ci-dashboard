@@ -1046,6 +1046,54 @@ export const TRANSLATIONS = {
     'config.yango_gmv.save_title': 'Guardar peldaño',
     'config.yango_gmv.add_btn': 'Agregar peldaño',
 
+    // ── PriceRulesTable ─────────────────────────────────────────────
+    'config.pricerules.title': 'Límites de Precio por Validación',
+    'config.pricerules.description':
+      'Al subir data, cualquier precio mayor al límite configurado será marcado como sospechoso y requerirá confirmación manual antes de insertarse. Usa all en categoría o competidor para aplicar a todos.',
+    'config.pricerules.loading': 'Cargando reglas…',
+    'config.pricerules.save_error': 'Error al guardar: {msg}',
+    'config.pricerules.saved_toast':
+      'Regla guardada: {city} / {category} / {competition} ≤ {currency} {price}',
+    'config.pricerules.delete_confirm_title': 'Eliminar regla',
+    'config.pricerules.delete_confirm_message': '¿Eliminar esta regla de límite de precio?',
+    'config.pricerules.delete_success': 'Regla eliminada.',
+    'config.pricerules.delete_error': 'Error al eliminar: {msg}',
+    'config.pricerules.col_max_price': 'Precio máx ({currency})',
+    'config.pricerules.add_btn': 'Agregar regla',
+
+    // ── CompetitiveBandsConfig ──────────────────────────────────────
+    'config.bands.preview_choose': 'Elegí competidor y categoría',
+    'config.bands.preview_calculating': 'Calculando…',
+    'config.bands.preview_no_data': 'Sin datos',
+    'config.bands.preview_tooltip': '{n} cotizaciones · {below}% debajo · {above}% encima',
+    'config.bands.preview_within': '{pct}% dentro',
+    'config.bands.title': 'Bandas competitivas',
+    'config.bands.description':
+      'Define el rango de Δ% aceptable de Yango vs un competidor, por categoría — aplica a todas las ciudades y distancias a la vez. Δ% = (Yango − Rival) / Rival × 100: negativo = Yango más barato. Ej: min −15, max −5 = "Yango entre 5% y 15% más barato que el rival". El desglose por ciudad/distancia está disponible en Análisis → Competitividad.',
+    'config.bands.loading': 'Cargando bandas competitivas…',
+    'config.bands.choose_error': 'Elegí competidor y categoría.',
+    'config.bands.range_error': 'El piso (min%) debe ser menor que el techo (max%).',
+    'config.bands.saved_toast': 'Guardado: {competitor} / {category} → banda {min}% a {max}%',
+    'config.bands.save_error': 'Error al guardar: {msg}',
+    'config.bands.delete_confirm_title': 'Eliminar banda competitiva',
+    'config.bands.delete_confirm_message':
+      '¿Eliminar esta banda? La página de Competitividad dejará de mostrarla.',
+    'config.bands.delete_error': 'No se pudo eliminar.',
+    'config.bands.delete_success': 'Banda eliminada.',
+    'config.bands.col_min': 'Min %',
+    'config.bands.col_min_title': 'Piso de Δ%',
+    'config.bands.col_max': 'Max %',
+    'config.bands.col_max_title': 'Techo de Δ%',
+    'config.bands.col_active': 'Activa',
+    'config.bands.col_today': 'Hoy',
+    'config.bands.col_today_title': 'Con la banda actual, % de cotizaciones reales dentro de rango',
+    'config.bands.select_placeholder': '— Elegir —',
+    'config.bands.search_category': 'Buscar categoría…',
+    'config.bands.note_placeholder': 'ej: definido con MSI 07-2026',
+    'config.bands.active_title': 'Activa',
+    'config.bands.inactive_title': 'Inactiva',
+    'config.bands.add_btn': 'Nueva banda',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -2061,6 +2109,54 @@ export const TRANSLATIONS = {
     'config.yango_gmv.delete_error': 'Error deleting: {msg}',
     'config.yango_gmv.save_title': 'Save tier',
     'config.yango_gmv.add_btn': 'Add tier',
+
+    // ── PriceRulesTable ─────────────────────────────────────────────
+    'config.pricerules.title': 'Price Limits for Validation',
+    'config.pricerules.description':
+      'When uploading data, any price above the configured limit gets flagged as suspicious and requires manual confirmation before inserting. Use all in category or competitor to apply to everything.',
+    'config.pricerules.loading': 'Loading rules…',
+    'config.pricerules.save_error': 'Error saving: {msg}',
+    'config.pricerules.saved_toast':
+      'Rule saved: {city} / {category} / {competition} ≤ {currency} {price}',
+    'config.pricerules.delete_confirm_title': 'Delete rule',
+    'config.pricerules.delete_confirm_message': 'Delete this price limit rule?',
+    'config.pricerules.delete_success': 'Rule deleted.',
+    'config.pricerules.delete_error': 'Error deleting: {msg}',
+    'config.pricerules.col_max_price': 'Max price ({currency})',
+    'config.pricerules.add_btn': 'Add rule',
+
+    // ── CompetitiveBandsConfig ──────────────────────────────────────
+    'config.bands.preview_choose': 'Choose competitor and category',
+    'config.bands.preview_calculating': 'Calculating…',
+    'config.bands.preview_no_data': 'No data',
+    'config.bands.preview_tooltip': '{n} quotes · {below}% below · {above}% above',
+    'config.bands.preview_within': '{pct}% within',
+    'config.bands.title': 'Competitive bands',
+    'config.bands.description':
+      'Define the acceptable Δ% range of Yango vs a competitor, per category — applies to all cities and distances at once. Δ% = (Yango − Rival) / Rival × 100: negative = Yango cheaper. E.g: min −15, max −5 = "Yango between 5% and 15% cheaper than the rival". The breakdown by city/distance is available in Analysis → Competitiveness.',
+    'config.bands.loading': 'Loading competitive bands…',
+    'config.bands.choose_error': 'Choose a competitor and category.',
+    'config.bands.range_error': 'The floor (min%) must be lower than the ceiling (max%).',
+    'config.bands.saved_toast': 'Saved: {competitor} / {category} → band {min}% to {max}%',
+    'config.bands.save_error': 'Error saving: {msg}',
+    'config.bands.delete_confirm_title': 'Delete competitive band',
+    'config.bands.delete_confirm_message':
+      'Delete this band? The Competitiveness page will stop showing it.',
+    'config.bands.delete_error': 'Could not delete.',
+    'config.bands.delete_success': 'Band deleted.',
+    'config.bands.col_min': 'Min %',
+    'config.bands.col_min_title': 'Δ% floor',
+    'config.bands.col_max': 'Max %',
+    'config.bands.col_max_title': 'Δ% ceiling',
+    'config.bands.col_active': 'Active',
+    'config.bands.col_today': 'Today',
+    'config.bands.col_today_title': 'With the current band, % of real quotes within range',
+    'config.bands.select_placeholder': '— Choose —',
+    'config.bands.search_category': 'Search category…',
+    'config.bands.note_placeholder': 'e.g: set with MSI 07-2026',
+    'config.bands.active_title': 'Active',
+    'config.bands.inactive_title': 'Inactive',
+    'config.bands.add_btn': 'New band',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -3105,6 +3201,55 @@ export const TRANSLATIONS = {
     'config.yango_gmv.delete_error': 'Ошибка удаления: {msg}',
     'config.yango_gmv.save_title': 'Сохранить уровень',
     'config.yango_gmv.add_btn': 'Добавить уровень',
+
+    // ── PriceRulesTable ─────────────────────────────────────────────
+    'config.pricerules.title': 'Лимиты цены для валидации',
+    'config.pricerules.description':
+      'При загрузке данных любая цена выше настроенного лимита будет помечена как подозрительная и потребует ручного подтверждения перед вставкой. Используйте all в категории или конкуренте, чтобы применить ко всем.',
+    'config.pricerules.loading': 'Загрузка правил…',
+    'config.pricerules.save_error': 'Ошибка сохранения: {msg}',
+    'config.pricerules.saved_toast':
+      'Правило сохранено: {city} / {category} / {competition} ≤ {currency} {price}',
+    'config.pricerules.delete_confirm_title': 'Удалить правило',
+    'config.pricerules.delete_confirm_message': 'Удалить это правило лимита цены?',
+    'config.pricerules.delete_success': 'Правило удалено.',
+    'config.pricerules.delete_error': 'Ошибка удаления: {msg}',
+    'config.pricerules.col_max_price': 'Макс. цена ({currency})',
+    'config.pricerules.add_btn': 'Добавить правило',
+
+    // ── CompetitiveBandsConfig ──────────────────────────────────────
+    'config.bands.preview_choose': 'Выберите конкурента и категорию',
+    'config.bands.preview_calculating': 'Расчёт…',
+    'config.bands.preview_no_data': 'Нет данных',
+    'config.bands.preview_tooltip': '{n} котировок · {below}% ниже · {above}% выше',
+    'config.bands.preview_within': '{pct}% в диапазоне',
+    'config.bands.title': 'Конкурентные диапазоны',
+    'config.bands.description':
+      'Задайте допустимый диапазон Δ% Yango относительно конкурента, по категории — применяется сразу ко всем городам и расстояниям. Δ% = (Yango − Конкурент) / Конкурент × 100: отрицательное = Yango дешевле. Напр.: min −15, max −5 = «Yango дешевле конкурента на 5-15%». Разбивка по городу/расстоянию доступна в Анализ → Конкурентоспособность.',
+    'config.bands.loading': 'Загрузка конкурентных диапазонов…',
+    'config.bands.choose_error': 'Выберите конкурента и категорию.',
+    'config.bands.range_error': 'Нижняя граница (min%) должна быть меньше верхней (max%).',
+    'config.bands.saved_toast': 'Сохранено: {competitor} / {category} → диапазон {min}%–{max}%',
+    'config.bands.save_error': 'Ошибка сохранения: {msg}',
+    'config.bands.delete_confirm_title': 'Удалить конкурентный диапазон',
+    'config.bands.delete_confirm_message':
+      'Удалить этот диапазон? Страница «Конкурентоспособность» перестанет его показывать.',
+    'config.bands.delete_error': 'Не удалось удалить.',
+    'config.bands.delete_success': 'Диапазон удалён.',
+    'config.bands.col_min': 'Min %',
+    'config.bands.col_min_title': 'Нижняя граница Δ%',
+    'config.bands.col_max': 'Max %',
+    'config.bands.col_max_title': 'Верхняя граница Δ%',
+    'config.bands.col_active': 'Активен',
+    'config.bands.col_today': 'Сегодня',
+    'config.bands.col_today_title':
+      'При текущем диапазоне — % реальных котировок в пределах диапазона',
+    'config.bands.select_placeholder': '— Выбрать —',
+    'config.bands.search_category': 'Поиск категории…',
+    'config.bands.note_placeholder': 'напр.: задано с MSI 07-2026',
+    'config.bands.active_title': 'Активен',
+    'config.bands.inactive_title': 'Неактивен',
+    'config.bands.add_btn': 'Новый диапазон',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',

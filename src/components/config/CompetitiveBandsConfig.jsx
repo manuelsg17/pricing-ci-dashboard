@@ -8,6 +8,7 @@ import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 const DIRTY_STYLE = {
@@ -29,9 +30,10 @@ const DIRTY_TRIGGER_STYLE = {
 // guardar primero (la RPC recibe min/max como parámetro).
 function BandPreviewCell({ country, competitorName, category, minPct, maxPct }) {
   const [debounced, setDebounced] = useState({ minPct, maxPct })
+  const { t } = useI18n()
   useEffect(() => {
-    const t = setTimeout(() => setDebounced({ minPct, maxPct }), 400)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced({ minPct, maxPct }), 400)
+    return () => clearTimeout(timer)
   }, [minPct, maxPct])
 
   // includeBreakdown=false: el preview solo necesita el resumen, no vale la
@@ -47,21 +49,33 @@ function BandPreviewCell({ country, competitorName, category, minPct, maxPct }) 
   })
 
   if (!competitorName || !category) {
-    return <span style={{ color: '#9ca3af', fontSize: 11 }}>Elegí competidor y categoría</span>
+    return (
+      <span style={{ color: '#9ca3af', fontSize: 11 }}>{t('config.bands.preview_choose')}</span>
+    )
   }
   if (loading && !summary)
-    return <span style={{ color: '#9ca3af', fontSize: 11 }}>Calculando…</span>
+    return (
+      <span style={{ color: '#9ca3af', fontSize: 11 }}>
+        {t('config.bands.preview_calculating')}
+      </span>
+    )
   if (!summary || !summary.total_observations) {
-    return <span style={{ color: '#9ca3af', fontSize: 11 }}>Sin datos</span>
+    return (
+      <span style={{ color: '#9ca3af', fontSize: 11 }}>{t('config.bands.preview_no_data')}</span>
+    )
   }
   const withinPct = Number(summary.within_pct)
   const color = withinPct >= 50 ? '#166534' : withinPct >= 25 ? '#92400e' : '#991b1b'
   return (
     <span
       style={{ fontSize: 12, fontWeight: 700, color }}
-      title={`${summary.total_observations} cotizaciones · ${summary.below_pct}% debajo · ${summary.above_pct}% encima`}
+      title={t('config.bands.preview_tooltip', {
+        n: summary.total_observations,
+        below: summary.below_pct,
+        above: summary.above_pct,
+      })}
     >
-      {withinPct}% dentro
+      {t('config.bands.preview_within', { pct: withinPct })}
     </span>
   )
 }
@@ -79,6 +93,7 @@ export default function CompetitiveBandsConfig({ country }) {
     addRow,
   } = useCompetitiveBands(country)
   const { refresh: refreshConfig } = useConfigContext()
+  const { t } = useI18n()
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
   const [edits, setEdits] = useState({})
@@ -115,11 +130,11 @@ export default function CompetitiveBandsConfig({ country }) {
   async function handleSave(row) {
     const merged = { ...row, ...edits[row.id] }
     if (!merged.competitor_name || !merged.category) {
-      setMsg({ type: 'err', text: 'Elegí competidor y categoría.' })
+      setMsg({ type: 'err', text: t('config.bands.choose_error') })
       return
     }
     if (Number(merged.min_pct) >= Number(merged.max_pct)) {
-      setMsg({ type: 'err', text: 'El piso (min%) debe ser menor que el techo (max%).' })
+      setMsg({ type: 'err', text: t('config.bands.range_error') })
       return
     }
     setSaving(true)
@@ -133,14 +148,19 @@ export default function CompetitiveBandsConfig({ country }) {
       })
       setMsg({
         type: 'ok',
-        text: `Guardado: ${merged.competitor_name} / ${merged.category} → banda ${merged.min_pct}% a ${merged.max_pct}%`,
+        text: t('config.bands.saved_toast', {
+          competitor: merged.competitor_name,
+          category: merged.category,
+          min: merged.min_pct,
+          max: merged.max_pct,
+        }),
       })
       // Refresh inmediato: no depender solo del round-trip de live-sync
       // (audit_log → realtime → debounce 500ms) para que la propia sesión
       // vea el cambio reflejado al instante en Análisis → Competitividad.
       refreshConfig()
     } else {
-      setMsg({ type: 'err', text: 'Error al guardar: ' + errMsg })
+      setMsg({ type: 'err', text: t('config.bands.save_error', { msg: errMsg }) })
     }
     setSaving(false)
   }
@@ -148,54 +168,56 @@ export default function CompetitiveBandsConfig({ country }) {
   async function handleDelete(row) {
     if (!isNew(row)) {
       const ok = await confirm({
-        title: 'Eliminar banda competitiva',
-        message: '¿Eliminar esta banda? La página de Competitividad dejará de mostrarla.',
+        title: t('config.bands.delete_confirm_title'),
+        message: t('config.bands.delete_confirm_message'),
         danger: true,
-        confirmText: 'Eliminar',
+        confirmText: t('app.delete'),
       })
       if (!ok) return
     }
     const ok = await deleteBand(row.id)
-    if (!ok) setMsg({ type: 'err', text: 'No se pudo eliminar.' })
+    if (!ok) setMsg({ type: 'err', text: t('config.bands.delete_error') })
     else {
-      if (!isNew(row)) setMsg({ type: 'ok', text: 'Banda eliminada.' })
+      if (!isNew(row)) setMsg({ type: 'ok', text: t('config.bands.delete_success') })
       refreshConfig()
     }
   }
 
-  if (loading) return <div className="config-loading">Cargando bandas competitivas…</div>
+  if (loading) return <div className="config-loading">{t('config.bands.loading')}</div>
 
   return (
     <div className="config-section">
       <h2 className="with-icon">
         <Percent size={15} />
-        Bandas competitivas
+        {t('config.bands.title')}
       </h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Define el rango de Δ% aceptable de Yango vs un competidor, por categoría — aplica a{' '}
-        <strong>todas las ciudades y distancias a la vez</strong>. Δ% = (Yango − Rival) / Rival ×
-        100: negativo = Yango más barato. Ej: min −15, max −5 = "Yango entre 5% y 15% más barato que
-        el rival". El desglose por ciudad/distancia está disponible en Análisis → Competitividad.
+        {t('config.bands.description')}
       </p>
 
-      {loadError && <div className="state-box state-box--error">Error: {loadError}</div>}
+      {loadError && (
+        <div className="state-box state-box--error">
+          {t('app.error_prefix')}
+          {loadError}
+        </div>
+      )}
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
       <table className="config-table config-table--modern" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th scope="col">Competidor</th>
-            <th scope="col">Categoría</th>
-            <th scope="col" title="Piso de Δ%">
-              Min %
+            <th scope="col">{t('config.commissions.col_competitor')}</th>
+            <th scope="col">{t('filter.category')}</th>
+            <th scope="col" title={t('config.bands.col_min_title')}>
+              {t('config.bands.col_min')}
             </th>
-            <th scope="col" title="Techo de Δ%">
-              Max %
+            <th scope="col" title={t('config.bands.col_max_title')}>
+              {t('config.bands.col_max')}
             </th>
-            <th style={{ textAlign: 'left', minWidth: 160 }}>Nota</th>
-            <th scope="col">Activa</th>
-            <th scope="col" title="Con la banda actual, % de cotizaciones reales dentro de rango">
-              Hoy
+            <th style={{ textAlign: 'left', minWidth: 160 }}>{t('config.semaforo.col_note')}</th>
+            <th scope="col">{t('config.bands.col_active')}</th>
+            <th scope="col" title={t('config.bands.col_today_title')}>
+              {t('config.bands.col_today')}
             </th>
             <th scope="col"></th>
           </tr>
@@ -212,9 +234,9 @@ export default function CompetitiveBandsConfig({ country }) {
                     items={competitorItems}
                     value={getField(row, 'competitor_name') || ''}
                     onValueChange={(v) => setField(row.id, 'competitor_name', v)}
-                    placeholder="— Elegir —"
-                    searchPlaceholder="Buscar competidor…"
-                    emptyText="Sin resultados."
+                    placeholder={t('config.bands.select_placeholder')}
+                    searchPlaceholder={t('config.commissions.search_competitor')}
+                    emptyText={t('config.commissions.no_results')}
                     triggerClassName="text-xs"
                     style={dirty ? DIRTY_TRIGGER_STYLE : undefined}
                   />
@@ -224,9 +246,9 @@ export default function CompetitiveBandsConfig({ country }) {
                     items={categoryItems}
                     value={getField(row, 'category') || ''}
                     onValueChange={(v) => setField(row.id, 'category', v)}
-                    placeholder="— Elegir —"
-                    searchPlaceholder="Buscar categoría…"
-                    emptyText="Sin resultados."
+                    placeholder={t('config.bands.select_placeholder')}
+                    searchPlaceholder={t('config.bands.search_category')}
+                    emptyText={t('config.commissions.no_results')}
                     triggerClassName="text-xs"
                     style={dirty ? DIRTY_TRIGGER_STYLE : undefined}
                   />
@@ -254,14 +276,18 @@ export default function CompetitiveBandsConfig({ country }) {
                     type="text"
                     value={getField(row, 'note')}
                     onChange={(e) => setField(row.id, 'note', e.target.value)}
-                    placeholder="ej: definido con MSI 07-2026"
+                    placeholder={t('config.bands.note_placeholder')}
                     style={{ width: '100%', ...(dirty ? DIRTY_STYLE : {}) }}
                   />
                 </td>
                 <td style={{ textAlign: 'center' }}>
                   <label
                     className="toggle-switch"
-                    title={getField(row, 'is_active') !== false ? 'Activa' : 'Inactiva'}
+                    title={
+                      getField(row, 'is_active') !== false
+                        ? t('config.bands.active_title')
+                        : t('config.bands.inactive_title')
+                    }
                   >
                     <input
                       type="checkbox"
@@ -286,18 +312,18 @@ export default function CompetitiveBandsConfig({ country }) {
                     size="sm"
                     onClick={() => handleSave(row)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : undefined}
+                    title={!dirty ? t('config.commissions.no_changes_title') : undefined}
                   >
                     <Save size={11} />
-                    {isNew(row) ? 'Crear' : 'Guardar'}
+                    {isNew(row) ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label="Eliminar"
-                    title="Eliminar"
+                    aria-label={t('app.delete')}
+                    title={t('app.delete')}
                     onClick={() => handleDelete(row)}
                   >
                     <Trash2 size={12} />
@@ -317,7 +343,7 @@ export default function CompetitiveBandsConfig({ country }) {
         onClick={addRow}
       >
         <Plus size={13} />
-        Nueva banda
+        {t('config.bands.add_btn')}
       </Button>
     </div>
   )

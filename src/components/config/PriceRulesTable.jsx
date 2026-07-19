@@ -4,12 +4,14 @@ import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 export default function PriceRulesTable({ country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
+  const { t } = useI18n()
   const defaultCity = config.dbCities[0] || 'Lima'
 
   const allCategories = useMemo(() => {
@@ -140,11 +142,17 @@ export default function PriceRulesTable({ country }) {
         .eq('id', rule.id))
     }
     if (err) {
-      setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
+      setMsg({ type: 'err', text: t('config.pricerules.save_error', { msg: err.message }) })
     } else {
       setMsg({
         type: 'ok',
-        text: `Regla guardada: ${payload.city} / ${payload.category} / ${payload.competition} ≤ ${config.currency} ${payload.max_price}`,
+        text: t('config.pricerules.saved_toast', {
+          city: payload.city,
+          category: payload.category,
+          competition: payload.competition,
+          currency: config.currency,
+          price: payload.max_price,
+        }),
       })
       await load()
     }
@@ -157,22 +165,22 @@ export default function PriceRulesTable({ country }) {
       return
     }
     const ok = await confirm({
-      title: 'Eliminar regla',
-      message: '¿Eliminar esta regla de límite de precio?',
+      title: t('config.pricerules.delete_confirm_title'),
+      message: t('config.pricerules.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     const { error } = await sb.from('price_validation_rules').delete().eq('id', id)
     if (!error) {
-      setMsg({ type: 'ok', text: 'Regla eliminada.' })
+      setMsg({ type: 'ok', text: t('config.pricerules.delete_success') })
       await load()
     } else {
-      setMsg({ type: 'err', text: 'Error al eliminar: ' + error.message })
+      setMsg({ type: 'err', text: t('config.pricerules.delete_error', { msg: error.message }) })
     }
   }
 
-  if (loading) return <div className="config-loading">Cargando reglas…</div>
+  if (loading) return <div className="config-loading">{t('config.pricerules.loading')}</div>
 
   const dirtyCellStyle = {
     background: '#fef3c7',
@@ -183,11 +191,9 @@ export default function PriceRulesTable({ country }) {
 
   return (
     <div className="config-section">
-      <h2>Límites de Precio por Validación</h2>
+      <h2>{t('config.pricerules.title')}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Al subir data, cualquier precio mayor al límite configurado será marcado como sospechoso y
-        requerirá confirmación manual antes de insertarse. Usa <strong>all</strong> en categoría o
-        competidor para aplicar a todos.
+        {t('config.pricerules.description')}
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -195,10 +201,12 @@ export default function PriceRulesTable({ country }) {
       <table className="config-table" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th scope="col">Ciudad</th>
-            <th scope="col">Categoría</th>
-            <th scope="col">Competidor</th>
-            <th scope="col">Precio máx ({config.currency})</th>
+            <th scope="col">{t('filter.city')}</th>
+            <th scope="col">{t('filter.category')}</th>
+            <th scope="col">{t('config.commissions.col_competitor')}</th>
+            <th scope="col">
+              {t('config.pricerules.col_max_price', { currency: config.currency })}
+            </th>
             <th scope="col"></th>
           </tr>
         </thead>
@@ -256,16 +264,16 @@ export default function PriceRulesTable({ country }) {
                     size="sm"
                     onClick={() => saveRule(rule)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : undefined}
+                    title={!dirty ? t('config.commissions.no_changes_title') : undefined}
                   >
-                    {rule._new ? 'Crear' : 'Guardar'}
+                    {rule._new ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label="Eliminar"
+                    aria-label={t('app.delete')}
                     onClick={() => deleteRule(rule.id)}
                   >
                     ✕
@@ -284,7 +292,7 @@ export default function PriceRulesTable({ country }) {
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
         onClick={addRule}
       >
-        + Agregar regla
+        + {t('config.pricerules.add_btn')}
       </Button>
     </div>
   )
