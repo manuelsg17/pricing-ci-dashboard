@@ -989,6 +989,63 @@ export const TRANSLATIONS = {
     'config.commissions.delete_error': 'No se pudo eliminar.',
     'config.commissions.delete_success': 'Comisión eliminada.',
 
+    // ── CITimeslotsConfig ───────────────────────────────────────────
+    'config.citimeslots.title': 'Timeslots de CI',
+    'config.citimeslots.description':
+      'Define los timeslots diarios que los hubs experts deben completar. El sistema repite las rutas de cada ciudad para cada timeslot activo. Usa el campo Orden para controlar la secuencia de aparición.',
+    'config.citimeslots.loading': 'Cargando timeslots…',
+    'config.citimeslots.label_empty_error': 'El label no puede estar vacío.',
+    'config.citimeslots.save_error': 'Error al guardar: {msg}',
+    'config.citimeslots.saved_toast': 'Timeslot guardado: {label} ({start}–{end})',
+    'config.citimeslots.delete_confirm_title': 'Eliminar timeslot',
+    'config.citimeslots.delete_confirm_message':
+      '¿Eliminar este timeslot? Podría afectar sesiones existentes.',
+    'config.citimeslots.delete_error': 'Error al eliminar: {msg}',
+    'config.citimeslots.delete_success': 'Timeslot eliminado.',
+    'config.citimeslots.col_label': 'Label',
+    'config.citimeslots.col_start': 'Inicio',
+    'config.citimeslots.col_end': 'Fin',
+    'config.citimeslots.col_active': 'Activo',
+    'config.citimeslots.col_order': 'Orden',
+    'config.citimeslots.label_placeholder': 'Ej: Mañana',
+    'config.citimeslots.add_btn': 'Agregar timeslot',
+
+    // ── RushHourConfig ──────────────────────────────────────────────
+    'config.rushhour.title': 'Horarios Rush Hour',
+    'config.rushhour.description':
+      'Define las franjas horarias que se consideran "rush hour" al subir data. Usa all para aplicar a todas las ciudades, o especifica una ciudad para sobrescribir el horario global en esa ciudad. Formato: HH:MM en 24 horas.',
+    'config.rushhour.loading': 'Cargando horarios…',
+    'config.rushhour.save_error': 'Error al guardar: {msg}',
+    'config.rushhour.saved_toast': 'Franja guardada: {city} {start}–{end}',
+    'config.rushhour.delete_confirm_title': 'Eliminar franja',
+    'config.rushhour.delete_confirm_message': '¿Eliminar esta franja rush hour?',
+    'config.rushhour.delete_success': 'Franja eliminada.',
+    'config.rushhour.delete_error': 'Error al eliminar: {msg}',
+    'config.rushhour.col_label': 'Etiqueta',
+    'config.rushhour.save_title': 'Guardar franja',
+    'config.rushhour.add_btn': 'Agregar franja horaria',
+
+    // ── YangoGmvConfig ──────────────────────────────────────────────
+    'config.yango_gmv.title': 'Bono Yango por % de GMV',
+    'config.yango_gmv.description':
+      'Bono = mín(% · GMV semanal, tope) del peldaño más alto alcanzado por # de viajes; GMV = tarifa × viajes. Aplica UNA tabla (no suma). Alimenta el take-home de Yango en Análisis → Rentabilidad (toggle Brandeado). VIP es solo para Premier en Lima.',
+    'config.yango_gmv.variant_unbranded': 'Sin brandeo',
+    'config.yango_gmv.variant_branded': 'Con brandeo',
+    'config.yango_gmv.variant_vip': 'VIP (Premier · solo Lima)',
+    'config.yango_gmv.loading': 'Cargando bono GMV…',
+    'config.yango_gmv.col_trips': '≥ Viajes/sem',
+    'config.yango_gmv.col_pct': '% del GMV',
+    'config.yango_gmv.col_cap': 'Tope (S/)',
+    'config.yango_gmv.empty': 'Sin peldaños para {city} · {variant} — agregá uno.',
+    'config.yango_gmv.save_error': 'Error al guardar: {msg}',
+    'config.yango_gmv.saved_toast': 'Peldaño guardado: ≥{trips} viajes → {pct}% / tope S/{cap}',
+    'config.yango_gmv.delete_confirm_title': 'Eliminar peldaño',
+    'config.yango_gmv.delete_confirm_message': '¿Eliminar este peldaño del bono GMV?',
+    'config.yango_gmv.delete_success': 'Peldaño eliminado.',
+    'config.yango_gmv.delete_error': 'Error al eliminar: {msg}',
+    'config.yango_gmv.save_title': 'Guardar peldaño',
+    'config.yango_gmv.add_btn': 'Agregar peldaño',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -1947,6 +2004,63 @@ export const TRANSLATIONS = {
     'config.commissions.delete_confirm_message': 'Delete this commission?',
     'config.commissions.delete_error': 'Could not delete.',
     'config.commissions.delete_success': 'Commission deleted.',
+
+    // ── CITimeslotsConfig ───────────────────────────────────────────
+    'config.citimeslots.title': 'CI Timeslots',
+    'config.citimeslots.description':
+      "Define the daily timeslots hub experts must complete. The system repeats each city's routes for every active timeslot. Use the Order field to control the display sequence.",
+    'config.citimeslots.loading': 'Loading timeslots…',
+    'config.citimeslots.label_empty_error': "The label can't be empty.",
+    'config.citimeslots.save_error': 'Error saving: {msg}',
+    'config.citimeslots.saved_toast': 'Timeslot saved: {label} ({start}–{end})',
+    'config.citimeslots.delete_confirm_title': 'Delete timeslot',
+    'config.citimeslots.delete_confirm_message':
+      'Delete this timeslot? It could affect existing sessions.',
+    'config.citimeslots.delete_error': 'Error deleting: {msg}',
+    'config.citimeslots.delete_success': 'Timeslot deleted.',
+    'config.citimeslots.col_label': 'Label',
+    'config.citimeslots.col_start': 'Start',
+    'config.citimeslots.col_end': 'End',
+    'config.citimeslots.col_active': 'Active',
+    'config.citimeslots.col_order': 'Order',
+    'config.citimeslots.label_placeholder': 'E.g: Morning',
+    'config.citimeslots.add_btn': 'Add timeslot',
+
+    // ── RushHourConfig ──────────────────────────────────────────────
+    'config.rushhour.title': 'Rush Hour Schedules',
+    'config.rushhour.description':
+      'Define the time windows considered "rush hour" when uploading data. Use all to apply to every city, or specify a city to override the global schedule for it. Format: HH:MM 24-hour.',
+    'config.rushhour.loading': 'Loading schedules…',
+    'config.rushhour.save_error': 'Error saving: {msg}',
+    'config.rushhour.saved_toast': 'Window saved: {city} {start}–{end}',
+    'config.rushhour.delete_confirm_title': 'Delete window',
+    'config.rushhour.delete_confirm_message': 'Delete this rush hour window?',
+    'config.rushhour.delete_success': 'Window deleted.',
+    'config.rushhour.delete_error': 'Error deleting: {msg}',
+    'config.rushhour.col_label': 'Label',
+    'config.rushhour.save_title': 'Save window',
+    'config.rushhour.add_btn': 'Add time window',
+
+    // ── YangoGmvConfig ──────────────────────────────────────────────
+    'config.yango_gmv.title': 'Yango % GMV Bonus',
+    'config.yango_gmv.description':
+      "Bonus = min(% · weekly GMV, cap) of the highest tier reached by trip count; GMV = fare × trips. ONE table applies (not summed). Feeds Yango's take-home in Analysis → Profitability (Branded toggle). VIP is only for Premier in Lima.",
+    'config.yango_gmv.variant_unbranded': 'Unbranded',
+    'config.yango_gmv.variant_branded': 'Branded',
+    'config.yango_gmv.variant_vip': 'VIP (Premier · Lima only)',
+    'config.yango_gmv.loading': 'Loading GMV bonus…',
+    'config.yango_gmv.col_trips': '≥ Trips/wk',
+    'config.yango_gmv.col_pct': '% of GMV',
+    'config.yango_gmv.col_cap': 'Cap (S/)',
+    'config.yango_gmv.empty': 'No tiers for {city} · {variant} — add one.',
+    'config.yango_gmv.save_error': 'Error saving: {msg}',
+    'config.yango_gmv.saved_toast': 'Tier saved: ≥{trips} trips → {pct}% / cap S/{cap}',
+    'config.yango_gmv.delete_confirm_title': 'Delete tier',
+    'config.yango_gmv.delete_confirm_message': 'Delete this GMV bonus tier?',
+    'config.yango_gmv.delete_success': 'Tier deleted.',
+    'config.yango_gmv.delete_error': 'Error deleting: {msg}',
+    'config.yango_gmv.save_title': 'Save tier',
+    'config.yango_gmv.add_btn': 'Add tier',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -2934,6 +3048,63 @@ export const TRANSLATIONS = {
     'config.commissions.delete_confirm_message': 'Удалить эту комиссию?',
     'config.commissions.delete_error': 'Не удалось удалить.',
     'config.commissions.delete_success': 'Комиссия удалена.',
+
+    // ── CITimeslotsConfig ───────────────────────────────────────────
+    'config.citimeslots.title': 'Тайм-слоты CI',
+    'config.citimeslots.description':
+      'Задайте ежедневные тайм-слоты, которые должны заполнять hub experts. Система повторяет маршруты каждого города для каждого активного тайм-слота. Используйте поле «Порядок», чтобы задать последовательность отображения.',
+    'config.citimeslots.loading': 'Загрузка тайм-слотов…',
+    'config.citimeslots.label_empty_error': 'Название не может быть пустым.',
+    'config.citimeslots.save_error': 'Ошибка сохранения: {msg}',
+    'config.citimeslots.saved_toast': 'Тайм-слот сохранён: {label} ({start}–{end})',
+    'config.citimeslots.delete_confirm_title': 'Удалить тайм-слот',
+    'config.citimeslots.delete_confirm_message':
+      'Удалить этот тайм-слот? Это может повлиять на существующие сессии.',
+    'config.citimeslots.delete_error': 'Ошибка удаления: {msg}',
+    'config.citimeslots.delete_success': 'Тайм-слот удалён.',
+    'config.citimeslots.col_label': 'Название',
+    'config.citimeslots.col_start': 'Начало',
+    'config.citimeslots.col_end': 'Конец',
+    'config.citimeslots.col_active': 'Активен',
+    'config.citimeslots.col_order': 'Порядок',
+    'config.citimeslots.label_placeholder': 'Напр.: Утро',
+    'config.citimeslots.add_btn': 'Добавить тайм-слот',
+
+    // ── RushHourConfig ──────────────────────────────────────────────
+    'config.rushhour.title': 'Часы пик (Rush Hour)',
+    'config.rushhour.description':
+      'Задайте временные окна, которые считаются «часами пик» при загрузке данных. Используйте all, чтобы применить ко всем городам, или укажите город, чтобы переопределить глобальное расписание для него. Формат: ЧЧ:ММ, 24 часа.',
+    'config.rushhour.loading': 'Загрузка расписаний…',
+    'config.rushhour.save_error': 'Ошибка сохранения: {msg}',
+    'config.rushhour.saved_toast': 'Окно сохранено: {city} {start}–{end}',
+    'config.rushhour.delete_confirm_title': 'Удалить окно',
+    'config.rushhour.delete_confirm_message': 'Удалить это окно часа пик?',
+    'config.rushhour.delete_success': 'Окно удалено.',
+    'config.rushhour.delete_error': 'Ошибка удаления: {msg}',
+    'config.rushhour.col_label': 'Метка',
+    'config.rushhour.save_title': 'Сохранить окно',
+    'config.rushhour.add_btn': 'Добавить временное окно',
+
+    // ── YangoGmvConfig ──────────────────────────────────────────────
+    'config.yango_gmv.title': 'Бонус Yango по % GMV',
+    'config.yango_gmv.description':
+      'Бонус = мин(% · недельный GMV, потолок) наивысшего достигнутого уровня по числу поездок; GMV = тариф × поездки. Применяется ОДНА таблица (без суммирования). Влияет на доход Yango в разделе Анализ → Прибыльность (переключатель Брендировано). VIP — только для Premier в Лиме.',
+    'config.yango_gmv.variant_unbranded': 'Без брендирования',
+    'config.yango_gmv.variant_branded': 'С брендированием',
+    'config.yango_gmv.variant_vip': 'VIP (Premier · только Лима)',
+    'config.yango_gmv.loading': 'Загрузка бонуса GMV…',
+    'config.yango_gmv.col_trips': '≥ Поездок/нед',
+    'config.yango_gmv.col_pct': '% от GMV',
+    'config.yango_gmv.col_cap': 'Потолок (S/)',
+    'config.yango_gmv.empty': 'Нет уровней для {city} · {variant} — добавьте один.',
+    'config.yango_gmv.save_error': 'Ошибка сохранения: {msg}',
+    'config.yango_gmv.saved_toast': 'Уровень сохранён: ≥{trips} поездок → {pct}% / потолок S/{cap}',
+    'config.yango_gmv.delete_confirm_title': 'Удалить уровень',
+    'config.yango_gmv.delete_confirm_message': 'Удалить этот уровень бонуса GMV?',
+    'config.yango_gmv.delete_success': 'Уровень удалён.',
+    'config.yango_gmv.delete_error': 'Ошибка удаления: {msg}',
+    'config.yango_gmv.save_title': 'Сохранить уровень',
+    'config.yango_gmv.add_btn': 'Добавить уровень',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',

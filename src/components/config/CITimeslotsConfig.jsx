@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 const DIRTY_STYLE = {
@@ -18,6 +19,7 @@ export default function CITimeslotsConfig() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
+  const { t } = useI18n()
 
   useEffect(() => {
     load()
@@ -69,7 +71,7 @@ export default function CITimeslotsConfig() {
 
   async function saveRow(r) {
     if (!r.label?.trim()) {
-      setMsg({ type: 'err', text: 'El label no puede estar vacío.' })
+      setMsg({ type: 'err', text: t('config.citimeslots.label_empty_error') })
       return
     }
     setSaving(true)
@@ -88,11 +90,15 @@ export default function CITimeslotsConfig() {
       ;({ error: err } = await sb.from('ci_timeslots').update(payload).eq('id', r.id))
     }
     if (err) {
-      setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
+      setMsg({ type: 'err', text: t('config.citimeslots.save_error', { msg: err.message }) })
     } else {
       setMsg({
         type: 'ok',
-        text: `Timeslot guardado: ${payload.label} (${payload.start_time}–${payload.end_time})`,
+        text: t('config.citimeslots.saved_toast', {
+          label: payload.label,
+          start: payload.start_time,
+          end: payload.end_time,
+        }),
       })
       await load()
     }
@@ -105,29 +111,28 @@ export default function CITimeslotsConfig() {
       return
     }
     const ok = await confirm({
-      title: 'Eliminar timeslot',
-      message: '¿Eliminar este timeslot? Podría afectar sesiones existentes.',
+      title: t('config.citimeslots.delete_confirm_title'),
+      message: t('config.citimeslots.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     const { error } = await sb.from('ci_timeslots').delete().eq('id', id)
-    if (error) setMsg({ type: 'err', text: 'Error al eliminar: ' + error.message })
+    if (error)
+      setMsg({ type: 'err', text: t('config.citimeslots.delete_error', { msg: error.message }) })
     else {
-      setMsg({ type: 'ok', text: 'Timeslot eliminado.' })
+      setMsg({ type: 'ok', text: t('config.citimeslots.delete_success') })
       await load()
     }
   }
 
-  if (loading) return <div className="config-loading">Cargando timeslots…</div>
+  if (loading) return <div className="config-loading">{t('config.citimeslots.loading')}</div>
 
   return (
     <div className="config-section">
-      <h2>Timeslots de CI</h2>
+      <h2>{t('config.citimeslots.title')}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Define los timeslots diarios que los hubs experts deben completar. El sistema repite las
-        rutas de cada ciudad para cada timeslot activo. Usa el campo <strong>Orden</strong> para
-        controlar la secuencia de aparición.
+        {t('config.citimeslots.description')}
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -136,11 +141,11 @@ export default function CITimeslotsConfig() {
         <thead>
           <tr>
             <th style={{ width: 30 }}>#</th>
-            <th scope="col">Label</th>
-            <th scope="col">Inicio</th>
-            <th scope="col">Fin</th>
-            <th scope="col">Activo</th>
-            <th scope="col">Orden</th>
+            <th scope="col">{t('config.citimeslots.col_label')}</th>
+            <th scope="col">{t('config.citimeslots.col_start')}</th>
+            <th scope="col">{t('config.citimeslots.col_end')}</th>
+            <th scope="col">{t('config.citimeslots.col_active')}</th>
+            <th scope="col">{t('config.citimeslots.col_order')}</th>
             <th scope="col"></th>
           </tr>
         </thead>
@@ -156,7 +161,7 @@ export default function CITimeslotsConfig() {
                     type="text"
                     value={r.label || ''}
                     onChange={(e) => update(r.id, 'label', e.target.value)}
-                    placeholder="Ej: Mañana"
+                    placeholder={t('config.citimeslots.label_placeholder')}
                     style={{ width: 100, ...(cellStyle || {}) }}
                   />
                 </td>
@@ -204,16 +209,16 @@ export default function CITimeslotsConfig() {
                     size="sm"
                     onClick={() => saveRow(r)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : undefined}
+                    title={!dirty ? t('config.commissions.no_changes_title') : undefined}
                   >
-                    {r._new ? 'Crear' : 'Guardar'}
+                    {r._new ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label="Eliminar"
+                    aria-label={t('app.delete')}
                     onClick={() => deleteRow(r.id)}
                   >
                     ✕
@@ -232,7 +237,7 @@ export default function CITimeslotsConfig() {
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
         onClick={addRow}
       >
-        + Agregar timeslot
+        + {t('config.citimeslots.add_btn')}
       </Button>
     </div>
   )

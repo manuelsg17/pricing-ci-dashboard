@@ -2,19 +2,21 @@ import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 // Editor del bono Yango por % de GMV (tabla yango_gmv_tiers, mig 116).
 // Una fila = un peldaño. variant ∈ unbranded|branded|vip (VIP = Premier en Lima).
 const VARIANTS = [
-  { key: 'unbranded', label: 'Sin brandeo' },
-  { key: 'branded', label: 'Con brandeo' },
-  { key: 'vip', label: 'VIP (Premier · solo Lima)' },
+  { key: 'unbranded', labelKey: 'config.yango_gmv.variant_unbranded' },
+  { key: 'branded', labelKey: 'config.yango_gmv.variant_branded' },
+  { key: 'vip', labelKey: 'config.yango_gmv.variant_vip' },
 ]
 const CITIES = ['Lima', 'Trujillo', 'Arequipa']
 
 export default function YangoGmvConfig({ country }) {
   const confirm = useConfirm()
+  const { t } = useI18n()
   const [tiers, setTiers] = useState([])
   const [original, setOriginal] = useState([])
   const [loading, setLoading] = useState(true)
@@ -50,11 +52,11 @@ export default function YangoGmvConfig({ country }) {
     setLoading(false)
   }
 
-  const rows = tiers.filter((t) => t.city === city && t.variant === variant)
+  const rows = tiers.filter((tier) => tier.city === city && tier.variant === variant)
 
   function update(id, field, val) {
     setMsg(null)
-    setTiers((prev) => prev.map((t) => (t.id === id ? { ...t, [field]: val } : t)))
+    setTiers((prev) => prev.map((tier) => (tier.id === id ? { ...tier, [field]: val } : tier)))
   }
 
   function addTier() {
@@ -65,79 +67,80 @@ export default function YangoGmvConfig({ country }) {
     ])
   }
 
-  const isDirty = (t) => {
-    if (t._new) return true
-    const o = original.find((x) => x.id === t.id)
+  const isDirty = (tier) => {
+    if (tier._new) return true
+    const o = original.find((x) => x.id === tier.id)
     if (!o) return true
     return (
-      Number(t.min_trips) !== Number(o.min_trips) ||
-      Number(t.pct) !== Number(o.pct) ||
-      Number(t.cap) !== Number(o.cap)
+      Number(tier.min_trips) !== Number(o.min_trips) ||
+      Number(tier.pct) !== Number(o.pct) ||
+      Number(tier.cap) !== Number(o.cap)
     )
   }
 
-  async function saveTier(t) {
+  async function saveTier(tier) {
     setSaving(true)
     setMsg(null)
     const payload = {
       country,
-      city: t.city,
-      variant: t.variant,
-      min_trips: Number(t.min_trips) || 0,
-      pct: Number(t.pct) || 0,
-      cap: Number(t.cap) || 0,
+      city: tier.city,
+      variant: tier.variant,
+      min_trips: Number(tier.min_trips) || 0,
+      pct: Number(tier.pct) || 0,
+      cap: Number(tier.cap) || 0,
     }
     let err
-    if (t._new) {
+    if (tier._new) {
       ;({ error: err } = await sb.from('yango_gmv_tiers').insert(payload))
     } else {
-      ;({ error: err } = await sb.from('yango_gmv_tiers').update(payload).eq('id', t.id))
+      ;({ error: err } = await sb.from('yango_gmv_tiers').update(payload).eq('id', tier.id))
     }
     if (err) {
-      setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
+      setMsg({ type: 'err', text: t('config.yango_gmv.save_error', { msg: err.message }) })
     } else {
       setMsg({
         type: 'ok',
-        text: `Peldaño guardado: ≥${payload.min_trips} viajes → ${payload.pct}% / tope S/${payload.cap}`,
+        text: t('config.yango_gmv.saved_toast', {
+          trips: payload.min_trips,
+          pct: payload.pct,
+          cap: payload.cap,
+        }),
       })
       await load()
     }
     setSaving(false)
   }
 
-  async function deleteTier(t) {
-    if (String(t.id).startsWith('new_')) {
-      setTiers((prev) => prev.filter((x) => x.id !== t.id))
+  async function deleteTier(tier) {
+    if (String(tier.id).startsWith('new_')) {
+      setTiers((prev) => prev.filter((x) => x.id !== tier.id))
       return
     }
     const ok = await confirm({
-      title: 'Eliminar peldaño',
-      message: '¿Eliminar este peldaño del bono GMV?',
+      title: t('config.yango_gmv.delete_confirm_title'),
+      message: t('config.yango_gmv.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
-    const { error } = await sb.from('yango_gmv_tiers').delete().eq('id', t.id)
+    const { error } = await sb.from('yango_gmv_tiers').delete().eq('id', tier.id)
     if (!error) {
-      setMsg({ type: 'ok', text: 'Peldaño eliminado.' })
+      setMsg({ type: 'ok', text: t('config.yango_gmv.delete_success') })
       await load()
     } else {
-      setMsg({ type: 'err', text: 'Error al eliminar: ' + error.message })
+      setMsg({ type: 'err', text: t('config.yango_gmv.delete_error', { msg: error.message }) })
     }
   }
 
-  if (loading) return <div className="config-loading">Cargando bono GMV…</div>
+  if (loading) return <div className="config-loading">{t('config.yango_gmv.loading')}</div>
 
   const dirtyCellStyle = { background: '#fef3c7', borderColor: '#f59e0b', fontWeight: 600 }
 
   return (
     <div className="config-section">
-      <h2>Bono Yango por % de GMV</h2>
+      <h2>{t('config.yango_gmv.title')}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Bono = mín(<strong>%</strong> · GMV semanal, <strong>tope</strong>) del peldaño más alto
-        alcanzado por # de viajes; GMV = tarifa × viajes. Aplica UNA tabla (no suma). Alimenta el
-        take-home de Yango en <strong>Análisis → Rentabilidad</strong> (toggle Brandeado). VIP es
-        solo para Premier en Lima.
+        {t('config.yango_gmv.description')}
       </p>
 
       <div
@@ -150,7 +153,7 @@ export default function YangoGmvConfig({ country }) {
         }}
       >
         <label>
-          Ciudad{' '}
+          {t('filter.city')}{' '}
           <select value={city} onChange={(e) => setCity(e.target.value)}>
             {CITIES.map((c) => (
               <option key={c} value={c}>
@@ -182,7 +185,7 @@ export default function YangoGmvConfig({ country }) {
                   opacity: disabled ? 0.4 : 1,
                 }}
               >
-                {v.label}
+                {t(v.labelKey)}
               </button>
             )
           })}
@@ -194,9 +197,9 @@ export default function YangoGmvConfig({ country }) {
       <table className="config-table" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th scope="col">≥ Viajes/sem</th>
-            <th scope="col">% del GMV</th>
-            <th scope="col">Tope (S/)</th>
+            <th scope="col">{t('config.yango_gmv.col_trips')}</th>
+            <th scope="col">{t('config.yango_gmv.col_pct')}</th>
+            <th scope="col">{t('config.yango_gmv.col_cap')}</th>
             <th scope="col"></th>
           </tr>
         </thead>
@@ -204,21 +207,23 @@ export default function YangoGmvConfig({ country }) {
           {rows.length === 0 && (
             <tr>
               <td colSpan={4} style={{ color: 'var(--color-muted)' }}>
-                Sin peldaños para {city} · {VARIANTS.find((v) => v.key === variant)?.label} — agregá
-                uno.
+                {t('config.yango_gmv.empty', {
+                  city,
+                  variant: t(VARIANTS.find((v) => v.key === variant)?.labelKey),
+                })}
               </td>
             </tr>
           )}
-          {rows.map((t) => {
-            const dirty = isDirty(t)
+          {rows.map((tier) => {
+            const dirty = isDirty(tier)
             return (
-              <tr key={t.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+              <tr key={tier.id} style={dirty ? { background: '#fffbeb' } : undefined}>
                 <td>
                   <input
                     type="number"
                     min="0"
-                    value={t.min_trips}
-                    onChange={(e) => update(t.id, 'min_trips', e.target.value)}
+                    value={tier.min_trips}
+                    onChange={(e) => update(tier.id, 'min_trips', e.target.value)}
                     style={{ width: 80, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
@@ -227,8 +232,8 @@ export default function YangoGmvConfig({ country }) {
                     type="number"
                     min="0"
                     step="0.1"
-                    value={t.pct}
-                    onChange={(e) => update(t.id, 'pct', e.target.value)}
+                    value={tier.pct}
+                    onChange={(e) => update(tier.id, 'pct', e.target.value)}
                     style={{ width: 70, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
@@ -236,8 +241,8 @@ export default function YangoGmvConfig({ country }) {
                   <input
                     type="number"
                     min="0"
-                    value={t.cap}
-                    onChange={(e) => update(t.id, 'cap', e.target.value)}
+                    value={tier.cap}
+                    onChange={(e) => update(tier.id, 'cap', e.target.value)}
                     style={{ width: 80, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
@@ -245,19 +250,23 @@ export default function YangoGmvConfig({ country }) {
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => saveTier(t)}
+                    onClick={() => saveTier(tier)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : 'Guardar peldaño'}
+                    title={
+                      !dirty
+                        ? t('config.commissions.no_changes_title')
+                        : t('config.yango_gmv.save_title')
+                    }
                   >
-                    {t._new ? 'Crear' : 'Guardar'}
+                    {tier._new ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label="Eliminar"
-                    onClick={() => deleteTier(t)}
+                    aria-label={t('app.delete')}
+                    onClick={() => deleteTier(tier)}
                   >
                     ✕
                   </Button>
@@ -275,7 +284,7 @@ export default function YangoGmvConfig({ country }) {
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
         onClick={addTier}
       >
-        + Agregar peldaño
+        + {t('config.yango_gmv.add_btn')}
       </Button>
     </div>
   )

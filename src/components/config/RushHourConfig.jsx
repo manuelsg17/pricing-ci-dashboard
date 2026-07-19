@@ -4,12 +4,14 @@ import { getCountryConfig } from '../../lib/constants'
 import { useCountry } from '../../context/CountryContext'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 export default function RushHourConfig({ country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
+  const { t } = useI18n()
   const allCities = ['all', ...config.dbCities]
 
   const [windows, setWindows] = useState([])
@@ -117,11 +119,15 @@ export default function RushHourConfig({ country }) {
       ;({ error: err } = await sb.from('rush_hour_windows').update(payload).eq('id', w.id))
     }
     if (err) {
-      setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
+      setMsg({ type: 'err', text: t('config.rushhour.save_error', { msg: err.message }) })
     } else {
       setMsg({
         type: 'ok',
-        text: `Franja guardada: ${payload.city === 'all' ? 'Todas las ciudades' : payload.city} ${payload.start_time}–${payload.end_time}`,
+        text: t('config.rushhour.saved_toast', {
+          city: payload.city === 'all' ? t('config.commissions.all_cities') : payload.city,
+          start: payload.start_time,
+          end: payload.end_time,
+        }),
       })
       await load()
     }
@@ -134,22 +140,22 @@ export default function RushHourConfig({ country }) {
       return
     }
     const ok = await confirm({
-      title: 'Eliminar franja',
-      message: '¿Eliminar esta franja rush hour?',
+      title: t('config.rushhour.delete_confirm_title'),
+      message: t('config.rushhour.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     const { error } = await sb.from('rush_hour_windows').delete().eq('id', id)
     if (!error) {
-      setMsg({ type: 'ok', text: 'Franja eliminada.' })
+      setMsg({ type: 'ok', text: t('config.rushhour.delete_success') })
       await load()
     } else {
-      setMsg({ type: 'err', text: 'Error al eliminar: ' + error.message })
+      setMsg({ type: 'err', text: t('config.rushhour.delete_error', { msg: error.message }) })
     }
   }
 
-  if (loading) return <div className="config-loading">Cargando horarios…</div>
+  if (loading) return <div className="config-loading">{t('config.rushhour.loading')}</div>
 
   const dirtyCellStyle = {
     background: '#fef3c7',
@@ -160,11 +166,9 @@ export default function RushHourConfig({ country }) {
 
   return (
     <div className="config-section">
-      <h2>Horarios Rush Hour</h2>
+      <h2>{t('config.rushhour.title')}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Define las franjas horarias que se consideran "rush hour" al subir data. Usa{' '}
-        <strong>all</strong> para aplicar a todas las ciudades, o especifica una ciudad para
-        sobrescribir el horario global en esa ciudad. Formato: <strong>HH:MM</strong> en 24 horas.
+        {t('config.rushhour.description')}
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -172,10 +176,10 @@ export default function RushHourConfig({ country }) {
       <table className="config-table" style={{ marginTop: 10 }}>
         <thead>
           <tr>
-            <th scope="col">Ciudad</th>
-            <th scope="col">Etiqueta</th>
-            <th scope="col">Desde</th>
-            <th scope="col">Hasta</th>
+            <th scope="col">{t('filter.city')}</th>
+            <th scope="col">{t('config.rushhour.col_label')}</th>
+            <th scope="col">{t('filter.from')}</th>
+            <th scope="col">{t('filter.to')}</th>
             <th scope="col"></th>
           </tr>
         </thead>
@@ -192,7 +196,7 @@ export default function RushHourConfig({ country }) {
                   >
                     {allCities.map((c) => (
                       <option key={c} value={c}>
-                        {c === 'all' ? 'Todas las ciudades' : c}
+                        {c === 'all' ? t('config.commissions.all_cities') : c}
                       </option>
                     ))}
                   </select>
@@ -202,7 +206,7 @@ export default function RushHourConfig({ country }) {
                     type="text"
                     value={w.label || ''}
                     onChange={(e) => update(w.id, 'label', e.target.value)}
-                    placeholder="Ej: Mañana"
+                    placeholder={t('config.citimeslots.label_placeholder')}
                     style={{ width: 90, ...(dirty ? dirtyCellStyle : {}) }}
                   />
                 </td>
@@ -228,16 +232,20 @@ export default function RushHourConfig({ country }) {
                     size="sm"
                     onClick={() => saveWindow(w)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : 'Guardar franja'}
+                    title={
+                      !dirty
+                        ? t('config.commissions.no_changes_title')
+                        : t('config.rushhour.save_title')
+                    }
                   >
-                    {w._new ? 'Crear' : 'Guardar'}
+                    {w._new ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label="Eliminar"
+                    aria-label={t('app.delete')}
                     onClick={() => deleteWindow(w.id)}
                   >
                     ✕
@@ -256,7 +264,7 @@ export default function RushHourConfig({ country }) {
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
         onClick={addWindow}
       >
-        + Agregar franja horaria
+        + {t('config.rushhour.add_btn')}
       </Button>
     </div>
   )
