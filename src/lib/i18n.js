@@ -1094,6 +1094,85 @@ export const TRANSLATIONS = {
     'config.bands.inactive_title': 'Inactiva',
     'config.bands.add_btn': 'Nueva banda',
 
+    // ── ThresholdsTable ─────────────────────────────────────────────
+    'config.thresholds.title': 'Umbrales de Distancia (km)',
+    'config.thresholds.subtitle':
+      'Cada ciudad+categoría tiene su propia configuración. max_km vacío = sin límite (último bracket).',
+    'config.thresholds.unsaved_prefix': 'Hay cambios sin guardar en',
+    'config.thresholds.col_bracket': 'Bracket',
+    'config.thresholds.col_max_km': 'Máx. km (≤)',
+    'config.thresholds.col_description': 'Descripción',
+    'config.thresholds.desc_first': 'Viajes ≤ {km} km',
+    'config.thresholds.desc_middle': 'Entre {min} y {max} km',
+    'config.thresholds.desc_last': 'Sin límite superior',
+    'config.thresholds.err_missing': 'Falta umbral (solo el último bracket puede quedar vacío)',
+    'config.thresholds.err_positive': 'Debe ser un número positivo',
+    'config.thresholds.err_greater': 'Debe ser mayor que el anterior ({prev})',
+    'config.thresholds.db_value_hint': 'Valor en BD: {value} — sin guardar',
+    'config.thresholds.no_limit': 'sin límite',
+    'config.thresholds.validation_error': {
+      one: 'No se puede guardar: {n} validación pendiente. Los umbrales deben ser estrictamente crecientes.',
+      other:
+        'No se puede guardar: {n} validaciones pendientes. Los umbrales deben ser estrictamente crecientes.',
+    },
+    'config.thresholds.confirm_snapshot_title': '⚠ Cambio de umbrales — hard copy requerido',
+    'config.thresholds.confirm_nosnapshot_title': 'Guardar sin snapshot',
+    'config.thresholds.confirm_snapshot_message':
+      'Cambiar los kilómetros por rango reclasificará los brackets de datos históricos. Antes de aplicar, se creará un snapshot de los promedios actuales para que los datos anteriores queden con valores fijos.\n\n¿Confirmar el snapshot y guardar?',
+    'config.thresholds.confirm_nosnapshot_message':
+      'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán en vivo con los nuevos umbrales — los valores anteriores YA NO quedarán fijos.\n\nUsar solo si el cambio es pequeño o no afecta data histórica significativa.',
+    'config.thresholds.confirm_snapshot_btn': 'Crear snapshot y guardar',
+    'config.thresholds.confirm_nosnapshot_btn': 'Guardar sin snapshot',
+    'config.thresholds.snapshot_error': 'Error al crear snapshot: {msg}',
+    'config.thresholds.snapshot_label': 'Umbrales km cambiados — {date}',
+    'config.thresholds.saved_with_snapshot_suffix': ' (snapshot creado)',
+    'config.thresholds.saved_without_snapshot_suffix': ' (sin snapshot)',
+    'config.thresholds.saved_recomputed':
+      'Guardado{snap}. {n} filas del dashboard fueron reclasificadas.',
+    'config.thresholds.saved_rpc_warn':
+      'Umbrales guardados para {city} — {category}{snap}, pero el re-cálculo automático falló: {err}.',
+    'config.thresholds.saved_no_rows':
+      'Guardado para {city} — {category}{snap}. No había filas para reclasificar.',
+    'config.thresholds.save_error': 'Error al guardar: {msg}',
+    'config.thresholds.save_no_snapshot_btn': 'Guardar cambios',
+    'config.thresholds.save_snapshot_btn': 'Guardar con snapshot',
+    'config.thresholds.fix_errors_title': 'Corrige los errores de validación antes de guardar',
+    'config.thresholds.save_no_snapshot_title':
+      'Aplica los nuevos umbrales sin crear snapshot. Los promedios históricos se recalculan en vivo.',
+    'config.thresholds.save_snapshot_title':
+      'Crea snapshot (hard copy) antes de guardar. Útil cuando el cambio afecta data histórica significativa que no querés que se recalcule.',
+
+    // ── WeightsTable ────────────────────────────────────────────────
+    'config.weights.title': 'Pesos para Promedio Ponderado (%)',
+    'config.weights.subtitle':
+      "Cada (ciudad × categoría) puede tener pesos distintos. La suma ideal es 100%, pero podés guardar con cualquier total — el WA re-normaliza usando solo los brackets con data. Lo que importa es la proporción entre brackets, no el total absoluto. Categoría 'all' aplica como fallback si no hay pesos específicos.",
+    'config.weights.info_box':
+      'ℹ Estos pesos aplican al Promedio Ponderado histórico — semanas hasta el {until}. Desde el {from} el dashboard usa Promedio Simple, que no utiliza pesos.',
+    'config.weights.info_peru_note':
+      ' En Perú, el histórico usa valores fijados; estos campos son de referencia (Colombia sí los usa en vivo).',
+    'config.weights.global_default': 'Global (default)',
+    'config.weights.category_label': 'Categoría:',
+    'config.weights.all_categories_default': 'Todas (default)',
+    'config.weights.all_categories_label': 'Todas las categorías',
+    'config.weights.global_label': 'Global',
+    'config.weights.col_weight': 'Peso (%)',
+    'config.weights.db_hint': 'BD: {value}% — sin guardar',
+    'config.weights.total_label': 'Total',
+    'config.weights.total_not_100': ' (no es 100% — el WA re-normaliza al guardar)',
+    'config.weights.confirm_snapshot_title': '⚠ Cambio de pesos — hard copy requerido',
+    'config.weights.confirm_snapshot_message':
+      'Antes de guardar los nuevos pesos se creará un snapshot (hard copy) de los promedios ponderados actuales para todos los períodos históricos. Esos valores quedarán fijos y no cambiarán con los nuevos pesos.\n\n¿Confirmar el snapshot y guardar?',
+    'config.weights.confirm_nosnapshot_message':
+      'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán en vivo con los nuevos pesos — los valores anteriores YA NO quedarán fijos.\n\nUsar solo si el cambio es pequeño o no afecta data histórica significativa.',
+    'config.weights.snapshot_label': 'Pesos cambiados — {date}',
+    'config.weights.saved_toast': 'Pesos guardados para {scope} {snap}.',
+    'config.weights.snap_created': '(snapshot creado)',
+    'config.weights.no_snapshot_suffix': '(sin snapshot)',
+    'config.weights.total_not_100_title':
+      'Total = {pct}% (no es 100%). El WA re-normaliza con los brackets disponibles — guardás de todos modos.',
+    'config.weights.save_no_snapshot_title':
+      'Aplica los nuevos pesos sin crear snapshot. Los promedios históricos se recalculan en vivo.',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -2157,6 +2236,83 @@ export const TRANSLATIONS = {
     'config.bands.active_title': 'Active',
     'config.bands.inactive_title': 'Inactive',
     'config.bands.add_btn': 'New band',
+
+    // ── ThresholdsTable ─────────────────────────────────────────────
+    'config.thresholds.title': 'Distance Thresholds (km)',
+    'config.thresholds.subtitle':
+      'Each city+category has its own config. Empty max_km = no limit (last bracket).',
+    'config.thresholds.unsaved_prefix': 'Unsaved changes in',
+    'config.thresholds.col_bracket': 'Bracket',
+    'config.thresholds.col_max_km': 'Max km (≤)',
+    'config.thresholds.col_description': 'Description',
+    'config.thresholds.desc_first': 'Trips ≤ {km} km',
+    'config.thresholds.desc_middle': 'Between {min} and {max} km',
+    'config.thresholds.desc_last': 'No upper limit',
+    'config.thresholds.err_missing': 'Missing threshold (only the last bracket can be empty)',
+    'config.thresholds.err_positive': 'Must be a positive number',
+    'config.thresholds.err_greater': 'Must be greater than the previous ({prev})',
+    'config.thresholds.db_value_hint': 'DB value: {value} — unsaved',
+    'config.thresholds.no_limit': 'no limit',
+    'config.thresholds.validation_error': {
+      one: "Can't save: {n} pending validation. Thresholds must be strictly increasing.",
+      other: "Can't save: {n} pending validations. Thresholds must be strictly increasing.",
+    },
+    'config.thresholds.confirm_snapshot_title': '⚠ Threshold change — hard copy required',
+    'config.thresholds.confirm_nosnapshot_title': 'Save without snapshot',
+    'config.thresholds.confirm_snapshot_message':
+      'Changing the km per range will reclassify historical data brackets. Before applying, a snapshot of the current averages will be created so past data keeps fixed values.\n\nConfirm the snapshot and save?',
+    'config.thresholds.confirm_nosnapshot_message':
+      "You're about to save WITHOUT creating a snapshot. Historical averages will be recalculated live with the new thresholds — past values will NO LONGER stay fixed.\n\nOnly use this if the change is small or doesn't affect significant historical data.",
+    'config.thresholds.confirm_snapshot_btn': 'Create snapshot and save',
+    'config.thresholds.confirm_nosnapshot_btn': 'Save without snapshot',
+    'config.thresholds.snapshot_error': 'Error creating snapshot: {msg}',
+    'config.thresholds.snapshot_label': 'Km thresholds changed — {date}',
+    'config.thresholds.saved_with_snapshot_suffix': ' (snapshot created)',
+    'config.thresholds.saved_without_snapshot_suffix': ' (no snapshot)',
+    'config.thresholds.saved_recomputed': 'Saved{snap}. {n} dashboard rows were reclassified.',
+    'config.thresholds.saved_rpc_warn':
+      'Thresholds saved for {city} — {category}{snap}, but the automatic recompute failed: {err}.',
+    'config.thresholds.saved_no_rows':
+      'Saved for {city} — {category}{snap}. No rows to reclassify.',
+    'config.thresholds.save_error': 'Error saving: {msg}',
+    'config.thresholds.save_no_snapshot_btn': 'Save changes',
+    'config.thresholds.save_snapshot_btn': 'Save with snapshot',
+    'config.thresholds.fix_errors_title': 'Fix the validation errors before saving',
+    'config.thresholds.save_no_snapshot_title':
+      'Applies the new thresholds without creating a snapshot. Historical averages recalculate live.',
+    'config.thresholds.save_snapshot_title':
+      "Creates a snapshot (hard copy) before saving. Useful when the change affects significant historical data you don't want recalculated.",
+
+    // ── WeightsTable ────────────────────────────────────────────────
+    'config.weights.title': 'Weighted Average Weights (%)',
+    'config.weights.subtitle':
+      "Each (city × category) can have different weights. The ideal sum is 100%, but you can save with any total — the WA re-normalizes using only the brackets with data. What matters is the proportion between brackets, not the absolute total. Category 'all' applies as a fallback when there are no specific weights.",
+    'config.weights.info_box':
+      "ℹ These weights apply to the historical Weighted Average — weeks up to {until}. From {from} onward the dashboard uses Simple Average, which doesn't use weights.",
+    'config.weights.info_peru_note':
+      ' In Peru, the historical data uses fixed values; these fields are for reference (Colombia does use them live).',
+    'config.weights.global_default': 'Global (default)',
+    'config.weights.category_label': 'Category:',
+    'config.weights.all_categories_default': 'All (default)',
+    'config.weights.all_categories_label': 'All categories',
+    'config.weights.global_label': 'Global',
+    'config.weights.col_weight': 'Weight (%)',
+    'config.weights.db_hint': 'DB: {value}% — unsaved',
+    'config.weights.total_label': 'Total',
+    'config.weights.total_not_100': ' (not 100% — the WA re-normalizes on save)',
+    'config.weights.confirm_snapshot_title': '⚠ Weight change — hard copy required',
+    'config.weights.confirm_snapshot_message':
+      "Before saving the new weights, a snapshot (hard copy) of the current weighted averages will be created for all historical periods. Those values will stay fixed and won't change with the new weights.\n\nConfirm the snapshot and save?",
+    'config.weights.confirm_nosnapshot_message':
+      "You're about to save WITHOUT creating a snapshot. Historical averages will be recalculated live with the new weights — past values will NO LONGER stay fixed.\n\nOnly use this if the change is small or doesn't affect significant historical data.",
+    'config.weights.snapshot_label': 'Weights changed — {date}',
+    'config.weights.saved_toast': 'Weights saved for {scope} {snap}.',
+    'config.weights.snap_created': '(snapshot created)',
+    'config.weights.no_snapshot_suffix': '(no snapshot)',
+    'config.weights.total_not_100_title':
+      'Total = {pct}% (not 100%). The WA re-normalizes with the available brackets — you can still save.',
+    'config.weights.save_no_snapshot_title':
+      'Applies the new weights without creating a snapshot. Historical averages recalculate live.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -3250,6 +3406,87 @@ export const TRANSLATIONS = {
     'config.bands.active_title': 'Активен',
     'config.bands.inactive_title': 'Неактивен',
     'config.bands.add_btn': 'Новый диапазон',
+
+    // ── ThresholdsTable ─────────────────────────────────────────────
+    'config.thresholds.title': 'Пороги расстояния (км)',
+    'config.thresholds.subtitle':
+      'У каждого города+категории своя конфигурация. Пустой max_km = без ограничения (последний диапазон).',
+    'config.thresholds.unsaved_prefix': 'Есть несохранённые изменения в',
+    'config.thresholds.col_bracket': 'Диапазон',
+    'config.thresholds.col_max_km': 'Макс. км (≤)',
+    'config.thresholds.col_description': 'Описание',
+    'config.thresholds.desc_first': 'Поездки ≤ {km} км',
+    'config.thresholds.desc_middle': 'Между {min} и {max} км',
+    'config.thresholds.desc_last': 'Без верхнего предела',
+    'config.thresholds.err_missing':
+      'Отсутствует порог (пустым может быть только последний диапазон)',
+    'config.thresholds.err_positive': 'Должно быть положительным числом',
+    'config.thresholds.err_greater': 'Должно быть больше предыдущего ({prev})',
+    'config.thresholds.db_value_hint': 'Значение в БД: {value} — не сохранено',
+    'config.thresholds.no_limit': 'без ограничения',
+    'config.thresholds.validation_error': {
+      one: 'Невозможно сохранить: {n} проверка ожидает. Пороги должны строго возрастать.',
+      few: 'Невозможно сохранить: {n} проверки ожидают. Пороги должны строго возрастать.',
+      many: 'Невозможно сохранить: {n} проверок ожидают. Пороги должны строго возрастать.',
+      other: 'Невозможно сохранить: {n} проверок ожидают. Пороги должны строго возрастать.',
+    },
+    'config.thresholds.confirm_snapshot_title': '⚠ Изменение порогов — требуется hard copy',
+    'config.thresholds.confirm_nosnapshot_title': 'Сохранить без снимка',
+    'config.thresholds.confirm_snapshot_message':
+      'Изменение километров по диапазону переклассифицирует диапазоны исторических данных. Перед применением будет создан снимок текущих средних значений, чтобы прошлые данные остались зафиксированными.\n\nПодтвердить снимок и сохранить?',
+    'config.thresholds.confirm_nosnapshot_message':
+      'Вы сохраните БЕЗ создания снимка. Исторические средние будут пересчитаны в реальном времени с новыми порогами — прошлые значения БОЛЬШЕ НЕ останутся зафиксированными.\n\nИспользуйте только если изменение небольшое или не затрагивает значимые исторические данные.',
+    'config.thresholds.confirm_snapshot_btn': 'Создать снимок и сохранить',
+    'config.thresholds.confirm_nosnapshot_btn': 'Сохранить без снимка',
+    'config.thresholds.snapshot_error': 'Ошибка создания снимка: {msg}',
+    'config.thresholds.snapshot_label': 'Пороги км изменены — {date}',
+    'config.thresholds.saved_with_snapshot_suffix': ' (снимок создан)',
+    'config.thresholds.saved_without_snapshot_suffix': ' (без снимка)',
+    'config.thresholds.saved_recomputed':
+      'Сохранено{snap}. {n} строк дашборда были переклассифицированы.',
+    'config.thresholds.saved_rpc_warn':
+      'Пороги сохранены для {city} — {category}{snap}, но автоматический пересчёт не удался: {err}.',
+    'config.thresholds.saved_no_rows':
+      'Сохранено для {city} — {category}{snap}. Не было строк для переклассификации.',
+    'config.thresholds.save_error': 'Ошибка сохранения: {msg}',
+    'config.thresholds.save_no_snapshot_btn': 'Сохранить изменения',
+    'config.thresholds.save_snapshot_btn': 'Сохранить со снимком',
+    'config.thresholds.fix_errors_title': 'Исправьте ошибки валидации перед сохранением',
+    'config.thresholds.save_no_snapshot_title':
+      'Применяет новые пороги без создания снимка. Исторические средние пересчитываются в реальном времени.',
+    'config.thresholds.save_snapshot_title':
+      'Создаёт снимок (hard copy) перед сохранением. Полезно, когда изменение затрагивает значимые исторические данные, которые вы не хотите пересчитывать.',
+
+    // ── WeightsTable ────────────────────────────────────────────────
+    'config.weights.title': 'Веса для средневзвешенного (%)',
+    'config.weights.subtitle':
+      'У каждой пары (город × категория) могут быть свои веса. Идеальная сумма — 100%, но можно сохранить с любым итогом — WA перенормирует, используя только диапазоны с данными. Важна пропорция между диапазонами, а не абсолютная сумма. Категория «all» применяется как запасной вариант при отсутствии специфичных весов.',
+    'config.weights.info_box':
+      'ℹ Эти веса применяются к историческому средневзвешенному — недели до {until}. С {from} дашборд использует простое среднее, которое не использует веса.',
+    'config.weights.info_peru_note':
+      ' В Перу исторические данные используют фиксированные значения; эти поля справочные (Колумбия использует их вживую).',
+    'config.weights.global_default': 'Глобально (по умолчанию)',
+    'config.weights.category_label': 'Категория:',
+    'config.weights.all_categories_default': 'Все (по умолчанию)',
+    'config.weights.all_categories_label': 'Все категории',
+    'config.weights.global_label': 'Глобально',
+    'config.weights.col_weight': 'Вес (%)',
+    'config.weights.db_hint': 'БД: {value}% — не сохранено',
+    'config.weights.total_label': 'Итого',
+    'config.weights.total_not_100': ' (не 100% — WA перенормирует при сохранении)',
+    'config.weights.confirm_snapshot_title': '⚠ Изменение весов — требуется hard copy',
+    'config.weights.confirm_snapshot_message':
+      'Перед сохранением новых весов будет создан снимок (hard copy) текущих средневзвешенных значений для всех исторических периодов. Эти значения останутся зафиксированными и не изменятся с новыми весами.\n\nПодтвердить снимок и сохранить?',
+    'config.weights.confirm_nosnapshot_message':
+      'Вы сохраните БЕЗ создания снимка. Исторические средние будут пересчитаны в реальном времени с новыми весами — прошлые значения БОЛЬШЕ НЕ останутся зафиксированными.\n\nИспользуйте только если изменение небольшое или не затрагивает значимые исторические данные.',
+    'config.weights.snapshot_label': 'Веса изменены — {date}',
+    'config.weights.saved_toast': 'Веса сохранены для {scope} {snap}.',
+    'config.weights.snap_created': '(снимок создан)',
+    'config.weights.no_snapshot_suffix': '(без снимка)',
+    'config.weights.total_not_100_title':
+      'Итого = {pct}% (не 100%). WA перенормирует с доступными диапазонами — можно сохранить в любом случае.',
+    'config.weights.save_no_snapshot_title':
+      'Применяет новые веса без создания снимка. Исторические средние пересчитываются в реальном времени.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',

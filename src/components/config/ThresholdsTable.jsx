@@ -3,12 +3,14 @@ import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
+import { useI18n } from '../../context/LanguageContext'
 import { sb } from '../../lib/supabase'
 import { Button } from '../ui/shadcn/button'
 
 export default function ThresholdsTable({ thresholds, onSave, saving, country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
+  const { t } = useI18n()
 
   const [selectedCity, setSelectedCity] = useState(config.dbCities[0])
   const [selectedCat, setSelectedCat] = useState(
@@ -31,7 +33,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
 
   const getDbValue = (bracket) => {
     const row = thresholds.find(
-      (t) => t.city === selectedCity && t.category === selectedCat && t.bracket === bracket
+      (th) => th.city === selectedCity && th.category === selectedCat && th.bracket === bracket
     )
     return row ? (row.max_km ?? '') : ''
   }
@@ -63,17 +65,16 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       const raw = getValue(b)
       const isLast = i === BRACKETS.length - 1
       if (raw === '' || raw === null || raw === undefined) {
-        if (!isLast)
-          errs.push({ bracket: b, msg: 'Falta umbral (solo el último bracket puede quedar vacío)' })
+        if (!isLast) errs.push({ bracket: b, msg: t('config.thresholds.err_missing') })
         return
       }
       const num = Number(raw)
       if (!isFinite(num) || num <= 0) {
-        errs.push({ bracket: b, msg: 'Debe ser un número positivo' })
+        errs.push({ bracket: b, msg: t('config.thresholds.err_positive') })
         return
       }
       if (prev != null && num <= prev) {
-        errs.push({ bracket: b, msg: `Debe ser mayor que el anterior (${prev})` })
+        errs.push({ bracket: b, msg: t('config.thresholds.err_greater', { prev }) })
       }
       prev = num
     })
@@ -107,22 +108,25 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
     if (hasErrors) {
       setSaveMsg({
         type: 'err',
-        text: `No se puede guardar: ${validationErrors.length} validación${validationErrors.length === 1 ? '' : 'es'} pendiente${validationErrors.length === 1 ? '' : 's'}. Los umbrales deben ser estrictamente crecientes.`,
+        text: t('config.thresholds.validation_error', {
+          n: validationErrors.length,
+          count: validationErrors.length,
+        }),
       })
       return
     }
 
     const ok = await confirm({
-      title: withSnapshot ? '⚠ Cambio de umbrales — hard copy requerido' : 'Guardar sin snapshot',
+      title: withSnapshot
+        ? t('config.thresholds.confirm_snapshot_title')
+        : t('config.thresholds.confirm_nosnapshot_title'),
       message: withSnapshot
-        ? 'Cambiar los kilómetros por rango reclasificará los brackets de datos históricos. ' +
-          'Antes de aplicar, se creará un snapshot de los promedios actuales para que ' +
-          'los datos anteriores queden con valores fijos.\n\n¿Confirmar el snapshot y guardar?'
-        : 'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán ' +
-          'en vivo con los nuevos umbrales — los valores anteriores YA NO quedarán fijos.\n\n' +
-          'Usar solo si el cambio es pequeño o no afecta data histórica significativa.',
-      confirmText: withSnapshot ? 'Crear snapshot y guardar' : 'Guardar sin snapshot',
-      cancelText: 'Cancelar',
+        ? t('config.thresholds.confirm_snapshot_message')
+        : t('config.thresholds.confirm_nosnapshot_message'),
+      confirmText: withSnapshot
+        ? t('config.thresholds.confirm_snapshot_btn')
+        : t('config.thresholds.confirm_nosnapshot_btn'),
+      cancelText: t('app.cancel'),
       danger: withSnapshot,
     })
     if (!ok) return
@@ -130,10 +134,13 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
     if (withSnapshot) {
       const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
         p_country: country,
-        p_label: `Umbrales km cambiados — ${new Date().toISOString()}`,
+        p_label: t('config.thresholds.snapshot_label', { date: new Date().toISOString() }),
       })
       if (snapErr) {
-        setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+        setSaveMsg({
+          type: 'err',
+          text: t('config.thresholds.snapshot_error', { msg: snapErr.message }),
+        })
         return
       }
     }
@@ -148,22 +155,36 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       const result = await onSave(rows)
       const recomputed = result?.recomputedCount ?? 0
       const rpcError = result?.rpcError
-      const snapNote = withSnapshot ? ' (snapshot creado)' : ' (sin snapshot)'
+      const snapNote = withSnapshot
+        ? t('config.thresholds.saved_with_snapshot_suffix')
+        : t('config.thresholds.saved_without_snapshot_suffix')
 
       if (recomputed > 0) {
         setSaveMsg({
           type: 'ok',
-          text: `Guardado${snapNote}. ${recomputed.toLocaleString()} filas del dashboard fueron reclasificadas.`,
+          text: t('config.thresholds.saved_recomputed', {
+            snap: snapNote,
+            n: recomputed.toLocaleString(),
+          }),
         })
       } else if (rpcError) {
         setSaveMsg({
           type: 'warn',
-          text: `Umbrales guardados para ${selectedCity} — ${selectedCat}${snapNote}, pero el re-cálculo automático falló: ${rpcError}.`,
+          text: t('config.thresholds.saved_rpc_warn', {
+            city: selectedCity,
+            category: selectedCat,
+            snap: snapNote,
+            err: rpcError,
+          }),
         })
       } else {
         setSaveMsg({
           type: 'ok',
-          text: `Guardado para ${selectedCity} — ${selectedCat}${snapNote}. No había filas para reclasificar.`,
+          text: t('config.thresholds.saved_no_rows', {
+            city: selectedCity,
+            category: selectedCat,
+            snap: snapNote,
+          }),
         })
       }
       setLocal((prev) => {
@@ -172,7 +193,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         return next
       })
     } catch (e) {
-      setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
+      setSaveMsg({ type: 'err', text: t('config.thresholds.save_error', { msg: e.message }) })
     }
   }
 
@@ -181,14 +202,13 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
 
   return (
     <div className="config-section">
-      <h2>Umbrales de Distancia (km)</h2>
+      <h2>{t('config.thresholds.title')}</h2>
       <p style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
-        Cada ciudad+categoría tiene su propia configuración. max_km vacío = sin límite (último
-        bracket).
+        {t('config.thresholds.subtitle')}
       </p>
 
       <div className="threshold-selector">
-        <label>Ciudad</label>
+        <label>{t('filter.city')}</label>
         <select
           value={selectedCity}
           onChange={(e) => {
@@ -201,7 +221,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           ))}
         </select>
 
-        <label>Categoría</label>
+        <label>{t('filter.category')}</label>
         <select value={selectedCat} onChange={(e) => setSelectedCat(e.target.value)}>
           {(config.categoriesByCity?.[selectedCity] || []).map((c) => (
             <option key={c}>{c}</option>
@@ -229,7 +249,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           }}
         >
           <span>
-            ⚠ Hay cambios sin guardar en{' '}
+            ⚠ {t('config.thresholds.unsaved_prefix')}{' '}
             <strong>
               {selectedCity} — {selectedCat}
             </strong>
@@ -241,7 +261,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
             className="bg-transparent border-[#b45309] text-[#78350f]"
             onClick={handleDiscard}
           >
-            Descartar
+            {t('config.discard_changes')}
           </Button>
         </div>
       )}
@@ -249,9 +269,11 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       <table className="config-table">
         <thead>
           <tr>
-            <th style={{ textAlign: 'left' }}>Bracket</th>
-            <th scope="col">Máx. km (≤)</th>
-            <th style={{ textAlign: 'left', fontSize: 9 }}>Descripción</th>
+            <th style={{ textAlign: 'left' }}>{t('config.thresholds.col_bracket')}</th>
+            <th scope="col">{t('config.thresholds.col_max_km')}</th>
+            <th style={{ textAlign: 'left', fontSize: 9 }}>
+              {t('config.thresholds.col_description')}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -289,7 +311,9 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
                       err
                         ? err.msg
                         : dirty
-                          ? `Valor en BD: ${getDbValue(b) || 'sin límite'} — sin guardar`
+                          ? t('config.thresholds.db_value_hint', {
+                              value: getDbValue(b) || t('config.thresholds.no_limit'),
+                            })
                           : undefined
                     }
                   />
@@ -298,11 +322,14 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
                   )}
                 </td>
                 <td style={{ textAlign: 'left', fontSize: 10, color: '#888', paddingLeft: 8 }}>
-                  {i === 0 && `Viajes ≤ ${getValue(b) || '?'} km`}
+                  {i === 0 && t('config.thresholds.desc_first', { km: getValue(b) || '?' })}
                   {i > 0 &&
                     i < BRACKETS.length - 1 &&
-                    `Entre ${getValue(BRACKETS[i - 1]) || '?'} y ${getValue(b) || '?'} km`}
-                  {i === BRACKETS.length - 1 && 'Sin límite superior'}
+                    t('config.thresholds.desc_middle', {
+                      min: getValue(BRACKETS[i - 1]) || '?',
+                      max: getValue(b) || '?',
+                    })}
+                  {i === BRACKETS.length - 1 && t('config.thresholds.desc_last')}
                 </td>
               </tr>
             )
@@ -320,13 +347,13 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           disabled={saving || !hasUnsavedChanges || hasErrors}
           title={
             hasErrors
-              ? 'Corrige los errores de validación antes de guardar'
+              ? t('config.thresholds.fix_errors_title')
               : !hasUnsavedChanges
-                ? 'No hay cambios para guardar'
-                : 'Aplica los nuevos umbrales sin crear snapshot. Los promedios históricos se recalculan en vivo.'
+                ? t('config.semaforo.no_changes_title')
+                : t('config.thresholds.save_no_snapshot_title')
           }
         >
-          {saving ? 'Guardando…' : 'Guardar cambios'}
+          {saving ? t('account.saving') : t('config.thresholds.save_no_snapshot_btn')}
         </Button>
         {/* Secundario: con snapshot — para cambios que afectan data histórica significativa */}
         <Button
@@ -334,9 +361,9 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           className="border-slate-300 text-slate-600"
           onClick={handleSave}
           disabled={saving || !hasUnsavedChanges || hasErrors}
-          title="Crea snapshot (hard copy) antes de guardar. Útil cuando el cambio afecta data histórica significativa que no querés que se recalcule."
+          title={t('config.thresholds.save_snapshot_title')}
         >
-          📸 Guardar con snapshot
+          📸 {t('config.thresholds.save_snapshot_btn')}
         </Button>
 
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />

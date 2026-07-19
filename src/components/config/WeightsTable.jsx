@@ -5,22 +5,35 @@ import { isoWeekMonday } from '../../lib/dateUtils'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
+import { useI18n } from '../../context/LanguageContext'
 import { sb } from '../../lib/supabase'
 import { Button } from '../ui/shadcn/button'
-
-// Fechas del corte Ponderado→Simple, derivadas de SIMPLE_AVG_SINCE (sin drift).
-const WA_WEIGHTED_UNTIL = isoWeekMonday(
-  SIMPLE_AVG_SINCE.year,
-  SIMPLE_AVG_SINCE.week - 1
-).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
-const WA_SIMPLE_FROM = isoWeekMonday(
-  SIMPLE_AVG_SINCE.year,
-  SIMPLE_AVG_SINCE.week
-).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
 
 export default function WeightsTable({ weights, onSave, saving, country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
+  const { t, locale } = useI18n()
+
+  // Fechas del corte Ponderado→Simple, derivadas de SIMPLE_AVG_SINCE (sin
+  // drift). Recalculadas por locale para que se vean en el idioma activo.
+  const waWeightedUntil = useMemo(
+    () =>
+      isoWeekMonday(SIMPLE_AVG_SINCE.year, SIMPLE_AVG_SINCE.week - 1).toLocaleDateString(locale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [locale]
+  )
+  const waSimpleFrom = useMemo(
+    () =>
+      isoWeekMonday(SIMPLE_AVG_SINCE.year, SIMPLE_AVG_SINCE.week).toLocaleDateString(locale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [locale]
+  )
   const weightCities = useMemo(() => ['all', ...config.dbCities], [config.dbCities])
 
   // Lista de categorías disponibles para el país. 'all' es default y
@@ -107,17 +120,16 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     setSaveMsg(null)
 
     const ok = await confirm({
-      title: withSnapshot ? '⚠ Cambio de pesos — hard copy requerido' : 'Guardar sin snapshot',
+      title: withSnapshot
+        ? t('config.weights.confirm_snapshot_title')
+        : t('config.thresholds.confirm_nosnapshot_title'),
       message: withSnapshot
-        ? 'Antes de guardar los nuevos pesos se creará un snapshot (hard copy) ' +
-          'de los promedios ponderados actuales para todos los períodos históricos. ' +
-          'Esos valores quedarán fijos y no cambiarán con los nuevos pesos.\n\n' +
-          '¿Confirmar el snapshot y guardar?'
-        : 'Vas a guardar SIN crear snapshot. Los promedios históricos se recalcularán ' +
-          'en vivo con los nuevos pesos — los valores anteriores YA NO quedarán fijos.\n\n' +
-          'Usar solo si el cambio es pequeño o no afecta data histórica significativa.',
-      confirmText: withSnapshot ? 'Crear snapshot y guardar' : 'Guardar sin snapshot',
-      cancelText: 'Cancelar',
+        ? t('config.weights.confirm_snapshot_message')
+        : t('config.weights.confirm_nosnapshot_message'),
+      confirmText: withSnapshot
+        ? t('config.thresholds.confirm_snapshot_btn')
+        : t('config.thresholds.confirm_nosnapshot_btn'),
+      cancelText: t('app.cancel'),
       danger: withSnapshot,
     })
     if (!ok) return
@@ -125,10 +137,13 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     if (withSnapshot) {
       const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
         p_country: country,
-        p_label: `Pesos cambiados — ${new Date().toISOString()}`,
+        p_label: t('config.weights.snapshot_label', { date: new Date().toISOString() }),
       })
       if (snapErr) {
-        setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+        setSaveMsg({
+          type: 'err',
+          text: t('config.thresholds.snapshot_error', { msg: snapErr.message }),
+        })
         return
       }
     }
@@ -141,16 +156,21 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
     }))
     try {
       await onSave(rows)
-      const snapNote = withSnapshot ? '(snapshot creado)' : '(sin snapshot)'
-      const scopeLabel = `${activeCity === 'all' ? 'Global' : activeCity} / ${activeCategory === 'all' ? 'Todas las categorías' : activeCategory}`
-      setSaveMsg({ type: 'ok', text: `Pesos guardados para ${scopeLabel} ${snapNote}.` })
+      const snapNote = withSnapshot
+        ? t('config.weights.snap_created')
+        : t('config.weights.no_snapshot_suffix')
+      const scopeLabel = `${activeCity === 'all' ? t('config.weights.global_label') : activeCity} / ${activeCategory === 'all' ? t('config.weights.all_categories_label') : activeCategory}`
+      setSaveMsg({
+        type: 'ok',
+        text: t('config.weights.saved_toast', { scope: scopeLabel, snap: snapNote }),
+      })
       setLocal((prev) => {
         const next = { ...prev }
         BRACKETS.forEach((b) => delete next[getKey(activeCity, activeCategory, b)])
         return next
       })
     } catch (e) {
-      setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
+      setSaveMsg({ type: 'err', text: t('config.thresholds.save_error', { msg: e.message }) })
     }
   }
 
@@ -159,12 +179,9 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
 
   return (
     <div className="config-section">
-      <h2>Pesos para Promedio Ponderado (%)</h2>
+      <h2>{t('config.weights.title')}</h2>
       <p style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
-        Cada (ciudad × categoría) puede tener pesos distintos. La suma ideal es 100%, pero podés
-        guardar con cualquier total — el WA re-normaliza usando solo los brackets con data. Lo que
-        importa es la proporción entre brackets, no el total absoluto. Categoría{' '}
-        <strong>'all'</strong> aplica como fallback si no hay pesos específicos.
+        {t('config.weights.subtitle')}
       </p>
 
       <div
@@ -179,16 +196,8 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           lineHeight: 1.5,
         }}
       >
-        ℹ Estos pesos aplican al <strong>Promedio Ponderado histórico</strong> — semanas hasta el{' '}
-        <strong>{WA_WEIGHTED_UNTIL}</strong>. Desde el <strong>{WA_SIMPLE_FROM}</strong> el
-        dashboard usa <strong>Promedio Simple</strong>, que no utiliza pesos.
-        {country === 'Peru' && (
-          <>
-            {' '}
-            En Perú, el histórico usa valores fijados; estos campos son de referencia (Colombia sí
-            los usa en vivo).
-          </>
-        )}
+        {t('config.weights.info_box', { until: waWeightedUntil, from: waSimpleFrom })}
+        {country === 'Peru' && t('config.weights.info_peru_note')}
       </div>
 
       <div className="city-tabs" style={{ marginBottom: 6 }}>
@@ -198,7 +207,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
             className={`city-tab${activeCity === c ? ' active' : ''}`}
             onClick={() => setActiveCity(c)}
           >
-            {c === 'all' ? 'Global (default)' : c}
+            {c === 'all' ? t('config.weights.global_default') : c}
           </button>
         ))}
       </div>
@@ -213,7 +222,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           fontSize: 12,
         }}
       >
-        <strong style={{ marginRight: 4 }}>Categoría:</strong>
+        <strong style={{ marginRight: 4 }}>{t('config.weights.category_label')}</strong>
         {weightCategories.map((c) => (
           <button
             key={c}
@@ -229,7 +238,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
               cursor: 'pointer',
             }}
           >
-            {c === 'all' ? 'Todas (default)' : c}
+            {c === 'all' ? t('config.weights.all_categories_default') : c}
           </button>
         ))}
       </div>
@@ -253,10 +262,10 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           }}
         >
           <span>
-            ⚠ Hay cambios sin guardar en{' '}
+            ⚠ {t('config.thresholds.unsaved_prefix')}{' '}
             <strong>
-              {activeCity === 'all' ? 'Global' : activeCity} /{' '}
-              {activeCategory === 'all' ? 'Todas las categorías' : activeCategory}
+              {activeCity === 'all' ? t('config.weights.global_label') : activeCity} /{' '}
+              {activeCategory === 'all' ? t('config.weights.all_categories_label') : activeCategory}
             </strong>
           </span>
           <Button
@@ -266,7 +275,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
             className="bg-transparent border-[#b45309] text-[#78350f]"
             onClick={handleDiscard}
           >
-            Descartar
+            {t('config.discard_changes')}
           </Button>
         </div>
       )}
@@ -274,8 +283,8 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
       <table className="config-table">
         <thead>
           <tr>
-            <th style={{ textAlign: 'left' }}>Bracket</th>
-            <th scope="col">Peso (%)</th>
+            <th style={{ textAlign: 'left' }}>{t('config.thresholds.col_bracket')}</th>
+            <th scope="col">{t('config.weights.col_weight')}</th>
           </tr>
         </thead>
         <tbody>
@@ -302,14 +311,18 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
                           }
                         : undefined
                     }
-                    title={dirty ? `BD: ${getDbValue(b) || '0'}% — sin guardar` : undefined}
+                    title={
+                      dirty
+                        ? t('config.weights.db_hint', { value: getDbValue(b) || '0' })
+                        : undefined
+                    }
                   />
                 </td>
               </tr>
             )
           })}
           <tr style={{ background: totalOk ? '#f0fdf4' : '#fffbeb' }}>
-            <td style={{ fontWeight: 700 }}>Total</td>
+            <td style={{ fontWeight: 700 }}>{t('config.weights.total_label')}</td>
             <td>
               <span
                 style={{
@@ -317,8 +330,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
                   color: totalOk ? '#15803d' : '#b45309',
                 }}
               >
-                {totalPct.toFixed(2)}%
-                {totalOk ? '' : ' (no es 100% — el WA re-normaliza al guardar)'}
+                {totalPct.toFixed(2)}%{totalOk ? '' : t('config.weights.total_not_100')}
               </span>
             </td>
           </tr>
@@ -335,13 +347,13 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           disabled={saving || !hasUnsavedChanges}
           title={
             !hasUnsavedChanges
-              ? 'No hay cambios para guardar'
+              ? t('config.semaforo.no_changes_title')
               : !totalOk
-                ? `Total = ${totalPct.toFixed(1)}% (no es 100%). El WA re-normaliza con los brackets disponibles — guardás de todos modos.`
-                : 'Aplica los nuevos pesos sin crear snapshot. Los promedios históricos se recalculan en vivo.'
+                ? t('config.weights.total_not_100_title', { pct: totalPct.toFixed(1) })
+                : t('config.weights.save_no_snapshot_title')
           }
         >
-          {saving ? 'Guardando…' : 'Guardar cambios'}
+          {saving ? t('account.saving') : t('config.thresholds.save_no_snapshot_btn')}
         </Button>
         {/* Secundario: con snapshot — para cambios que afectan data histórica significativa */}
         <Button
@@ -349,9 +361,9 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           className="border-slate-300 text-slate-600"
           onClick={handleSave}
           disabled={saving || !hasUnsavedChanges}
-          title="Crea snapshot (hard copy) antes de guardar. Útil cuando el cambio afecta data histórica significativa que no querés que se recalcule."
+          title={t('config.thresholds.save_snapshot_title')}
         >
-          📸 Guardar con snapshot
+          📸 {t('config.thresholds.save_snapshot_btn')}
         </Button>
         <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
       </div>
