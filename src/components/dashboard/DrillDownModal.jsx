@@ -142,7 +142,8 @@ export default function DrillDownModal({
               {t('dashboard.drill.title')}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>
-              {prettyCompetitor(comp)} · {bracket === '_wa' ? 'WA (todos los brackets)' : bracket} ·{' '}
+              {prettyCompetitor(comp)} ·{' '}
+              {bracket === '_wa' ? `WA (${t('dashboard.drill.all_brackets')})` : bracket} ·{' '}
               {periodKey}
             </div>
           </div>
@@ -194,6 +195,7 @@ export default function DrillDownModal({
                 <strong>{totalCount.toLocaleString()}</strong> {t('dataentry.rows')}
                 {totalCount > rows.length ? ` · mostrando ${rows.length}` : ''} · {filters.dbCity} ·{' '}
                 {filters.dbCategory}
+                {bracket === '_wa' ? ` · ${t('samples.all_brackets_suffix')}` : ''}
               </span>
               <span>
                 {(() => {

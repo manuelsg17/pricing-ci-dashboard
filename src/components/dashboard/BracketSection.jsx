@@ -357,7 +357,10 @@ function BracketSection({
   }
 
   return (
-    <div className="bracket-section" ref={sectionRef}>
+    <div
+      className={key === '_wa' ? 'bracket-section bracket-section--summary' : 'bracket-section'}
+      ref={sectionRef}
+    >
       {/* Header */}
       <div className="bracket-section__title" style={{ flexWrap: 'wrap' }}>
         {/* #26 drag handle indicator */}
@@ -395,6 +398,9 @@ function BracketSection({
         </button>
 
         <span>{label}</span>
+        {key === '_wa' && (
+          <span className="bracket-section__summary-badge">{t('bracket.summary_badge')}</span>
+        )}
 
         {/* Section actions */}
         {!collapsed && (
@@ -440,7 +446,8 @@ function BracketSection({
             >
               <span style={{ color: 'var(--color-muted)', marginRight: 2 }}>
                 n {summaryPeriodLabel}
-                {categoryLabel ? ` · ${categoryLabel}` : ''}:
+                {categoryLabel ? ` · ${categoryLabel}` : ''}
+                {key === '_wa' ? ` · ${t('samples.all_brackets_suffix')}` : ''}:
               </span>
               {competitors.map((comp) => {
                 const n = getSampleCount(comp, summaryPeriodKey)
@@ -513,7 +520,8 @@ function BracketSection({
               }}
             >
               <div style={{ fontSize: 10, color: '#475569', marginBottom: 6 }}>
-                <strong>{t('samples.legend_title')}</strong> {t('samples.legend_per')} —{' '}
+                <strong>{t('samples.legend_title')}</strong> {t('samples.legend_per')}
+                {key === '_wa' ? ` (${t('samples.all_brackets_suffix')})` : ''} —{' '}
                 <span style={{ background: '#fee2e2', padding: '0 4px', borderRadius: 3 }}>
                   &lt;{SAMPLE_LOW}
                 </span>{' '}

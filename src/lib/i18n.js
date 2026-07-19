@@ -61,6 +61,10 @@ export const TRANSLATIONS = {
     'dashboard.updating': 'Actualizando…',
     'dashboard.no_data':
       'Sin datos para los filtros seleccionados. Prueba con otra ciudad, categoría o rango de fechas.',
+    'dashboard.wa_banner_weighted': 'Promedio Ponderado',
+    'dashboard.wa_banner_weighted_until': 'hasta la semana del {date}',
+    'dashboard.wa_banner_simple': 'Promedio Simple',
+    'dashboard.wa_banner_simple_since': 'desde la semana del {date} (aplica a todos los países).',
     'dashboard.export_png': '📷 Exportar',
     'dashboard.kpi.yango_wa': 'Avg Yango (WA)',
     'dashboard.kpi.market_leader': 'Líder de mercado',
@@ -117,13 +121,14 @@ export const TRANSLATIONS = {
     'dashboard.drill.no_data': 'Sin observaciones para esta celda',
 
     // ── Brackets ──────────────────────────────────────────
-    'bracket.weighted_average': 'Promedio Ponderado',
+    'bracket.weighted_average': 'Promedio General',
     'bracket.very_short': 'Muy Corto',
     'bracket.short': 'Corto',
     'bracket.median': 'Mediano',
     'bracket.average': 'Promedio',
     'bracket.long': 'Largo',
     'bracket.very_long': 'Muy Largo',
+    'bracket.summary_badge': 'Resumen',
 
     // ── Brand / Countries ─────────────────────────────────
     'brand.title': 'Pricing CI',
@@ -174,6 +179,8 @@ export const TRANSLATIONS = {
     'samples.legend_low': 'poca data',
     'samples.legend_med': 'aceptable',
     'samples.legend_high': 'buena',
+    'samples.all_brackets_suffix': 'todos los tramos de distancia',
+    'dashboard.drill.all_brackets': 'todos los brackets',
 
     // ── Dashboard Legend (modal) ───────────────────────
     'legend.button': '📖 Leyenda',
@@ -965,6 +972,11 @@ export const TRANSLATIONS = {
     'dashboard.updating': 'Updating…',
     'dashboard.no_data':
       'No data for the selected filters. Try a different city, category, or date range.',
+    'dashboard.wa_banner_weighted': 'Weighted Average',
+    'dashboard.wa_banner_weighted_until': 'until the week of {date}',
+    'dashboard.wa_banner_simple': 'Simple Average',
+    'dashboard.wa_banner_simple_since':
+      'from the week of {date} onward (applies to all countries).',
     'dashboard.export_png': '📷 Export',
     'dashboard.kpi.yango_wa': 'Avg Yango (WA)',
     'dashboard.kpi.market_leader': 'Market leader',
@@ -1020,13 +1032,14 @@ export const TRANSLATIONS = {
     'dashboard.drill.time': 'Time slot',
     'dashboard.drill.no_data': 'No observations for this cell',
 
-    'bracket.weighted_average': 'Weighted Average',
+    'bracket.weighted_average': 'Overall Average',
     'bracket.very_short': 'Very Short',
     'bracket.short': 'Short',
     'bracket.median': 'Median',
     'bracket.average': 'Average',
     'bracket.long': 'Long',
     'bracket.very_long': 'Very Long',
+    'bracket.summary_badge': 'Summary',
 
     'brand.title': 'Pricing CI',
     'country.Peru': 'Peru',
@@ -1075,6 +1088,8 @@ export const TRANSLATIONS = {
     'samples.legend_low': 'low data',
     'samples.legend_med': 'acceptable',
     'samples.legend_high': 'good',
+    'samples.all_brackets_suffix': 'all distance brackets',
+    'dashboard.drill.all_brackets': 'all brackets',
 
     // ── Dashboard Legend (modal) ───────────────────────
     'legend.button': '📖 Legend',
@@ -1850,6 +1865,10 @@ export const TRANSLATIONS = {
     'dashboard.updating': 'Обновление…',
     'dashboard.no_data':
       'Нет данных для выбранных фильтров. Попробуйте другой город, категорию или период.',
+    'dashboard.wa_banner_weighted': 'Средневзвешенное',
+    'dashboard.wa_banner_weighted_until': 'до недели {date}',
+    'dashboard.wa_banner_simple': 'Простое среднее',
+    'dashboard.wa_banner_simple_since': 'с недели {date} (применяется ко всем странам).',
     'dashboard.export_png': '📷 Экспорт',
     'dashboard.kpi.yango_wa': 'Avg Yango (WA)',
     'dashboard.kpi.market_leader': 'Лидер рынка',
@@ -1905,13 +1924,14 @@ export const TRANSLATIONS = {
     'dashboard.drill.time': 'Временной слот',
     'dashboard.drill.no_data': 'Нет наблюдений для этой ячейки',
 
-    'bracket.weighted_average': 'Средневзвешенное',
+    'bracket.weighted_average': 'Общее среднее',
     'bracket.very_short': 'Очень короткий',
     'bracket.short': 'Короткий',
     'bracket.median': 'Средний',
     'bracket.average': 'Средний+',
     'bracket.long': 'Длинный',
     'bracket.very_long': 'Очень длинный',
+    'bracket.summary_badge': 'Сводка',
 
     'brand.title': 'Ценообразование CI',
     'country.Peru': 'Перу',
@@ -1960,6 +1980,8 @@ export const TRANSLATIONS = {
     'samples.legend_low': 'мало данных',
     'samples.legend_med': 'приемлемо',
     'samples.legend_high': 'хорошо',
+    'samples.all_brackets_suffix': 'все диапазоны расстояний',
+    'dashboard.drill.all_brackets': 'все диапазоны',
 
     // ── Dashboard Legend (modal) ───────────────────────
     'legend.button': '📖 Легенда',

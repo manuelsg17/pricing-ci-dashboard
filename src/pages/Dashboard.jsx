@@ -877,9 +877,10 @@ function DashboardContent() {
           >
             <Info size={14} style={{ flexShrink: 0 }} />
             <span>
-              <strong>Promedio Ponderado</strong> hasta la semana del {WA_CUTOFF_WEIGHTED_LABEL} ·{' '}
-              <strong>Promedio Simple</strong> desde la semana del {WA_CUTOFF_SIMPLE_LABEL} (aplica
-              a todos los países).
+              <strong>{t('dashboard.wa_banner_weighted')}</strong>{' '}
+              {t('dashboard.wa_banner_weighted_until', { date: WA_CUTOFF_WEIGHTED_LABEL })} ·{' '}
+              <strong>{t('dashboard.wa_banner_simple')}</strong>{' '}
+              {t('dashboard.wa_banner_simple_since', { date: WA_CUTOFF_SIMPLE_LABEL })}
             </span>
           </div>
 

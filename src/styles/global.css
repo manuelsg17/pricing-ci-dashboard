@@ -86,7 +86,9 @@
   --color-warning-fg: #92400e;
   --color-warning-border: #fcd34d;
 
+  --color-info: #2563eb;
   --color-info-fg: #1d4ed8;
+  --color-info-bg: #eff6ff;
   --color-info-border: #93c5fd;
 }
 
