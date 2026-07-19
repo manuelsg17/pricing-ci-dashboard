@@ -1,0 +1,142 @@
+import { BRACKET_LABELS, getCompetitors } from '../../lib/constants'
+import CompBadge from './CompBadge'
+import InDriveCell from './InDriveCell'
+
+// Un bracket + una ruta (Punto A → Punto B) mostrada una sola vez, con todas
+// las categorías configuradas para la ciudad llenándose juntas debajo — así
+// es como el hub realmente busca el precio (una búsqueda de A→B en el
+// celular ya muestra todas las categorías a la vez).
+export default function BracketRouteGroup({
+  bracket,
+  group,
+  categories,
+  timeslots,
+  uiCity,
+  country,
+  dbConfigs,
+  catColors,
+  getEntry,
+  setEntry,
+  indriveExtra,
+  setIndrive,
+  indKey,
+  priceKey,
+  errorKeys,
+  rowState,
+  t,
+}) {
+  const { anchorRef, byCategory } = group
+  const presentCats = categories.filter((c) => byCategory[c])
+  const missingCats = categories.filter((c) => !byCategory[c])
+
+  return (
+    <div className="de-bracket-group">
+      <div className="de-bracket-route-header">
+        <span className="de-bracket-label">{BRACKET_LABELS[bracket] || bracket}</span>
+        <span className="de-route-line">
+          {anchorRef.point_a || '—'} <span className="de-route-arrow">→</span>{' '}
+          {anchorRef.point_b || '—'}
+        </span>
+        {anchorRef.waze_distance != null && (
+          <span className="de-route-km">{anchorRef.waze_distance} km</span>
+        )}
+      </div>
+
+      {missingCats.length > 0 && (
+        <div className="de-bracket-missing-note">
+          {t('dataentry.missing_cats_note', { cats: missingCats.join(', ') })}
+        </div>
+      )}
+
+      {timeslots.map((ts) => (
+        <div key={ts.label} className="de-timeslot-block">
+          <div className="de-timeslot-heading">
+            <span className="de-ts-pill">{ts.label}</span>
+            <span className="de-ts-time">{ts.start_time?.slice(0, 5)}</span>
+          </div>
+
+          <div className="de-cat-rows">
+            {presentCats.map((uiCat) => {
+              const ref = byCategory[uiCat]
+              const colors = catColors[uiCat] || catColors.Corp
+              const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+              const state = rowState(uiCat, ref, ts)
+              const ownRoute =
+                ref.id !== anchorRef.id &&
+                (ref.point_a !== anchorRef.point_a || ref.point_b !== anchorRef.point_b)
+
+              return (
+                <div
+                  key={uiCat}
+                  className={`de-cat-row${state === 'partial' ? ' de-cat-row--partial' : ''}`}
+                >
+                  <div className="de-cat-row-head">
+                    <span
+                      className="de-cat-chip"
+                      style={{
+                        background: colors.bg,
+                        borderColor: colors.border,
+                        color: colors.text,
+                      }}
+                    >
+                      {uiCat}
+                    </span>
+                    {ownRoute && (
+                      <span
+                        className="de-route-note"
+                        title={`${ref.point_a || '—'} → ${ref.point_b || '—'}`}
+                      >
+                        {t('dataentry.own_route_note')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="de-cat-row-cells">
+                    {comps.map((comp) => {
+                      const key = priceKey(uiCat, ref.id, ts.label, comp)
+                      const hasErr = errorKeys.has(key)
+                      if (comp === 'InDrive') {
+                        return (
+                          <div key={comp} className={`de-cell${hasErr ? ' de-td-error' : ''}`}>
+                            <span className="de-cell-label">
+                              <CompBadge comp={comp} />
+                            </span>
+                            <InDriveCell
+                              avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
+                              extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
+                              onChange={(extra, avg) =>
+                                setIndrive(uiCat, ref.id, ts.label, extra, avg)
+                              }
+                              hasError={hasErr}
+                            />
+                          </div>
+                        )
+                      }
+                      return (
+                        <div key={comp} className={`de-cell${hasErr ? ' de-td-error' : ''}`}>
+                          <span className="de-cell-label">
+                            <CompBadge comp={comp} />
+                          </span>
+                          <input
+                            type="number"
+                            className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
+                            placeholder="—"
+                            min="0"
+                            step="0.01"
+                            value={getEntry(uiCat, ref.id, ts.label, comp)}
+                            onChange={(e) =>
+                              setEntry(uiCat, ref.id, ts.label, comp, e.target.value)
+                            }
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

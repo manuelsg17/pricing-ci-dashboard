@@ -1,19 +1,15 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import {
-  BRACKETS,
-  BRACKET_LABELS,
-  COMPETITOR_COLORS,
-  getCompetitors,
-  resolveDbParams,
-} from '../lib/constants'
+import { BRACKETS, getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
+import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
+import InstructionsBanner from '../components/dataentry/InstructionsBanner'
 import '../styles/data-entry.css'
 
 // (city/category/competitor constants are derived dynamically from COUNTRY_CONFIG via props)
@@ -56,135 +52,19 @@ function calcIndriveAvg(bids, minBid) {
   return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2)
 }
 
-function compBadge(comp) {
-  const color = COMPETITOR_COLORS[comp]
-  if (!color) return <span className="de-comp-name">{comp}</span>
-  return (
-    <span
-      style={{
-        background: color,
-        color: '#fff',
-        borderRadius: 4,
-        padding: '2px 8px',
-        fontWeight: 700,
-        fontSize: 10,
-        whiteSpace: 'nowrap',
-        display: 'inline-block',
-      }}
-    >
-      {comp}
-    </span>
-  )
-}
-
-// ── InDrive cell component ─────────────────────────────────────────────────
-function InDriveCell({ avg, extra, onChange, hasError }) {
-  const [open, setOpen] = useState(false)
-  const bids = extra?.bids || ['']
-  const minBid = extra?.minBid || ''
-
-  function updateBid(i, val) {
-    const newBids = [...bids]
-    newBids[i] = val
-    const newAvg = calcIndriveAvg(newBids, minBid)
-    onChange({ bids: newBids, minBid }, newAvg)
+// Mig 98: bid_4/bid_5 dropeados de pricing_observations. Un borrador guardado
+// en localStorage antes de este fix puede traer hasta 5 bids — se truncan a
+// 3 al restaurar (y se recalcula el promedio) para que la UI no muestre algo
+// que el guardado va a cortar silenciosamente.
+function capIndriveExtraBids(indriveExtra) {
+  const capped = {}
+  const avgUpdates = {}
+  for (const [key, extra] of Object.entries(indriveExtra || {})) {
+    const bids = (extra?.bids || []).slice(0, 3)
+    capped[key] = { ...extra, bids }
+    avgUpdates[`${key}|InDrive`] = calcIndriveAvg(bids, extra?.minBid || '')
   }
-
-  function updateMin(val) {
-    const newAvg = calcIndriveAvg(bids, val)
-    onChange({ bids, minBid: val }, newAvg)
-  }
-
-  function addBid() {
-    if (bids.length >= 5) return
-    const newBids = [...bids, '']
-    onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids, minBid))
-  }
-
-  function removeBid(i) {
-    if (bids.length <= 1) return
-    const newBids = bids.filter((_, j) => j !== i)
-    onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids, minBid))
-  }
-
-  return (
-    <div className={`indrive-cell${hasError ? ' indrive-cell--error' : ''}`}>
-      <div className="indrive-cell__row">
-        <input
-          className="de-price-input indrive-avg"
-          type="number"
-          value={avg}
-          readOnly
-          placeholder="Promedio"
-          title="Promedio calculado automáticamente"
-          style={{ background: avg ? '#f0fdf4' : undefined, cursor: 'default' }}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-[22px] w-[22px] shrink-0 rounded-sm border-border bg-[var(--color-bg-subtle)] p-0 text-[9px] text-muted hover:border-yango hover:bg-[var(--color-yango-mid)]"
-          onClick={() => setOpen((o) => !o)}
-          title={open ? 'Cerrar bids' : 'Agregar bids'}
-        >
-          {open ? '▲' : '▼'}
-        </Button>
-      </div>
-
-      {open && (
-        <div className="indrive-bids-panel">
-          <div className="indrive-bid-row">
-            <span className="indrive-bid-label">Mín</span>
-            <input
-              type="number"
-              className="indrive-bid-input"
-              placeholder="0.00"
-              value={minBid}
-              min="0"
-              step="0.01"
-              onChange={(e) => updateMin(e.target.value)}
-            />
-          </div>
-          {bids.map((b, i) => (
-            <div key={i} className="indrive-bid-row">
-              <span className="indrive-bid-label">Bid {i + 1}</span>
-              <input
-                type="number"
-                className="indrive-bid-input"
-                placeholder="0.00"
-                value={b}
-                min="0"
-                step="0.01"
-                onChange={(e) => updateBid(i, e.target.value)}
-              />
-              {bids.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-[18px] w-[18px] shrink-0 rounded p-0 text-[10px] text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)]"
-                  onClick={() => removeBid(i)}
-                >
-                  ✕
-                </Button>
-              )}
-            </div>
-          ))}
-          {bids.length < 5 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-0.5 h-auto rounded-sm border-dashed border-yango bg-transparent px-1.5 py-0.5 text-[10px] font-bold text-yango hover:bg-[var(--color-yango-mid)]"
-              onClick={addBid}
-            >
-              + Bid
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  )
+  return { capped, avgUpdates }
 }
 
 import { useCountry } from '../context/CountryContext'
@@ -353,16 +233,22 @@ export default function DataEntry() {
   // guardado exitoso a Supabase (ver handleSave / handleSaveProgress).
   const draftKey = `de:draft:${country}:${uiCity}:${date}`
   const draftHydratedRef = useRef(false)
+  // Indicador "guardado hace Xs" — se lee en el header (progress pill).
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState(null)
+  const [nowTick, setNowTick] = useState(() => Date.now())
 
   useEffect(() => {
     draftHydratedRef.current = false
+    setLastDraftSavedAt(null)
     try {
       const raw = localStorage.getItem(draftKey)
       if (raw) {
         const parsed = JSON.parse(raw)
         if (parsed.entries && Object.keys(parsed.entries).length > 0) {
-          setEntries(parsed.entries)
-          setIndriveExtra(parsed.indriveExtra || {})
+          const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
+          setEntries({ ...parsed.entries, ...avgUpdates })
+          setIndriveExtra(capped)
+          setLastDraftSavedAt(parsed.savedAt || null)
           setMsg({
             type: 'ok',
             text: `📝 Borrador restaurado (${Object.keys(parsed.entries).length} celdas).`,
@@ -386,12 +272,12 @@ export default function DataEntry() {
       try {
         const hasData = Object.keys(entries).length > 0 || Object.keys(indriveExtra).length > 0
         if (hasData) {
-          localStorage.setItem(
-            draftKey,
-            JSON.stringify({ entries, indriveExtra, savedAt: Date.now() })
-          )
+          const savedAt = Date.now()
+          localStorage.setItem(draftKey, JSON.stringify({ entries, indriveExtra, savedAt }))
+          setLastDraftSavedAt(savedAt)
         } else {
           localStorage.removeItem(draftKey)
+          setLastDraftSavedAt(null)
         }
       } catch {
         /* quota / disabled */
@@ -406,6 +292,78 @@ export default function DataEntry() {
     } catch {}
   }, [draftKey])
 
+  // ── Aviso del navegador si hay cambios sin guardar ─────
+  useEffect(() => {
+    const hasUnsaved = Object.keys(entries).length > 0
+    if (!hasUnsaved) return
+    const handler = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [entries])
+
+  // ── Indicador "guardado hace Xs" — ticker ──────────────
+  useEffect(() => {
+    if (lastDraftSavedAt == null) return
+    const id = setInterval(() => setNowTick(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [lastDraftSavedAt])
+
+  // ── Otro borrador sin terminar (distinta ciudad/fecha) ─
+  const [otherDraft, setOtherDraft] = useState(null)
+
+  useEffect(() => {
+    if (Object.keys(entries).length > 0) {
+      setOtherDraft(null)
+      return
+    }
+    try {
+      const prefix = `de:draft:${country}:`
+      let best = null
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (!k || !k.startsWith(prefix) || k === draftKey) continue
+        const raw = localStorage.getItem(k)
+        if (!raw) continue
+        const parsed = JSON.parse(raw)
+        const count = Object.keys(parsed.entries || {}).length
+        if (count === 0) continue
+        const rest = k.slice(prefix.length) // "{city}:{date}"
+        const sep = rest.lastIndexOf(':')
+        if (sep === -1) continue
+        const savedAt = parsed.savedAt || 0
+        if (!best || savedAt > best.savedAt) {
+          best = { key: k, city: rest.slice(0, sep), date: rest.slice(sep + 1), count, savedAt }
+        }
+      }
+      setOtherDraft(best)
+    } catch {
+      setOtherDraft(null)
+    }
+    // Re-escanea solo al cambiar de vista (o cuando la vista actual queda
+    // vacía), no en cada tecla — `entries` se lee en el cuerpo del efecto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country, draftKey])
+
+  function jumpToOtherDraft() {
+    if (!otherDraft) return
+    setUiCity(otherDraft.city)
+    setDate(otherDraft.date)
+    setOtherDraft(null)
+  }
+
+  function discardOtherDraft() {
+    if (!otherDraft) return
+    try {
+      localStorage.removeItem(otherDraft.key)
+    } catch {
+      /* ignore */
+    }
+    setOtherDraft(null)
+  }
+
   // ── Group refs by UI category + bracket ───────────────
   const refsByUICat = useMemo(() => {
     const result = {}
@@ -416,6 +374,51 @@ export default function DataEntry() {
     }
     return result
   }, [refs, dbCatToUICat, categories])
+
+  // ── Categoría "ancla" — Economy/Comfort es siempre la primera categoría
+  // configurada por ciudad (countryConfig.categoriesByCity); es la fuente
+  // de verdad para "qué ruta se muestra" en el flujo por bracket.
+  const sourceCategory = categories[0]
+
+  // ── Agrupar rutas por bracket (flujo "Ingresar CI" por bracket) ───────
+  // Cada grupo ancla en la ruta de sourceCategory para ese bracket; las
+  // demás categorías se alinean por posición. Si una categoría tiene más
+  // rutas que la ancla para el mismo bracket (raro — distance_references no
+  // tiene constraint único), esas quedan en `extras` para no perderlas.
+  const refsByBracket = useMemo(() => {
+    if (!sourceCategory) return []
+    const anchorRefs = refsByUICat[sourceCategory] || []
+    return BRACKETS.map((bracket) => {
+      const bracketAnchors = anchorRefs.filter((r) => r.bracket === bracket)
+      const byCatBracket = {}
+      for (const uiCat of categories) {
+        byCatBracket[uiCat] = (refsByUICat[uiCat] || []).filter((r) => r.bracket === bracket)
+      }
+      const groups = bracketAnchors.map((anchorRef, idx) => {
+        const byCategory = {}
+        for (const uiCat of categories) {
+          byCategory[uiCat] = uiCat === sourceCategory ? anchorRef : byCatBracket[uiCat][idx]
+        }
+        return { anchorRef, byCategory }
+      })
+      const extras = []
+      for (const uiCat of categories) {
+        if (uiCat === sourceCategory) continue
+        const arr = byCatBracket[uiCat]
+        for (let i = bracketAnchors.length; i < arr.length; i++) {
+          extras.push({ uiCat, ref: arr[i] })
+        }
+      }
+      return { bracket, groups, extras }
+    }).filter((b) => b.groups.length > 0 || b.extras.length > 0)
+  }, [refsByUICat, categories, sourceCategory])
+
+  // Categorías sin ninguna ruta en toda la ciudad (no solo en un bracket
+  // puntual) — se avisa una sola vez arriba de la grilla.
+  const categoriesWithNoRoutes = useMemo(
+    () => categories.filter((uiCat) => (refsByUICat[uiCat] || []).length === 0),
+    [categories, refsByUICat]
+  )
 
   // ── Entry helpers ──────────────────────────────────────
   const priceKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
@@ -470,7 +473,9 @@ export default function DataEntry() {
         const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
         const price = parseFloat(raw)
         const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
-        const bids = comp === 'InDrive' ? extra?.bids || [] : []
+        // Mig 98: bid_4/bid_5 no existen en pricing_observations — nunca
+        // mandar más de 3, aunque un borrador viejo en localStorage tenga más.
+        const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 3) : []
         const minBid = comp === 'InDrive' ? extra?.minBid || null : null
         return {
           price: isNaN(price) ? null : price,
@@ -629,6 +634,7 @@ export default function DataEntry() {
 
     // Guardado exitoso → el borrador local ya no es necesario
     clearDraft()
+    setLastDraftSavedAt(null)
     setSaving(false)
     return true
   }
@@ -728,6 +734,8 @@ export default function DataEntry() {
         </div>
       </div>
 
+      <InstructionsBanner t={t} />
+
       {/* ── Session bar ── */}
       <div className="de-session-bar">
         {/* City tabs */}
@@ -771,6 +779,14 @@ export default function DataEntry() {
             <span className="de-progress-total">{totalExpected}</span>
             <span className="de-progress-label">{t('dataentry.fields')}</span>
           </div>
+
+          {lastDraftSavedAt != null && (
+            <span className="de-autosave-indicator">
+              {t('dataentry.autosaved_ago', {
+                s: Math.max(0, Math.floor((nowTick - lastDraftSavedAt) / 1000)),
+              })}
+            </span>
+          )}
         </div>
       </div>
 
@@ -781,160 +797,100 @@ export default function DataEntry() {
         </div>
       )}
 
+      {/* ── Borrador sin terminar en otra ciudad/fecha ── */}
+      {otherDraft && (
+        <div className="de-msg de-msg--ok de-other-draft">
+          <span>
+            {t('dataentry.other_draft_note', {
+              city: otherDraft.city,
+              date: otherDraft.date,
+              n: otherDraft.count,
+            })}
+          </span>
+          <span className="de-other-draft-actions">
+            <Button size="sm" onClick={jumpToOtherDraft}>
+              {t('dataentry.other_draft_jump')}
+            </Button>
+            <Button size="sm" variant="outline" onClick={discardOtherDraft}>
+              {t('dataentry.other_draft_discard')}
+            </Button>
+          </span>
+        </div>
+      )}
+
+      {/* ── Categorías sin ninguna ruta configurada en esta ciudad ── */}
+      {!refsLoading && categoriesWithNoRoutes.length > 0 && (
+        <div className="de-cat-empty de-cat-empty--global">
+          {t('dataentry.no_routes')}{' '}
+          <strong>
+            {uiCity} · {categoriesWithNoRoutes.join(', ')}
+          </strong>
+          . {t('dataentry.go_distances')}
+        </div>
+      )}
+
       {/* ── Grilla ── */}
       {refsLoading ? (
         <div className="de-loading">{t('dataentry.loading_routes')}</div>
+      ) : refsByBracket.length === 0 ? (
+        <div className="de-loading">{t('dataentry.no_routes_at_all')}</div>
       ) : (
         <>
-          {categories.map((uiCat) => {
-            const catRefs = refsByUICat[uiCat] || []
-            const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
-            const colors = CAT_COLORS[uiCat] || CAT_COLORS['Corp']
-            const totalRows = catRefs.length * timeslots.length
-
-            return (
-              <div key={uiCat} className="de-cat-section">
-                {/* Category header */}
-                <div
-                  className="de-cat-header"
-                  style={{ background: colors.bg, borderColor: colors.border }}
-                >
-                  <span className="de-cat-label" style={{ color: colors.text }}>
-                    {uiCat}
-                  </span>
-                  <span className="de-cat-meta">
-                    {catRefs.length} {t('dataentry.routes')} × {timeslots.length} timeslot
-                    {timeslots.length !== 1 ? 's' : ''} = {totalRows} {t('dataentry.rows')}
-                  </span>
+          {refsByBracket.map(({ bracket, groups, extras }) => (
+            <div key={bracket} className="de-bracket-section">
+              {groups.map((group, gi) => (
+                <BracketRouteGroup
+                  key={`${bracket}-${gi}`}
+                  bracket={bracket}
+                  group={group}
+                  categories={categories}
+                  timeslots={timeslots}
+                  uiCity={uiCity}
+                  country={country}
+                  dbConfigs={dbConfigs}
+                  catColors={CAT_COLORS}
+                  getEntry={getEntry}
+                  setEntry={setEntry}
+                  indriveExtra={indriveExtra}
+                  setIndrive={setIndrive}
+                  indKey={indKey}
+                  priceKey={priceKey}
+                  errorKeys={errorKeys}
+                  rowState={rowState}
+                  t={t}
+                />
+              ))}
+              {extras.length > 0 && (
+                <div className="de-bracket-extras">
+                  <div className="de-bracket-extras-title">{t('dataentry.extra_routes_title')}</div>
+                  {extras.map(({ uiCat, ref }) => (
+                    <BracketRouteGroup
+                      key={`${bracket}-extra-${ref.id}`}
+                      bracket={bracket}
+                      group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
+                      categories={[uiCat]}
+                      timeslots={timeslots}
+                      uiCity={uiCity}
+                      country={country}
+                      dbConfigs={dbConfigs}
+                      catColors={CAT_COLORS}
+                      getEntry={getEntry}
+                      setEntry={setEntry}
+                      indriveExtra={indriveExtra}
+                      setIndrive={setIndrive}
+                      indKey={indKey}
+                      priceKey={priceKey}
+                      errorKeys={errorKeys}
+                      rowState={rowState}
+                      t={t}
+                    />
+                  ))}
                 </div>
-
-                {catRefs.length === 0 ? (
-                  <div className="de-cat-empty">
-                    {t('dataentry.no_routes')}{' '}
-                    <strong>
-                      {uiCity} · {uiCat}
-                    </strong>
-                    .{t('dataentry.go_distances')}
-                  </div>
-                ) : (
-                  <div className="de-table-wrap">
-                    <table className="de-table">
-                      <thead>
-                        <tr>
-                          <th className="de-th de-th-bracket">{t('dataentry.col_bracket')}</th>
-                          <th className="de-th de-th-km">{t('dataentry.col_km')}</th>
-                          <th className="de-th de-th-route">{t('dataentry.col_point_a')}</th>
-                          <th className="de-th de-th-route">{t('dataentry.col_point_b')}</th>
-                          <th className="de-th de-th-ts">{t('dataentry.col_timeslot')}</th>
-                          {comps.map((comp) => (
-                            <th key={comp} className="de-th de-th-price">
-                              {compBadge(comp)}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {BRACKETS.filter((b) => catRefs.some((r) => r.bracket === b)).map(
-                          (bracket) => {
-                            const bracketRefs = catRefs.filter((r) => r.bracket === bracket)
-                            return bracketRefs.map((ref, ri) =>
-                              timeslots.map((ts, ti) => {
-                                const state = rowState(uiCat, ref, ts)
-                                const rowClass = state === 'partial' ? ' de-row-partial' : ''
-                                return (
-                                  <tr key={`${ref.id}|${ts.label}`} className={`de-row${rowClass}`}>
-                                    {/* Bracket: rowspan over all refs × timeslots in this bracket */}
-                                    {ri === 0 && ti === 0 && (
-                                      <td
-                                        rowSpan={bracketRefs.length * timeslots.length}
-                                        className="de-td-bracket"
-                                      >
-                                        {BRACKET_LABELS[bracket]}
-                                      </td>
-                                    )}
-                                    {/* KM + Routes: rowspan over timeslots */}
-                                    {ti === 0 && (
-                                      <>
-                                        <td rowSpan={timeslots.length} className="de-td-km">
-                                          {ref.waze_distance != null ? ref.waze_distance : '—'}
-                                        </td>
-                                        <td rowSpan={timeslots.length} className="de-td-route">
-                                          {ref.point_a || '—'}
-                                        </td>
-                                        <td rowSpan={timeslots.length} className="de-td-route">
-                                          {ref.point_b || '—'}
-                                        </td>
-                                      </>
-                                    )}
-                                    {/* Timeslot */}
-                                    <td className="de-td-ts">
-                                      <span className="de-ts-pill">{ts.label}</span>
-                                      <span className="de-ts-time">
-                                        {ts.start_time?.slice(0, 5)}
-                                      </span>
-                                    </td>
-                                    {/* Price cells */}
-                                    {comps.map((comp) => {
-                                      const key = priceKey(uiCat, ref.id, ts.label, comp)
-                                      const hasErr = errorKeys.has(key)
-                                      if (comp === 'InDrive') {
-                                        return (
-                                          <td
-                                            key={comp}
-                                            className={`de-td-price${hasErr ? ' de-td-error' : ''}`}
-                                          >
-                                            <InDriveCell
-                                              avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
-                                              extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
-                                              onChange={(extra, avg) =>
-                                                setIndrive(uiCat, ref.id, ts.label, extra, avg)
-                                              }
-                                              hasError={hasErr}
-                                            />
-                                          </td>
-                                        )
-                                      }
-                                      return (
-                                        <td
-                                          key={comp}
-                                          className={`de-td-price${hasErr ? ' de-td-error' : ''}`}
-                                        >
-                                          <input
-                                            type="number"
-                                            className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
-                                            placeholder="—"
-                                            min="0"
-                                            step="0.01"
-                                            value={getEntry(uiCat, ref.id, ts.label, comp)}
-                                            onChange={(e) =>
-                                              setEntry(
-                                                uiCat,
-                                                ref.id,
-                                                ts.label,
-                                                comp,
-                                                e.target.value
-                                              )
-                                            }
-                                          />
-                                        </td>
-                                      )
-                                    })}
-                                  </tr>
-                                )
-                              })
-                            )
-                          }
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+              )}
+            </div>
+          ))}
         </>
       )}
-
       {/* Footer repeat buttons */}
       {!refsLoading && refs.length > 0 && (
         <div className="de-footer">

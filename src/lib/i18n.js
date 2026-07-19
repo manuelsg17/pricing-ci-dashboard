@@ -517,6 +517,25 @@ export const TRANSLATIONS = {
       'Hay filas incompletas (marcadas en rojo). Completa todas las casillas de esa fila o déjala completamente vacía.',
     'dataentry.err_no_full': 'No hay filas completamente llenas para guardar.',
     'dataentry.err_finish': 'Para terminar la sesión, todas las filas deben estar llenas.',
+    'dataentry.no_routes_at_all': 'No hay rutas configuradas para esta ciudad todavía.',
+    'dataentry.extra_routes_title': 'Rutas adicionales',
+    'dataentry.own_route_note': 'Ruta propia',
+    'dataentry.missing_cats_note': 'Sin ruta en este bracket para: {cats}.',
+    'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
+    'dataentry.other_draft_note': 'Tenés un borrador sin terminar en {city}, {date} ({n} celdas).',
+    'dataentry.other_draft_jump': 'Ir ahí',
+    'dataentry.other_draft_discard': 'Descartar',
+    'dataentry.legend_title': 'Cómo llenar esta pantalla',
+    'dataentry.legend_step1': '1. Elegí tu ciudad y la fecha arriba.',
+    'dataentry.legend_step2':
+      '2. Elegí el bracket (Very Short → Very Long) — la ruta (Punto A → Punto B) aparece una sola vez.',
+    'dataentry.legend_step3':
+      '3. Llená los precios de todas las categorías y franjas horarias para esa ruta antes de pasar a la siguiente.',
+    'dataentry.legend_step4':
+      '4. Para InDrive, tocá ▼ para agregar hasta 3 bids — el promedio se calcula solo.',
+    'dataentry.legend_step5':
+      '5. Guardá seguido con "💾 Guardar progreso" (podés guardar filas parciales cuantas veces quieras). Tu progreso también se autoguarda en este navegador cada 2 segundos.',
+    'dataentry.legend_step6': '6. Cuando toda la grilla esté completa, tocá "⏹ Terminar Sesión".',
 
     // ── Earnings ──────────────────────────────────────
     'earnings.title': 'Ganancias del Conductor',
@@ -2474,6 +2493,25 @@ export const TRANSLATIONS = {
       'There are incomplete rows (marked in red). Fill all cells in the row or leave it completely empty.',
     'dataentry.err_no_full': 'No fully completed rows to save.',
     'dataentry.err_finish': 'To end the session, all rows must be filled.',
+    'dataentry.no_routes_at_all': 'No routes configured for this city yet.',
+    'dataentry.extra_routes_title': 'Additional routes',
+    'dataentry.own_route_note': 'Own route',
+    'dataentry.missing_cats_note': 'No route in this bracket for: {cats}.',
+    'dataentry.autosaved_ago': 'Autosaved {s}s ago',
+    'dataentry.other_draft_note': 'You have an unfinished draft in {city}, {date} ({n} cells).',
+    'dataentry.other_draft_jump': 'Go there',
+    'dataentry.other_draft_discard': 'Discard',
+    'dataentry.legend_title': 'How to fill this screen',
+    'dataentry.legend_step1': '1. Pick your city and date above.',
+    'dataentry.legend_step2':
+      '2. Pick a bracket (Very Short → Very Long) — the route (Point A → Point B) shows up once.',
+    'dataentry.legend_step3':
+      '3. Fill in prices for all categories and timeslots for that route before moving to the next one.',
+    'dataentry.legend_step4':
+      '4. For InDrive, tap ▼ to add up to 3 bids — the average is calculated for you.',
+    'dataentry.legend_step5':
+      '5. Save often with "💾 Save progress" (you can save partial rows as many times as you want). Your progress is also autosaved in this browser every 2 seconds.',
+    'dataentry.legend_step6': '6. Once the whole grid is complete, tap "⏹ End Session".',
 
     'earnings.title': 'Driver Earnings',
     'rentabilidad.title': 'Driver Profitability',
@@ -4414,6 +4452,25 @@ export const TRANSLATIONS = {
       'Есть незавершённые строки (выделены красным). Заполните все ячейки строки или оставьте её полностью пустой.',
     'dataentry.err_no_full': 'Нет полностью заполненных строк для сохранения.',
     'dataentry.err_finish': 'Для завершения сессии все строки должны быть заполнены.',
+    'dataentry.no_routes_at_all': 'Маршруты для этого города ещё не настроены.',
+    'dataentry.extra_routes_title': 'Дополнительные маршруты',
+    'dataentry.own_route_note': 'Свой маршрут',
+    'dataentry.missing_cats_note': 'Нет маршрута в этом брекете для: {cats}.',
+    'dataentry.autosaved_ago': 'Автосохранено {s} с назад',
+    'dataentry.other_draft_note': 'У вас есть незавершённый черновик в {city}, {date} ({n} ячеек).',
+    'dataentry.other_draft_jump': 'Перейти туда',
+    'dataentry.other_draft_discard': 'Отменить',
+    'dataentry.legend_title': 'Как заполнять этот экран',
+    'dataentry.legend_step1': '1. Выберите город и дату вверху.',
+    'dataentry.legend_step2':
+      '2. Выберите брекет (Very Short → Very Long) — маршрут (Точка А → Точка Б) показывается один раз.',
+    'dataentry.legend_step3':
+      '3. Заполните цены для всех категорий и таймслотов этого маршрута, прежде чем переходить к следующему.',
+    'dataentry.legend_step4':
+      '4. Для InDrive нажмите ▼, чтобы добавить до 3 ставок — среднее считается автоматически.',
+    'dataentry.legend_step5':
+      '5. Сохраняйте прогресс почаще кнопкой "💾 Сохранить прогресс" (можно сохранять неполные строки сколько угодно раз). Прогресс также автосохраняется в этом браузере каждые 2 секунды.',
+    'dataentry.legend_step6': '6. Когда вся таблица заполнена, нажмите "⏹ Завершить сессию".',
 
     'earnings.title': 'Доходы водителей',
     'rentabilidad.title': 'Рентабельность водителя',
