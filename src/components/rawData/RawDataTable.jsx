@@ -1,5 +1,6 @@
 import { BRACKET_LABELS } from '../../lib/constants'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 function fmt(val, decimals = 2) {
   if (val === null || val === undefined || val === '') return '—'
@@ -24,6 +25,7 @@ export default function RawDataTable({
   handleDelete,
   exporting,
 }) {
+  const { t } = useI18n()
   const isOutlierRow = (r) =>
     parseFloat(r.price_without_discount) > outlierThreshold ||
     parseFloat(r.price_with_discount) > outlierThreshold ||
@@ -49,7 +51,7 @@ export default function RawDataTable({
       <span
         onDoubleClick={() => startEdit(r.id, field, r[field])}
         style={{ cursor: 'pointer' }}
-        title="Doble clic para editar"
+        title={t('rawdata.edit_hint_title')}
       >
         {fmt(r[field], decimals)}
       </span>
@@ -63,57 +65,57 @@ export default function RawDataTable({
           {/* Column group headers */}
           <tr>
             <th colSpan={2} className="col-year">
-              Tiempo
+              {t('rawdata.col_group_time')}
             </th>
             <th colSpan={2} className="col-date">
-              Fecha / Hora
+              {t('rawdata.col_group_datetime')}
             </th>
             <th colSpan={2} className="col-rush">
-              Flags
+              {t('rawdata.col_group_flags')}
             </th>
             <th colSpan={2} className="col-cat">
-              Servicio
+              {t('rawdata.col_group_service')}
             </th>
-            <th className="col-source">Fuente</th>
+            <th className="col-source">{t('filter.source')}</th>
             <th colSpan={3} className="col-bracket">
-              Ruta
+              {t('rawdata.col_group_route')}
             </th>
             <th colSpan={2} className="col-point">
-              Puntos
+              {t('rawdata.col_group_points')}
             </th>
             <th colSpan={4} className="col-price">
-              Precios ({config.currency})
+              {t('rawdata.col_group_prices', { currency: config.currency })}
             </th>
             <th colSpan={3} className="col-bid">
-              Bids InDrive
+              {t('rawdata.col_group_bids')}
             </th>
-            <th className="col-eta">ETA</th>
+            <th className="col-eta">{t('rawdata.col_eta')}</th>
             <th className="col-actions"></th>
           </tr>
           {/* Column labels */}
           <tr>
-            <th className="col-year">Año</th>
-            <th className="col-week">Sem</th>
-            <th className="col-date">Fecha</th>
-            <th className="col-time">Hora</th>
-            <th className="col-rush">Rush</th>
-            <th className="col-surge">Surge</th>
-            <th className="col-cat">Categoría</th>
-            <th className="col-comp">Competidor</th>
-            <th className="col-source">Fuente</th>
-            <th className="col-bracket">Bracket</th>
-            <th className="col-zone">Zona</th>
-            <th className="col-price">Dist (km)</th>
-            <th className="col-point">Punto A</th>
-            <th className="col-point">Punto B</th>
-            <th className="col-price">P. s/desc</th>
-            <th className="col-price">P. c/desc</th>
-            <th className="col-price">Recomend.</th>
-            <th className="col-price">Min. Bid</th>
-            <th className="col-bid">Bid 1</th>
-            <th className="col-bid">Bid 2</th>
-            <th className="col-bid">Bid 3</th>
-            <th className="col-eta">ETA (min)</th>
+            <th className="col-year">{t('rawdata.col_year')}</th>
+            <th className="col-week">{t('rawdata.col_week')}</th>
+            <th className="col-date">{t('dataentry.date')}</th>
+            <th className="col-time">{t('rawdata.col_time')}</th>
+            <th className="col-rush">{t('rawdata.col_rush')}</th>
+            <th className="col-surge">{t('filter.surge')}</th>
+            <th className="col-cat">{t('filter.category')}</th>
+            <th className="col-comp">{t('rawdata.col_competitor')}</th>
+            <th className="col-source">{t('filter.source')}</th>
+            <th className="col-bracket">{t('rawdata.col_bracket')}</th>
+            <th className="col-zone">{t('filter.zone')}</th>
+            <th className="col-price">{t('rawdata.col_dist_km')}</th>
+            <th className="col-point">{t('dataentry.col_point_a')}</th>
+            <th className="col-point">{t('dataentry.col_point_b')}</th>
+            <th className="col-price">{t('rawdata.col_price_no_disc')}</th>
+            <th className="col-price">{t('rawdata.col_price_disc')}</th>
+            <th className="col-price">{t('rawdata.col_recommended')}</th>
+            <th className="col-price">{t('rawdata.col_min_bid')}</th>
+            <th className="col-bid">{t('rawdata.col_bid_1')}</th>
+            <th className="col-bid">{t('rawdata.col_bid_2')}</th>
+            <th className="col-bid">{t('rawdata.col_bid_3')}</th>
+            <th className="col-eta">{t('rawdata.col_eta_min')}</th>
             <th className="col-actions"></th>
           </tr>
         </thead>
@@ -121,14 +123,14 @@ export default function RawDataTable({
           {loading && rows.length === 0 && (
             <tr>
               <td colSpan={26} className="raw-data__state">
-                Cargando datos…
+                {t('rawdata.loading_data')}
               </td>
             </tr>
           )}
           {!loading && rows.length === 0 && (
             <tr>
               <td colSpan={26} className="raw-data__state">
-                No se encontraron filas con los filtros actuales.
+                {t('rawdata.no_rows')}
               </td>
             </tr>
           )}
@@ -148,7 +150,7 @@ export default function RawDataTable({
               <td className="col-time">{r.observed_time ? r.observed_time.slice(0, 5) : '—'}</td>
               <td className="col-rush">
                 {r.rush_hour === true ? (
-                  <span className="badge-rush">Rush</span>
+                  <span className="badge-rush">{t('rawdata.col_rush')}</span>
                 ) : r.rush_hour === false ? (
                   <span className="badge-no">—</span>
                 ) : (
@@ -157,9 +159,9 @@ export default function RawDataTable({
               </td>
               <td className="col-surge">
                 {r.surge === true ? (
-                  <span className="badge-surge">Sí</span>
+                  <span className="badge-surge">{t('filter.yes')}</span>
                 ) : r.surge === false ? (
-                  <span className="badge-no">No</span>
+                  <span className="badge-no">{t('filter.no')}</span>
                 ) : (
                   <span className="badge-no">—</span>
                 )}
@@ -173,9 +175,9 @@ export default function RawDataTable({
               </td>
               <td className="col-source">
                 {r.data_source === 'bot' ? (
-                  <span className="badge-bot">Bot</span>
+                  <span className="badge-bot">{t('filter.source_bot')}</span>
                 ) : (
-                  <span className="badge-hub">Hub</span>
+                  <span className="badge-hub">{t('rawdata.badge_hub')}</span>
                 )}
               </td>
               <td className="col-bracket">
@@ -227,7 +229,7 @@ export default function RawDataTable({
                   className="h-auto w-auto rounded-[3px] px-1 py-0.5 text-[13px] opacity-40 hover:bg-red-100 hover:opacity-100"
                   onClick={() => handleDelete(r.id)}
                   disabled={exporting}
-                  title={exporting ? 'Esperá a que termine la exportación' : 'Eliminar fila'}
+                  title={exporting ? t('rawdata.delete_title_wait') : t('rawdata.delete_row_title')}
                 >
                   🗑
                 </Button>

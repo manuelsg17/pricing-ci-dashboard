@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useCountry } from '../context/CountryContext'
+import { useI18n } from '../context/LanguageContext'
 import { useRawData } from '../hooks/useRawData'
 import { useRawDataFilters } from '../hooks/useRawDataFilters'
 import { useRawDataMutations } from '../hooks/useRawDataMutations'
@@ -21,6 +22,7 @@ import '../styles/raw-data.css'
 // preservando comportamiento — sin cambios de lógica en este pase.
 export default function RawData() {
   const { country, countryConfig: config } = useCountry()
+  const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -127,7 +129,7 @@ export default function RawData() {
         resetFilters={resetFilters}
       />
 
-      {error && <div className="raw-data__error">⚠ Error: {error}</div>}
+      {error && <div className="raw-data__error">{t('rawdata.error', { error })}</div>}
 
       <RawDataToolbar
         loading={loading}

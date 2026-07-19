@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { countRawData, fetchAllRawData } from './useRawData'
 import { exportRawDataXlsx } from '../lib/rawDataExport'
+import { useI18n } from '../context/LanguageContext'
 
 // Extraído de RawData.jsx (Fase 1.2) — agrupa el flujo de export a .xlsx
 // (conteo fresco + confirmación por volumen + fetch paginado con progreso).
@@ -13,6 +14,7 @@ const EXPORT_CONFIRM_THRESHOLD = 5000
 const EXPORT_LARGE_WARNING_THRESHOLD = 50000
 
 export function useRawDataExport({ filters, dbCity, dbCategory, toast, confirm }) {
+  const { t } = useI18n()
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(null) // { loaded, total }
 
@@ -29,17 +31,17 @@ export function useRawDataExport({ filters, dbCity, dbCategory, toast, confirm }
       // stale un instante si el usuario acaba de cambiar un filtro).
       const freshTotal = await countRawData(filters, { snapshotIso })
       if (freshTotal === 0) {
-        toast.err('No hay filas para exportar con los filtros actuales.')
+        toast.err(t('rawdata.export_no_rows'))
         return
       }
       if (freshTotal > EXPORT_CONFIRM_THRESHOLD) {
         const ok = await confirm({
-          title: 'Exportar data raw',
+          title: t('rawdata.export_confirm_title'),
           message:
             freshTotal > EXPORT_LARGE_WARNING_THRESHOLD
-              ? `Vas a exportar ${freshTotal.toLocaleString()} filas a Excel. Esto puede tardar varios minutos y usar bastante memoria del navegador — si podés, acotá por categoría o rango de fechas primero. ¿Exportar de todos modos?`
-              : `Vas a exportar ${freshTotal.toLocaleString()} filas a Excel. Puede tardar unos segundos. ¿Continuar?`,
-          confirmText: 'Exportar',
+              ? t('rawdata.export_confirm_message_large', { n: freshTotal.toLocaleString() })
+              : t('rawdata.export_confirm_message_normal', { n: freshTotal.toLocaleString() }),
+          confirmText: t('rawdata.export_confirm_btn'),
         })
         if (!ok) return
       }
@@ -49,9 +51,9 @@ export function useRawDataExport({ filters, dbCity, dbCategory, toast, confirm }
         onProgress: (loaded, totalCount) => setExportProgress({ loaded, total: totalCount }),
       })
       exportRawDataXlsx({ rows: allRows, dbCity, dbCategory })
-      toast.ok(`${allRows.length.toLocaleString()} filas exportadas.`)
+      toast.ok(t('rawdata.export_success', { n: allRows.length.toLocaleString() }))
     } catch (e) {
-      toast.err('Error al exportar: ' + e.message)
+      toast.err(t('rawdata.export_error', { msg: e.message }))
     } finally {
       setExporting(false)
       setExportProgress(null)

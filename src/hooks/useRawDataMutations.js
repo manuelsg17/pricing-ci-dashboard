@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { sb } from '../lib/supabase'
+import { useI18n } from '../context/LanguageContext'
 
 // Extraído de RawData.jsx (Fase 1.2) — agrupa las mutaciones de fila
 // (borrar, editar celda inline, sincronizar precios InDrive del bot).
@@ -16,6 +17,7 @@ export function useRawDataMutations({
   confirm,
   exporting,
 }) {
+  const { t } = useI18n()
   const [editingId, setEditingId] = useState(null)
   const [editField, setEditField] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -31,19 +33,19 @@ export function useRawDataMutations({
     // exporting=true, esto es la defensa en profundidad.
     if (exporting) return
     const ok = await confirm({
-      title: 'Eliminar observación',
-      message: '¿Eliminar esta observación? Esta acción no se puede deshacer.',
+      title: t('rawdata.delete_confirm_title'),
+      message: t('rawdata.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     const { error: delErr } = await sb.from('pricing_observations').delete().eq('id', id)
     if (!delErr) {
       setRows((prev) => prev.filter((r) => r.id !== id))
       setTotal((prev) => prev - 1)
-      toast.ok('Observación eliminada.')
+      toast.ok(t('rawdata.deleted_toast'))
     } else {
-      toast.err('Error al eliminar: ' + delErr.message)
+      toast.err(t('rawdata.delete_error', { msg: delErr.message }))
     }
   }
 
@@ -71,9 +73,9 @@ export function useRawDataMutations({
         // La mutación directa no dispara re-render y produce
         // inconsistencias visuales.
         setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: finalVal } : r)))
-        toast.ok('Valor actualizado.')
+        toast.ok(t('rawdata.value_updated_toast'))
       } else {
-        toast.err('Error actualizando: ' + updErr.message)
+        toast.err(t('rawdata.update_error', { msg: updErr.message }))
       }
       setEditingId(null)
     }
@@ -89,10 +91,10 @@ export function useRawDataMutations({
       )
       if (error) throw error
       const count = typeof data === 'number' ? data : 0
-      setSyncMsg({ type: 'ok', text: `✓ ${count.toLocaleString()} filas InDrive actualizadas` })
+      setSyncMsg({ type: 'ok', text: t('rawdata.sync_success', { n: count.toLocaleString() }) })
       fetch(page)
     } catch (e) {
-      setSyncMsg({ type: 'err', text: 'Error: ' + e.message })
+      setSyncMsg({ type: 'err', text: t('rawdata.sync_error', { msg: e.message }) })
     } finally {
       setSyncing(false)
       setTimeout(() => setSyncMsg(null), 5000)

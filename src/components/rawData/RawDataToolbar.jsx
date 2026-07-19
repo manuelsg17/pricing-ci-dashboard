@@ -1,4 +1,5 @@
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 export default function RawDataToolbar({
   loading,
@@ -13,20 +14,24 @@ export default function RawDataToolbar({
   syncMsg,
   handleSyncInDrive,
 }) {
+  const { t } = useI18n()
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   return (
     <div className="raw-data__info">
       <div className="raw-data__count">
         {loading ? (
-          'Cargando…'
+          t('app.loading')
         ) : (
           <>
-            <strong>{total.toLocaleString()}</strong> filas encontradas
+            <strong>{total.toLocaleString()}</strong> {t('rawdata.rows_found_suffix')}
             {total > 0 && (
               <>
                 {' '}
-                · Mostrando {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)}
+                {t('rawdata.showing_range', {
+                  from: page * pageSize + 1,
+                  to: Math.min((page + 1) * pageSize, total),
+                })}
               </>
             )}
           </>
@@ -41,11 +46,15 @@ export default function RawDataToolbar({
           className="border-gray-300"
           onClick={handleExport}
           disabled={exporting || total === 0}
-          title="Descarga todas las filas que matcheen los filtros actuales en un archivo Excel (.xlsx)"
+          title={t('rawdata.export_button_title')}
         >
           {exporting
-            ? `Exportando… ${exportProgress ? `${exportProgress.loaded.toLocaleString()}/${exportProgress.total.toLocaleString()}` : ''}`
-            : '⬇ Exportar (.xlsx)'}
+            ? t('rawdata.exporting', {
+                progress: exportProgress
+                  ? `${exportProgress.loaded.toLocaleString()}/${exportProgress.total.toLocaleString()}`
+                  : '',
+              })
+            : t('rawdata.export_xlsx')}
         </Button>
         <Button
           type="button"
@@ -54,9 +63,9 @@ export default function RawDataToolbar({
           className="border-gray-300"
           onClick={handleSyncInDrive}
           disabled={syncing}
-          title="Recalcula price_without_discount para datos bot de InDrive usando los % configurados en Config > InDrive"
+          title={t('rawdata.sync_indrive_title')}
         >
-          {syncing ? 'Sincronizando…' : '⟳ Precios InDrive (bot)'}
+          {syncing ? t('rawdata.syncing') : t('rawdata.sync_indrive_btn')}
         </Button>
         {syncMsg && (
           <span
@@ -94,7 +103,7 @@ export default function RawDataToolbar({
             ‹
           </Button>
           <span className="raw-data__page-label">
-            Pág. {page + 1} / {totalPages}
+            {t('rawdata.page_label', { page: page + 1, total: totalPages })}
           </span>
           <Button
             type="button"
