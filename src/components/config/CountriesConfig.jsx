@@ -106,6 +106,10 @@ export default function CountriesConfig() {
   // Modo wizard vs avanzado. El wizard guía paso a paso; el modo
   // avanzado es el formulario flat de siempre (sin breaking change).
   const [showWizard, setShowWizard] = useState(false)
+  // Conteo de bot_rules (tabla SQL, la que usa mapBotRows para el matching
+  // real) por país — 0 significa que TODO lo que llegue del bot para ese
+  // país se descarta en silencio hasta que se configuren reglas.
+  const [botRuleCounts, setBotRuleCounts] = useState({})
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -114,9 +118,19 @@ export default function CountriesConfig() {
     setLoading(false)
   }, [])
 
+  const loadBotRuleCounts = useCallback(async () => {
+    const { data } = await sb.from('bot_rules').select('country')
+    const counts = {}
+    for (const row of data || []) {
+      counts[row.country] = (counts[row.country] || 0) + 1
+    }
+    setBotRuleCounts(counts)
+  }, [])
+
   useEffect(() => {
     loadRows()
-  }, [loadRows])
+    loadBotRuleCounts()
+  }, [loadRows, loadBotRuleCounts])
 
   // ── Derived helpers ───────────────────────────────────────────────
 
@@ -534,6 +548,7 @@ export default function CountriesConfig() {
   const activeCities = activeRow?.cities || []
   const activeCity = selectedCityIdx != null ? activeCities[selectedCityIdx] : null
   const readonly = selectedKey ? isReadOnly(selectedKey) : false
+  const activeRuleCount = selectedKey ? (botRuleCounts[selectedKey] ?? 0) : 0
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -792,6 +807,54 @@ export default function CountriesConfig() {
                     value={activeRow?.max_price ?? 1000}
                     onChange={(e) => setDraftField(selectedKey, 'max_price', e.target.value)}
                   />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={fieldLabelStyle}>
+                    Estado{' '}
+                    <span
+                      title="Draft: solo scaffolding, no aparece en el selector de país ni el bot lo sincroniza. Active: visible en el dashboard y el job de sync (bot-sync.yml) lo incluye."
+                      style={{ cursor: 'help', opacity: 0.6, textTransform: 'none' }}
+                    >
+                      ⓘ
+                    </span>
+                  </label>
+                  <select
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
+                    value={activeRow?.status || 'active'}
+                    onChange={(e) => setDraftField(selectedKey, 'status', e.target.value)}
+                  >
+                    <option value="draft">Borrador (draft)</option>
+                    <option value="active">Activo</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={fieldLabelStyle}>
+                    Reglas de bot{' '}
+                    <span
+                      title="Filas en la tabla SQL bot_rules para este país — sin al menos una, mapBotRows descarta TODO lo que mande el bot para este país. Se configuran en Config → Reglas del Bot."
+                      style={{ cursor: 'help', opacity: 0.6, textTransform: 'none' }}
+                    >
+                      ⓘ
+                    </span>
+                  </label>
+                  <div
+                    style={{
+                      ...inputStyle(true),
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontWeight: 600,
+                      color:
+                        activeRuleCount === 0 ? 'var(--color-warning-fg)' : 'var(--color-text)',
+                    }}
+                  >
+                    {activeRuleCount === 0
+                      ? '⚠️ 0 configuradas'
+                      : `${activeRuleCount} configurada${activeRuleCount === 1 ? '' : 's'}`}
+                  </div>
                 </div>
               </div>
 
