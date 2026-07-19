@@ -84,18 +84,6 @@ const labelStyle = {
 const hintStyle = { fontSize: 11, color: 'var(--color-muted)', fontStyle: 'italic', marginTop: 4 }
 // '' → null; un 0 explícito se conserva (igual criterio que el hook).
 const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
-function pill(active, color = 'var(--color-yango, #E53935)') {
-  return {
-    padding: '4px 11px',
-    borderRadius: 999,
-    fontSize: 12,
-    cursor: 'pointer',
-    border: '1px solid ' + (active ? color : 'var(--color-border, #e2e8f0)'),
-    background: active ? color : '#fff',
-    color: active ? '#fff' : 'var(--color-muted)',
-    fontWeight: active ? 600 : 400,
-  }
-}
 
 function Field({ label, children }) {
   return (
@@ -325,8 +313,10 @@ export default function BonusesConfig({ country }) {
                   {m.description ? ` — ${m.description}` : ''}
                 </div>
               </div>
-              <button
-                style={{ ...pill(false), marginLeft: 'auto', flexShrink: 0 }}
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto shrink-0 rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
                   setOpenCards((p) => ({ ...p, [row.id]: !open }))
@@ -335,7 +325,7 @@ export default function BonusesConfig({ country }) {
                 {open
                   ? `▾ ${t('config.bonuses_config.close_btn')}`
                   : `✎ ${t('config.bonuses_config.edit_btn')}`}
-              </button>
+              </Button>
             </div>
 
             {open && (
@@ -397,31 +387,37 @@ export default function BonusesConfig({ country }) {
                     <span style={labelStyle}>{t('config.bonuses_config.segment_label')}</span>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {SEGMENTS.map((s) => (
-                        <button
+                        <Button
                           key={s.value}
+                          variant={(m.segment || 'all') === s.value ? 'default' : 'outline'}
+                          size="sm"
+                          className="rounded-full"
                           onClick={() => setField(row.id, 'segment', s.value)}
-                          style={pill((m.segment || 'all') === s.value)}
                         >
                           {t(s.labelKey)}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
                   <div>
                     <span style={labelStyle}>{t('config.bonuses_config.applies_label')}</span>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button
+                      <Button
+                        variant={m.recurring !== false ? 'default' : 'outline'}
+                        size="sm"
+                        className="rounded-full"
                         onClick={() => setField(row.id, 'recurring', true)}
-                        style={pill(m.recurring !== false)}
                       >
                         {t('config.bonuses_config.recurring_btn')}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant={m.recurring === false ? 'default' : 'outline'}
+                        size="sm"
+                        className="rounded-full"
                         onClick={() => setField(row.id, 'recurring', false)}
-                        style={pill(m.recurring === false)}
                       >
                         {t('config.bonuses_config.once_btn')}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -431,13 +427,15 @@ export default function BonusesConfig({ country }) {
                   <span style={labelStyle}>{t('config.bonuses_config.mechanism_label')}</span>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {MECHANISMS.map((x) => (
-                      <button
+                      <Button
                         key={x.value}
+                        variant={mech === x.value ? 'default' : 'outline'}
+                        size="sm"
+                        className="rounded-full"
                         onClick={() => setMechanism(row.id, tiers, x.value)}
-                        style={pill(mech === x.value)}
                       >
                         {t(x.labelKey)}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                   <div style={hintStyle}>
@@ -842,19 +840,14 @@ export default function BonusesConfig({ country }) {
                 </div>
 
                 {/* Avanzado: alternativas + ventana + zona + activo/orden */}
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 h-auto justify-start px-0 font-normal text-muted hover:bg-transparent hover:text-yango"
                   onClick={() => setAdvOpen((p) => ({ ...p, [row.id]: !p[row.id] }))}
-                  style={{
-                    ...pill(false),
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--color-muted)',
-                    paddingLeft: 0,
-                    marginTop: 8,
-                  }}
                 >
                   {adv ? '▾' : '▸'} {t('config.bonuses_config.advanced_toggle')}
-                </button>
+                </Button>
                 {adv && (
                   <div style={{ ...rowStyle, marginTop: 6 }}>
                     <Field label={t('config.bonuses_config.alt_group_label')}>

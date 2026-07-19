@@ -509,25 +509,26 @@ export default function CountryWizard({ onClose, onCreated }) {
       {/* Stepper */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
         {STEPS.map((s, i) => (
-          <button
+          <Button
             key={s.id}
+            type="button"
+            variant="outline"
+            size="sm"
+            className={
+              'h-auto rounded-full px-2.5 py-1.5 text-[11px] font-normal ' +
+              (i === step
+                ? 'border-[1.5px] border-blue-600 bg-blue-100 font-semibold text-blue-900 hover:bg-blue-100'
+                : i < step
+                  ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-50'
+                  : 'cursor-default text-slate-400 hover:bg-transparent')
+            }
             onClick={() => i < step && setStep(i)}
             disabled={i > step}
-            style={{
-              padding: '6px 10px',
-              borderRadius: 14,
-              fontSize: 11,
-              border: i === step ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
-              background: i === step ? '#dbeafe' : i < step ? '#f0fdf4' : '#fff',
-              color: i === step ? '#1e3a8a' : i < step ? '#15803d' : '#94a3b8',
-              fontWeight: i === step ? 600 : 400,
-              cursor: i < step ? 'pointer' : 'default',
-            }}
           >
             {i < step && '✓ '}
             {t(s.labelKey)}
             {!s.required && i >= step && ` *${t('config.country_wizard.optional_suffix')}*`}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -719,9 +720,15 @@ export default function CountryWizard({ onClose, onCreated }) {
                     {c.categories.map((cat, cti) => (
                       <span key={cti} style={categoryTag}>
                         {cat.name}
-                        <button onClick={() => removeCategoryFromCity(ci, cti)} style={tagRemove}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-[14px] w-[14px] rounded-full p-0 text-[10px] text-[#1e3a8a] hover:bg-blue-200"
+                          onClick={() => removeCategoryFromCity(ci, cti)}
+                        >
                           ✕
-                        </button>
+                        </Button>
                       </span>
                     ))}
                   </div>
@@ -774,24 +781,29 @@ export default function CountryWizard({ onClose, onCreated }) {
                     >
                       <div style={{ fontSize: 11, color: '#475569' }}>{cat.name}</div>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                        {CATALOG_COMPETITORS.map((comp) => (
-                          <button
-                            key={comp.value}
-                            onClick={() => toggleCompetitor(ci, cti, comp.value)}
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                              fontSize: 10,
-                              border: '1px solid',
-                              cursor: 'pointer',
-                              ...(cat.competitors.includes(comp.value)
-                                ? { background: comp.color, color: '#fff', borderColor: comp.color }
-                                : { background: '#fff', color: '#475569', borderColor: '#cbd5e1' }),
-                            }}
-                          >
-                            {comp.value}
-                          </button>
-                        ))}
+                        {CATALOG_COMPETITORS.map((comp) => {
+                          const active = cat.competitors.includes(comp.value)
+                          return (
+                            <Button
+                              key={comp.value}
+                              type="button"
+                              variant="outline"
+                              className="h-auto rounded-full border px-2 py-0.5 text-[10px] font-normal"
+                              style={
+                                active
+                                  ? {
+                                      background: comp.color,
+                                      color: '#fff',
+                                      borderColor: comp.color,
+                                    }
+                                  : { color: '#475569', borderColor: '#cbd5e1' }
+                              }
+                              onClick={() => toggleCompetitor(ci, cti, comp.value)}
+                            >
+                              {comp.value}
+                            </Button>
+                          )
+                        })}
                       </div>
                     </div>
                   ))}
@@ -1170,11 +1182,4 @@ const categoryTag = {
   background: '#dbeafe',
   color: '#1e3a8a',
   border: '1px solid #93c5fd',
-}
-const tagRemove = {
-  background: 'transparent',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: 10,
-  color: '#1e3a8a',
 }

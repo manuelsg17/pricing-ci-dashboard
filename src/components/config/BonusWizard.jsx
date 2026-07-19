@@ -117,15 +117,6 @@ const inputStyle = {
   border: '1px solid var(--color-border, #e2e8f0)',
   borderRadius: 6,
 }
-const btnGhost = {
-  padding: '8px 14px',
-  borderRadius: 8,
-  cursor: 'pointer',
-  fontSize: 13,
-  border: '1px solid var(--color-border, #e2e8f0)',
-  background: '#fff',
-  color: 'var(--color-muted)',
-}
 const mechCardStyle = (active) => ({
   border: active
     ? '2px solid var(--color-yango, #E53935)'
@@ -306,29 +297,31 @@ export default function BonusWizard({
             <div style={qStyle}>{t('config.bonus_wizard.q0_title')}</div>
             <div style={subStyle}>{t('config.bonus_wizard.q0_sub')}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-              {ALL_COMPETITORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => set('competitor_name', c)}
-                  style={{
-                    ...mechCardStyle(draft.competitor_name === c),
-                    padding: '6px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: COMPETITOR_COLORS[c] || '#64748b',
-                    }}
-                  />
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span>
-                </button>
-              ))}
+              {ALL_COMPETITORS.map((c) => {
+                const active = draft.competitor_name === c
+                return (
+                  <Button
+                    key={c}
+                    type="button"
+                    variant="outline"
+                    className={
+                      'h-auto gap-1.5 rounded-[10px] px-3.5 py-1.5' +
+                      (active ? ' border-2 border-yango bg-red-50' : '')
+                    }
+                    onClick={() => set('competitor_name', c)}
+                  >
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: COMPETITOR_COLORS[c] || '#64748b',
+                      }}
+                    />
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span>
+                  </Button>
+                )
+              })}
             </div>
             <div style={{ display: 'flex', gap: 14 }}>
               <label>
@@ -455,8 +448,11 @@ export default function BonusWizard({
                         />
                       </>
                     )}
-                    <button
-                      style={btnGhost}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-auto rounded-lg px-2 py-1 text-muted"
                       onClick={() =>
                         set(
                           'tiers',
@@ -465,7 +461,7 @@ export default function BonusWizard({
                       }
                     >
                       ✕
-                    </button>
+                    </Button>
                   </div>
                 ))}
                 <Button
