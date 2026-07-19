@@ -10,67 +10,85 @@
 import { useMemo, useState } from 'react'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { rowWeeklyCash, describeBonus } from '../../lib/competitorBonus'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 
-// {C} se reemplaza por la moneda del país al renderizar.
+// labelKey/descKey/exampleKey se resuelven con t() en el componente —
+// exampleKey usa {currency} para interpolar la moneda del país.
 const MECH_CARDS = [
   {
     value: 'tiered',
-    label: 'Escalera de montos',
-    desc: 'Cuantos más viajes, más grande el premio fijo. Paga solo el peldaño más alto que alcances.',
-    example: 'Ej. Uber: 20 viajes → {C}50 · 40 viajes → {C}120',
+    labelKey: 'config.bonus_wizard.mech_tiered_label',
+    descKey: 'config.bonus_wizard.mech_tiered_desc',
+    exampleKey: 'config.bonus_wizard.mech_tiered_example',
   },
   {
     value: 'gmv_tiered',
-    label: '% del GMV con metas',
-    desc: 'Elegís una meta de N viajes y te devuelven un % de lo facturado (antes de comisión) en esos primeros N viajes. Cada meta tiene su tope.',
-    example: 'Ej. Yango: meta 20 viajes → 5% del GMV, tope {C}40',
+    labelKey: 'config.bonus_wizard.mech_gmv_tiered_label',
+    descKey: 'config.bonus_wizard.mech_gmv_tiered_desc',
+    exampleKey: 'config.bonus_wizard.mech_gmv_tiered_example',
   },
   {
     value: 'flat',
-    label: 'Monto fijo',
-    desc: 'Llegás al umbral de viajes u horas y te dan un monto fijo.',
-    example: 'Ej. 30 viajes en la semana → {C}80',
+    labelKey: 'config.bonus_wizard.mech_flat_label',
+    descKey: 'config.bonus_wizard.mech_flat_desc',
+    exampleKey: 'config.bonus_wizard.mech_flat_example',
   },
   {
     value: 'guarantee',
-    label: 'Garantía (piso)',
-    desc: 'Si hacés N viajes, te aseguran un mínimo: completan la diferencia entre lo que ganaste y el piso.',
-    example: 'Ej. 40 viajes → te aseguran {C}500',
+    labelKey: 'config.bonus_wizard.mech_guarantee_label',
+    descKey: 'config.bonus_wizard.mech_guarantee_desc',
+    exampleKey: 'config.bonus_wizard.mech_guarantee_example',
   },
   {
     value: 'comm_discount',
-    label: 'Descuento de comisión',
-    desc: 'En ciertas horas la comisión baja. No es plata directa: pagás menos comisión.',
-    example: 'Ej. InDrive: 1% de comisión en hora pico',
+    labelKey: 'config.bonus_wizard.mech_comm_discount_label',
+    descKey: 'config.bonus_wizard.mech_comm_discount_desc',
+    exampleKey: 'config.bonus_wizard.mech_comm_discount_example',
   },
   {
     value: 'comm_credit',
-    label: 'Monedas / crédito',
-    desc: 'Crédito semanal para pagar comisión — equivale a cash.',
-    example: 'Ej. {C}30 en monedas por semana',
+    labelKey: 'config.bonus_wizard.mech_comm_credit_label',
+    descKey: 'config.bonus_wizard.mech_comm_credit_desc',
+    exampleKey: 'config.bonus_wizard.mech_comm_credit_example',
   },
   {
     value: 'streak',
-    label: 'Racha de días',
-    desc: 'Premio por trabajar días consecutivos en ventanas horarias.',
-    example: 'Ej. Didi: {C}16, {C}18, {C}20 por día 1, 2, 3…',
+    labelKey: 'config.bonus_wizard.mech_streak_label',
+    descKey: 'config.bonus_wizard.mech_streak_desc',
+    exampleKey: 'config.bonus_wizard.mech_streak_example',
   },
   {
     value: 'surge',
-    label: 'Surge / multiplicador',
-    desc: '% extra sobre la tarifa en una ventana horaria, con tope.',
-    example: 'Ej. Didi TAD: +30% sobre el fare, tope {C}88',
+    labelKey: 'config.bonus_wizard.mech_surge_label',
+    descKey: 'config.bonus_wizard.mech_surge_desc',
+    exampleKey: 'config.bonus_wizard.mech_surge_example',
   },
 ]
 
 const SEGMENTS = [
-  { value: 'active', label: 'Drivers activos', hint: 'el caso típico para comparar' },
-  { value: 'new', label: 'Solo nuevos', hint: 'bono de captación' },
-  { value: 'reactivated', label: 'Solo reactivados', hint: 'bono de retorno' },
-  { value: 'all', label: 'Todos', hint: 'sin restricción de segmento' },
+  {
+    value: 'active',
+    labelKey: 'config.bonus_wizard.seg_active_label',
+    hintKey: 'config.bonus_wizard.seg_active_hint',
+  },
+  {
+    value: 'new',
+    labelKey: 'config.bonus_wizard.seg_new_label',
+    hintKey: 'config.bonus_wizard.seg_new_hint',
+  },
+  {
+    value: 'reactivated',
+    labelKey: 'config.bonus_wizard.seg_reactivated_label',
+    hintKey: 'config.bonus_wizard.seg_reactivated_hint',
+  },
+  {
+    value: 'all',
+    labelKey: 'config.bonus_wizard.seg_all_label',
+    hintKey: 'config.bonus_wizard.seg_all_hint',
+  },
 ]
 
 // ── estilos ──
@@ -142,6 +160,7 @@ export default function BonusWizard({
   onClose,
   saving,
 }) {
+  const { t } = useI18n()
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState({
     competitor_name: '',
@@ -186,10 +205,10 @@ export default function BonusWizard({
   function pickMechanism(value) {
     setDraft((d) => {
       let tiers = d.tiers
-      if (value === 'gmv_tiered' && tiers.some((t) => !('pct' in t))) {
-        tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', pct: '', cap: '' }))
-      } else if (value === 'tiered' && tiers.some((t) => !('reward' in t))) {
-        tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', reward: '' }))
+      if (value === 'gmv_tiered' && tiers.some((tier) => !('pct' in tier))) {
+        tiers = tiers.map((tier) => ({ threshold: tier.threshold ?? '', pct: '', cap: '' }))
+      } else if (value === 'tiered' && tiers.some((tier) => !('reward' in tier))) {
+        tiers = tiers.map((tier) => ({ threshold: tier.threshold ?? '', reward: '' }))
       }
       return { ...d, mechanism: value, tiers }
     })
@@ -200,9 +219,9 @@ export default function BonusWizard({
   const numbersOk = (() => {
     switch (mech) {
       case 'tiered':
-        return draft.tiers.some((t) => Number(t.threshold) > 0 && Number(t.reward) > 0)
+        return draft.tiers.some((tier) => Number(tier.threshold) > 0 && Number(tier.reward) > 0)
       case 'gmv_tiered':
-        return draft.tiers.some((t) => Number(t.threshold) > 0 && Number(t.pct) > 0)
+        return draft.tiers.some((tier) => Number(tier.threshold) > 0 && Number(tier.pct) > 0)
       case 'flat':
       case 'guarantee':
         return Number(draft.threshold) > 0 && Number(draft.bonus_amount) > 0
@@ -223,7 +242,7 @@ export default function BonusWizard({
     if (!mech) return null
     const row = {
       ...draft,
-      tiers: (draft.tiers || []).filter((t) => t.threshold !== '' && t.threshold != null),
+      tiers: (draft.tiers || []).filter((tier) => tier.threshold !== '' && tier.threshold != null),
     }
     // Misma comisión que usa Rentabilidad (lookup por competidor, fallback
     // 20) para que el preview coincida con lo que se verá después.
@@ -244,7 +263,13 @@ export default function BonusWizard({
     true, // paso 3 (condiciones)
   ][step]
 
-  const steps = ['¿De quién es?', '¿Cómo funciona?', 'Los números', 'Condiciones', 'Confirmar']
+  const steps = [
+    t('config.bonus_wizard.step_who'),
+    t('config.bonus_wizard.step_how'),
+    t('config.bonus_wizard.step_numbers'),
+    t('config.bonus_wizard.step_conditions'),
+    t('config.bonus_wizard.step_confirm'),
+  ]
 
   return (
     <div style={overlayStyle} onClick={onClose}>
@@ -278,11 +303,8 @@ export default function BonusWizard({
         {/* Paso 0: competidor + alcance */}
         {step === 0 && (
           <div>
-            <div style={qStyle}>¿Qué competidor ofrece este bono?</div>
-            <div style={subStyle}>
-              Y dónde aplica. Si la escalera cambia por ciudad (ej. Lima vs Trujillo), creá un bono
-              por ciudad.
-            </div>
+            <div style={qStyle}>{t('config.bonus_wizard.q0_title')}</div>
+            <div style={subStyle}>{t('config.bonus_wizard.q0_sub')}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
               {ALL_COMPETITORS.map((c) => (
                 <button
@@ -310,13 +332,13 @@ export default function BonusWizard({
             </div>
             <div style={{ display: 'flex', gap: 14 }}>
               <label>
-                <Lbl>Ciudad</Lbl>
+                <Lbl>{t('filter.city')}</Lbl>
                 <select
                   style={inputStyle}
                   value={draft.city || ''}
                   onChange={(e) => set('city', e.target.value || null)}
                 >
-                  <option value="">Todas</option>
+                  <option value="">{t('access.all')}</option>
                   {config.dbCities.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -325,13 +347,13 @@ export default function BonusWizard({
                 </select>
               </label>
               <label>
-                <Lbl>Categoría</Lbl>
+                <Lbl>{t('filter.category')}</Lbl>
                 <select
                   style={inputStyle}
                   value={draft.category || ''}
                   onChange={(e) => set('category', e.target.value || null)}
                 >
-                  <option value="">Todas</option>
+                  <option value="">{t('access.all')}</option>
                   {[...new Set(Object.values(config.categoriesByCity || {}).flat())].map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -346,8 +368,8 @@ export default function BonusWizard({
         {/* Paso 1: mecanismo */}
         {step === 1 && (
           <div>
-            <div style={qStyle}>¿Cómo funciona el bono?</div>
-            <div style={subStyle}>Elegí el que mejor describe lo que el driver recibe.</div>
+            <div style={qStyle}>{t('config.bonus_wizard.q1_title')}</div>
+            <div style={subStyle}>{t('config.bonus_wizard.q1_sub')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {MECH_CARDS.map((m) => (
                 <div
@@ -355,12 +377,12 @@ export default function BonusWizard({
                   style={mechCardStyle(mech === m.value)}
                   onClick={() => pickMechanism(m.value)}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{m.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{t(m.labelKey)}</div>
                   <div style={{ fontSize: 11, color: 'var(--color-muted)', margin: '3px 0' }}>
-                    {m.desc}
+                    {t(m.descKey)}
                   </div>
                   <div style={{ fontSize: 11, color: '#0369a1' }}>
-                    {m.example.replaceAll('{C}', currency)}
+                    {t(m.exampleKey, { currency })}
                   </div>
                 </div>
               ))}
@@ -371,60 +393,64 @@ export default function BonusWizard({
         {/* Paso 2: números según mecanismo */}
         {step === 2 && (
           <div>
-            <div style={qStyle}>Los números del bono</div>
+            <div style={qStyle}>{t('config.bonus_wizard.q2_title')}</div>
 
             {(mech === 'tiered' || isGmv) && (
               <div>
                 <div style={subStyle}>
                   {isGmv
-                    ? `Cada meta: con N viajes te devuelven un % del GMV (lo facturado antes de comisión) de esos primeros N viajes, hasta el tope.`
-                    : 'Cada peldaño: a partir de N viajes, premio fijo acumulado. Paga solo el más alto alcanzado.'}
+                    ? t('config.bonus_wizard.tiers_gmv_sub')
+                    : t('config.bonus_wizard.tiers_flat_sub')}
                 </div>
-                {draft.tiers.map((t, i) => (
+                {draft.tiers.map((tier, i) => (
                   <div
                     key={i}
                     style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}
                   >
-                    <span style={{ fontSize: 12 }}>Meta</span>
+                    <span style={{ fontSize: 12 }}>{t('config.bonus_wizard.goal_label')}</span>
                     <input
                       type="number"
                       min="0"
                       style={{ ...inputStyle, width: 75 }}
-                      placeholder="viajes"
-                      value={t.threshold}
+                      placeholder={t('config.bonus_wizard.ph_trips')}
+                      value={tier.threshold}
                       onChange={(e) => updateTier(i, 'threshold', e.target.value)}
                     />
                     {isGmv ? (
                       <>
-                        <span style={{ fontSize: 12 }}>viajes →</span>
+                        <span style={{ fontSize: 12 }}>{t('config.bonus_wizard.trips_arrow')}</span>
                         <input
                           type="number"
                           min="0"
                           step="0.1"
                           style={{ ...inputStyle, width: 70 }}
-                          placeholder="%"
-                          value={t.pct}
+                          placeholder={t('config.bonus_wizard.ph_pct')}
+                          value={tier.pct}
                           onChange={(e) => updateTier(i, 'pct', e.target.value)}
                         />
-                        <span style={{ fontSize: 12 }}>% del GMV, tope {currency}</span>
+                        <span style={{ fontSize: 12 }}>
+                          {t('config.bonus_wizard.gmv_pct_cap', { currency })}
+                        </span>
                         <input
                           type="number"
                           min="0"
                           style={{ ...inputStyle, width: 80 }}
-                          placeholder="tope"
-                          value={t.cap}
+                          placeholder={t('config.bonus_wizard.ph_cap')}
+                          value={tier.cap}
                           onChange={(e) => updateTier(i, 'cap', e.target.value)}
                         />
                       </>
                     ) : (
                       <>
-                        <span style={{ fontSize: 12 }}>viajes → {currency}</span>
+                        <span style={{ fontSize: 12 }}>
+                          {t('config.bonus_wizard.trips_arrow_currency', { currency })}
+                        </span>
                         <input
                           type="number"
                           min="0"
                           style={{ ...inputStyle, width: 90 }}
-                          placeholder="premio"
-                          value={t.reward}
+                          placeholder={t('config.bonus_wizard.ph_reward')}
+                          value={tier.reward}
                           onChange={(e) => updateTier(i, 'reward', e.target.value)}
                         />
                       </>
@@ -449,11 +475,11 @@ export default function BonusWizard({
                   className="border-dashed text-muted"
                   onClick={() => set('tiers', [...draft.tiers, blankTier])}
                 >
-                  + agregar meta
+                  + {t('config.bonus_wizard.add_goal')}
                 </Button>
                 {!isGmv && (
                   <div style={{ marginTop: 10 }}>
-                    <Lbl>Tope global opcional ({currency})</Lbl>
+                    <Lbl>{t('config.bonus_wizard.global_cap_label', { currency })}</Lbl>
                     <input
                       type="number"
                       min="0"
@@ -469,18 +495,18 @@ export default function BonusWizard({
             {mech === 'flat' && (
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end' }}>
                 <label>
-                  <Lbl>Umbral de</Lbl>
+                  <Lbl>{t('config.bonus_wizard.threshold_of_label')}</Lbl>
                   <select
                     style={inputStyle}
                     value={draft.bonus_type}
                     onChange={(e) => set('bonus_type', e.target.value)}
                   >
-                    <option value="viajes">Viajes</option>
-                    <option value="horas">Horas</option>
+                    <option value="viajes">{t('config.bonus_wizard.opt_trips')}</option>
+                    <option value="horas">{t('config.bonus_wizard.opt_hours')}</option>
                   </select>
                 </label>
                 <label>
-                  <Lbl>Cantidad</Lbl>
+                  <Lbl>{t('config.bonus_wizard.quantity_label')}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -490,7 +516,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label>
-                  <Lbl>Premio ({currency})</Lbl>
+                  <Lbl>{t('config.bonus_wizard.reward_currency_label', { currency })}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -505,7 +531,7 @@ export default function BonusWizard({
             {mech === 'guarantee' && (
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end' }}>
                 <label>
-                  <Lbl>Si hace N viajes</Lbl>
+                  <Lbl>{t('config.bonus_wizard.if_n_trips_label')}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -515,7 +541,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label>
-                  <Lbl>Le aseguran ({currency})</Lbl>
+                  <Lbl>{t('config.bonus_wizard.guaranteed_label', { currency })}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -530,7 +556,7 @@ export default function BonusWizard({
             {mech === 'comm_discount' && (
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end' }}>
                 <label>
-                  <Lbl>Comisión en la ventana (%)</Lbl>
+                  <Lbl>{t('config.bonus_wizard.comm_window_label')}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -542,7 +568,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label>
-                  <Lbl>% de viajes en la ventana (0–1)</Lbl>
+                  <Lbl>{t('config.bonus_wizard.share_window_label')}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -559,7 +585,7 @@ export default function BonusWizard({
 
             {mech === 'comm_credit' && (
               <label>
-                <Lbl>Crédito por semana ({currency})</Lbl>
+                <Lbl>{t('config.bonus_wizard.credit_week_label', { currency })}</Lbl>
                 <input
                   type="number"
                   min="0"
@@ -573,7 +599,7 @@ export default function BonusWizard({
             {mech === 'surge' && (
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <label>
-                  <Lbl>% extra sobre la tarifa</Lbl>
+                  <Lbl>{t('config.bonus_wizard.extra_pct_label')}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -583,7 +609,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label>
-                  <Lbl>Tope ({currency})</Lbl>
+                  <Lbl>{t('config.bonus_wizard.cap_currency_label', { currency })}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -593,7 +619,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label>
-                  <Lbl>% de viajes en la ventana (0–1)</Lbl>
+                  <Lbl>{t('config.bonus_wizard.share_window_label')}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -611,7 +637,7 @@ export default function BonusWizard({
             {mech === 'streak' && (
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <label>
-                  <Lbl>Ventanas por día</Lbl>
+                  <Lbl>{t('config.bonus_wizard.windows_per_day_label')}</Lbl>
                   <input
                     type="number"
                     min="1"
@@ -626,7 +652,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label>
-                  <Lbl>Premios por día (separados por coma)</Lbl>
+                  <Lbl>{t('config.bonus_wizard.rewards_per_day_label')}</Lbl>
                   <input
                     type="text"
                     style={{ ...inputStyle, width: 170 }}
@@ -648,7 +674,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label>
-                  <Lbl>Tope total/semana</Lbl>
+                  <Lbl>{t('config.bonus_wizard.total_cap_week_label')}</Lbl>
                   <input
                     type="number"
                     min="0"
@@ -670,11 +696,9 @@ export default function BonusWizard({
         {/* Paso 3: condiciones */}
         {step === 3 && (
           <div>
-            <div style={qStyle}>¿Quién puede ganarlo y cada cuánto?</div>
-            <div style={subStyle}>
-              Esto define en qué comparaciones de Rentabilidad entra el bono.
-            </div>
-            <Lbl>Segmento de drivers</Lbl>
+            <div style={qStyle}>{t('config.bonus_wizard.q3_title')}</div>
+            <div style={subStyle}>{t('config.bonus_wizard.q3_sub')}</div>
+            <Lbl>{t('config.bonus_wizard.segment_label')}</Lbl>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
               {SEGMENTS.map((s) => (
                 <div
@@ -682,38 +706,42 @@ export default function BonusWizard({
                   style={{ ...mechCardStyle(draft.segment === s.value), padding: '8px 12px' }}
                   onClick={() => set('segment', s.value)}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>{s.label}</div>
-                  <div style={{ fontSize: 10, color: 'var(--color-muted)' }}>{s.hint}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{t(s.labelKey)}</div>
+                  <div style={{ fontSize: 10, color: 'var(--color-muted)' }}>{t(s.hintKey)}</div>
                 </div>
               ))}
             </div>
-            <Lbl>Frecuencia</Lbl>
+            <Lbl>{t('config.bonus_wizard.frequency_label')}</Lbl>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               <div
                 style={{ ...mechCardStyle(draft.recurring === true), padding: '8px 12px' }}
                 onClick={() => set('recurring', true)}
               >
-                <div style={{ fontSize: 12, fontWeight: 700 }}>Todas las semanas</div>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>
+                  {t('config.bonus_wizard.recurring_label')}
+                </div>
                 <div style={{ fontSize: 10, color: 'var(--color-muted)' }}>
-                  cuenta en la ganancia semanal
+                  {t('config.bonus_wizard.recurring_hint')}
                 </div>
               </div>
               <div
                 style={{ ...mechCardStyle(draft.recurring === false), padding: '8px 12px' }}
                 onClick={() => set('recurring', false)}
               >
-                <div style={{ fontSize: 12, fontWeight: 700 }}>Una sola vez (gancho)</div>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>
+                  {t('config.bonus_wizard.onetime_label')}
+                </div>
                 <div style={{ fontSize: 10, color: 'var(--color-muted)' }}>
-                  bono de entrada, no recurrente
+                  {t('config.bonus_wizard.onetime_hint')}
                 </div>
               </div>
             </div>
             <label style={{ display: 'block' }}>
-              <Lbl>Nota para vos (opcional)</Lbl>
+              <Lbl>{t('config.bonus_wizard.note_label')}</Lbl>
               <input
                 type="text"
                 style={{ ...inputStyle, width: '100%' }}
-                placeholder="Ej: quest fin de semana junio"
+                placeholder={t('config.bonus_wizard.note_placeholder')}
                 value={draft.description}
                 onChange={(e) => set('description', e.target.value)}
               />
@@ -724,7 +752,7 @@ export default function BonusWizard({
         {/* Paso 4: confirmar con ejemplo en vivo */}
         {step === 4 && (
           <div>
-            <div style={qStyle}>Revisá que esté bien</div>
+            <div style={qStyle}>{t('config.bonus_wizard.review_title')}</div>
             <div
               style={{
                 border: '1px solid var(--color-border, #e2e8f0)',
@@ -736,13 +764,15 @@ export default function BonusWizard({
               }}
             >
               <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                {draft.competitor_name} · {draft.city || 'Todas las ciudades'} ·{' '}
-                {draft.category || 'todas las categorías'}
+                {draft.competitor_name} · {draft.city || t('config.commissions.all_cities')} ·{' '}
+                {draft.category || t('config.bonus_wizard.all_categories')}
               </div>
               <div>{describeBonus(draft, currency)}</div>
               <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 4 }}>
-                {SEGMENTS.find((s) => s.value === draft.segment)?.label} ·{' '}
-                {draft.recurring ? 'todas las semanas' : 'una sola vez'}
+                {t(SEGMENTS.find((s) => s.value === draft.segment)?.labelKey)} ·{' '}
+                {draft.recurring
+                  ? t('config.bonus_wizard.weekly_label')
+                  : t('config.bonus_wizard.onetime_summary')}
                 {draft.description ? ` · ${draft.description}` : ''}
               </div>
             </div>
@@ -755,11 +785,11 @@ export default function BonusWizard({
               }}
             >
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-                🧮 Probalo: ¿cuánto ganaría un driver con este bono?
+                🧮 {t('config.bonus_wizard.calc_title')}
               </div>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <label style={{ fontSize: 12 }}>
-                  Viajes en la semana{' '}
+                  {t('config.bonus_wizard.trips_week_label')}{' '}
                   <input
                     type="number"
                     min="0"
@@ -769,7 +799,7 @@ export default function BonusWizard({
                   />
                 </label>
                 <label style={{ fontSize: 12 }}>
-                  Tarifa promedio ({currency}){' '}
+                  {t('config.bonus_wizard.avg_fare_label', { currency })}{' '}
                   <input
                     type="number"
                     min="0"
@@ -786,24 +816,28 @@ export default function BonusWizard({
                     color: exampleValue > 0 ? '#15803d' : 'var(--color-muted)',
                   }}
                 >
-                  → bono: {currency} {Number(exampleValue || 0).toFixed(2)}
+                  {t('config.bonus_wizard.bonus_result', {
+                    currency,
+                    value: Number(exampleValue || 0).toFixed(2),
+                  })}
                 </div>
               </div>
               {mech === 'comm_discount' && (
                 <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6 }}>
-                  Este mecanismo no paga cash: baja la comisión efectiva en Rentabilidad.
+                  {t('config.bonus_wizard.comm_discount_note')}
                 </div>
               )}
               {mech === 'guarantee' && (
                 <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6 }}>
-                  Calculado con comisión {commissions?.[draft.competitor_name] ?? 20}% de{' '}
-                  {draft.competitor_name} (la misma que usa Rentabilidad).
+                  {t('config.bonus_wizard.guarantee_note', {
+                    pct: commissions?.[draft.competitor_name] ?? 20,
+                    competitor: draft.competitor_name,
+                  })}
                 </div>
               )}
               {mech === 'surge' && draft.share_in_window === '' && (
                 <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 6 }}>
-                  Asumiendo 25% de los viajes dentro de la ventana (ajustable en el Arquetipo de
-                  driver de Rentabilidad).
+                  {t('config.bonus_wizard.surge_note')}
                 </div>
               )}
             </div>
@@ -813,12 +847,12 @@ export default function BonusWizard({
         {/* Navegación */}
         {step === 2 && !numbersOk && (
           <div style={{ fontSize: 11, color: '#b45309', marginTop: 10 }}>
-            Completá los números del bono (meta y monto/%) para continuar.
+            {t('config.bonus_wizard.numbers_incomplete')}
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
           <Button type="button" variant="outline" className="text-muted" onClick={onClose}>
-            Cancelar
+            {t('app.cancel')}
           </Button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             {step > 0 && (
@@ -828,7 +862,7 @@ export default function BonusWizard({
                 className="text-muted"
                 onClick={() => setStep(step - 1)}
               >
-                ← Atrás
+                ← {t('config.bonus_wizard.back_btn')}
               </Button>
             )}
             {step < 4 ? (
@@ -851,11 +885,11 @@ export default function BonusWizard({
                   setStep(step + 1)
                 }}
               >
-                Siguiente →
+                {t('config.bonus_wizard.next_btn')} →
               </Button>
             ) : (
               <Button type="button" disabled={saving || !numbersOk} onClick={() => onSave(draft)}>
-                {saving ? 'Guardando…' : '✓ Crear bono'}
+                {saving ? t('account.saving') : `✓ ${t('config.bonus_wizard.create_btn')}`}
               </Button>
             )}
           </div>
