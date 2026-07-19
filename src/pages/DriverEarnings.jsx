@@ -433,13 +433,15 @@ export default function DriverEarnings() {
           {/* City tabs */}
           <div className="earn-city-tabs">
             {uiCities.map((c) => (
-              <button
+              <Button
                 key={c}
-                className={`earn-city-tab${uiCity === c ? ' active' : ''}`}
+                variant={uiCity === c ? 'default' : 'outline'}
+                size="sm"
+                className="rounded-full"
                 onClick={() => setUiCity(c)}
               >
                 {c}
-              </button>
+              </Button>
             ))}
           </div>
 

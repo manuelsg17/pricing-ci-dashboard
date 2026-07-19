@@ -480,23 +480,19 @@ export default function Rentabilidad() {
               const active = visibleCompetitors.includes(c)
               const color = COMPETITOR_COLORS[c] || '#94a3b8'
               return (
-                <button
+                <Button
                   key={c}
-                  onClick={() => toggleComp(c)}
+                  type="button"
+                  variant="outline"
+                  className="h-auto gap-1.5 rounded-full px-2.5 py-0.5 text-xs"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '3px 9px',
-                    borderRadius: 999,
-                    fontSize: 12,
-                    cursor: 'pointer',
                     border: '1px solid ' + (active ? color : 'var(--color-border, #e2e8f0)'),
                     background: active ? color : '#fff',
                     color: active ? '#fff' : 'var(--color-muted)',
                     fontWeight: active ? 600 : 400,
                     opacity: active ? 1 : 0.6,
                   }}
+                  onClick={() => toggleComp(c)}
                 >
                   <span
                     style={{
@@ -508,7 +504,7 @@ export default function Rentabilidad() {
                     }}
                   />
                   {c}
-                </button>
+                </Button>
               )
             })}
           </div>
@@ -902,23 +898,18 @@ export default function Rentabilidad() {
                 {breakdown.length} en rentabilidad
               </span>
             )}
-            <button
-              onClick={() => setShowDetail((s) => !s)}
-              title="Mostrar/ocultar columnas Comisión efectiva y % por bonos"
+            <Button
+              variant="outline"
+              className="ml-auto h-auto rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
               style={{
-                marginLeft: 'auto',
-                padding: '3px 10px',
-                borderRadius: 999,
-                fontSize: 11,
-                cursor: 'pointer',
-                border: '1px solid var(--color-border, #e2e8f0)',
                 background: showDetail ? 'var(--color-yango-light, #fff5f5)' : '#fff',
                 color: showDetail ? 'var(--color-yango, #E53935)' : 'var(--color-muted)',
-                fontWeight: 600,
               }}
+              onClick={() => setShowDetail((s) => !s)}
+              title="Mostrar/ocultar columnas Comisión efectiva y % por bonos"
             >
               {showDetail ? '− Detalle' : '+ Detalle'}
-            </button>
+            </Button>
           </div>
           <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 10 }}>
             {liveTrips} viajes/sem · valores semanales (+ columna por viaje) — cuánto sale de la{' '}
