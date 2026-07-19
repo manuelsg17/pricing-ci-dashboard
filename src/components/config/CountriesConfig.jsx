@@ -6,6 +6,7 @@ import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
 import CountryWizard from './CountryWizard'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 const CONST_KEYS = Object.keys(COUNTRY_CONFIG)
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
@@ -82,6 +83,7 @@ const competitorTagStyle = {
 // ── Sub-component: add-competitor dropdown ────────────────────────────
 
 function CompetitorAdder({ existing, onAdd, allowCorpTiers }) {
+  const { t } = useI18n()
   const [val, setVal] = useState('')
   const available = ALL_COMPETITORS.filter(
     (c) =>
@@ -102,7 +104,7 @@ function CompetitorAdder({ existing, onAdd, allowCorpTiers }) {
           background: 'var(--color-panel)',
         }}
       >
-        <option value="">+ Agregar...</option>
+        <option value="">{t('config.countries_config.add_adder_placeholder')}</option>
         {available.map((c) => (
           <option key={c} value={c}>
             {c}
@@ -130,6 +132,7 @@ function CompetitorAdder({ existing, onAdd, allowCorpTiers }) {
 export default function CountriesConfig() {
   const { refreshConfigs } = useCountry()
   const confirm = useConfirm()
+  const { t } = useI18n()
 
   const [dbRows, setDbRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -214,10 +217,12 @@ export default function CountriesConfig() {
 
     if (isNewInMemory) {
       const ok = await confirm({
-        title: 'Descartar país nuevo',
-        message: `"${draft[key]?.label || key}" no se guardó todavía. ¿Descartarlo?`,
-        confirmText: 'Descartar',
-        cancelText: 'Seguir editando',
+        title: t('config.countries_config.discard_new_title'),
+        message: t('config.countries_config.discard_new_message', {
+          label: draft[key]?.label || key,
+        }),
+        confirmText: t('config.country_wizard.cancel_confirm_btn'),
+        cancelText: t('config.countries_config.keep_editing_btn'),
         danger: true,
       })
       if (!ok) return
@@ -229,17 +234,19 @@ export default function CountriesConfig() {
       })
       setSelectedKey(null)
       setSelectedCityIdx(null)
-      setMsg({ type: 'ok', text: 'País descartado.' })
+      setMsg({ type: 'ok', text: t('config.countries_config.discarded_toast') })
       return
     }
 
     if (!isDirty(key)) return // no-op defensivo
 
     const ok = await confirm({
-      title: 'Descartar cambios',
-      message: `Vas a perder los cambios sin guardar en "${dbRow?.label || key}". ¿Continuar?`,
-      confirmText: 'Descartar',
-      cancelText: 'Seguir editando',
+      title: t('config.countries_config.discard_changes_title'),
+      message: t('config.countries_config.discard_changes_message', {
+        label: dbRow?.label || key,
+      }),
+      confirmText: t('config.country_wizard.cancel_confirm_btn'),
+      cancelText: t('config.countries_config.keep_editing_btn'),
       danger: true,
     })
     if (!ok) return
@@ -249,7 +256,7 @@ export default function CountriesConfig() {
       return n
     })
     setSelectedCityIdx(null)
-    setMsg({ type: 'ok', text: '✓ Cambios descartados.' })
+    setMsg({ type: 'ok', text: t('config.countries_config.discarded_changes_toast') })
   }
 
   // ── Draft helpers ─────────────────────────────────────────────────
@@ -389,21 +396,24 @@ export default function CountriesConfig() {
         delete n[key]
         return n
       })
-      setMsg({ type: 'ok', text: '✓ Guardado' })
+      setMsg({ type: 'ok', text: t('config.countries_config.saved_toast') })
       await loadRows()
       refreshConfigs()
     } else {
-      setMsg({ type: 'err', text: 'Error: ' + error.message })
+      setMsg({
+        type: 'err',
+        text: t('config.countries_config.save_error', { error: error.message }),
+      })
     }
     setSavingKey(null)
   }
 
   async function handleDeleteCountry(key) {
     const ok = await confirm({
-      title: 'Eliminar configuración de país',
-      message: `¿Eliminar la configuración de "${key}" de la base de datos? Esta acción no se puede deshacer.`,
+      title: t('config.countries_config.delete_country_title'),
+      message: t('config.countries_config.delete_country_message', { key }),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     await sb.from('country_config').delete().eq('country_key', key)
@@ -425,7 +435,7 @@ export default function CountriesConfig() {
     const preset = CURRENCY_PRESETS.USD
     const blank = {
       country_key: key,
-      label: 'Nuevo País',
+      label: t('config.countries_config.new_country_label'),
       currency: 'USD',
       locale: preset.locale,
       outlier_threshold: preset.outlier_threshold,
@@ -445,7 +455,7 @@ export default function CountriesConfig() {
   async function makeEditable(key) {
     const hardcoded = COUNTRY_CONFIG[key]
     if (!hardcoded) {
-      setMsg({ type: 'err', text: `${key} no existe en constants.js` })
+      setMsg({ type: 'err', text: t('config.countries_config.not_in_constants_error', { key }) })
       return
     }
 
@@ -453,22 +463,19 @@ export default function CountriesConfig() {
     const existing = dbRows.find((r) => r.country_key === key)
     if (existing) {
       const reOk = await confirm({
-        title: `${key} ya está en DB`,
-        message: `Este país ya fue promovido antes. Si continuás, vas a SOBRESCRIBIR los edits que tengas en DB con los valores hardcoded de constants.js.\n\n¿Querés realmente reemplazar la versión DB con la hardcoded?`,
-        confirmText: 'Sí, sobrescribir',
-        cancelText: 'Cancelar',
+        title: t('config.countries_config.repromote_title', { key }),
+        message: t('config.countries_config.repromote_message'),
+        confirmText: t('config.countries_config.repromote_confirm_btn'),
+        cancelText: t('app.cancel'),
         danger: true,
       })
       if (!reOk) return
     } else {
       const ok = await confirm({
-        title: `Hacer editable ${key}`,
-        message:
-          `Vas a copiar la configuración hardcoded de ${key} a la base de datos. Después podrás editarla desde esta UI.\n\n` +
-          `La configuración hardcoded (constants.js) sigue intacta como fallback, pero la versión DB tendrá precedencia.\n\n` +
-          `¿Continuar?`,
-        confirmText: 'Hacer editable',
-        cancelText: 'Cancelar',
+        title: t('config.countries_config.promote_title', { key }),
+        message: t('config.countries_config.promote_message', { key }),
+        confirmText: t('config.countries_config.promote_btn'),
+        cancelText: t('app.cancel'),
       })
       if (!ok) return
     }
@@ -526,7 +533,10 @@ export default function CountriesConfig() {
     setSavingKey(null)
 
     if (error) {
-      setMsg({ type: 'err', text: `Error al promover ${key}: ${error.message}` })
+      setMsg({
+        type: 'err',
+        text: t('config.countries_config.promote_error', { key, error: error.message }),
+      })
       return
     }
 
@@ -538,7 +548,7 @@ export default function CountriesConfig() {
       return n
     })
 
-    setMsg({ type: 'ok', text: `${key} promovido a DB. Ahora podés editarlo.` })
+    setMsg({ type: 'ok', text: t('config.countries_config.promoted_toast', { key }) })
     await loadRows()
     refreshConfigs()
     setSelectedKey(key)
@@ -587,7 +597,7 @@ export default function CountriesConfig() {
 
   // ── Render ────────────────────────────────────────────────────────
 
-  if (loading) return <div className="config-loading">Cargando países…</div>
+  if (loading) return <div className="config-loading">{t('config.countries_config.loading')}</div>
 
   // Wizard mode: pantalla completa para no perder al usuario en pasos
   if (showWizard) {
@@ -643,7 +653,7 @@ export default function CountriesConfig() {
               color: 'var(--color-muted)',
             }}
           >
-            Países
+            {t('config.countries_config.panel_title')}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
             <Button
@@ -651,16 +661,16 @@ export default function CountriesConfig() {
               size="sm"
               className="h-6 rounded-[4px] border-blue-600 bg-blue-100 px-2 text-[10px] font-semibold text-blue-900 hover:bg-blue-200"
               onClick={() => setShowWizard(true)}
-              title="Wizard guiado paso a paso para crear país nuevo"
+              title={t('config.countries_config.wizard_btn_title')}
             >
-              ✨ Wizard
+              ✨ {t('config.countries_config.wizard_btn')}
             </Button>
             <Button
               variant="outline"
               size="sm"
               className="h-6 rounded-sm border-dashed bg-transparent px-2.5 font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
               onClick={addNewCountry}
-              title="Formulario avanzado (todos los campos a la vista)"
+              title={t('config.countries_config.advanced_add_title')}
             >
               +
             </Button>
@@ -700,7 +710,7 @@ export default function CountriesConfig() {
                 </span>
                 {ro && (
                   <span
-                    title="Configurado en código (solo lectura)"
+                    title={t('config.countries_config.readonly_lock_title')}
                     style={{ fontSize: 9, flexShrink: 0 }}
                   >
                     🔒
@@ -725,7 +735,7 @@ export default function CountriesConfig() {
       >
         {!selectedKey ? (
           <div style={{ padding: 20, color: 'var(--color-muted)', fontSize: 13 }}>
-            Selecciona un país para ver su configuración.
+            {t('config.countries_config.select_country_placeholder')}
           </div>
         ) : (
           <>
@@ -747,7 +757,9 @@ export default function CountriesConfig() {
                   marginBottom: 6,
                 }}
               >
-                {readonly ? 'Vista previa (solo lectura 🔒)' : 'Datos del país'}
+                {readonly
+                  ? t('config.countries_config.readonly_preview_heading')
+                  : t('config.countries_config.editable_heading')}
               </div>
 
               {readonly && (
@@ -766,23 +778,22 @@ export default function CountriesConfig() {
                     gap: 8,
                   }}
                 >
-                  <span>
-                    Este país vive en <code>constants.js</code>. Para editarlo desde acá, copiá la
-                    configuración a la base de datos.
-                  </span>
+                  <span>{t('config.countries_config.readonly_banner_text')}</span>
                   <Button
                     size="sm"
                     onClick={() => makeEditable(selectedKey)}
                     disabled={savingKey === selectedKey}
                     className="h-auto whitespace-nowrap rounded-[4px] bg-blue-600 px-2.5 py-1 text-[11px] hover:bg-blue-700"
-                    title="Copia la config hardcoded a country_config para desbloquear edición. No rompe nada: constants.js sigue como fallback."
+                    title={t('config.countries_config.make_editable_btn_title')}
                   >
-                    {savingKey === selectedKey ? 'Promoviendo…' : '📥 Hacer editable'}
+                    {savingKey === selectedKey
+                      ? t('config.countries_config.promoting_btn')
+                      : `📥 ${t('config.countries_config.promote_btn')}`}
                   </Button>
                 </div>
               )}
 
-              <label style={fieldLabelStyle}>Nombre / Label</label>
+              <label style={fieldLabelStyle}>{t('config.countries_config.name_label_label')}</label>
               <input
                 style={inputStyle(readonly)}
                 value={activeRow?.label || ''}
@@ -792,7 +803,9 @@ export default function CountriesConfig() {
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={fieldLabelStyle}>Moneda</label>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.currency_label')}
+                  </label>
                   <input
                     style={inputStyle(readonly)}
                     disabled={readonly}
@@ -800,7 +813,7 @@ export default function CountriesConfig() {
                     onChange={(e) => setCurrency(selectedKey, e.target.value)}
                     placeholder="USD"
                     list="currency-presets-list"
-                    title="PEN/COP/BOB/VES/NPR/ZMW/USD ajustan defaults de outlier y max_price automáticamente"
+                    title={t('config.countries_config.currency_title_hint')}
                   />
                   <datalist id="currency-presets-list">
                     {Object.keys(CURRENCY_PRESETS).map((c) => (
@@ -809,7 +822,7 @@ export default function CountriesConfig() {
                   </datalist>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={fieldLabelStyle}>Locale</label>
+                  <label style={fieldLabelStyle}>{t('config.country_wizard.locale_label')}</label>
                   <input
                     style={inputStyle(readonly)}
                     disabled={readonly}
@@ -822,7 +835,9 @@ export default function CountriesConfig() {
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={fieldLabelStyle}>Umbral outlier</label>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.outlier_label')}
+                  </label>
                   <input
                     type="number"
                     style={inputStyle(readonly)}
@@ -834,7 +849,9 @@ export default function CountriesConfig() {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={fieldLabelStyle}>Precio máx.</label>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.max_price_label')}
+                  </label>
                   <input
                     type="number"
                     style={inputStyle(readonly)}
@@ -848,9 +865,9 @@ export default function CountriesConfig() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
                   <label style={fieldLabelStyle}>
-                    Estado{' '}
+                    {t('config.countries_config.status_label')}{' '}
                     <span
-                      title="Draft: solo scaffolding, no aparece en el selector de país ni el bot lo sincroniza. Active: visible en el dashboard y el job de sync (bot-sync.yml) lo incluye."
+                      title={t('config.countries_config.status_tooltip')}
                       style={{ cursor: 'help', opacity: 0.6, textTransform: 'none' }}
                     >
                       ⓘ
@@ -862,15 +879,19 @@ export default function CountriesConfig() {
                     value={activeRow?.status || 'active'}
                     onChange={(e) => setDraftField(selectedKey, 'status', e.target.value)}
                   >
-                    <option value="draft">Borrador (draft)</option>
-                    <option value="active">Activo</option>
+                    <option value="draft">
+                      {t('config.countries_config.status_draft_option')}
+                    </option>
+                    <option value="active">
+                      {t('config.countries_config.status_active_option')}
+                    </option>
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={fieldLabelStyle}>
-                    Reglas de bot{' '}
+                    {t('config.countries_config.bot_rules_label')}{' '}
                     <span
-                      title="Filas en la tabla SQL bot_rules para este país — sin al menos una, mapBotRows descarta TODO lo que mande el bot para este país. Se configuran en Config → Reglas del Bot."
+                      title={t('config.countries_config.bot_rules_tooltip')}
                       style={{ cursor: 'help', opacity: 0.6, textTransform: 'none' }}
                     >
                       ⓘ
@@ -887,8 +908,11 @@ export default function CountriesConfig() {
                     }}
                   >
                     {activeRuleCount === 0
-                      ? '⚠️ 0 configuradas'
-                      : `${activeRuleCount} configurada${activeRuleCount === 1 ? '' : 's'}`}
+                      ? t('config.countries_config.bot_rules_zero')
+                      : t('config.countries_config.bot_rules_count', {
+                          n: activeRuleCount,
+                          count: activeRuleCount,
+                        })}
                   </div>
                 </div>
               </div>
@@ -908,7 +932,9 @@ export default function CountriesConfig() {
                     disabled={savingKey === selectedKey}
                     onClick={() => handleSave(selectedKey)}
                   >
-                    {savingKey === selectedKey ? 'Guardando…' : 'Guardar país'}
+                    {savingKey === selectedKey
+                      ? t('account.saving')
+                      : t('config.countries_config.save_country_btn')}
                   </Button>
                   {/* Cancelar — descarta cambios o el país en memoria.
                       Disabled si no hay nada que cancelar (defensivo). */}
@@ -919,13 +945,13 @@ export default function CountriesConfig() {
                     disabled={!isDirty(selectedKey) && !selectedKey.startsWith('NewCountry_')}
                     title={
                       selectedKey.startsWith('NewCountry_')
-                        ? 'Descartar este país nuevo sin guardarlo'
+                        ? t('config.countries_config.cancel_new_title')
                         : isDirty(selectedKey)
-                          ? 'Descartar cambios sin guardar y volver a los valores de DB'
-                          : 'No hay cambios para descartar'
+                          ? t('config.countries_config.cancel_dirty_title')
+                          : t('config.countries_config.cancel_clean_title')
                     }
                   >
-                    Cancelar
+                    {t('app.cancel')}
                   </Button>
                   {isDbManaged(selectedKey) && (
                     <Button
@@ -934,7 +960,7 @@ export default function CountriesConfig() {
                       className="border-red-300 text-red-600 hover:bg-red-100"
                       onClick={() => handleDeleteCountry(selectedKey)}
                     >
-                      Eliminar
+                      {t('app.delete')}
                     </Button>
                   )}
                   {msg && (
@@ -971,7 +997,7 @@ export default function CountriesConfig() {
                     color: 'var(--color-muted)',
                   }}
                 >
-                  Ciudades
+                  {t('config.countries_config.cities_heading')}
                 </span>
                 {!readonly && (
                   <Button
@@ -979,7 +1005,7 @@ export default function CountriesConfig() {
                     size="sm"
                     className="h-6 rounded-sm border-dashed bg-transparent px-2.5 font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
                     onClick={() => addCity(selectedKey)}
-                    title="Agregar ciudad"
+                    title={t('config.country_wizard.add_city_btn')}
                   >
                     +
                   </Button>
@@ -988,7 +1014,8 @@ export default function CountriesConfig() {
               <div style={{ overflowY: 'auto', flex: 1 }}>
                 {activeCities.length === 0 && (
                   <div style={{ padding: '12px 14px', color: 'var(--color-muted)', fontSize: 12 }}>
-                    Sin ciudades. {!readonly && 'Haz clic en + para agregar.'}
+                    {t('config.countries_config.no_cities_text')}{' '}
+                    {!readonly && t('config.countries_config.no_cities_hint')}
                   </div>
                 )}
                 {activeCities.map((city, idx) => (
@@ -1015,11 +1042,15 @@ export default function CountriesConfig() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {city.uiName || <em style={{ color: 'var(--color-muted)' }}>(sin nombre)</em>}
+                      {city.uiName || (
+                        <em style={{ color: 'var(--color-muted)' }}>
+                          {t('config.countries_config.unnamed_city')}
+                        </em>
+                      )}
                     </span>
                     {city.isVirtual && (
                       <span style={{ fontSize: 9, color: 'var(--color-muted)', flexShrink: 0 }}>
-                        virtual
+                        {t('config.countries_config.virtual_badge')}
                       </span>
                     )}
                     {!readonly && (
@@ -1031,7 +1062,7 @@ export default function CountriesConfig() {
                           e.stopPropagation()
                           deleteCity(selectedKey, idx)
                         }}
-                        title="Eliminar ciudad"
+                        title={t('config.countries_config.delete_city_title')}
                       >
                         ✕
                       </Button>
@@ -1048,16 +1079,18 @@ export default function CountriesConfig() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', minWidth: 0 }}>
         {!activeCity ? (
           <div style={{ color: 'var(--color-muted)', fontSize: 13, paddingTop: 20 }}>
-            Selecciona una ciudad para configurar sus categorías y competidores.
+            {t('config.countries_config.select_city_placeholder')}
           </div>
         ) : (
           <>
             {/* City fields */}
             <div className="config-section" style={{ marginBottom: 14 }}>
-              <h2 style={{ marginBottom: 8 }}>Datos de la ciudad</h2>
+              <h2 style={{ marginBottom: 8 }}>{t('config.countries_config.city_data_heading')}</h2>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div style={{ minWidth: 130 }}>
-                  <label style={fieldLabelStyle}>Nombre visible (UI)</label>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.ui_name_city_label')}
+                  </label>
                   <input
                     style={inputStyle(readonly)}
                     disabled={readonly}
@@ -1072,7 +1105,9 @@ export default function CountriesConfig() {
                   />
                 </div>
                 <div style={{ minWidth: 130 }}>
-                  <label style={fieldLabelStyle}>Nombre en base de datos</label>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.db_name_city_label')}
+                  </label>
                   <input
                     style={inputStyle(readonly)}
                     disabled={readonly}
@@ -1087,7 +1122,9 @@ export default function CountriesConfig() {
                   />
                 </div>
                 <div style={{ minWidth: 120 }}>
-                  <label style={fieldLabelStyle}>Bot key (minúsculas)</label>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.bot_key_label')}
+                  </label>
                   <input
                     style={inputStyle(readonly)}
                     disabled={readonly}
@@ -1124,9 +1161,9 @@ export default function CountriesConfig() {
                     }
                     style={{ accentColor: '#e53935' }}
                   />
-                  Ciudad virtual
+                  {t('config.countries_config.virtual_city_label')}
                   <span
-                    title="Las ciudades virtuales no aparecen en el selector de la interfaz pero sí en los datos (ej: Aeropuerto, Corp)"
+                    title={t('config.countries_config.virtual_city_tooltip')}
                     style={{ cursor: 'help', opacity: 0.6 }}
                   >
                     ⓘ
@@ -1145,21 +1182,24 @@ export default function CountriesConfig() {
                   marginBottom: 12,
                 }}
               >
-                <h2 style={{ margin: 0 }}>Categorías y Competidores</h2>
+                <h2 style={{ margin: 0 }}>
+                  {t('config.countries_config.categories_competitors_heading')}
+                </h2>
                 {!readonly && (
                   <Button
                     variant="outline"
                     className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
                     onClick={() => addCategory(selectedKey, selectedCityIdx)}
                   >
-                    + Agregar categoría
+                    {t('config.countries_config.add_category_btn')}
                   </Button>
                 )}
               </div>
 
               {(!activeCity.categories || activeCity.categories.length === 0) && (
                 <div style={{ color: 'var(--color-muted)', fontSize: 12, padding: '8px 0' }}>
-                  Sin categorías. {!readonly && 'Haz clic en "+ Agregar categoría" para comenzar.'}
+                  {t('config.countries_config.no_categories_text')}{' '}
+                  {!readonly && t('config.countries_config.no_categories_hint')}
                 </div>
               )}
 
@@ -1184,7 +1224,9 @@ export default function CountriesConfig() {
                     }}
                   >
                     <div style={{ minWidth: 110 }}>
-                      <label style={fieldLabelStyle}>Nombre UI</label>
+                      <label style={fieldLabelStyle}>
+                        {t('config.country_wizard.ui_name_label')}
+                      </label>
                       <input
                         style={{ ...inputStyle(readonly), width: 120 }}
                         placeholder="Economy"
@@ -1200,7 +1242,7 @@ export default function CountriesConfig() {
                             e.target.value
                           )
                         }
-                        title="Datalist con el catálogo canónico para evitar typos. Podés escribir uno custom si necesitás."
+                        title={t('config.countries_config.cat_datalist_title')}
                       />
                       <datalist id="cat-catalog-list">
                         {CATALOG_CATEGORIES.map((c) => (
@@ -1209,7 +1251,9 @@ export default function CountriesConfig() {
                       </datalist>
                     </div>
                     <div style={{ minWidth: 110 }}>
-                      <label style={fieldLabelStyle}>Nombre DB</label>
+                      <label style={fieldLabelStyle}>
+                        {t('config.countries_config.cat_db_name_label')}
+                      </label>
                       <input
                         style={{ ...inputStyle(readonly), width: 120 }}
                         placeholder="Economy"
@@ -1228,7 +1272,9 @@ export default function CountriesConfig() {
                       />
                     </div>
                     <div style={{ minWidth: 130 }}>
-                      <label style={fieldLabelStyle}>Yango display name</label>
+                      <label style={fieldLabelStyle}>
+                        {t('config.countries_config.yango_display_name_label')}
+                      </label>
                       <input
                         style={{ ...inputStyle(readonly), width: 150 }}
                         placeholder="Yango"
@@ -1252,12 +1298,14 @@ export default function CountriesConfig() {
                         className="mb-px border-red-300 text-red-600 hover:bg-red-100"
                         onClick={() => deleteCategory(selectedKey, selectedCityIdx, catIdx)}
                       >
-                        ✕ Eliminar
+                        ✕ {t('app.delete')}
                       </Button>
                     )}
                   </div>
 
-                  <label style={fieldLabelStyle}>Competidores</label>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.competitors_label')}
+                  </label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
                     {cat.competitors.map((comp) => (
                       <span key={comp} style={competitorTagStyle}>
@@ -1278,7 +1326,9 @@ export default function CountriesConfig() {
                               fontSize: 12,
                               lineHeight: 1,
                             }}
-                            title={`Quitar ${comp}`}
+                            title={t('config.countries_config.remove_competitor_title', {
+                              comp,
+                            })}
                           >
                             ×
                           </button>

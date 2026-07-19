@@ -1594,6 +1594,100 @@ export const TRANSLATIONS = {
     'config.country_wizard.created_btn': 'Creado',
     'config.country_wizard.create_country_btn': 'Crear país (status=draft)',
 
+    // ── CountriesConfig ──────────────────────────────────────────────
+    'config.countries_config.add_adder_placeholder': '+ Agregar...',
+    'config.countries_config.discard_new_title': 'Descartar país nuevo',
+    'config.countries_config.discard_new_message': '"{label}" no se guardó todavía. ¿Descartarlo?',
+    'config.countries_config.keep_editing_btn': 'Seguir editando',
+    'config.countries_config.discarded_toast': 'País descartado.',
+    'config.countries_config.discard_changes_title': 'Descartar cambios',
+    'config.countries_config.discard_changes_message':
+      'Vas a perder los cambios sin guardar en "{label}". ¿Continuar?',
+    'config.countries_config.discarded_changes_toast': '✓ Cambios descartados.',
+    'config.countries_config.saved_toast': '✓ Guardado',
+    'config.countries_config.save_error': 'Error: {error}',
+    'config.countries_config.delete_country_title': 'Eliminar configuración de país',
+    'config.countries_config.delete_country_message':
+      '¿Eliminar la configuración de "{key}" de la base de datos? Esta acción no se puede deshacer.',
+    'config.countries_config.new_country_label': 'Nuevo País',
+    'config.countries_config.not_in_constants_error': '{key} no existe en constants.js',
+    'config.countries_config.repromote_title': '{key} ya está en DB',
+    'config.countries_config.repromote_message':
+      'Este país ya fue promovido antes. Si continuás, vas a SOBRESCRIBIR los edits que tengas en DB con los valores hardcoded de constants.js.\n\n¿Querés realmente reemplazar la versión DB con la hardcoded?',
+    'config.countries_config.repromote_confirm_btn': 'Sí, sobrescribir',
+    'config.countries_config.promote_title': 'Hacer editable {key}',
+    'config.countries_config.promote_message':
+      'Vas a copiar la configuración hardcoded de {key} a la base de datos. Después podrás editarla desde esta UI.\n\nLa configuración hardcoded (constants.js) sigue intacta como fallback, pero la versión DB tendrá precedencia.\n\n¿Continuar?',
+    'config.countries_config.promote_btn': 'Hacer editable',
+    'config.countries_config.promote_error': 'Error al promover {key}: {error}',
+    'config.countries_config.promoted_toast': '{key} promovido a DB. Ahora podés editarlo.',
+    'config.countries_config.loading': 'Cargando países…',
+    'config.countries_config.wizard_btn': 'Wizard',
+    'config.countries_config.wizard_btn_title': 'Wizard guiado paso a paso para crear país nuevo',
+    'config.countries_config.advanced_add_title':
+      'Formulario avanzado (todos los campos a la vista)',
+    'config.countries_config.panel_title': 'Países',
+    'config.countries_config.readonly_lock_title': 'Configurado en código (solo lectura)',
+    'config.countries_config.select_country_placeholder':
+      'Selecciona un país para ver su configuración.',
+    'config.countries_config.readonly_preview_heading': 'Vista previa (solo lectura 🔒)',
+    'config.countries_config.editable_heading': 'Datos del país',
+    'config.countries_config.readonly_banner_text':
+      'Este país vive en constants.js. Para editarlo desde acá, copiá la configuración a la base de datos.',
+    'config.countries_config.promoting_btn': 'Promoviendo…',
+    'config.countries_config.make_editable_btn_title':
+      'Copia la config hardcoded a country_config para desbloquear edición. No rompe nada: constants.js sigue como fallback.',
+    'config.countries_config.name_label_label': 'Nombre / Label',
+    'config.countries_config.currency_label': 'Moneda',
+    'config.countries_config.currency_title_hint':
+      'PEN/COP/BOB/VES/NPR/ZMW/USD ajustan defaults de outlier y max_price automáticamente',
+    'config.countries_config.outlier_label': 'Umbral outlier',
+    'config.countries_config.max_price_label': 'Precio máx.',
+    'config.countries_config.status_label': 'Estado',
+    'config.countries_config.status_tooltip':
+      'Draft: solo scaffolding, no aparece en el selector de país ni el bot lo sincroniza. Active: visible en el dashboard y el job de sync (bot-sync.yml) lo incluye.',
+    'config.countries_config.status_draft_option': 'Borrador (draft)',
+    'config.countries_config.status_active_option': 'Activo',
+    'config.countries_config.bot_rules_label': 'Reglas de bot',
+    'config.countries_config.bot_rules_tooltip':
+      'Filas en la tabla SQL bot_rules para este país — sin al menos una, mapBotRows descarta TODO lo que mande el bot para este país. Se configuran en Config → Reglas del Bot.',
+    'config.countries_config.bot_rules_zero': '⚠️ 0 configuradas',
+    'config.countries_config.bot_rules_count': {
+      one: '{n} configurada',
+      other: '{n} configuradas',
+    },
+    'config.countries_config.save_country_btn': 'Guardar país',
+    'config.countries_config.cancel_new_title': 'Descartar este país nuevo sin guardarlo',
+    'config.countries_config.cancel_dirty_title':
+      'Descartar cambios sin guardar y volver a los valores de DB',
+    'config.countries_config.cancel_clean_title': 'No hay cambios para descartar',
+    'config.countries_config.cities_heading': 'Ciudades',
+    'config.countries_config.no_cities_text': 'Sin ciudades.',
+    'config.countries_config.no_cities_hint': 'Haz clic en + para agregar.',
+    'config.countries_config.unnamed_city': '(sin nombre)',
+    'config.countries_config.virtual_badge': 'virtual',
+    'config.countries_config.delete_city_title': 'Eliminar ciudad',
+    'config.countries_config.select_city_placeholder':
+      'Selecciona una ciudad para configurar sus categorías y competidores.',
+    'config.countries_config.city_data_heading': 'Datos de la ciudad',
+    'config.countries_config.ui_name_city_label': 'Nombre visible (UI)',
+    'config.countries_config.db_name_city_label': 'Nombre en base de datos',
+    'config.countries_config.bot_key_label': 'Bot key (minúsculas)',
+    'config.countries_config.virtual_city_label': 'Ciudad virtual',
+    'config.countries_config.virtual_city_tooltip':
+      'Las ciudades virtuales no aparecen en el selector de la interfaz pero sí en los datos (ej: Aeropuerto, Corp)',
+    'config.countries_config.categories_competitors_heading': 'Categorías y Competidores',
+    'config.countries_config.add_category_btn': '+ Agregar categoría',
+    'config.countries_config.no_categories_text': 'Sin categorías.',
+    'config.countries_config.no_categories_hint':
+      'Haz clic en "+ Agregar categoría" para comenzar.',
+    'config.countries_config.cat_db_name_label': 'Nombre DB',
+    'config.countries_config.yango_display_name_label': 'Yango display name',
+    'config.countries_config.cat_datalist_title':
+      'Datalist con el catálogo canónico para evitar typos. Podés escribir uno custom si necesitás.',
+    'config.countries_config.competitors_label': 'Competidores',
+    'config.countries_config.remove_competitor_title': 'Quitar {comp}',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -3151,6 +3245,99 @@ export const TRANSLATIONS = {
     'config.country_wizard.creating_btn': 'Creating…',
     'config.country_wizard.created_btn': 'Created',
     'config.country_wizard.create_country_btn': 'Create country (status=draft)',
+
+    // ── CountriesConfig ──────────────────────────────────────────────
+    'config.countries_config.add_adder_placeholder': '+ Add...',
+    'config.countries_config.discard_new_title': 'Discard new country',
+    'config.countries_config.discard_new_message': '"{label}" hasn\'t been saved yet. Discard it?',
+    'config.countries_config.keep_editing_btn': 'Keep editing',
+    'config.countries_config.discarded_toast': 'Country discarded.',
+    'config.countries_config.discard_changes_title': 'Discard changes',
+    'config.countries_config.discard_changes_message':
+      'You\'re about to lose unsaved changes in "{label}". Continue?',
+    'config.countries_config.discarded_changes_toast': '✓ Changes discarded.',
+    'config.countries_config.saved_toast': '✓ Saved',
+    'config.countries_config.save_error': 'Error: {error}',
+    'config.countries_config.delete_country_title': 'Delete country configuration',
+    'config.countries_config.delete_country_message':
+      'Delete the configuration for "{key}" from the database? This action cannot be undone.',
+    'config.countries_config.new_country_label': 'New Country',
+    'config.countries_config.not_in_constants_error': '{key} does not exist in constants.js',
+    'config.countries_config.repromote_title': '{key} is already in DB',
+    'config.countries_config.repromote_message':
+      "This country was already promoted before. If you continue, you'll OVERWRITE any edits you have in DB with the hardcoded values from constants.js.\n\nDo you really want to replace the DB version with the hardcoded one?",
+    'config.countries_config.repromote_confirm_btn': 'Yes, overwrite',
+    'config.countries_config.promote_title': 'Make {key} editable',
+    'config.countries_config.promote_message':
+      "You're about to copy the hardcoded configuration for {key} to the database. Afterwards you'll be able to edit it from this UI.\n\nThe hardcoded configuration (constants.js) stays intact as a fallback, but the DB version will take precedence.\n\nContinue?",
+    'config.countries_config.promote_btn': 'Make editable',
+    'config.countries_config.promote_error': 'Error promoting {key}: {error}',
+    'config.countries_config.promoted_toast': '{key} promoted to DB. You can now edit it.',
+    'config.countries_config.loading': 'Loading countries…',
+    'config.countries_config.wizard_btn': 'Wizard',
+    'config.countries_config.wizard_btn_title':
+      'Step-by-step guided wizard to create a new country',
+    'config.countries_config.advanced_add_title': 'Advanced form (all fields visible)',
+    'config.countries_config.panel_title': 'Countries',
+    'config.countries_config.readonly_lock_title': 'Configured in code (read-only)',
+    'config.countries_config.select_country_placeholder':
+      'Select a country to see its configuration.',
+    'config.countries_config.readonly_preview_heading': 'Preview (read-only 🔒)',
+    'config.countries_config.editable_heading': 'Country data',
+    'config.countries_config.readonly_banner_text':
+      'This country lives in constants.js. To edit it from here, copy the configuration to the database.',
+    'config.countries_config.promoting_btn': 'Promoting…',
+    'config.countries_config.make_editable_btn_title':
+      'Copies the hardcoded config to country_config to unlock editing. Nothing breaks: constants.js stays as a fallback.',
+    'config.countries_config.name_label_label': 'Name / Label',
+    'config.countries_config.currency_label': 'Currency',
+    'config.countries_config.currency_title_hint':
+      'PEN/COP/BOB/VES/NPR/ZMW/USD auto-adjust outlier and max_price defaults',
+    'config.countries_config.outlier_label': 'Outlier threshold',
+    'config.countries_config.max_price_label': 'Max price',
+    'config.countries_config.status_label': 'Status',
+    'config.countries_config.status_tooltip':
+      "Draft: scaffolding only, doesn't appear in the country selector and the bot doesn't sync it. Active: visible in the dashboard and included by the sync job (bot-sync.yml).",
+    'config.countries_config.status_draft_option': 'Draft',
+    'config.countries_config.status_active_option': 'Active',
+    'config.countries_config.bot_rules_label': 'Bot rules',
+    'config.countries_config.bot_rules_tooltip':
+      'Rows in the bot_rules SQL table for this country — without at least one, mapBotRows discards EVERYTHING the bot sends for this country. Configure them in Config → Bot Rules.',
+    'config.countries_config.bot_rules_zero': '⚠️ 0 configured',
+    'config.countries_config.bot_rules_count': {
+      one: '{n} configured',
+      other: '{n} configured',
+    },
+    'config.countries_config.save_country_btn': 'Save country',
+    'config.countries_config.cancel_new_title': 'Discard this new country without saving it',
+    'config.countries_config.cancel_dirty_title':
+      'Discard unsaved changes and revert to the DB values',
+    'config.countries_config.cancel_clean_title': 'No changes to discard',
+    'config.countries_config.cities_heading': 'Cities',
+    'config.countries_config.no_cities_text': 'No cities.',
+    'config.countries_config.no_cities_hint': 'Click + to add one.',
+    'config.countries_config.unnamed_city': '(unnamed)',
+    'config.countries_config.virtual_badge': 'virtual',
+    'config.countries_config.delete_city_title': 'Delete city',
+    'config.countries_config.select_city_placeholder':
+      'Select a city to configure its categories and competitors.',
+    'config.countries_config.city_data_heading': 'City data',
+    'config.countries_config.ui_name_city_label': 'Visible name (UI)',
+    'config.countries_config.db_name_city_label': 'Database name',
+    'config.countries_config.bot_key_label': 'Bot key (lowercase)',
+    'config.countries_config.virtual_city_label': 'Virtual city',
+    'config.countries_config.virtual_city_tooltip':
+      "Virtual cities don't appear in the UI selector but do appear in the data (e.g: Airport, Corp)",
+    'config.countries_config.categories_competitors_heading': 'Categories and Competitors',
+    'config.countries_config.add_category_btn': '+ Add category',
+    'config.countries_config.no_categories_text': 'No categories.',
+    'config.countries_config.no_categories_hint': 'Click "+ Add category" to get started.',
+    'config.countries_config.cat_db_name_label': 'DB name',
+    'config.countries_config.yango_display_name_label': 'Yango display name',
+    'config.countries_config.cat_datalist_title':
+      'Datalist with the canonical catalog to avoid typos. You can type a custom one if needed.',
+    'config.countries_config.competitors_label': 'Competitors',
+    'config.countries_config.remove_competitor_title': 'Remove {comp}',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -4749,6 +4936,101 @@ export const TRANSLATIONS = {
     'config.country_wizard.creating_btn': 'Создание…',
     'config.country_wizard.created_btn': 'Создано',
     'config.country_wizard.create_country_btn': 'Создать страну (status=draft)',
+
+    // ── CountriesConfig ──────────────────────────────────────────────
+    'config.countries_config.add_adder_placeholder': '+ Добавить...',
+    'config.countries_config.discard_new_title': 'Отменить новую страну',
+    'config.countries_config.discard_new_message': '"{label}" ещё не сохранена. Отменить её?',
+    'config.countries_config.keep_editing_btn': 'Продолжить редактирование',
+    'config.countries_config.discarded_toast': 'Страна отменена.',
+    'config.countries_config.discard_changes_title': 'Отменить изменения',
+    'config.countries_config.discard_changes_message':
+      'Вы потеряете несохранённые изменения в "{label}". Продолжить?',
+    'config.countries_config.discarded_changes_toast': '✓ Изменения отменены.',
+    'config.countries_config.saved_toast': '✓ Сохранено',
+    'config.countries_config.save_error': 'Ошибка: {error}',
+    'config.countries_config.delete_country_title': 'Удалить конфигурацию страны',
+    'config.countries_config.delete_country_message':
+      'Удалить конфигурацию "{key}" из базы данных? Это действие нельзя отменить.',
+    'config.countries_config.new_country_label': 'Новая страна',
+    'config.countries_config.not_in_constants_error': '{key} не существует в constants.js',
+    'config.countries_config.repromote_title': '{key} уже есть в БД',
+    'config.countries_config.repromote_message':
+      'Эта страна уже была продвинута ранее. Если продолжите, вы ПЕРЕЗАПИШЕТЕ изменения в БД захардкоженными значениями из constants.js.\n\nВы действительно хотите заменить версию БД на захардкоженную?',
+    'config.countries_config.repromote_confirm_btn': 'Да, перезаписать',
+    'config.countries_config.promote_title': 'Сделать {key} редактируемой',
+    'config.countries_config.promote_message':
+      'Вы собираетесь скопировать захардкоженную конфигурацию {key} в базу данных. После этого сможете редактировать её из этого интерфейса.\n\nЗахардкоженная конфигурация (constants.js) остаётся нетронутой как запасной вариант, но версия БД будет иметь приоритет.\n\nПродолжить?',
+    'config.countries_config.promote_btn': 'Сделать редактируемой',
+    'config.countries_config.promote_error': 'Ошибка при продвижении {key}: {error}',
+    'config.countries_config.promoted_toast':
+      '{key} продвинута в БД. Теперь можно её редактировать.',
+    'config.countries_config.loading': 'Загрузка стран…',
+    'config.countries_config.wizard_btn': 'Мастер',
+    'config.countries_config.wizard_btn_title': 'Пошаговый мастер для создания новой страны',
+    'config.countries_config.advanced_add_title': 'Расширенная форма (все поля видны)',
+    'config.countries_config.panel_title': 'Страны',
+    'config.countries_config.readonly_lock_title': 'Настроено в коде (только чтение)',
+    'config.countries_config.select_country_placeholder':
+      'Выберите страну, чтобы увидеть её конфигурацию.',
+    'config.countries_config.readonly_preview_heading': 'Предпросмотр (только чтение 🔒)',
+    'config.countries_config.editable_heading': 'Данные страны',
+    'config.countries_config.readonly_banner_text':
+      'Эта страна находится в constants.js. Чтобы редактировать её отсюда, скопируйте конфигурацию в базу данных.',
+    'config.countries_config.promoting_btn': 'Продвижение…',
+    'config.countries_config.make_editable_btn_title':
+      'Копирует захардкоженную конфигурацию в country_config, чтобы разблокировать редактирование. Ничего не ломается: constants.js остаётся запасным вариантом.',
+    'config.countries_config.name_label_label': 'Название / Label',
+    'config.countries_config.currency_label': 'Валюта',
+    'config.countries_config.currency_title_hint':
+      'PEN/COP/BOB/VES/NPR/ZMW/USD автоматически подстраивают значения outlier и max_price по умолчанию',
+    'config.countries_config.outlier_label': 'Порог выброса',
+    'config.countries_config.max_price_label': 'Макс. цена',
+    'config.countries_config.status_label': 'Статус',
+    'config.countries_config.status_tooltip':
+      'Draft: только каркас, не появляется в селекторе страны и бот её не синхронизирует. Active: видна на дашборде и включена в job синхронизации (bot-sync.yml).',
+    'config.countries_config.status_draft_option': 'Черновик (draft)',
+    'config.countries_config.status_active_option': 'Активна',
+    'config.countries_config.bot_rules_label': 'Правила бота',
+    'config.countries_config.bot_rules_tooltip':
+      'Строки в SQL-таблице bot_rules для этой страны — без хотя бы одной mapBotRows отбрасывает ВСЁ, что бот присылает для этой страны. Настраиваются в Config → Правила бота.',
+    'config.countries_config.bot_rules_zero': '⚠️ 0 настроено',
+    'config.countries_config.bot_rules_count': {
+      one: '{n} настроено',
+      few: '{n} настроено',
+      many: '{n} настроено',
+      other: '{n} настроено',
+    },
+    'config.countries_config.save_country_btn': 'Сохранить страну',
+    'config.countries_config.cancel_new_title': 'Отменить эту новую страну без сохранения',
+    'config.countries_config.cancel_dirty_title':
+      'Отменить несохранённые изменения и вернуться к значениям БД',
+    'config.countries_config.cancel_clean_title': 'Нет изменений для отмены',
+    'config.countries_config.cities_heading': 'Города',
+    'config.countries_config.no_cities_text': 'Нет городов.',
+    'config.countries_config.no_cities_hint': 'Нажмите +, чтобы добавить.',
+    'config.countries_config.unnamed_city': '(без названия)',
+    'config.countries_config.virtual_badge': 'виртуальный',
+    'config.countries_config.delete_city_title': 'Удалить город',
+    'config.countries_config.select_city_placeholder':
+      'Выберите город, чтобы настроить его категории и конкурентов.',
+    'config.countries_config.city_data_heading': 'Данные города',
+    'config.countries_config.ui_name_city_label': 'Видимое название (UI)',
+    'config.countries_config.db_name_city_label': 'Название в базе данных',
+    'config.countries_config.bot_key_label': 'Bot key (строчными буквами)',
+    'config.countries_config.virtual_city_label': 'Виртуальный город',
+    'config.countries_config.virtual_city_tooltip':
+      'Виртуальные города не появляются в селекторе интерфейса, но присутствуют в данных (напр.: Аэропорт, Corp)',
+    'config.countries_config.categories_competitors_heading': 'Категории и конкуренты',
+    'config.countries_config.add_category_btn': '+ Добавить категорию',
+    'config.countries_config.no_categories_text': 'Нет категорий.',
+    'config.countries_config.no_categories_hint': 'Нажмите "+ Добавить категорию", чтобы начать.',
+    'config.countries_config.cat_db_name_label': 'Название в БД',
+    'config.countries_config.yango_display_name_label': 'Отображаемое имя Yango',
+    'config.countries_config.cat_datalist_title':
+      'Datalist с каноническим каталогом, чтобы избежать опечаток. Можно ввести свой вариант при необходимости.',
+    'config.countries_config.competitors_label': 'Конкуренты',
+    'config.countries_config.remove_competitor_title': 'Убрать {comp}',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
