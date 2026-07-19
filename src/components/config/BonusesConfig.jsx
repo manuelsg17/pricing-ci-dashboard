@@ -7,47 +7,56 @@ import SaveStatusBanner from './SaveStatusBanner'
 import BonusWizard from './BonusWizard'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 const SEGMENTS = [
-  { value: 'active', label: 'Activo' },
-  { value: 'new', label: 'Nuevo' },
-  { value: 'reactivated', label: 'Reactivado' },
-  { value: 'all', label: 'Todos' },
+  { value: 'active', labelKey: 'config.bonuses_config.seg_active' },
+  { value: 'new', labelKey: 'config.bonuses_config.seg_new' },
+  { value: 'reactivated', labelKey: 'config.bonuses_config.seg_reactivated' },
+  { value: 'all', labelKey: 'config.bonus_wizard.seg_all_label' },
 ]
 const MECHANISMS = [
   {
     value: 'tiered',
-    label: 'Escalera',
-    hint: 'Te pagan el peldaño más alto alcanzado (NO la suma).',
+    labelKey: 'config.bonuses_config.mech_tiered_label',
+    hintKey: 'config.bonuses_config.mech_tiered_hint',
   },
   {
     value: 'gmv_tiered',
-    label: '% GMV',
-    hint: 'Metas tipo Yango: elegís N viajes → te devuelven un % del GMV bruto (antes de comisión) de esos primeros N viajes, con tope por meta.',
+    labelKey: 'config.bonuses_config.mech_gmv_label',
+    hintKey: 'config.bonuses_config.mech_gmv_hint',
   },
-  { value: 'flat', label: 'Plano', hint: 'Monto fijo al llegar al umbral.' },
+  {
+    value: 'flat',
+    labelKey: 'config.bonuses_config.mech_flat_label',
+    hintKey: 'config.bonuses_config.mech_flat_hint',
+  },
   {
     value: 'guarantee',
-    label: 'Garantía',
-    hint: 'Piso: si hacés N viajes te completan hasta el monto.',
+    labelKey: 'config.bonuses_config.mech_guarantee_label',
+    hintKey: 'config.bonuses_config.mech_guarantee_hint',
   },
   {
     value: 'comm_discount',
-    label: 'Desc. comisión',
-    hint: 'Baja la comisión en una ventana (ej. InDrive 1%).',
+    labelKey: 'config.bonuses_config.mech_comm_discount_label',
+    hintKey: 'config.bonuses_config.mech_comm_discount_hint',
   },
-  { value: 'comm_credit', label: 'Monedas', hint: 'Crédito/monedas ≈ cash semanal.' },
+  {
+    value: 'comm_credit',
+    labelKey: 'config.bonuses_config.mech_comm_credit_label',
+    hintKey: 'config.bonuses_config.mech_comm_credit_hint',
+  },
   {
     value: 'streak',
-    label: 'Racha',
-    hint: 'Premio por días consecutivos en ventanas (Didi peaks).',
+    labelKey: 'config.bonuses_config.mech_streak_label',
+    hintKey: 'config.bonuses_config.mech_streak_hint',
   },
   {
     value: 'surge',
-    label: 'Surge',
-    hint: '% extra sobre el fare en una ventana, con tope (Didi TAD).',
+    labelKey: 'config.bonuses_config.mech_surge_label',
+    hintKey: 'config.bonuses_config.mech_surge_hint',
   },
 ]
 // ── estilos ──────────────────────────────────────────────────────────────────
@@ -101,12 +110,13 @@ export default function BonusesConfig({ country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
+  const { t } = useI18n()
   const CITY_OPTIONS = [
-    { value: '', label: 'Todas' },
+    { value: '', label: t('access.all') },
     ...config.dbCities.map((c) => ({ value: c, label: c })),
   ]
   const CATEGORY_OPTIONS = [
-    { value: '', label: 'Todas' },
+    { value: '', label: t('access.all') },
     ...[...new Set(Object.values(config.categoriesByCity || {}).flat())].map((c) => ({
       value: c,
       label: c,
@@ -144,10 +154,10 @@ export default function BonusesConfig({ country }) {
     setMsg(null)
     setEdits((prev) => {
       const cur = { ...prev[id], mechanism: value }
-      if (value === 'gmv_tiered' && tiers.some((t) => !('pct' in t))) {
-        cur.tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', pct: '', cap: '' }))
-      } else if (value === 'tiered' && tiers.some((t) => !('reward' in t))) {
-        cur.tiers = tiers.map((t) => ({ threshold: t.threshold ?? '', reward: '' }))
+      if (value === 'gmv_tiered' && tiers.some((tier) => !('pct' in tier))) {
+        cur.tiers = tiers.map((tier) => ({ threshold: tier.threshold ?? '', pct: '', cap: '' }))
+      } else if (value === 'tiered' && tiers.some((tier) => !('reward' in tier))) {
+        cur.tiers = tiers.map((tier) => ({ threshold: tier.threshold ?? '', reward: '' }))
       }
       return { ...prev, [id]: cur }
     })
@@ -155,7 +165,7 @@ export default function BonusesConfig({ country }) {
   function updateTier(id, tiers, i, key, val) {
     setTiers(
       id,
-      tiers.map((t, j) => (j === i ? { ...t, [key]: val } : t))
+      tiers.map((tier, j) => (j === i ? { ...tier, [key]: val } : tier))
     )
   }
   function addTier(id, tiers) {
@@ -183,13 +193,20 @@ export default function BonusesConfig({ country }) {
         delete n[row.id]
         return n
       })
-      const mech = MECHANISMS.find((x) => x.value === (m.mechanism || 'flat'))?.label || m.mechanism
+      const mechInfo = MECHANISMS.find((x) => x.value === (m.mechanism || 'flat'))
+      const mechLabel = mechInfo ? t(mechInfo.labelKey) : m.mechanism
       setMsg({
         type: 'ok',
-        text: `Bono guardado: ${m.competitor_name} · ${m.city || 'Todas'} · ${m.category || 'todas las cat.'} · ${mech} (${m.segment || 'all'})`,
+        text: t('config.bonuses_config.saved_toast', {
+          competitor: m.competitor_name,
+          city: m.city || t('access.all'),
+          category: m.category || t('config.bonuses_config.all_categories_short'),
+          mech: mechLabel,
+          segment: m.segment || 'all',
+        }),
       })
     } else {
-      setMsg({ type: 'err', text: 'Error al guardar el bono.' })
+      setMsg({ type: 'err', text: t('config.bonuses_config.save_error') })
     }
     setSaving(false)
   }
@@ -203,12 +220,15 @@ export default function BonusesConfig({ country }) {
       setWizardOpen(false)
       setMsg({
         type: 'ok',
-        text: `Bono creado: ${draft.competitor_name} · ${draft.city || 'Todas'} — ya cuenta en Rentabilidad.`,
+        text: t('config.bonuses_config.wizard_created_toast', {
+          competitor: draft.competitor_name,
+          city: draft.city || t('access.all'),
+        }),
       })
     } else {
       setMsg({
         type: 'err',
-        text: 'Error al crear el bono. Si el mecanismo es % GMV, verificá que la migración 112 esté aplicada en Supabase.',
+        text: t('config.bonuses_config.wizard_create_error'),
       })
     }
     setSaving(false)
@@ -217,28 +237,25 @@ export default function BonusesConfig({ country }) {
   async function handleDelete(row) {
     if (!isNew(row)) {
       const ok = await confirm({
-        title: 'Eliminar bono',
-        message: '¿Eliminar este bono?',
+        title: t('config.bonuses_config.delete_confirm_title'),
+        message: t('config.bonuses_config.delete_confirm_message'),
         danger: true,
-        confirmText: 'Eliminar',
+        confirmText: t('app.delete'),
       })
       if (!ok) return
     }
     const ok = await deleteBonus(row.id)
-    if (!ok) setMsg({ type: 'err', text: 'No se pudo eliminar.' })
-    else if (!isNew(row)) setMsg({ type: 'ok', text: 'Bono eliminado.' })
+    if (!ok) setMsg({ type: 'err', text: t('config.bonuses_config.delete_error') })
+    else if (!isNew(row)) setMsg({ type: 'ok', text: t('config.bonuses_config.delete_success') })
   }
 
-  if (loading) return <div className="config-loading">Cargando bonos…</div>
+  if (loading) return <div className="config-loading">{t('config.bonuses_config.loading')}</div>
 
   return (
     <div className="config-section">
-      <h2>Bonos por Competidor</h2>
+      <h2>{t('config.bonuses_config.title')}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Cada tarjeta es un bono y muestra en una frase qué paga. Tocá <strong>✎ Editar</strong> para
-        ver los detalles, o usá <strong>+ Crear bono (asistente)</strong> para cargar uno nuevo
-        respondiendo preguntas simples. Estos bonos alimentan{' '}
-        <strong>Análisis → Rentabilidad</strong>.
+        {t('config.bonuses_config.description')}
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -275,22 +292,23 @@ export default function BonusesConfig({ country }) {
               />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>
-                  {m.competitor_name || 'Bono nuevo'}{' '}
+                  {m.competitor_name || t('config.bonuses_config.new_bonus_label')}{' '}
                   <span style={{ fontWeight: 400, color: 'var(--color-muted)' }}>
-                    · {m.city || 'Todas las ciudades'} · {m.category || 'todas las cat.'}
+                    · {m.city || t('config.commissions.all_cities')} ·{' '}
+                    {m.category || t('config.bonuses_config.all_categories_short')}
                   </span>
                   {m.is_active === false && (
                     <span
                       style={{ marginLeft: 8, fontSize: 10, color: '#dc2626', fontWeight: 600 }}
                     >
-                      INACTIVO
+                      {t('config.bonuses_config.inactive_badge')}
                     </span>
                   )}
                   {m.recurring === false && (
                     <span
                       style={{ marginLeft: 8, fontSize: 10, color: '#b45309', fontWeight: 600 }}
                     >
-                      UNA VEZ
+                      {t('config.bonuses_config.once_badge')}
                     </span>
                   )}
                 </div>
@@ -314,7 +332,9 @@ export default function BonusesConfig({ country }) {
                   setOpenCards((p) => ({ ...p, [row.id]: !open }))
                 }}
               >
-                {open ? '▾ Cerrar' : '✎ Editar'}
+                {open
+                  ? `▾ ${t('config.bonuses_config.close_btn')}`
+                  : `✎ ${t('config.bonuses_config.edit_btn')}`}
               </button>
             </div>
 
@@ -322,13 +342,13 @@ export default function BonusesConfig({ country }) {
               <div style={{ marginTop: 12 }}>
                 {/* Cabecera común */}
                 <div style={rowStyle}>
-                  <Field label="Competidor">
+                  <Field label={t('config.commissions.col_competitor')}>
                     <select
                       value={m.competitor_name || ''}
                       onChange={(e) => setField(row.id, 'competitor_name', e.target.value)}
                       style={{ width: 150 }}
                     >
-                      <option value="">— Seleccionar —</option>
+                      <option value="">{t('config.commissions.select_placeholder')}</option>
                       {ALL_COMPETITORS.map((c) => (
                         <option key={c} value={c}>
                           {c}
@@ -336,7 +356,7 @@ export default function BonusesConfig({ country }) {
                       ))}
                     </select>
                   </Field>
-                  <Field label="Ciudad">
+                  <Field label={t('filter.city')}>
                     <select
                       value={m.city || ''}
                       onChange={(e) => setField(row.id, 'city', e.target.value || null)}
@@ -348,7 +368,7 @@ export default function BonusesConfig({ country }) {
                       ))}
                     </select>
                   </Field>
-                  <Field label="Categoría">
+                  <Field label={t('filter.category')}>
                     <select
                       value={m.category || ''}
                       onChange={(e) => setField(row.id, 'category', e.target.value || null)}
@@ -364,17 +384,17 @@ export default function BonusesConfig({ country }) {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDelete(row)}
-                    aria-label="Eliminar"
+                    aria-label={t('app.delete')}
                     className="ml-auto rounded-full border-red-300 font-normal text-red-600 hover:bg-red-50"
                   >
-                    ✕ Eliminar
+                    ✕ {t('app.delete')}
                   </Button>
                 </div>
 
                 {/* Segmento + recurrencia */}
                 <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 10 }}>
                   <div>
-                    <span style={labelStyle}>Segmento (para comparar activo-vs-activo)</span>
+                    <span style={labelStyle}>{t('config.bonuses_config.segment_label')}</span>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {SEGMENTS.map((s) => (
                         <button
@@ -382,25 +402,25 @@ export default function BonusesConfig({ country }) {
                           onClick={() => setField(row.id, 'segment', s.value)}
                           style={pill((m.segment || 'all') === s.value)}
                         >
-                          {s.label}
+                          {t(s.labelKey)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <span style={labelStyle}>Aplica</span>
+                    <span style={labelStyle}>{t('config.bonuses_config.applies_label')}</span>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button
                         onClick={() => setField(row.id, 'recurring', true)}
                         style={pill(m.recurring !== false)}
                       >
-                        Recurrente
+                        {t('config.bonuses_config.recurring_btn')}
                       </button>
                       <button
                         onClick={() => setField(row.id, 'recurring', false)}
                         style={pill(m.recurring === false)}
                       >
-                        Una vez (gancho)
+                        {t('config.bonuses_config.once_btn')}
                       </button>
                     </div>
                   </div>
@@ -408,7 +428,7 @@ export default function BonusesConfig({ country }) {
 
                 {/* Selector de mecanismo */}
                 <div style={{ marginBottom: 8 }}>
-                  <span style={labelStyle}>Mecanismo</span>
+                  <span style={labelStyle}>{t('config.bonuses_config.mechanism_label')}</span>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {MECHANISMS.map((x) => (
                       <button
@@ -416,11 +436,13 @@ export default function BonusesConfig({ country }) {
                         onClick={() => setMechanism(row.id, tiers, x.value)}
                         style={pill(mech === x.value)}
                       >
-                        {x.label}
+                        {t(x.labelKey)}
                       </button>
                     ))}
                   </div>
-                  <div style={hintStyle}>{MECHANISMS.find((x) => x.value === mech)?.hint}</div>
+                  <div style={hintStyle}>
+                    {t(MECHANISMS.find((x) => x.value === mech)?.hintKey)}
+                  </div>
                 </div>
 
                 {/* Cuerpo según mecanismo */}
@@ -434,9 +456,9 @@ export default function BonusesConfig({ country }) {
                   {mech === 'tiered' && (
                     <div>
                       <span style={labelStyle}>
-                        Peldaños (a partir de N viajes → premio {config.currency}, acumulado)
+                        {t('config.bonuses_config.tiers_label', { currency: config.currency })}
                       </span>
-                      {tiers.map((t, i) => (
+                      {tiers.map((tier, i) => (
                         <div
                           key={i}
                           style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}
@@ -445,19 +467,22 @@ export default function BonusesConfig({ country }) {
                           <input
                             type="number"
                             min="0"
-                            value={t.threshold ?? ''}
-                            placeholder="viajes"
+                            value={tier.threshold ?? ''}
+                            placeholder={t('config.bonuses_config.bonus_type_trips').toLowerCase()}
                             style={{ width: 80 }}
                             onChange={(e) =>
                               updateTier(row.id, tiers, i, 'threshold', e.target.value)
                             }
                           />
-                          <span style={{ fontSize: 12 }}>viajes → {config.currency}</span>
+                          <span style={{ fontSize: 12 }}>
+                            {t('config.bonuses_config.bonus_type_trips').toLowerCase()} →{' '}
+                            {config.currency}
+                          </span>
                           <input
                             type="number"
                             min="0"
-                            value={t.reward ?? ''}
-                            placeholder="premio"
+                            value={tier.reward ?? ''}
+                            placeholder={t('config.bonuses_config.reward_placeholder')}
                             style={{ width: 90 }}
                             onChange={(e) => updateTier(row.id, tiers, i, 'reward', e.target.value)}
                           />
@@ -479,22 +504,32 @@ export default function BonusesConfig({ country }) {
                         onClick={() => addTier(row.id, tiers)}
                         className="mt-0.5 rounded-full border-dashed font-normal text-muted"
                       >
-                        + peldaño
+                        + {t('config.bonuses_config.add_tier_btn')}
                       </Button>
                       {/* preview */}
-                      {tiers.filter((t) => t.threshold !== '' && t.threshold != null).length >
-                        0 && (
+                      {tiers.filter((tier) => tier.threshold !== '' && tier.threshold != null)
+                        .length > 0 && (
                         <div style={{ ...hintStyle, marginTop: 6 }}>
-                          Preview:{' '}
+                          {t('config.bonuses_config.preview_label')}{' '}
                           {[...tiers]
-                            .filter((t) => t.threshold !== '' && t.threshold != null)
+                            .filter((tier) => tier.threshold !== '' && tier.threshold != null)
                             .sort((a, b) => Number(a.threshold) - Number(b.threshold))
-                            .map((t) => `a ${t.threshold} → ${config.currency}${t.reward || 0}`)
+                            .map((tier) =>
+                              t('config.bonuses_config.preview_item', {
+                                threshold: tier.threshold,
+                                currency: config.currency,
+                                reward: tier.reward || 0,
+                              })
+                            )
                             .join('  ·  ')}
                         </div>
                       )}
                       <div style={{ marginTop: 8 }}>
-                        <Field label={`Tope (opcional, ${config.currency})`}>
+                        <Field
+                          label={t('config.bonuses_config.cap_optional_label', {
+                            currency: config.currency,
+                          })}
+                        >
                           <input
                             type="number"
                             min="0"
@@ -510,41 +545,52 @@ export default function BonusesConfig({ country }) {
                   {mech === 'gmv_tiered' && (
                     <div>
                       <span style={labelStyle}>
-                        Metas (N viajes → % del GMV de esos primeros N viajes, tope{' '}
-                        {config.currency} por meta)
+                        {t('config.bonuses_config.gmv_goals_label', { currency: config.currency })}
                       </span>
-                      {tiers.map((t, i) => (
+                      {tiers.map((tier, i) => (
                         <div
                           key={i}
                           style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}
                         >
-                          <span style={{ fontSize: 12 }}>meta</span>
+                          <span style={{ fontSize: 12 }}>
+                            {t('config.bonuses_config.goal_lower')}
+                          </span>
                           <input
                             type="number"
                             min="0"
-                            value={t.threshold ?? ''}
-                            placeholder="viajes"
+                            value={tier.threshold ?? ''}
+                            placeholder={t('config.bonuses_config.bonus_type_trips').toLowerCase()}
                             style={{ width: 75 }}
                             onChange={(e) =>
                               updateTier(row.id, tiers, i, 'threshold', e.target.value)
                             }
                           />
-                          <span style={{ fontSize: 12 }}>viajes →</span>
+                          <span style={{ fontSize: 12 }}>
+                            {t('config.bonuses_config.bonus_type_trips').toLowerCase()} →
+                          </span>
                           <input
                             type="number"
                             min="0"
                             step="0.1"
-                            value={t.pct ?? ''}
+                            value={tier.pct ?? ''}
                             placeholder="%"
                             style={{ width: 65 }}
                             onChange={(e) => updateTier(row.id, tiers, i, 'pct', e.target.value)}
                           />
-                          <span style={{ fontSize: 12 }}>% GMV · tope {config.currency}</span>
+                          <span style={{ fontSize: 12 }}>
+                            {t('config.bonuses_config.gmv_pct_cap_dot', {
+                              currency: config.currency,
+                            })}
+                          </span>
                           <input
                             type="number"
                             min="0"
-                            value={t.cap ?? ''}
-                            placeholder="tope"
+                            value={tier.cap ?? ''}
+                            placeholder={t('config.bonuses_config.cap_currency_label2', {
+                              currency: '',
+                            })
+                              .trim()
+                              .toLowerCase()}
                             style={{ width: 80 }}
                             onChange={(e) => updateTier(row.id, tiers, i, 'cap', e.target.value)}
                           />
@@ -568,28 +614,28 @@ export default function BonusesConfig({ country }) {
                         }
                         className="mt-0.5 rounded-full border-dashed font-normal text-muted"
                       >
-                        + meta
+                        + {t('config.bonuses_config.add_goal_short')}
                       </Button>
-                      <div style={hintStyle}>
-                        GMV = lo facturado ANTES de comisión. Si el driver hace más viajes que la
-                        meta, el % solo aplica sobre los primeros N. Se asume que elige la meta que
-                        más paga.
-                      </div>
+                      <div style={hintStyle}>{t('config.bonuses_config.gmv_hint')}</div>
                     </div>
                   )}
 
                   {mech === 'flat' && (
                     <div style={rowStyle}>
-                      <Field label="Tipo de umbral">
+                      <Field label={t('config.bonuses_config.threshold_type_label')}>
                         <select
                           value={m.bonus_type || 'viajes'}
                           onChange={(e) => setField(row.id, 'bonus_type', e.target.value)}
                         >
-                          <option value="viajes">Viajes</option>
-                          <option value="horas">Horas</option>
+                          <option value="viajes">
+                            {t('config.bonuses_config.bonus_type_trips')}
+                          </option>
+                          <option value="horas">
+                            {t('config.bonuses_config.bonus_type_hours')}
+                          </option>
                         </select>
                       </Field>
-                      <Field label="Umbral">
+                      <Field label={t('config.bonuses_config.threshold_label')}>
                         <input
                           type="number"
                           min="0"
@@ -598,7 +644,11 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'threshold', e.target.value)}
                         />
                       </Field>
-                      <Field label={`Monto ${config.currency}`}>
+                      <Field
+                        label={t('config.bonuses_config.amount_currency_label', {
+                          currency: config.currency,
+                        })}
+                      >
                         <input
                           type="number"
                           min="0"
@@ -612,7 +662,7 @@ export default function BonusesConfig({ country }) {
 
                   {mech === 'guarantee' && (
                     <div style={rowStyle}>
-                      <Field label="Si hace N viajes">
+                      <Field label={t('config.bonuses_config.guarantee_threshold_label')}>
                         <input
                           type="number"
                           min="0"
@@ -621,7 +671,11 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'threshold', e.target.value)}
                         />
                       </Field>
-                      <Field label={`Le aseguran ${config.currency}`}>
+                      <Field
+                        label={t('config.bonuses_config.guaranteed_currency', {
+                          currency: config.currency,
+                        })}
+                      >
                         <input
                           type="number"
                           min="0"
@@ -630,15 +684,13 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'bonus_amount', e.target.value)}
                         />
                       </Field>
-                      <div style={hintStyle}>
-                        Piso: se completa hasta el monto con el neto de esos N viajes.
-                      </div>
+                      <div style={hintStyle}>{t('config.bonuses_config.guarantee_hint')}</div>
                     </div>
                   )}
 
                   {mech === 'comm_discount' && (
                     <div style={rowStyle}>
-                      <Field label="Comisión en ventana %">
+                      <Field label={t('config.bonuses_config.comm_window_pct_label')}>
                         <input
                           type="number"
                           min="0"
@@ -650,7 +702,7 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'comm_pct', e.target.value)}
                         />
                       </Field>
-                      <Field label="% viajes en ventana (0-1)">
+                      <Field label={t('config.bonuses_config.share_window_label')}>
                         <input
                           type="number"
                           min="0"
@@ -662,16 +714,17 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'share_in_window', e.target.value)}
                         />
                       </Field>
-                      <div style={hintStyle}>
-                        Baja la comisión efectiva del competidor según el % de viajes en ventana
-                        (también ajustable en el Arquetipo de driver).
-                      </div>
+                      <div style={hintStyle}>{t('config.bonuses_config.comm_discount_hint')}</div>
                     </div>
                   )}
 
                   {mech === 'comm_credit' && (
                     <div style={rowStyle}>
-                      <Field label={`Crédito ${config.currency} / semana`}>
+                      <Field
+                        label={t('config.bonuses_config.credit_currency_week', {
+                          currency: config.currency,
+                        })}
+                      >
                         <input
                           type="number"
                           min="0"
@@ -680,15 +733,13 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'bonus_amount', e.target.value)}
                         />
                       </Field>
-                      <div style={hintStyle}>
-                        Monedas para pagar comisión ≈ cash equivalente. Suele variar por conductor.
-                      </div>
+                      <div style={hintStyle}>{t('config.bonuses_config.comm_credit_hint')}</div>
                     </div>
                   )}
 
                   {mech === 'surge' && (
                     <div style={rowStyle}>
-                      <Field label="% extra sobre fare">
+                      <Field label={t('config.bonuses_config.extra_fare_label')}>
                         <input
                           type="number"
                           min="0"
@@ -698,7 +749,11 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'mult_pct', e.target.value)}
                         />
                       </Field>
-                      <Field label={`Tope ${config.currency}`}>
+                      <Field
+                        label={t('config.bonuses_config.cap_currency_label2', {
+                          currency: config.currency,
+                        })}
+                      >
                         <input
                           type="number"
                           min="0"
@@ -708,7 +763,7 @@ export default function BonusesConfig({ country }) {
                           onChange={(e) => setField(row.id, 'cap_amount', e.target.value)}
                         />
                       </Field>
-                      <Field label="% viajes en ventana (0-1)">
+                      <Field label={t('config.bonuses_config.share_window_label')}>
                         <input
                           type="number"
                           min="0"
@@ -725,7 +780,7 @@ export default function BonusesConfig({ country }) {
 
                   {mech === 'streak' && (
                     <div style={rowStyle}>
-                      <Field label="Ventanas/día">
+                      <Field label={t('config.bonuses_config.windows_day_label')}>
                         <input
                           type="number"
                           min="1"
@@ -737,7 +792,7 @@ export default function BonusesConfig({ country }) {
                           }
                         />
                       </Field>
-                      <Field label="Premios por día (coma)">
+                      <Field label={t('config.bonuses_config.rewards_day_comma_label')}>
                         <input
                           type="text"
                           value={
@@ -758,7 +813,7 @@ export default function BonusesConfig({ country }) {
                           }
                         />
                       </Field>
-                      <Field label="Tope/ventana">
+                      <Field label={t('config.bonuses_config.cap_window_label')}>
                         <input
                           type="number"
                           min="0"
@@ -770,7 +825,7 @@ export default function BonusesConfig({ country }) {
                           }
                         />
                       </Field>
-                      <Field label="Tope total/sem">
+                      <Field label={t('config.bonuses_config.cap_total_week_label')}>
                         <input
                           type="number"
                           min="0"
@@ -798,11 +853,11 @@ export default function BonusesConfig({ country }) {
                     marginTop: 8,
                   }}
                 >
-                  {adv ? '▾' : '▸'} Avanzado (alternativas, ventana, zona)
+                  {adv ? '▾' : '▸'} {t('config.bonuses_config.advanced_toggle')}
                 </button>
                 {adv && (
                   <div style={{ ...rowStyle, marginTop: 6 }}>
-                    <Field label="Grupo de alternativas">
+                    <Field label={t('config.bonuses_config.alt_group_label')}>
                       <input
                         type="text"
                         value={m.group_key || ''}
@@ -818,9 +873,9 @@ export default function BonusesConfig({ country }) {
                         onChange={(e) => setField(row.id, 'is_chosen', e.target.checked)}
                         style={{ accentColor: 'var(--color-yango)' }}
                       />
-                      Es la elegida del grupo
+                      {t('config.bonuses_config.is_chosen_label')}
                     </label>
-                    <Field label="Días">
+                    <Field label={t('config.bonuses_config.days_label')}>
                       <input
                         type="text"
                         value={m.day_window || ''}
@@ -829,7 +884,7 @@ export default function BonusesConfig({ country }) {
                         onChange={(e) => setField(row.id, 'day_window', e.target.value || null)}
                       />
                     </Field>
-                    <Field label="Hora desde">
+                    <Field label={t('config.bonuses_config.time_from_label')}>
                       <input
                         type="text"
                         value={m.time_from || ''}
@@ -838,7 +893,7 @@ export default function BonusesConfig({ country }) {
                         onChange={(e) => setField(row.id, 'time_from', e.target.value || null)}
                       />
                     </Field>
-                    <Field label="Hora hasta">
+                    <Field label={t('config.bonuses_config.time_to_label')}>
                       <input
                         type="text"
                         value={m.time_to || ''}
@@ -847,7 +902,7 @@ export default function BonusesConfig({ country }) {
                         onChange={(e) => setField(row.id, 'time_to', e.target.value || null)}
                       />
                     </Field>
-                    <Field label="Zona">
+                    <Field label={t('config.bonuses_config.zone_label')}>
                       <input
                         type="text"
                         value={m.zone || ''}
@@ -856,11 +911,11 @@ export default function BonusesConfig({ country }) {
                         onChange={(e) => setField(row.id, 'zone', e.target.value || null)}
                       />
                     </Field>
-                    <Field label="Descripción">
+                    <Field label={t('config.bonuses_config.description_label')}>
                       <input
                         type="text"
                         value={m.description || ''}
-                        placeholder="Ej: quest fin de semana"
+                        placeholder={t('config.bonuses_config.description_placeholder')}
                         style={{ width: 160 }}
                         onChange={(e) => setField(row.id, 'description', e.target.value)}
                       />
@@ -877,16 +932,16 @@ export default function BonusesConfig({ country }) {
                       onChange={(e) => setField(row.id, 'is_active', e.target.checked)}
                       style={{ accentColor: 'var(--color-yango)' }}
                     />
-                    Activo
+                    {t('config.bonuses_config.seg_active')}
                   </label>
                   <Button
                     size="sm"
                     onClick={() => handleSave(row)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : undefined}
+                    title={!dirty ? t('config.commissions.no_changes_title') : undefined}
                     className="ml-auto"
                   >
-                    {isNew(row) ? 'Crear' : 'Guardar'}
+                    {isNew(row) ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                 </div>
               </div>
@@ -896,13 +951,15 @@ export default function BonusesConfig({ country }) {
       })}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-        <Button onClick={() => setWizardOpen(true)}>+ Crear bono (asistente)</Button>
+        <Button onClick={() => setWizardOpen(true)}>
+          + {t('config.bonuses_config.wizard_btn')}
+        </Button>
         <Button
           variant="outline"
           onClick={addRow}
           className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
         >
-          + Tarjeta vacía (modo experto)
+          + {t('config.bonuses_config.expert_card_btn')}
         </Button>
       </div>
 
