@@ -2,12 +2,12 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { LanguageProvider } from './context/LanguageContext'
-import { CountryProvider }  from './context/CountryContext'
+import { CountryProvider } from './context/CountryContext'
 import { RealtimeSyncProvider } from './context/RealtimeSyncProvider'
-import { ConfigProvider }    from './context/ConfigProvider'
-import { ToastProvider }    from './components/ui/Toast'
-import { ConfirmProvider }  from './components/ui/ConfirmDialog'
-import ErrorBoundary        from './components/ui/ErrorBoundary'
+import { ConfigProvider } from './context/ConfigProvider'
+import { ToastProvider } from './components/ui/Toast'
+import { ConfirmProvider } from './components/ui/ConfirmDialog'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 // Sprint 2.1: Tailwind ANTES de global.css. tailwind.css agrega utility
 // classes; global.css define tokens y overrides — el orden permite a
 // global.css ganar en caso de conflicto. Sin preflight (ver tailwind.config.js)
@@ -16,10 +16,14 @@ import './styles/tailwind.css'
 import './styles/global.css'
 
 // Orden de los providers (de afuera hacia adentro):
-//   ErrorBoundary → cualquier crash queda atrapado.
+//   ErrorBoundary → cualquier crash queda atrapado. Usa translate() +
+//                   localStorage directo (no el hook) porque está fuera
+//                   de LanguageProvider — es la única excepción posible.
+//   LanguageProvider → primero de los providers "reales": Toast y Confirm
+//                      llaman useI18n() (ToastItem/ConfirmProvider), así
+//                      que tienen que estar DENTRO de este, no afuera.
 //   ToastProvider → necesario para RealtimeSync (muestra toasts de cambios).
 //   ConfirmProvider → diálogos de confirmación.
-//   LanguageProvider → necesario para RealtimeSync (mensajes i18n).
 //   CountryProvider → necesario para que CountryContext escuche eventos
 //                     'config:changed' que dispara RealtimeSync.
 //   ConfigProvider → cache global de configs read-only (Sprint 2.4).
@@ -32,9 +36,9 @@ import './styles/global.css'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <ToastProvider>
-        <ConfirmProvider>
-          <LanguageProvider>
+      <LanguageProvider>
+        <ToastProvider>
+          <ConfirmProvider>
             <CountryProvider>
               <ConfigProvider>
                 <RealtimeSyncProvider>
@@ -42,9 +46,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 </RealtimeSyncProvider>
               </ConfigProvider>
             </CountryProvider>
-          </LanguageProvider>
-        </ConfirmProvider>
-      </ToastProvider>
+          </ConfirmProvider>
+        </ToastProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   </React.StrictMode>
 )
