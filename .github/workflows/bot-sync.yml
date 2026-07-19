@@ -52,7 +52,7 @@ on:
       limit:
         description: 'Filas máximas a procesar en esta corrida (subí este número para backfills — con date_from/date_to hasta ~50000 entra cómodo en el timeout)'
         required: false
-        default: '5000'
+        default: '20000'
       probe_only:
         description: '¿Solo sondear esquema (sin sync)?'
         required: false
@@ -191,7 +191,17 @@ jobs:
           # date_from/date_to (si vienen) deben ser YYYY-MM-DD — mismo
           # criterio que INPUT_LIMIT (mig 100): nunca interpolar el input
           # crudo en bash.
-          LIMIT="${INPUT_LIMIT:-5000}"
+          #
+          # Default 20000 (subido de 5000 el 2026-07-19): con 5000/hora el
+          # watermark de Perú quedó 43 DÍAS atrás del scrape real — el
+          # volumen que manda el bot supera lo que el cron horario podía
+          # procesar, y el backlog creció en silencio (cada corrida
+          # terminaba en status=ok, solo que siempre semanas atrás). Los
+          # eventos `schedule` no tienen `inputs.*` (INPUT_LIMIT llega
+          # vacío), así que este default es el que rige el cron horario
+          # real — subirlo acá es lo que evita que el backlog vuelva a
+          # crecer, no solo el default del campo en la UI de dispatch.
+          LIMIT="${INPUT_LIMIT:-20000}"
           if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
             echo "::error::limit inválido (debe ser entero positivo): $LIMIT"
             exit 1
