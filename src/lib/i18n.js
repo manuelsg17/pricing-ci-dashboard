@@ -1173,6 +1173,28 @@ export const TRANSLATIONS = {
     'config.weights.save_no_snapshot_title':
       'Aplica los nuevos pesos sin crear snapshot. Los promedios históricos se recalculan en vivo.',
 
+    // ── AirportMarkersTable ─────────────────────────────────────────
+    'config.airports.title': 'Aeropuertos — {country}',
+    'config.airports.desc_1':
+      'Cada marker mapea (country, base_city) a dos ciudades virtuales: city_from (viajes desde el aeropuerto) y city_to (viajes hacia el aeropuerto).',
+    'config.airports.desc_2':
+      'El bot detecta en este orden: (1) si raw.zone matchea zone_from_value o zone_to_value (source-of-truth si tu bot etiqueta); (2) fallback a substring match de keywords en point_a/point_b.',
+    'config.airports.desc_3':
+      'Zone match es exacto y case-sensitive; keywords es substring case-insensitive (no necesitan ser exactos).',
+    'config.airports.loading': 'Cargando markers de aeropuerto…',
+    'config.airports.add_btn': 'Nuevo aeropuerto',
+    'config.airports.hint_zone': '(raw.zone exacto)',
+    'config.airports.hint_keywords': '(coma-separado, fallback)',
+    'config.airports.err_required': 'base_city, city_from y city_to son obligatorios',
+    'config.airports.err_keywords': 'Necesitás al menos un keyword para detectar el aeropuerto',
+    'config.airports.saved_toast': 'Marker guardado: {base} → {from} / {to}',
+    'config.airports.delete_confirm_title': 'Eliminar marker',
+    'config.airports.delete_confirm_message':
+      'Si lo eliminás, el bot dejará de separar viajes de aeropuerto para esta ciudad. Las observaciones nuevas caerán en la ciudad base.',
+    'config.airports.delete_success': 'Marker eliminado.',
+    'config.airports.empty':
+      'No hay aeropuertos configurados para este país. Agregá uno con el botón de arriba.',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -2313,6 +2335,28 @@ export const TRANSLATIONS = {
       'Total = {pct}% (not 100%). The WA re-normalizes with the available brackets — you can still save.',
     'config.weights.save_no_snapshot_title':
       'Applies the new weights without creating a snapshot. Historical averages recalculate live.',
+
+    // ── AirportMarkersTable ─────────────────────────────────────────
+    'config.airports.title': 'Airports — {country}',
+    'config.airports.desc_1':
+      'Each marker maps (country, base_city) to two virtual cities: city_from (trips from the airport) and city_to (trips to the airport).',
+    'config.airports.desc_2':
+      'The bot detects in this order: (1) if raw.zone matches zone_from_value or zone_to_value (source-of-truth if your bot tags it); (2) fallback to substring match of keywords in point_a/point_b.',
+    'config.airports.desc_3':
+      "Zone match is exact and case-sensitive; keywords is substring case-insensitive (they don't need to be exact).",
+    'config.airports.loading': 'Loading airport markers…',
+    'config.airports.add_btn': 'New airport',
+    'config.airports.hint_zone': '(exact raw.zone)',
+    'config.airports.hint_keywords': '(comma-separated, fallback)',
+    'config.airports.err_required': 'base_city, city_from and city_to are required',
+    'config.airports.err_keywords': 'You need at least one keyword to detect the airport',
+    'config.airports.saved_toast': 'Marker saved: {base} → {from} / {to}',
+    'config.airports.delete_confirm_title': 'Delete marker',
+    'config.airports.delete_confirm_message':
+      'If you delete it, the bot will stop separating airport trips for this city. New observations will fall into the base city.',
+    'config.airports.delete_success': 'Marker deleted.',
+    'config.airports.empty':
+      'No airports configured for this country. Add one with the button above.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -3487,6 +3531,28 @@ export const TRANSLATIONS = {
       'Итого = {pct}% (не 100%). WA перенормирует с доступными диапазонами — можно сохранить в любом случае.',
     'config.weights.save_no_snapshot_title':
       'Применяет новые веса без создания снимка. Исторические средние пересчитываются в реальном времени.',
+
+    // ── AirportMarkersTable ─────────────────────────────────────────
+    'config.airports.title': 'Аэропорты — {country}',
+    'config.airports.desc_1':
+      'Каждый маркер сопоставляет (country, base_city) с двумя виртуальными городами: city_from (поездки из аэропорта) и city_to (поездки в аэропорт).',
+    'config.airports.desc_2':
+      'Бот определяет в таком порядке: (1) совпадает ли raw.zone с zone_from_value или zone_to_value (источник истины, если ваш бот их размечает); (2) запасной вариант — поиск подстроки keywords в point_a/point_b.',
+    'config.airports.desc_3':
+      'Совпадение по zone точное и с учётом регистра; keywords ищется как подстрока без учёта регистра (не обязательно точное совпадение).',
+    'config.airports.loading': 'Загрузка маркеров аэропортов…',
+    'config.airports.add_btn': 'Новый аэропорт',
+    'config.airports.hint_zone': '(точное raw.zone)',
+    'config.airports.hint_keywords': '(через запятую, запасной вариант)',
+    'config.airports.err_required': 'base_city, city_from и city_to обязательны',
+    'config.airports.err_keywords': 'Нужно хотя бы одно ключевое слово для определения аэропорта',
+    'config.airports.saved_toast': 'Маркер сохранён: {base} → {from} / {to}',
+    'config.airports.delete_confirm_title': 'Удалить маркер',
+    'config.airports.delete_confirm_message':
+      'Если удалите, бот перестанет разделять поездки в аэропорт для этого города. Новые наблюдения попадут в базовый город.',
+    'config.airports.delete_success': 'Маркер удалён.',
+    'config.airports.empty':
+      'Для этой страны не настроено ни одного аэропорта. Добавьте его кнопкой выше.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',

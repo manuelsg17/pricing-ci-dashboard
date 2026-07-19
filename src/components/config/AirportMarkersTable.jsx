@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 // CRUD de airport_markers. Cada fila define cómo el bot separa viajes de
@@ -20,6 +21,7 @@ import { Button } from '../ui/shadcn/button'
 // está editando una fila, su trabajo en progreso no se pisa.
 export default function AirportMarkersTable({ country }) {
   const confirm = useConfirm()
+  const { t } = useI18n()
 
   const {
     data: serverRows,
@@ -126,11 +128,11 @@ export default function AirportMarkersTable({ country }) {
 
   async function saveRow(row) {
     if (!row.base_city || !row.city_from || !row.city_to) {
-      setMsg({ type: 'err', text: 'base_city, city_from y city_to son obligatorios' })
+      setMsg({ type: 'err', text: t('config.airports.err_required') })
       return
     }
     if (!row.keywords || row.keywords.length === 0) {
-      setMsg({ type: 'err', text: 'Necesitás al menos un keyword para detectar el aeropuerto' })
+      setMsg({ type: 'err', text: t('config.airports.err_keywords') })
       return
     }
     setSaving(true)
@@ -153,11 +155,15 @@ export default function AirportMarkersTable({ country }) {
       ;({ error: err } = await sb.from('airport_markers').update(payload).eq('id', row.id))
     }
     if (err) {
-      setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
+      setMsg({ type: 'err', text: t('config.thresholds.save_error', { msg: err.message }) })
     } else {
       setMsg({
         type: 'ok',
-        text: `Marker guardado: ${payload.base_city} → ${payload.city_from} / ${payload.city_to}`,
+        text: t('config.airports.saved_toast', {
+          base: payload.base_city,
+          from: payload.city_from,
+          to: payload.city_to,
+        }),
       })
       // Sacar la fila local recién guardada para que el sync effect
       // tras el reload la reemplace por la versión canónica del server
@@ -176,23 +182,22 @@ export default function AirportMarkersTable({ country }) {
       return
     }
     const ok = await confirm({
-      title: 'Eliminar marker',
-      message:
-        'Si lo eliminás, el bot dejará de separar viajes de aeropuerto para esta ciudad. Las observaciones nuevas caerán en la ciudad base.',
+      title: t('config.airports.delete_confirm_title'),
+      message: t('config.airports.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     const { error } = await sb.from('airport_markers').delete().eq('id', id)
     if (!error) {
-      setMsg({ type: 'ok', text: 'Marker eliminado.' })
+      setMsg({ type: 'ok', text: t('config.airports.delete_success') })
       await load()
     } else {
-      setMsg({ type: 'err', text: 'Error al eliminar: ' + error.message })
+      setMsg({ type: 'err', text: t('config.citimeslots.delete_error', { msg: error.message }) })
     }
   }
 
-  if (loading) return <div className="config-loading">Cargando markers de aeropuerto…</div>
+  if (loading) return <div className="config-loading">{t('config.airports.loading')}</div>
 
   const dirtyCellStyle = {
     background: '#fef3c7',
@@ -203,20 +208,13 @@ export default function AirportMarkersTable({ country }) {
 
   return (
     <div className="config-section">
-      <h2>Aeropuertos — {country}</h2>
+      <h2>{t('config.airports.title', { country })}</h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-        Cada marker mapea <code>(country, base_city)</code> a dos ciudades virtuales:
-        <code>city_from</code> (viajes <strong>desde</strong> el aeropuerto) y<code>city_to</code>{' '}
-        (viajes <strong>hacia</strong> el aeropuerto).
+        {t('config.airports.desc_1')}
         <br />
-        El bot detecta en este orden: <strong>(1)</strong> si <code>raw.zone</code> matchea
-        <code>zone_from_value</code> o <code>zone_to_value</code> (source-of-truth si tu bot
-        etiqueta);
-        <strong>(2)</strong> fallback a substring match de <code>keywords</code> en
-        <code>point_a</code>/<code>point_b</code>.
+        {t('config.airports.desc_2')}
         <br />
-        Zone match es exacto y case-sensitive; keywords es substring case-insensitive (no necesitan
-        ser exactos).
+        {t('config.airports.desc_3')}
       </p>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -229,7 +227,7 @@ export default function AirportMarkersTable({ country }) {
           className="border-dashed border-border text-muted hover:border-yango hover:text-yango"
           onClick={addRow}
         >
-          + Nuevo aeropuerto
+          + {t('config.airports.add_btn')}
         </Button>
       </div>
 
@@ -243,19 +241,19 @@ export default function AirportMarkersTable({ country }) {
               <th scope="col">
                 ZONE FROM
                 <br />
-                <small style={{ fontWeight: 400 }}>(raw.zone exacto)</small>
+                <small style={{ fontWeight: 400 }}>{t('config.airports.hint_zone')}</small>
               </th>
               <th scope="col">
                 ZONE TO
                 <br />
-                <small style={{ fontWeight: 400 }}>(raw.zone exacto)</small>
+                <small style={{ fontWeight: 400 }}>{t('config.airports.hint_zone')}</small>
               </th>
               <th scope="col">
                 KEYWORDS
                 <br />
-                <small style={{ fontWeight: 400 }}>(coma-separado, fallback)</small>
+                <small style={{ fontWeight: 400 }}>{t('config.airports.hint_keywords')}</small>
               </th>
-              <th scope="col">ACTIVA</th>
+              <th scope="col">{t('config.bands.col_active')}</th>
               <th scope="col"></th>
             </tr>
           </thead>
@@ -340,7 +338,7 @@ export default function AirportMarkersTable({ country }) {
                       disabled={saving || !dirty}
                       onClick={() => saveRow(r)}
                     >
-                      Guardar
+                      {t('app.save')}
                     </Button>
                     <Button
                       type="button"
@@ -349,7 +347,7 @@ export default function AirportMarkersTable({ country }) {
                       disabled={saving}
                       onClick={() => deleteRow(r.id)}
                     >
-                      Eliminar
+                      {t('app.delete')}
                     </Button>
                   </td>
                 </tr>
@@ -361,7 +359,7 @@ export default function AirportMarkersTable({ country }) {
                   colSpan={8}
                   style={{ textAlign: 'center', color: 'var(--color-muted)', padding: 16 }}
                 >
-                  No hay aeropuertos configurados para este país. Agregá uno con el botón de arriba.
+                  {t('config.airports.empty')}
                 </td>
               </tr>
             )}
