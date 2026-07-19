@@ -622,9 +622,18 @@ def main():
         # Filtros de la query: status='ok' + business_unit='ridehailing' +
         # solo el país pedido. Los hacemos lower() para tolerar variantes.
         if args.date_from and args.date_to:
+            # timestamp_utc >= / < (rango medio-abierto), NUNCA
+            # timestamp_utc::date BETWEEN — un cast sobre la columna hace
+            # el predicado no-sargable (Postgres no puede usar el índice de
+            # timestamp_utc, tiene que evaluar el cast fila por fila).
+            # Reproducido en vivo: un backfill de 3 meses con esa forma
+            # tiró "canceling statement due to statement timeout" (60s) en
+            # helioho — el mismo shared host que el sync incremental usa
+            # sin problema porque su WHERE timestamp_utc > %s sí es sargable.
             cur.execute(
                 f'SELECT * FROM {fq_table} '
-                f'WHERE timestamp_utc::date BETWEEN %s AND %s '
+                f'WHERE timestamp_utc >= %s::date '
+                f'  AND timestamp_utc < (%s::date + INTERVAL \'1 day\') '
                 f'  AND lower(status) = %s '
                 f'  AND lower(business_unit) = %s '
                 f'  AND country = %s '
