@@ -1,5 +1,18 @@
 import { Component } from 'react'
 import { Button } from './shadcn/button'
+import { translate } from '../../lib/i18n'
+
+// Class component: no puede usar el hook useI18n(). Lee el idioma actual
+// de localStorage (misma key que LanguageContext.jsx) directo, con
+// fallback a 'es' — consistente con cómo el resto de la app persiste el
+// idioma elegido.
+function currentLang() {
+  try {
+    return localStorage.getItem('lang') || 'es'
+  } catch {
+    return 'es'
+  }
+}
 
 // ErrorBoundary compacto para usar inline alrededor de secciones individuales
 // del dashboard. Si una sola sección crashea (ej: recharts con data inesperada),
@@ -28,6 +41,8 @@ export default class SectionErrorBoundary extends Component {
     if (!this.state.error) return this.props.children
 
     const isProd = import.meta.env.MODE === 'production'
+    const lang = currentLang()
+    const t = (key, vars) => translate(lang, key, vars)
 
     return (
       <div
@@ -47,12 +62,11 @@ export default class SectionErrorBoundary extends Component {
         <span style={{ fontSize: 20, flexShrink: 0 }}>⚠</span>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#9a3412', marginBottom: 2 }}>
-            {this.props.label ? `Error en sección "${this.props.label}"` : 'Error en esta sección'}
+            {this.props.label
+              ? t('common.section_error.title_named', { label: this.props.label })
+              : t('common.section_error.title_generic')}
           </div>
-          <div style={{ fontSize: 11, color: '#7c2d12' }}>
-            El resto del dashboard sigue funcionando. Probá cambiar los filtros (ej: vista Semanal)
-            o reintentar.
-          </div>
+          <div style={{ fontSize: 11, color: '#7c2d12' }}>{t('common.section_error.message')}</div>
           {!isProd && this.state.error?.message && (
             <pre
               style={{
@@ -77,7 +91,7 @@ export default class SectionErrorBoundary extends Component {
           onClick={this.handleReset}
           className="h-auto rounded-[4px] border-amber-700 bg-white px-2.5 py-1 text-[11px] font-semibold text-orange-800 hover:bg-amber-50"
         >
-          Reintentar
+          {t('app.retry')}
         </Button>
       </div>
     )

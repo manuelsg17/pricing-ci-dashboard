@@ -4,6 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { TOAST_DURATION_MS } from '../../lib/timing'
 import { Button } from './shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 const ToastCtx = createContext(null)
 
@@ -108,6 +109,7 @@ const SCHEME = {
 }
 
 function ToastItem({ toast, onClose }) {
+  const { t } = useI18n()
   const s = SCHEME[toast.type] || SCHEME.info
   return (
     <div
@@ -137,7 +139,7 @@ function ToastItem({ toast, onClose }) {
         type="button"
         variant="ghost"
         onClick={onClose}
-        aria-label="Cerrar"
+        aria-label={t('app.close')}
         className="h-auto w-auto p-0 text-base leading-5 hover:bg-transparent"
         style={{ color: s.fg }}
       >

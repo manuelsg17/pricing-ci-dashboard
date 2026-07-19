@@ -1,5 +1,17 @@
 import { Component } from 'react'
 import { Button } from './shadcn/button'
+import { translate } from '../../lib/i18n'
+
+// Class component: no puede usar el hook useI18n(). Lee el idioma actual
+// de localStorage (misma key que LanguageContext.jsx) directo, con
+// fallback a 'es'.
+function currentLang() {
+  try {
+    return localStorage.getItem('lang') || 'es'
+  } catch {
+    return 'es'
+  }
+}
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -30,6 +42,8 @@ export default class ErrorBoundary extends Component {
     if (!this.state.error) return this.props.children
 
     const isProd = import.meta.env.MODE === 'production'
+    const lang = currentLang()
+    const t = (key, vars) => translate(lang, key, vars)
 
     return (
       <div
@@ -55,11 +69,10 @@ export default class ErrorBoundary extends Component {
         >
           <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 8 }}>⚠</div>
           <h2 style={{ fontSize: 18, color: '#991b1b', margin: 0, marginBottom: 8 }}>
-            Algo se rompió en esta vista
+            {t('common.error_boundary.title')}
           </h2>
           <p style={{ fontSize: 13, color: '#444', margin: 0, marginBottom: 12 }}>
-            El error fue contenido — el resto del dashboard sigue funcionando. Puedes reintentar la
-            vista o recargar la página.
+            {t('common.error_boundary.message')}
           </p>
           {!isProd && this.state.error?.message && (
             <pre
@@ -81,10 +94,10 @@ export default class ErrorBoundary extends Component {
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="outline" onClick={this.handleReset} className="border-slate-300">
-              Reintentar
+              {t('app.retry')}
             </Button>
             <Button onClick={this.handleReload} className="font-semibold">
-              Recargar página
+              {t('app.reload_page')}
             </Button>
           </div>
         </div>

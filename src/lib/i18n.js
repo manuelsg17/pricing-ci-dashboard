@@ -24,6 +24,33 @@ export const TRANSLATIONS = {
     'app.no_data': 'Sin datos',
     'app.error': 'Error',
     'app.saved': '✓ Guardado',
+    'app.retry': 'Reintentar',
+    'app.reload_page': 'Recargar página',
+    'app.confirm': 'Confirmar',
+    'app.close': 'Cerrar',
+
+    // ── Primitivas compartidas (Toast, ConfirmDialog, ErrorBoundary, EmptyState, BotFreshnessBadge) ──
+    'common.bot_freshness.time_ago_lt1min': 'hace <1 min',
+    'common.bot_freshness.time_ago_min': 'hace {n} min',
+    'common.bot_freshness.time_ago_hours': 'hace {n}h',
+    'common.bot_freshness.time_ago_days': 'hace {n}d',
+    'common.bot_freshness.loading_title': 'Cargando estado del bot…',
+    'common.bot_freshness.loading_label': 'Bot —',
+    'common.bot_freshness.last_sync_tooltip':
+      'Última sync OK del bot: {date} · {n} filas insertadas',
+    'common.bot_freshness.no_runs_tooltip': 'Sin corridas exitosas del bot todavía',
+    'common.bot_freshness.label': 'Bot {time}',
+    'common.bot_freshness.no_runs_short': 'sin corridas',
+    'common.section_error.title_named': 'Error en sección "{label}"',
+    'common.section_error.title_generic': 'Error en esta sección',
+    'common.section_error.message':
+      'El resto del dashboard sigue funcionando. Probá cambiar los filtros (ej: vista Semanal) o reintentar.',
+    'common.error_boundary.title': 'Algo se rompió en esta vista',
+    'common.error_boundary.message':
+      'El error fue contenido — el resto del dashboard sigue funcionando. Puedes reintentar la vista o recargar la página.',
+    'common.empty_state.title': 'No hay datos',
+    'common.confirm_dialog.default_title': 'Confirmar acción',
+    'common.confirm_dialog.default_message': '¿Estás seguro?',
 
     // ── Cuenta / contraseña ────────────────────────────
     'account.change_password': 'Cambiar contraseña',
@@ -1703,6 +1730,33 @@ export const TRANSLATIONS = {
     'app.no_data': 'No data',
     'app.error': 'Error',
     'app.saved': '✓ Saved',
+    'app.retry': 'Retry',
+    'app.reload_page': 'Reload page',
+    'app.confirm': 'Confirm',
+    'app.close': 'Close',
+
+    // ── Shared primitives (Toast, ConfirmDialog, ErrorBoundary, EmptyState, BotFreshnessBadge) ──
+    'common.bot_freshness.time_ago_lt1min': 'less than 1 min ago',
+    'common.bot_freshness.time_ago_min': '{n} min ago',
+    'common.bot_freshness.time_ago_hours': '{n}h ago',
+    'common.bot_freshness.time_ago_days': '{n}d ago',
+    'common.bot_freshness.loading_title': 'Loading bot status…',
+    'common.bot_freshness.loading_label': 'Bot —',
+    'common.bot_freshness.last_sync_tooltip':
+      'Last successful bot sync: {date} · {n} rows inserted',
+    'common.bot_freshness.no_runs_tooltip': 'No successful bot runs yet',
+    'common.bot_freshness.label': 'Bot {time}',
+    'common.bot_freshness.no_runs_short': 'no runs',
+    'common.section_error.title_named': 'Error in section "{label}"',
+    'common.section_error.title_generic': 'Error in this section',
+    'common.section_error.message':
+      'The rest of the dashboard keeps working. Try changing the filters (e.g. Weekly view) or retrying.',
+    'common.error_boundary.title': 'Something broke in this view',
+    'common.error_boundary.message':
+      'The error was contained — the rest of the dashboard keeps working. You can retry this view or reload the page.',
+    'common.empty_state.title': 'No data',
+    'common.confirm_dialog.default_title': 'Confirm action',
+    'common.confirm_dialog.default_message': 'Are you sure?',
 
     // ── Account / password ─────────────────────────────
     'account.change_password': 'Change password',
@@ -3354,6 +3408,33 @@ export const TRANSLATIONS = {
     'app.no_data': 'Нет данных',
     'app.error': 'Ошибка',
     'app.saved': '✓ Сохранено',
+    'app.retry': 'Повторить',
+    'app.reload_page': 'Перезагрузить страницу',
+    'app.confirm': 'Подтвердить',
+    'app.close': 'Закрыть',
+
+    // ── Общие примитивы (Toast, ConfirmDialog, ErrorBoundary, EmptyState, BotFreshnessBadge) ──
+    'common.bot_freshness.time_ago_lt1min': 'менее 1 мин назад',
+    'common.bot_freshness.time_ago_min': '{n} мин назад',
+    'common.bot_freshness.time_ago_hours': '{n}ч назад',
+    'common.bot_freshness.time_ago_days': '{n}д назад',
+    'common.bot_freshness.loading_title': 'Загрузка статуса бота…',
+    'common.bot_freshness.loading_label': 'Бот —',
+    'common.bot_freshness.last_sync_tooltip':
+      'Последняя успешная синхронизация бота: {date} · строк добавлено: {n}',
+    'common.bot_freshness.no_runs_tooltip': 'Пока нет успешных запусков бота',
+    'common.bot_freshness.label': 'Бот {time}',
+    'common.bot_freshness.no_runs_short': 'нет запусков',
+    'common.section_error.title_named': 'Ошибка в разделе «{label}»',
+    'common.section_error.title_generic': 'Ошибка в этом разделе',
+    'common.section_error.message':
+      'Остальная часть дашборда продолжает работать. Попробуйте изменить фильтры (например, недельный вид) или повторить.',
+    'common.error_boundary.title': 'Что-то сломалось в этом разделе',
+    'common.error_boundary.message':
+      'Ошибка была изолирована — остальная часть дашборда продолжает работать. Вы можете повторить попытку или перезагрузить страницу.',
+    'common.empty_state.title': 'Нет данных',
+    'common.confirm_dialog.default_title': 'Подтвердить действие',
+    'common.confirm_dialog.default_message': 'Вы уверены?',
 
     // ── Аккаунт / пароль ───────────────────────────────
     'account.change_password': 'Сменить пароль',

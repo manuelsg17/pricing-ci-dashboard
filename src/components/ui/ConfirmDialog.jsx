@@ -3,34 +3,43 @@
    FilterContext.jsx); separar solo por Fast Refresh no vale la fragmentación. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { Button } from './shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 const ConfirmCtx = createContext(null)
 
 export function useConfirm() {
   const ctx = useContext(ConfirmCtx)
+  const { t } = useI18n()
   if (!ctx) {
-    return (opts) => Promise.resolve(window.confirm(opts?.message || opts || '¿Confirmar?'))
+    return (opts) =>
+      Promise.resolve(
+        window.confirm(opts?.message || opts || t('common.confirm_dialog.default_message'))
+      )
   }
   return ctx
 }
 
 export function ConfirmProvider({ children }) {
+  const { t } = useI18n()
   const [state, setState] = useState(null)
   const resolverRef = useRef(null)
 
-  const confirm = useCallback((opts) => {
-    const config = typeof opts === 'string' ? { message: opts } : opts || {}
-    return new Promise((resolve) => {
-      resolverRef.current = resolve
-      setState({
-        title: config.title || 'Confirmar acción',
-        message: config.message || '¿Estás seguro?',
-        confirmText: config.confirmText || 'Confirmar',
-        cancelText: config.cancelText || 'Cancelar',
-        danger: !!config.danger,
+  const confirm = useCallback(
+    (opts) => {
+      const config = typeof opts === 'string' ? { message: opts } : opts || {}
+      return new Promise((resolve) => {
+        resolverRef.current = resolve
+        setState({
+          title: config.title || t('common.confirm_dialog.default_title'),
+          message: config.message || t('common.confirm_dialog.default_message'),
+          confirmText: config.confirmText || t('app.confirm'),
+          cancelText: config.cancelText || t('app.cancel'),
+          danger: !!config.danger,
+        })
       })
-    })
-  }, [])
+    },
+    [t]
+  )
 
   const close = useCallback((result) => {
     setState(null)
