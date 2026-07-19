@@ -26,6 +26,7 @@ import { prettyCompetitor } from '../../lib/normalize'
 import { BRACKETS } from '../../lib/constants'
 import { formatPrice } from '../../lib/format.js'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { useI18n } from '../../context/LanguageContext'
 
 const BRACKET_LABELS = {
   _wa: 'WA',
@@ -44,6 +45,7 @@ export default function HeadToHeadView({
   compareVs,
   currency = '',
 }) {
+  const { t } = useI18n()
   const yangoComp = compareVs
   const latestKey = periods?.[periods.length - 1]?.key
   const latestLabel = periods?.[periods.length - 1]?.label
@@ -110,35 +112,34 @@ export default function HeadToHeadView({
   }, [rows])
 
   if (rivalOptions.length === 0) {
-    return (
-      <div className="p-6 text-sm text-muted">
-        No hay competidores comparables en este filtro. Cambiá city/category/período.
-      </div>
-    )
+    return <div className="p-6 text-sm text-muted">{t('dashboard.head_to_head.no_rivals')}</div>
   }
 
   return (
     <div className="flex flex-col gap-4 p-2">
       {/* Para qué sirve esta vista — en una frase */}
       <div className="rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs leading-relaxed text-muted">
-        <strong className="text-foreground">¿Para qué sirve?</strong> Elegí UN competidor y mirá
-        distancia por distancia dónde Yango le gana en precio y dónde no. Útil para responder
-        rápido: <em>“¿estamos más baratos que Uber en viajes cortos?”</em>
+        <strong className="text-foreground">{t('dashboard.what_for_label')}</strong>{' '}
+        {t('dashboard.head_to_head.what_for_body')}{' '}
+        <em>“{t('dashboard.head_to_head.what_for_example')}”</em>
       </div>
 
       {/* Selector competidor + período actual */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold uppercase text-muted">Yango vs:</label>
+        <label className="text-xs font-semibold uppercase text-muted">
+          {t('dashboard.head_to_head.yango_vs_label')}
+        </label>
         <Combobox
           items={rivalOptions}
           value={selectedRival}
           onValueChange={setSelectedRival}
-          placeholder="Elegí un competidor…"
-          searchPlaceholder="Buscar competidor…"
+          placeholder={t('dashboard.head_to_head.placeholder_competitor')}
+          searchPlaceholder={t('dashboard.head_to_head.search_competitor')}
         />
         <p className="text-xs text-muted">
-          Comparando el período <span className="font-semibold text-foreground">{latestLabel}</span>{' '}
-          con moneda {currency}.
+          {t('dashboard.head_to_head.comparing_period_prefix')}{' '}
+          <span className="font-semibold text-foreground">{latestLabel}</span>{' '}
+          {t('dashboard.head_to_head.comparing_period_suffix', { currency })}
         </p>
       </div>
 
@@ -146,15 +147,23 @@ export default function HeadToHeadView({
       <Card>
         <CardContent className="grid grid-cols-2 gap-3 p-4">
           <div>
-            <div className="text-xs uppercase text-muted">Yango líder</div>
+            <div className="text-xs uppercase text-muted">
+              {t('dashboard.head_to_head.kpi_leader_label')}
+            </div>
             <div className="text-2xl font-bold text-foreground">
               {summary.leadCount}
               <span className="ml-1 text-base font-normal text-muted">/ {summary.total}</span>
             </div>
-            <div className="text-xs text-muted">brackets vs {prettyCompetitor(selectedRival)}</div>
+            <div className="text-xs text-muted">
+              {t('dashboard.head_to_head.kpi_leader_hint', {
+                competitor: prettyCompetitor(selectedRival),
+              })}
+            </div>
           </div>
           <div>
-            <div className="text-xs uppercase text-muted">Δ promedio</div>
+            <div className="text-xs uppercase text-muted">
+              {t('dashboard.head_to_head.kpi_avg_delta_label')}
+            </div>
             <div
               className="text-2xl font-bold"
               style={{
@@ -176,8 +185,8 @@ export default function HeadToHeadView({
               {summary.avgDelta == null
                 ? ''
                 : summary.avgDelta > 0
-                  ? `Yango más caro en promedio`
-                  : `Yango más barato en promedio`}
+                  ? t('dashboard.head_to_head.kpi_avg_more_expensive')
+                  : t('dashboard.head_to_head.kpi_avg_cheaper')}
             </div>
           </div>
         </CardContent>
@@ -188,11 +197,13 @@ export default function HeadToHeadView({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase text-muted">
-              <th className="py-2 pr-2">Bracket</th>
+              <th className="py-2 pr-2">{t('dashboard.head_to_head.col_bracket')}</th>
               <th className="py-2 pr-2 text-right">Yango</th>
               <th className="py-2 pr-2 text-right">{prettyCompetitor(selectedRival)}</th>
               <th className="py-2 pr-2 text-right">Δ %</th>
-              <th className="py-2 pl-2 text-right">Diff {currency}</th>
+              <th className="py-2 pl-2 text-right">
+                {t('dashboard.head_to_head.col_diff', { currency })}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -212,12 +223,14 @@ export default function HeadToHeadView({
                       <span>{r.label}</span>
                       {isBest && !isWA && (
                         <Badge variant="success" className="gap-1 text-[10px]">
-                          <TrendingDown className="h-3 w-3" /> Best
+                          <TrendingDown className="h-3 w-3" />{' '}
+                          {t('dashboard.head_to_head.badge_best')}
                         </Badge>
                       )}
                       {isWorst && !isWA && (
                         <Badge variant="danger" className="gap-1 text-[10px]">
-                          <TrendingUp className="h-3 w-3" /> Worst
+                          <TrendingUp className="h-3 w-3" />{' '}
+                          {t('dashboard.head_to_head.badge_worst')}
                         </Badge>
                       )}
                     </div>
@@ -269,11 +282,14 @@ export default function HeadToHeadView({
       </div>
 
       <div className="text-xs text-muted">
-        <Minus className="inline h-3 w-3" /> <strong>Δ %</strong> = (Yango −{' '}
-        {prettyCompetitor(selectedRival)}) / {prettyCompetitor(selectedRival)}. Negativo (verde) =
-        Yango más barato. Positivo (rojo) = Yango más caro.
-        <strong> Best</strong> = bracket donde Yango es más competitivo en precio.
-        <strong> Worst</strong> = bracket donde Yango está más caro.
+        <Minus className="inline h-3 w-3" /> <strong>Δ %</strong>{' '}
+        {t('dashboard.head_to_head.delta_formula', {
+          competitor: prettyCompetitor(selectedRival),
+        })}
+        <strong> {t('dashboard.head_to_head.badge_best')}</strong>{' '}
+        {t('dashboard.head_to_head.best_def')}
+        <strong> {t('dashboard.head_to_head.badge_worst')}</strong>{' '}
+        {t('dashboard.head_to_head.worst_def')}
       </div>
     </div>
   )

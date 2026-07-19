@@ -12,22 +12,24 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/shadcn/tabs'
 import LeadershipChart from './LeadershipChart'
 import PositionTimeline from './PositionTimeline'
+import { useI18n } from '../../context/LanguageContext'
 
 export default function AdvancedAnalyticsView({ priceMatrix, periods, competitors, compareVs }) {
+  const { t } = useI18n()
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-md border border-border bg-secondary/30 px-3 py-2 text-xs leading-relaxed text-muted">
-        <strong className="text-foreground">¿Para qué sirve?</strong> Mientras el dashboard muestra
-        los precios de <em>esta</em> semana, acá ves la <strong>tendencia</strong>:{' '}
-        <strong>% Liderazgo</strong> responde{' '}
-        <em>“¿en qué distancias solemos ser los más baratos?”</em> y{' '}
-        <strong>Posición en el tiempo</strong> responde{' '}
-        <em>“¿estamos mejorando o empeorando contra la competencia?”</em>
+        <strong className="text-foreground">{t('dashboard.what_for_label')}</strong>{' '}
+        {t('dashboard.advanced_analytics.what_for_body')}
       </div>
       <Tabs defaultValue="leadership" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="leadership">% Liderazgo</TabsTrigger>
-          <TabsTrigger value="position">Posición en el tiempo</TabsTrigger>
+          <TabsTrigger value="leadership">
+            {t('dashboard.advanced_analytics.tab_leadership')}
+          </TabsTrigger>
+          <TabsTrigger value="position">
+            {t('dashboard.advanced_analytics.tab_position')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="leadership" className="mt-4">

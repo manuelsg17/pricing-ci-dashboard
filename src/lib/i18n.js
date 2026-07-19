@@ -154,6 +154,62 @@ export const TRANSLATIONS = {
     'dashboard.position_timeline.tooltip_period_label': 'Período: {label}',
     'dashboard.position_timeline.footer':
       'Ranking de precio de Yango semana a semana (#1 = el más barato del mercado). La línea punteada amarilla marca el podio (top 3). Subir en el gráfico = mejorar.',
+    'dashboard.what_for_label': '¿Para qué sirve?',
+    'dashboard.anomaly_digest.header': {
+      one: '{n} atípico esta semana:',
+      other: '{n} atípicos esta semana:',
+    },
+    'dashboard.anomaly_digest.view_detail': 'Ver detalle',
+    'dashboard.leadership.no_data':
+      'Sin data suficiente para calcular liderazgo. Cargá más períodos.',
+    'dashboard.leadership.conclusion_strong': 'Yango casi siempre es el más barato en {brackets}',
+    'dashboard.leadership.conclusion_weak': 'rara vez lidera en {brackets}',
+    'dashboard.leadership.conclusion_balanced':
+      'Yango compite parejo en todas las distancias: lidera entre el 30% y 60% de las semanas.',
+    'dashboard.leadership.conclusion_joiner': '; pero ',
+    'dashboard.leadership.tooltip_no_data': 'Sin data',
+    'dashboard.leadership.tooltip_label': 'Liderazgo',
+    'dashboard.leadership.tooltip_value': '{pct}% ({leadCount}/{totalValid} períodos)',
+    'dashboard.leadership.tooltip_result_label': 'Yango líder',
+    'dashboard.leadership.tooltip_bracket_label': 'Bracket: {label}',
+    'dashboard.leadership.footer':
+      'Cada barra = % de las semanas del rango en que Yango fue el competidor más barato en esa distancia. Verde = casi siempre líder (≥60%), amarillo = a veces (30-60%), rojo = casi nunca (<30%). La línea punteada marca el 50%.',
+    'dashboard.head_to_head.no_rivals':
+      'No hay competidores comparables en este filtro. Cambiá city/category/período.',
+    'dashboard.head_to_head.what_for_body':
+      'Elegí UN competidor y mirá distancia por distancia dónde Yango le gana en precio y dónde no. Útil para responder rápido:',
+    'dashboard.head_to_head.what_for_example': '¿estamos más baratos que Uber en viajes cortos?',
+    'dashboard.head_to_head.yango_vs_label': 'Yango vs:',
+    'dashboard.head_to_head.placeholder_competitor': 'Elegí un competidor…',
+    'dashboard.head_to_head.search_competitor': 'Buscar competidor…',
+    'dashboard.head_to_head.comparing_period_prefix': 'Comparando el período',
+    'dashboard.head_to_head.comparing_period_suffix': 'con moneda {currency}.',
+    'dashboard.head_to_head.kpi_leader_label': 'Yango líder',
+    'dashboard.head_to_head.kpi_leader_hint': 'brackets vs {competitor}',
+    'dashboard.head_to_head.kpi_avg_delta_label': 'Δ promedio',
+    'dashboard.head_to_head.kpi_avg_more_expensive': 'Yango más caro en promedio',
+    'dashboard.head_to_head.kpi_avg_cheaper': 'Yango más barato en promedio',
+    'dashboard.head_to_head.col_bracket': 'Bracket',
+    'dashboard.head_to_head.col_diff': 'Diff {currency}',
+    'dashboard.head_to_head.badge_best': 'Best',
+    'dashboard.head_to_head.badge_worst': 'Worst',
+    'dashboard.head_to_head.delta_formula':
+      '= (Yango − {competitor}) / {competitor}. Negativo (verde) = Yango más barato. Positivo (rojo) = Yango más caro.',
+    'dashboard.head_to_head.best_def': '= bracket donde Yango es más competitivo en precio.',
+    'dashboard.head_to_head.worst_def': '= bracket donde Yango está más caro.',
+    'dashboard.advanced_analytics.what_for_body':
+      'Mientras el dashboard muestra los precios de esta semana, acá ves la tendencia: % Liderazgo responde "¿en qué distancias solemos ser los más baratos?" y Posición en el tiempo responde "¿estamos mejorando o empeorando contra la competencia?"',
+    'dashboard.advanced_analytics.tab_leadership': '% Liderazgo',
+    'dashboard.advanced_analytics.tab_position': 'Posición en el tiempo',
+    'dashboard.what_if.mode_label': 'Modo simulación',
+    'dashboard.what_if.adjust_prefix': 'Ajustar',
+    'dashboard.what_if.adjust_suffix': 'en',
+    'dashboard.what_if.reset_title': 'Reset a 0%',
+    'dashboard.what_if.reset_label': 'Reset',
+    'dashboard.what_if.close_title': 'Cerrar simulación y volver a data real',
+    'dashboard.what_if.close_label': 'Cerrar',
+    'dashboard.what_if.warning':
+      'Las matrices, KPIs y charts muestran números simulados — los datos reales no se modifican.',
 
     // ── Cuenta / contraseña ────────────────────────────
     'account.change_password': 'Cambiar contraseña',
@@ -1962,6 +2018,61 @@ export const TRANSLATIONS = {
     'dashboard.position_timeline.tooltip_period_label': 'Period: {label}',
     'dashboard.position_timeline.footer':
       "Yango's price ranking week by week (#1 = cheapest in the market). The dashed yellow line marks the podium (top 3). Going up in the chart = improving.",
+    'dashboard.what_for_label': 'What is this for?',
+    'dashboard.anomaly_digest.header': {
+      one: '{n} outlier this week:',
+      other: '{n} outliers this week:',
+    },
+    'dashboard.anomaly_digest.view_detail': 'View detail',
+    'dashboard.leadership.no_data': 'Not enough data to calculate leadership. Load more periods.',
+    'dashboard.leadership.conclusion_strong': 'Yango is almost always the cheapest in {brackets}',
+    'dashboard.leadership.conclusion_weak': 'rarely leads in {brackets}',
+    'dashboard.leadership.conclusion_balanced':
+      'Yango competes evenly across all distances: leads between 30% and 60% of weeks.',
+    'dashboard.leadership.conclusion_joiner': '; but ',
+    'dashboard.leadership.tooltip_no_data': 'No data',
+    'dashboard.leadership.tooltip_label': 'Leadership',
+    'dashboard.leadership.tooltip_value': '{pct}% ({leadCount}/{totalValid} periods)',
+    'dashboard.leadership.tooltip_result_label': 'Yango leads',
+    'dashboard.leadership.tooltip_bracket_label': 'Bracket: {label}',
+    'dashboard.leadership.footer':
+      'Each bar = % of weeks in the range where Yango was the cheapest competitor for that distance. Green = almost always leads (≥60%), yellow = sometimes (30-60%), red = almost never (<30%). The dashed line marks 50%.',
+    'dashboard.head_to_head.no_rivals':
+      'No comparable competitors for this filter. Change city/category/period.',
+    'dashboard.head_to_head.what_for_body':
+      "Pick ONE competitor and see distance by distance where Yango wins on price and where it doesn't. Useful to quickly answer:",
+    'dashboard.head_to_head.what_for_example': 'are we cheaper than Uber on short trips?',
+    'dashboard.head_to_head.yango_vs_label': 'Yango vs:',
+    'dashboard.head_to_head.placeholder_competitor': 'Pick a competitor…',
+    'dashboard.head_to_head.search_competitor': 'Search competitor…',
+    'dashboard.head_to_head.comparing_period_prefix': 'Comparing period',
+    'dashboard.head_to_head.comparing_period_suffix': 'in {currency}.',
+    'dashboard.head_to_head.kpi_leader_label': 'Yango leads',
+    'dashboard.head_to_head.kpi_leader_hint': 'brackets vs {competitor}',
+    'dashboard.head_to_head.kpi_avg_delta_label': 'Avg Δ',
+    'dashboard.head_to_head.kpi_avg_more_expensive': 'Yango more expensive on average',
+    'dashboard.head_to_head.kpi_avg_cheaper': 'Yango cheaper on average',
+    'dashboard.head_to_head.col_bracket': 'Bracket',
+    'dashboard.head_to_head.col_diff': 'Diff {currency}',
+    'dashboard.head_to_head.badge_best': 'Best',
+    'dashboard.head_to_head.badge_worst': 'Worst',
+    'dashboard.head_to_head.delta_formula':
+      '= (Yango − {competitor}) / {competitor}. Negative (green) = Yango cheaper. Positive (red) = Yango more expensive.',
+    'dashboard.head_to_head.best_def': '= bracket where Yango is most price-competitive.',
+    'dashboard.head_to_head.worst_def': '= bracket where Yango is most expensive.',
+    'dashboard.advanced_analytics.what_for_body':
+      'While the dashboard shows this week\'s prices, here you see the trend: % Leadership answers "in which distances are we usually the cheapest?" and Position over time answers "are we improving or falling behind the competition?"',
+    'dashboard.advanced_analytics.tab_leadership': '% Leadership',
+    'dashboard.advanced_analytics.tab_position': 'Position over time',
+    'dashboard.what_if.mode_label': 'Simulation mode',
+    'dashboard.what_if.adjust_prefix': 'Adjust',
+    'dashboard.what_if.adjust_suffix': 'by',
+    'dashboard.what_if.reset_title': 'Reset to 0%',
+    'dashboard.what_if.reset_label': 'Reset',
+    'dashboard.what_if.close_title': 'Close simulation and go back to real data',
+    'dashboard.what_if.close_label': 'Close',
+    'dashboard.what_if.warning':
+      'Matrices, KPIs and charts show simulated numbers — real data is not modified.',
 
     // ── Account / password ─────────────────────────────
     'account.change_password': 'Change password',
@@ -3744,6 +3855,64 @@ export const TRANSLATIONS = {
     'dashboard.position_timeline.tooltip_period_label': 'Период: {label}',
     'dashboard.position_timeline.footer':
       'Рейтинг цены Yango неделя за неделей (#1 = самый дешёвый на рынке). Жёлтая пунктирная линия отмечает подиум (топ-3). Подъём на графике = улучшение.',
+    'dashboard.what_for_label': 'Для чего это нужно?',
+    'dashboard.anomaly_digest.header': {
+      one: '{n} аномалия на этой неделе:',
+      few: '{n} аномалии на этой неделе:',
+      many: '{n} аномалий на этой неделе:',
+      other: '{n} аномалий на этой неделе:',
+    },
+    'dashboard.anomaly_digest.view_detail': 'Смотреть детали',
+    'dashboard.leadership.no_data':
+      'Недостаточно данных для расчёта лидерства. Загрузите больше периодов.',
+    'dashboard.leadership.conclusion_strong': 'Yango почти всегда самый дешёвый в {brackets}',
+    'dashboard.leadership.conclusion_weak': 'редко лидирует в {brackets}',
+    'dashboard.leadership.conclusion_balanced':
+      'Yango конкурирует ровно на всех дистанциях: лидирует в 30–60% недель.',
+    'dashboard.leadership.conclusion_joiner': '; но ',
+    'dashboard.leadership.tooltip_no_data': 'Нет данных',
+    'dashboard.leadership.tooltip_label': 'Лидерство',
+    'dashboard.leadership.tooltip_value': '{pct}% ({leadCount}/{totalValid} периодов)',
+    'dashboard.leadership.tooltip_result_label': 'Yango лидирует',
+    'dashboard.leadership.tooltip_bracket_label': 'Диапазон: {label}',
+    'dashboard.leadership.footer':
+      'Каждая полоса = % недель в диапазоне, когда Yango был самым дешёвым конкурентом на этой дистанции. Зелёный = почти всегда лидирует (≥60%), жёлтый = иногда (30-60%), красный = почти никогда (<30%). Пунктирная линия отмечает 50%.',
+    'dashboard.head_to_head.no_rivals':
+      'Нет сравнимых конкурентов для этого фильтра. Смените город/категорию/период.',
+    'dashboard.head_to_head.what_for_body':
+      'Выберите ОДНОГО конкурента и посмотрите по дистанциям, где Yango выигрывает по цене, а где нет. Полезно, чтобы быстро ответить:',
+    'dashboard.head_to_head.what_for_example': 'мы дешевле Uber на коротких поездках?',
+    'dashboard.head_to_head.yango_vs_label': 'Yango против:',
+    'dashboard.head_to_head.placeholder_competitor': 'Выберите конкурента…',
+    'dashboard.head_to_head.search_competitor': 'Поиск конкурента…',
+    'dashboard.head_to_head.comparing_period_prefix': 'Сравнение периода',
+    'dashboard.head_to_head.comparing_period_suffix': 'в валюте {currency}.',
+    'dashboard.head_to_head.kpi_leader_label': 'Yango лидирует',
+    'dashboard.head_to_head.kpi_leader_hint': 'диапазонов vs {competitor}',
+    'dashboard.head_to_head.kpi_avg_delta_label': 'Средняя Δ',
+    'dashboard.head_to_head.kpi_avg_more_expensive': 'Yango дороже в среднем',
+    'dashboard.head_to_head.kpi_avg_cheaper': 'Yango дешевле в среднем',
+    'dashboard.head_to_head.col_bracket': 'Диапазон',
+    'dashboard.head_to_head.col_diff': 'Разница {currency}',
+    'dashboard.head_to_head.badge_best': 'Best',
+    'dashboard.head_to_head.badge_worst': 'Worst',
+    'dashboard.head_to_head.delta_formula':
+      '= (Yango − {competitor}) / {competitor}. Отрицательное (зелёное) = Yango дешевле. Положительное (красное) = Yango дороже.',
+    'dashboard.head_to_head.best_def': '= диапазон, где Yango наиболее конкурентен по цене.',
+    'dashboard.head_to_head.worst_def': '= диапазон, где Yango дороже всего.',
+    'dashboard.advanced_analytics.what_for_body':
+      'Пока дашборд показывает цены этой недели, здесь вы видите тренд: % Лидерства отвечает на вопрос «на каких дистанциях мы обычно самые дешёвые?», а Позиция во времени отвечает на вопрос «мы улучшаемся или отстаём от конкурентов?»',
+    'dashboard.advanced_analytics.tab_leadership': '% Лидерства',
+    'dashboard.advanced_analytics.tab_position': 'Позиция во времени',
+    'dashboard.what_if.mode_label': 'Режим симуляции',
+    'dashboard.what_if.adjust_prefix': 'Изменить',
+    'dashboard.what_if.adjust_suffix': 'на',
+    'dashboard.what_if.reset_title': 'Сбросить до 0%',
+    'dashboard.what_if.reset_label': 'Сброс',
+    'dashboard.what_if.close_title': 'Закрыть симуляцию и вернуться к реальным данным',
+    'dashboard.what_if.close_label': 'Закрыть',
+    'dashboard.what_if.warning':
+      'Матрицы, KPI и графики показывают смоделированные числа — реальные данные не изменяются.',
 
     // ── Аккаунт / пароль ───────────────────────────────
     'account.change_password': 'Сменить пароль',

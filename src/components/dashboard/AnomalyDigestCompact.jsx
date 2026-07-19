@@ -2,10 +2,12 @@ import { useMemo } from 'react'
 import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
 import { Search, ArrowRight } from 'lucide-react'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 // Versión compact: muestra los top 3 atípicos en una sola línea con
 // link a la pestaña Mercado para ver el detalle completo.
 export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], competitors = [] }) {
+  const { t } = useI18n()
   const top = useMemo(() => {
     if (!periods?.length || periods.length < 4) return []
     if (!competitors?.length) return []
@@ -70,7 +72,8 @@ export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], c
           flexShrink: 0,
         }}
       >
-        <Search size={14} /> {top.length} atípico{top.length === 1 ? '' : 's'} esta semana:
+        <Search size={14} />{' '}
+        {t('dashboard.anomaly_digest.header', { n: top.length, count: top.length })}
       </span>
       <div style={{ display: 'flex', gap: 6, flex: 1, flexWrap: 'wrap' }}>
         {top.map((a, i) => (
@@ -113,7 +116,7 @@ export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], c
         onClick={goToMarket}
         className="h-auto gap-1 whitespace-nowrap rounded-md border-amber-700 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-50"
       >
-        Ver detalle <ArrowRight size={13} />
+        {t('dashboard.anomaly_digest.view_detail')} <ArrowRight size={13} />
       </Button>
     </div>
   )
