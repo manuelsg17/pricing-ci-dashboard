@@ -1477,7 +1477,7 @@ export const TRANSLATIONS = {
     'config.botrules.desc':
       'El bot scrapea precios y los manda con sus propios nombres técnicos. Estas reglas son el traductor: le dicen al sistema "cuando llegue esto del bot, guardalo como este competidor y esta categoría". Si un precio del bot no matchea ninguna regla, se descarta — por eso el botón amarillo de abajo te avisa si está llegando data que se está perdiendo.',
     'config.botrules.example':
-      'Ejemplo: el bot manda app=uber_api · vc=comfort · ovc=* → la regla lo traduce a Uber / Comfort. El * significa "cualquier valor". Ciudades vacío = aplica a todo el país.',
+      'Ejemplo: el bot manda app=uber_api · vc=comfort · ovc=* → la regla lo traduce a Uber / Comfort. El * significa "cualquier valor". Podés separar varias variantes de ovc con coma (ej: "viaje, viajes económicos") si la app cambia el texto con el tiempo. Ciudades vacío = aplica a todo el país.',
     'config.botrules.add_btn': 'Nueva regla',
     'config.botrules.unmatched_count': {
       one: '{n} combo no matcheado',
@@ -1486,14 +1486,22 @@ export const TRANSLATIONS = {
     'config.botrules.hide': 'ocultar',
     'config.botrules.view': 'ver',
     'config.botrules.unmatched_desc':
-      'Combinaciones (app, vc, ovc, city) que aparecen en el bot pero no matchean ninguna regla activa (últimos 7 días). Hacé clic en + Agregar para crear una regla pre-rellenada.',
+      'Combinaciones (app, vc, ovc, city) que aparecieron en la última corrida del bot y no matchean ninguna regla activa. Hacé clic en + Agregar para crear una regla pre-rellenada, o en "Agregar variante" si ya existe una regla para esa app/vc.',
+    'config.botrules.ovc_variants_hint': {
+      one: '{n} variante',
+      other: '{n} variantes',
+    },
+    'config.botrules.append_variant_btn': 'Agregar variante a regla existente',
+    'config.botrules.append_variant_msg':
+      'Variante "{ovc}" agregada a la regla existente de {app}/{vc} — revisá y guardá.',
     'config.botrules.add_short': 'Agregar',
     'config.botrules.loading': 'Cargando reglas del bot…',
     'config.botrules.section_bot_sends': 'LO QUE MANDA EL BOT',
     'config.botrules.section_dashboard_view': '→ CÓMO LO VES EN EL DASHBOARD',
     'config.botrules.app_title': 'Identificador de la app en el scraper (ej: uber_api, yango_api)',
     'config.botrules.vc_title': 'Categoría de vehículo según el bot (ej: economy, comfort)',
-    'config.botrules.ovc_title': 'Categoría original del competidor. * = cualquier valor',
+    'config.botrules.ovc_title':
+      'Categoría original del competidor. * = cualquier valor. Separá varias variantes con coma.',
     'config.botrules.cities_title': 'Vacío = todas las ciudades del país',
     'config.botrules.col_cities': 'Ciudades',
     'config.botrules.city_not_found': 'Ciudad no encontrada.',
@@ -3408,7 +3416,7 @@ export const TRANSLATIONS = {
     'config.botrules.desc':
       'The bot scrapes prices and sends them with its own technical names. These rules are the translator: they tell the system "when this comes from the bot, save it as this competitor and this category". If a bot price doesn\'t match any rule, it gets dropped — that\'s why the yellow button below warns you if incoming data is being lost.',
     'config.botrules.example':
-      'Example: the bot sends app=uber_api · vc=comfort · ovc=* → the rule translates it to Uber / Comfort. * means "any value". Empty cities = applies to the whole country.',
+      'Example: the bot sends app=uber_api · vc=comfort · ovc=* → the rule translates it to Uber / Comfort. * means "any value". You can separate several ovc variants with a comma (e.g: "viaje, viajes económicos") if the app changes its wording over time. Empty cities = applies to the whole country.',
     'config.botrules.add_btn': 'New rule',
     'config.botrules.unmatched_count': {
       one: '{n} unmatched combo',
@@ -3417,14 +3425,22 @@ export const TRANSLATIONS = {
     'config.botrules.hide': 'hide',
     'config.botrules.view': 'view',
     'config.botrules.unmatched_desc':
-      "Combinations (app, vc, ovc, city) that show up from the bot but don't match any active rule (last 7 days). Click + Add to create a pre-filled rule.",
+      'Combinations (app, vc, ovc, city) that showed up in the bot\'s last run and don\'t match any active rule. Click + Add to create a pre-filled rule, or "Add variant" if a rule already exists for that app/vc.',
+    'config.botrules.ovc_variants_hint': {
+      one: '{n} variant',
+      other: '{n} variants',
+    },
+    'config.botrules.append_variant_btn': 'Add variant to existing rule',
+    'config.botrules.append_variant_msg':
+      'Variant "{ovc}" added to the existing {app}/{vc} rule — review and save.',
     'config.botrules.add_short': 'Add',
     'config.botrules.loading': 'Loading bot rules…',
     'config.botrules.section_bot_sends': 'WHAT THE BOT SENDS',
     'config.botrules.section_dashboard_view': '→ HOW YOU SEE IT IN THE DASHBOARD',
     'config.botrules.app_title': 'App identifier in the scraper (e.g: uber_api, yango_api)',
     'config.botrules.vc_title': 'Vehicle category per the bot (e.g: economy, comfort)',
-    'config.botrules.ovc_title': "Competitor's original category. * = any value",
+    'config.botrules.ovc_title':
+      "Competitor's original category. * = any value. Separate multiple variants with a comma.",
     'config.botrules.cities_title': 'Empty = all cities in the country',
     'config.botrules.col_cities': 'Cities',
     'config.botrules.city_not_found': 'City not found.',
@@ -5374,7 +5390,7 @@ export const TRANSLATIONS = {
     'config.botrules.desc':
       'Бот собирает цены и отправляет их со своими техническими названиями. Эти правила — переводчик: они говорят системе «когда придёт это от бота, сохрани как этого конкурента и эту категорию». Если цена бота не совпадает ни с одним правилом, она отбрасывается — поэтому жёлтая кнопка ниже предупреждает, если теряются входящие данные.',
     'config.botrules.example':
-      'Пример: бот отправляет app=uber_api · vc=comfort · ovc=* → правило переводит это в Uber / Comfort. * означает «любое значение». Пустые города = применяется ко всей стране.',
+      'Пример: бот отправляет app=uber_api · vc=comfort · ovc=* → правило переводит это в Uber / Comfort. * означает «любое значение». Можно указать несколько вариантов ovc через запятую (напр.: "viaje, viajes económicos"), если приложение со временем меняет текст. Пустые города = применяется ко всей стране.',
     'config.botrules.add_btn': 'Новое правило',
     'config.botrules.unmatched_count': {
       one: '{n} несопоставленная комбинация',
@@ -5385,14 +5401,24 @@ export const TRANSLATIONS = {
     'config.botrules.hide': 'скрыть',
     'config.botrules.view': 'посмотреть',
     'config.botrules.unmatched_desc':
-      'Комбинации (app, vc, ovc, city), которые встречаются у бота, но не совпадают ни с одним активным правилом (последние 7 дней). Нажмите + Добавить, чтобы создать предзаполненное правило.',
+      'Комбинации (app, vc, ovc, city), которые появились в последнем запуске бота и не совпадают ни с одним активным правилом. Нажмите + Добавить, чтобы создать предзаполненное правило, или «Добавить вариант», если для этого app/vc уже есть правило.',
+    'config.botrules.ovc_variants_hint': {
+      one: '{n} вариант',
+      few: '{n} варианта',
+      many: '{n} вариантов',
+      other: '{n} вариантов',
+    },
+    'config.botrules.append_variant_btn': 'Добавить вариант к существующему правилу',
+    'config.botrules.append_variant_msg':
+      'Вариант «{ovc}» добавлен к существующему правилу {app}/{vc} — проверьте и сохраните.',
     'config.botrules.add_short': 'Добавить',
     'config.botrules.loading': 'Загрузка правил бота…',
     'config.botrules.section_bot_sends': 'ЧТО ОТПРАВЛЯЕТ БОТ',
     'config.botrules.section_dashboard_view': '→ КАК ЭТО ВИДНО В ДАШБОРДЕ',
     'config.botrules.app_title': 'Идентификатор приложения в скрапере (напр.: uber_api, yango_api)',
     'config.botrules.vc_title': 'Категория транспорта по данным бота (напр.: economy, comfort)',
-    'config.botrules.ovc_title': 'Исходная категория конкурента. * = любое значение',
+    'config.botrules.ovc_title':
+      'Исходная категория конкурента. * = любое значение. Несколько вариантов через запятую.',
     'config.botrules.cities_title': 'Пусто = все города страны',
     'config.botrules.col_cities': 'Города',
     'config.botrules.city_not_found': 'Город не найден.',

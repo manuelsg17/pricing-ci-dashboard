@@ -12,6 +12,31 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
+// ovc admite variantes separadas por coma (misma convención que
+// resolve_rule() en bot_sync_push.py y resolveByRules() en botMapping.js) —
+// '*' (o lista vacía) sigue significando "cualquier valor" y absorbe
+// cualquier otra variante que se le mezcle.
+function normalizeOvc(raw) {
+  const variants = [
+    ...new Set(
+      String(raw || '*')
+        .toLowerCase()
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean)
+    ),
+  ]
+  if (variants.length === 0 || variants.includes('*')) return '*'
+  return variants.join(', ')
+}
+
+function countOvcVariants(raw) {
+  return String(raw || '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean).length
+}
+
 // Tabla CRUD de bot_rules. Cada fila mapea (app, vc, ovc, cities) →
 // (competition_name, category) para que sync_bot_quotes pueda matchear
 // las filas que emite el scraper externo.
@@ -220,6 +245,40 @@ export default function BotRulesTable({ country }) {
     })
   }
 
+  // Si ya existe una regla activa con el mismo app+vc (y compatible en
+  // ciudades — si no, el problema real es la ciudad, no el ovc), el combo
+  // no matcheado casi siempre es "la app mandó otro texto para lo mismo".
+  // En ese caso conviene agregar la variante a esa regla en vez de crear
+  // una fila nueva — es el pedido explícito del usuario.
+  function findExistingRule(combo) {
+    const appLc = (combo.app || '').toLowerCase()
+    const vcLc = (combo.vc || '').toLowerCase()
+    return rules.find((r) => {
+      if (!r.active) return false
+      if ((r.app || '').toLowerCase() !== appLc) return false
+      if ((r.vc || '').toLowerCase() !== vcLc) return false
+      const cities = r.cities || []
+      if (cities.length > 0 && combo.db_city && !cities.includes(combo.db_city)) return false
+      return true
+    })
+  }
+
+  function appendVariantToExisting(combo) {
+    const existing = findExistingRule(combo)
+    if (!existing) return
+    const merged = normalizeOvc(`${existing.ovc || ''}, ${combo.ovc || ''}`)
+    updateRule(existing.id, 'ovc', merged)
+    setMsg({
+      type: 'ok',
+      text: t('config.botrules.append_variant_msg', {
+        ovc: combo.ovc || '*',
+        app: existing.app,
+        vc: existing.vc,
+      }),
+    })
+    setShowUnmatched(false)
+  }
+
   const isRowDirty = (r) => isRowDirtyAgainst(r, original)
 
   async function saveRule(rule) {
@@ -233,7 +292,7 @@ export default function BotRulesTable({ country }) {
       country,
       app: rule.app.toLowerCase().trim(),
       vc: rule.vc.toLowerCase().trim(),
-      ovc: (rule.ovc || '*').toLowerCase().trim(),
+      ovc: normalizeOvc(rule.ovc),
       competition_name: rule.competition_name,
       category: rule.category,
       cities: rule.cities || [],
@@ -396,29 +455,39 @@ export default function BotRulesTable({ country }) {
               </tr>
             </thead>
             <tbody>
-              {unmatched.map((c, i) => (
-                <tr key={i}>
-                  <td>
-                    <code>{c.app || '∅'}</code>
-                  </td>
-                  <td>
-                    <code>{c.vc || '∅'}</code>
-                  </td>
-                  <td>
-                    <code>{c.ovc || '*'}</code>
-                  </td>
-                  <td>{c.db_city || '∅'}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                    {Number(c.total_n).toLocaleString()}
-                  </td>
-                  <td>
-                    <Button type="button" size="sm" onClick={() => addFromUnmatched(c)}>
-                      <Plus size={11} />
-                      {t('config.botrules.add_short')}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {unmatched.map((c, i) => {
+                const existing = findExistingRule(c)
+                return (
+                  <tr key={i}>
+                    <td>
+                      <code>{c.app || '∅'}</code>
+                    </td>
+                    <td>
+                      <code>{c.vc || '∅'}</code>
+                    </td>
+                    <td>
+                      <code>{c.ovc || '*'}</code>
+                    </td>
+                    <td>{c.db_city || '∅'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                      {Number(c.total_n).toLocaleString()}
+                    </td>
+                    <td>
+                      {existing ? (
+                        <Button type="button" size="sm" onClick={() => appendVariantToExisting(c)}>
+                          <Plus size={11} />
+                          {t('config.botrules.append_variant_btn')}
+                        </Button>
+                      ) : (
+                        <Button type="button" size="sm" onClick={() => addFromUnmatched(c)}>
+                          <Plus size={11} />
+                          {t('config.botrules.add_short')}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -476,7 +545,10 @@ export default function BotRulesTable({ country }) {
           {rules.map((rule) => {
             const dirty = isRowDirty(rule)
             return (
-              <tr key={rule.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+              <tr
+                key={rule.id}
+                style={{ verticalAlign: 'top', ...(dirty ? { background: '#fffbeb' } : {}) }}
+              >
                 <td>
                   <input
                     type="text"
@@ -501,6 +573,11 @@ export default function BotRulesTable({ country }) {
                     placeholder="*"
                     style={{ width: 100, ...monoInputStyle, ...(dirty ? dirtyCellStyle : {}) }}
                   />
+                  {countOvcVariants(rule.ovc) > 1 && (
+                    <div style={{ fontSize: 9, color: 'var(--color-muted)', marginTop: 2 }}>
+                      {t('config.botrules.ovc_variants_hint', { n: countOvcVariants(rule.ovc) })}
+                    </div>
+                  )}
                 </td>
                 <td style={{ textAlign: 'left', minWidth: 130 }}>
                   <Combobox
@@ -557,28 +634,35 @@ export default function BotRulesTable({ country }) {
                     <span className="toggle-track" />
                   </label>
                 </td>
-                <td style={{ display: 'flex', gap: 6 }}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => saveRule(rule)}
-                    disabled={saving || !dirty}
-                    title={!dirty ? t('config.commissions.no_changes_title') : undefined}
-                  >
-                    <Save size={11} />
-                    {rule._new ? t('config.commissions.create_btn') : t('app.save')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label={t('app.delete')}
-                    title={t('app.delete')}
-                    onClick={() => deleteRule(rule.id)}
-                  >
-                    <Trash2 size={12} />
-                  </Button>
+                <td>
+                  {/* Envuelto en un div flex en vez de display:flex directo en
+                      el <td> — con la fila estirada por el MultiCombobox de
+                      ciudades (chips en varias líneas), un <td> con display:flex
+                      deja de comportarse como celda de tabla y los botones
+                      terminan sin renderizarse visibles. */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => saveRule(rule)}
+                      disabled={saving || !dirty}
+                      title={!dirty ? t('config.commissions.no_changes_title') : undefined}
+                    >
+                      <Save size={11} />
+                      {rule._new ? t('config.commissions.create_btn') : t('app.save')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-red-300 text-red-600 hover:bg-red-100"
+                      aria-label={t('app.delete')}
+                      title={t('app.delete')}
+                      onClick={() => deleteRule(rule.id)}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
                 </td>
               </tr>
             )
