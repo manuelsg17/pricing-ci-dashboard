@@ -1228,6 +1228,78 @@ export const TRANSLATIONS = {
       '¿Eliminar esta regla? Filas del bot que matchaban esta regla dejarán de procesarse.',
     'config.botrules.delete_success': 'Regla eliminada.',
 
+    // ── InDriveConfig ───────────────────────────────────────────────
+    'config.indrive.analysis_title': 'Análisis histórico — Bids vs Precio recomendado',
+    'config.indrive.reload_title': 'Recargar datos',
+    'config.indrive.reload_btn': 'Recargar',
+    'config.indrive.tab_by_city': 'Por ciudad/cat',
+    'config.indrive.tab_by_week': 'Por semana',
+    'config.indrive.desc_prefix':
+      'Solo datos manuales (hubs) con bids registrados. Precios rec. > {currency} {threshold} se excluyen del cálculo de promedio como outliers. La vista "Por ciudad/cat" promedia toda la historia; para calibrar usá la "Ref. reciente" del editor de ajuste (abajo).',
+    'config.indrive.total_db': 'Total en BD:',
+    'config.indrive.with_bids': 'Con bids:',
+    'config.indrive.without_bids': 'Sin bids:',
+    'config.indrive.outlier_warning':
+      '{n} precios rec. outlier (> {currency} {threshold}) excluidos del promedio.',
+    'config.indrive.calculating': 'Calculando análisis…',
+    'config.indrive.empty_title':
+      'Sin datos manuales de InDrive con bids aún. Una vez que los hubs ingresen observaciones con bids, aquí aparecerá el análisis.',
+    'config.indrive.empty_note':
+      'Nota: si Lima no aparece, significa que aún no hay datos manuales de InDrive para Lima (el dato del bot no cuenta porque el bot no captura bids).',
+    'config.indrive.col_obs_bids': 'Obs. con bids',
+    'config.indrive.col_avg_rec': 'Avg rec.',
+    'config.indrive.col_min_rec': 'Rec. mín',
+    'config.indrive.col_max_rec': 'Rec. máx',
+    'config.indrive.col_avg_bids': 'Avg bids',
+    'config.indrive.col_pct_diff': 'Diferencia %',
+    'config.indrive.outlier_excluded_title': '{n} precios > {currency} {threshold} excluidos',
+    'config.indrive.extreme_diff_title':
+      'Diferencia extrema — posibles outliers en precio recomendado',
+    'config.indrive.col_week': 'Semana',
+    'config.indrive.col_obs': 'Obs.',
+    'config.indrive.config_title': 'Configuración de ajuste — Datos del bot',
+    'config.indrive.recent_ref_label': 'Ref. reciente:',
+    'config.indrive.recent_ref': 'Ref. reciente',
+    'config.indrive.window_last_week': 'Última sem',
+    'config.indrive.window_2weeks': '2 sem',
+    'config.indrive.window_4weeks': '4 sem',
+    'config.indrive.window_all': 'Todo',
+    'config.indrive.window_all_title': 'Promedio de toda la historia',
+    'config.indrive.window_n_title': 'Últimas {n} semana(s) con datos',
+    'config.indrive.config_desc_1':
+      'Define el % a aplicar al precio recomendado de InDrive en datos ingresados por el bot. Solo aplica a datos del bot — la data de hubs ya incluye los bids reales.',
+    'config.indrive.config_formula':
+      'Fórmula: precio_estimado = precio_recomendado × (1 + ajuste%/100)',
+    'config.indrive.config_desc_2':
+      'Al guardar se recalcula el precio efectivo estimado del bot para el histórico de esa ciudad/categoría (se crea un snapshot antes; el precio recomendado crudo no se modifica).',
+    'config.indrive.loading_config': 'Cargando configuración…',
+    'config.indrive.unsaved_warning': 'Hay cambios sin guardar en los ajustes de InDrive',
+    'config.indrive.col_pct_adjust': '% Ajuste',
+    'config.indrive.col_note_optional': 'Nota (opcional)',
+    'config.indrive.recent_ref_col_title':
+      'Uplift de bids sobre el precio recomendado, en la ventana reciente seleccionada arriba',
+    'config.indrive.note_placeholder': 'ej: basado en sem. 12-2026',
+    'config.indrive.ref_tooltip': '{obs} obs · {weeks} sem: {list}',
+    'config.indrive.low_obs_warning':
+      'Pocas observaciones ({obs}) — referencia poco confiable, ampliá la ventana',
+    'config.indrive.use_ref_title': 'Usar esta referencia como % de ajuste',
+    'config.indrive.no_ref_data': 'Sin datos en la ventana seleccionada',
+    'config.indrive.save_btn': 'Guardar ajustes',
+    'config.indrive.save_no_snapshot_title': 'Guardar sin crear snapshot de los promedios actuales',
+    'config.indrive.confirm_snapshot_title': 'Cambio InDrive — con snapshot',
+    'config.indrive.confirm_nosnapshot_title': 'Cambio InDrive — sin snapshot',
+    'config.indrive.confirm_snapshot_message':
+      'Cambiar el % de ajuste de InDrive afecta cómo se calculan los precios efectivos históricos del bot. Antes de aplicar se creará un snapshot de los promedios actuales para que los datos anteriores queden fijos. \n\n¿Confirmar el snapshot y guardar?',
+    'config.indrive.confirm_nosnapshot_message':
+      'Se guardarán los ajustes SIN crear un snapshot de los promedios actuales. Los precios efectivos históricos del bot podrán cambiar cuando se recalculen. \n\n¿Guardar sin snapshot?',
+    'config.indrive.snapshot_label': 'Config InDrive cambiada — {date}',
+    'config.indrive.no_changes_toast': 'No hay cambios para guardar.',
+    'config.indrive.saved_toast': {
+      one: 'Configuración guardada ({n} ajuste). Los precios del bot se recalculan en segundo plano (≤10 min).',
+      other:
+        'Configuración guardada ({n} ajustes). Los precios del bot se recalculan en segundo plano (≤10 min).',
+    },
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -2422,6 +2494,77 @@ export const TRANSLATIONS = {
     'config.botrules.delete_confirm_message':
       'Delete this rule? Bot rows matching this rule will stop being processed.',
     'config.botrules.delete_success': 'Rule deleted.',
+
+    // ── InDriveConfig ───────────────────────────────────────────────
+    'config.indrive.analysis_title': 'Historical Analysis — Bids vs Recommended Price',
+    'config.indrive.reload_title': 'Reload data',
+    'config.indrive.reload_btn': 'Reload',
+    'config.indrive.tab_by_city': 'By city/cat',
+    'config.indrive.tab_by_week': 'By week',
+    'config.indrive.desc_prefix':
+      'Only manual (hub) data with recorded bids. Rec. prices > {currency} {threshold} are excluded from the average as outliers. The "By city/cat" view averages the whole history; to calibrate use the "Recent ref." in the adjustment editor (below).',
+    'config.indrive.total_db': 'Total in DB:',
+    'config.indrive.with_bids': 'With bids:',
+    'config.indrive.without_bids': 'Without bids:',
+    'config.indrive.outlier_warning':
+      '{n} outlier rec. prices (> {currency} {threshold}) excluded from the average.',
+    'config.indrive.calculating': 'Calculating analysis…',
+    'config.indrive.empty_title':
+      'No manual InDrive data with bids yet. Once hubs enter observations with bids, the analysis will show up here.',
+    'config.indrive.empty_note':
+      "Note: if Lima doesn't show up, it means there's no manual InDrive data for Lima yet (bot data doesn't count since the bot doesn't capture bids).",
+    'config.indrive.col_obs_bids': 'Obs. with bids',
+    'config.indrive.col_avg_rec': 'Avg rec.',
+    'config.indrive.col_min_rec': 'Min rec.',
+    'config.indrive.col_max_rec': 'Max rec.',
+    'config.indrive.col_avg_bids': 'Avg bids',
+    'config.indrive.col_pct_diff': 'Difference %',
+    'config.indrive.outlier_excluded_title': '{n} prices > {currency} {threshold} excluded',
+    'config.indrive.extreme_diff_title': 'Extreme difference — possible outliers in rec. price',
+    'config.indrive.col_week': 'Week',
+    'config.indrive.col_obs': 'Obs.',
+    'config.indrive.config_title': 'Adjustment Config — Bot Data',
+    'config.indrive.recent_ref_label': 'Recent ref.:',
+    'config.indrive.recent_ref': 'Recent ref.',
+    'config.indrive.window_last_week': 'Last wk',
+    'config.indrive.window_2weeks': '2 wks',
+    'config.indrive.window_4weeks': '4 wks',
+    'config.indrive.window_all': 'All',
+    'config.indrive.window_all_title': 'Average of the entire history',
+    'config.indrive.window_n_title': 'Last {n} week(s) with data',
+    'config.indrive.config_desc_1':
+      "Define the % to apply to InDrive's recommended price on data entered by the bot. Only applies to bot data — hub data already includes real bids.",
+    'config.indrive.config_formula':
+      'Formula: estimated_price = recommended_price × (1 + adjustment%/100)',
+    'config.indrive.config_desc_2':
+      "Saving recalculates the bot's estimated effective price for that city/category's history (a snapshot is created first; the raw recommended price isn't modified).",
+    'config.indrive.loading_config': 'Loading config…',
+    'config.indrive.unsaved_warning': 'Unsaved changes in InDrive adjustments',
+    'config.indrive.col_pct_adjust': '% Adjustment',
+    'config.indrive.col_note_optional': 'Note (optional)',
+    'config.indrive.recent_ref_col_title':
+      'Bid uplift over the recommended price, in the recent window selected above',
+    'config.indrive.note_placeholder': 'e.g: based on wk 12-2026',
+    'config.indrive.ref_tooltip': '{obs} obs · {weeks} wk: {list}',
+    'config.indrive.low_obs_warning':
+      'Few observations ({obs}) — unreliable reference, widen the window',
+    'config.indrive.use_ref_title': 'Use this reference as the adjustment %',
+    'config.indrive.no_ref_data': 'No data in the selected window',
+    'config.indrive.save_btn': 'Save adjustments',
+    'config.indrive.save_no_snapshot_title':
+      'Save without creating a snapshot of the current averages',
+    'config.indrive.confirm_snapshot_title': 'InDrive change — with snapshot',
+    'config.indrive.confirm_nosnapshot_title': 'InDrive change — without snapshot',
+    'config.indrive.confirm_snapshot_message':
+      "Changing InDrive's adjustment % affects how the bot's historical effective prices are calculated. Before applying, a snapshot of the current averages will be created so past data stays fixed. \n\nConfirm the snapshot and save?",
+    'config.indrive.confirm_nosnapshot_message':
+      "The adjustments will be saved WITHOUT creating a snapshot of the current averages. The bot's historical effective prices may change when recalculated. \n\nSave without snapshot?",
+    'config.indrive.snapshot_label': 'InDrive config changed — {date}',
+    'config.indrive.no_changes_toast': 'No changes to save.',
+    'config.indrive.saved_toast': {
+      one: 'Config saved ({n} adjustment). Bot prices recalculate in the background (≤10 min).',
+      other: 'Config saved ({n} adjustments). Bot prices recalculate in the background (≤10 min).',
+    },
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -3653,6 +3796,81 @@ export const TRANSLATIONS = {
     'config.botrules.delete_confirm_message':
       'Удалить это правило? Строки бота, соответствующие этому правилу, перестанут обрабатываться.',
     'config.botrules.delete_success': 'Правило удалено.',
+
+    // ── InDriveConfig ───────────────────────────────────────────────
+    'config.indrive.analysis_title': 'Исторический анализ — Ставки vs рекомендованная цена',
+    'config.indrive.reload_title': 'Перезагрузить данные',
+    'config.indrive.reload_btn': 'Обновить',
+    'config.indrive.tab_by_city': 'По городу/кат.',
+    'config.indrive.tab_by_week': 'По неделям',
+    'config.indrive.desc_prefix':
+      'Только ручные данные (hubs) с зафиксированными ставками. Рекомендованные цены > {currency} {threshold} исключаются из среднего как выбросы. Вид «По городу/кат.» усредняет всю историю; для калибровки используйте «Недавний ориентир» в редакторе корректировки (ниже).',
+    'config.indrive.total_db': 'Всего в БД:',
+    'config.indrive.with_bids': 'Со ставками:',
+    'config.indrive.without_bids': 'Без ставок:',
+    'config.indrive.outlier_warning':
+      '{n} цен-выбросов (> {currency} {threshold}) исключено из среднего.',
+    'config.indrive.calculating': 'Вычисление анализа…',
+    'config.indrive.empty_title':
+      'Пока нет ручных данных InDrive со ставками. Как только хабы введут наблюдения со ставками, здесь появится анализ.',
+    'config.indrive.empty_note':
+      'Примечание: если Lima не отображается, значит для Lima ещё нет ручных данных InDrive (данные бота не считаются, так как бот не фиксирует ставки).',
+    'config.indrive.col_obs_bids': 'Набл. со ставками',
+    'config.indrive.col_avg_rec': 'Ср. рек.',
+    'config.indrive.col_min_rec': 'Мин. рек.',
+    'config.indrive.col_max_rec': 'Макс. рек.',
+    'config.indrive.col_avg_bids': 'Ср. ставки',
+    'config.indrive.col_pct_diff': 'Разница %',
+    'config.indrive.outlier_excluded_title': '{n} цен > {currency} {threshold} исключено',
+    'config.indrive.extreme_diff_title':
+      'Экстремальная разница — возможные выбросы в рекомендованной цене',
+    'config.indrive.col_week': 'Неделя',
+    'config.indrive.col_obs': 'Набл.',
+    'config.indrive.config_title': 'Настройка корректировки — данные бота',
+    'config.indrive.recent_ref_label': 'Недавний ориентир:',
+    'config.indrive.recent_ref': 'Недавний ориентир',
+    'config.indrive.window_last_week': 'Посл. нед.',
+    'config.indrive.window_2weeks': '2 нед.',
+    'config.indrive.window_4weeks': '4 нед.',
+    'config.indrive.window_all': 'Всё',
+    'config.indrive.window_all_title': 'Среднее по всей истории',
+    'config.indrive.window_n_title': 'Последние {n} недели(-ь) с данными',
+    'config.indrive.config_desc_1':
+      'Задайте % для применения к рекомендованной цене InDrive в данных, введённых ботом. Применяется только к данным бота — данные хабов уже включают реальные ставки.',
+    'config.indrive.config_formula':
+      'Формула: оценочная_цена = рекомендованная_цена × (1 + корректировка%/100)',
+    'config.indrive.config_desc_2':
+      'При сохранении пересчитывается оценочная эффективная цена бота для истории этого города/категории (сначала создаётся снимок; исходная рекомендованная цена не изменяется).',
+    'config.indrive.loading_config': 'Загрузка конфигурации…',
+    'config.indrive.unsaved_warning': 'Есть несохранённые изменения в настройках InDrive',
+    'config.indrive.col_pct_adjust': '% Корректировка',
+    'config.indrive.col_note_optional': 'Заметка (опционально)',
+    'config.indrive.recent_ref_col_title':
+      'Превышение ставок над рекомендованной ценой в недавнем окне, выбранном выше',
+    'config.indrive.note_placeholder': 'напр.: по данным нед. 12-2026',
+    'config.indrive.ref_tooltip': '{obs} набл. · {weeks} нед.: {list}',
+    'config.indrive.low_obs_warning':
+      'Мало наблюдений ({obs}) — ненадёжный ориентир, расширьте окно',
+    'config.indrive.use_ref_title': 'Использовать этот ориентир как % корректировки',
+    'config.indrive.no_ref_data': 'Нет данных в выбранном окне',
+    'config.indrive.save_btn': 'Сохранить корректировки',
+    'config.indrive.save_no_snapshot_title':
+      'Сохранить без создания снимка текущих средних значений',
+    'config.indrive.confirm_snapshot_title': 'Изменение InDrive — со снимком',
+    'config.indrive.confirm_nosnapshot_title': 'Изменение InDrive — без снимка',
+    'config.indrive.confirm_snapshot_message':
+      'Изменение % корректировки InDrive влияет на расчёт исторических эффективных цен бота. Перед применением будет создан снимок текущих средних, чтобы прошлые данные остались зафиксированными. \n\nПодтвердить снимок и сохранить?',
+    'config.indrive.confirm_nosnapshot_message':
+      'Корректировки будут сохранены БЕЗ создания снимка текущих средних. Исторические эффективные цены бота могут измениться при пересчёте. \n\nСохранить без снимка?',
+    'config.indrive.snapshot_label': 'Конфигурация InDrive изменена — {date}',
+    'config.indrive.no_changes_toast': 'Нет изменений для сохранения.',
+    'config.indrive.saved_toast': {
+      one: 'Конфигурация сохранена ({n} корректировка). Цены бота пересчитываются в фоне (≤10 мин).',
+      few: 'Конфигурация сохранена ({n} корректировки). Цены бота пересчитываются в фоне (≤10 мин).',
+      many: 'Конфигурация сохранена ({n} корректировок). Цены бота пересчитываются в фоне (≤10 мин).',
+      other:
+        'Конфигурация сохранена ({n} корректировок). Цены бота пересчитываются в фоне (≤10 мин).',
+    },
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',

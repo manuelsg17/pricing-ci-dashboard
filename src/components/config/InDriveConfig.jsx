@@ -20,12 +20,14 @@ import { computeRecentRef } from '../../algorithms/indriveRef'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 export default function InDriveConfig({ country }) {
   const confirm = useConfirm()
   const { dbConfigs } = useCountry()
   const cfgCountry = getCountryConfig(country, dbConfigs)
+  const { t } = useI18n()
 
   const CONFIG_ROWS = useMemo(() => {
     return cfgCountry.dbCities.flatMap((city) => {
@@ -224,17 +226,16 @@ export default function InDriveConfig({ country }) {
     // Confirmación. El snapshot (hard copy) es opcional: fija los promedios
     // actuales antes de que el reconcile recalcule los precios efectivos del bot.
     const ok = await confirm({
-      title: withSnapshot ? 'Cambio InDrive — con snapshot' : 'Cambio InDrive — sin snapshot',
+      title: withSnapshot
+        ? t('config.indrive.confirm_snapshot_title')
+        : t('config.indrive.confirm_nosnapshot_title'),
       message: withSnapshot
-        ? 'Cambiar el % de ajuste de InDrive afecta cómo se calculan los precios ' +
-          'efectivos históricos del bot. Antes de aplicar se creará un snapshot ' +
-          'de los promedios actuales para que los datos anteriores queden fijos. ' +
-          '\n\n¿Confirmar el snapshot y guardar?'
-        : 'Se guardarán los ajustes SIN crear un snapshot de los promedios actuales. ' +
-          'Los precios efectivos históricos del bot podrán cambiar cuando se recalculen. ' +
-          '\n\n¿Guardar sin snapshot?',
-      confirmText: withSnapshot ? 'Crear snapshot y guardar' : 'Guardar sin snapshot',
-      cancelText: 'Cancelar',
+        ? t('config.indrive.confirm_snapshot_message')
+        : t('config.indrive.confirm_nosnapshot_message'),
+      confirmText: withSnapshot
+        ? t('config.thresholds.confirm_snapshot_btn')
+        : t('config.thresholds.confirm_nosnapshot_btn'),
+      cancelText: t('app.cancel'),
       danger: true,
     })
     if (!ok) return
@@ -242,10 +243,13 @@ export default function InDriveConfig({ country }) {
     if (withSnapshot) {
       const { error: snapErr } = await sb.rpc('freeze_pricing_wa', {
         p_country: country,
-        p_label: `Config InDrive cambiada — ${new Date().toISOString()}`,
+        p_label: t('config.indrive.snapshot_label', { date: new Date().toISOString() }),
       })
       if (snapErr) {
-        setSaveMsg({ type: 'err', text: `Error al crear snapshot: ${snapErr.message}` })
+        setSaveMsg({
+          type: 'err',
+          text: t('config.thresholds.snapshot_error', { msg: snapErr.message }),
+        })
         return
       }
     }
@@ -266,7 +270,7 @@ export default function InDriveConfig({ country }) {
         }
       })
       if (upserts.length === 0) {
-        setSaveMsg({ type: 'warn', text: 'No hay cambios para guardar.' })
+        setSaveMsg({ type: 'warn', text: t('config.indrive.no_changes_toast') })
         setSaving(false)
         return
       }
@@ -279,13 +283,13 @@ export default function InDriveConfig({ country }) {
       setOriginal(JSON.parse(JSON.stringify(config)))
       setSaveMsg({
         type: 'ok',
-        text: `Configuración guardada (${upserts.length} ${upserts.length === 1 ? 'ajuste' : 'ajustes'}). Los precios del bot se recalculan en segundo plano (≤10 min).`,
+        text: t('config.indrive.saved_toast', { n: upserts.length, count: upserts.length }),
       })
       // La propagación a pricing_observations la hace reconcile_indrive_bot_prices()
       // vía pg_cron (mig 122), no un trigger inline. Recargamos el análisis local.
       await loadAnalysis()
     } catch (e) {
-      setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
+      setSaveMsg({ type: 'err', text: t('config.thresholds.save_error', { msg: e.message }) })
     } finally {
       setSaving(false)
     }
@@ -309,7 +313,7 @@ export default function InDriveConfig({ country }) {
       {/* ── Sección 1: Análisis histórico ── */}
       <div className="config-section">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-          <h2 style={{ margin: 0 }}>Análisis histórico — Bids vs Precio recomendado</h2>
+          <h2 style={{ margin: 0 }}>{t('config.indrive.analysis_title')}</h2>
           <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
             <Button
               variant="outline"
@@ -317,31 +321,32 @@ export default function InDriveConfig({ country }) {
               onClick={() => loadAnalysis()}
               disabled={analysisLoading}
               className="rounded-[4px] border-gray-300 bg-gray-50 hover:bg-gray-100"
-              title="Recargar datos"
+              title={t('config.indrive.reload_title')}
             >
-              ↻ Recargar
+              ↻ {t('config.indrive.reload_btn')}
             </Button>
             <button
               onClick={() => setAnalysisView('summary')}
               style={tabBtnStyle(analysisView === 'summary')}
             >
-              Por ciudad/cat
+              {t('config.indrive.tab_by_city')}
             </button>
             <button
               onClick={() => setAnalysisView('weekly')}
               style={tabBtnStyle(analysisView === 'weekly')}
             >
-              Por semana
+              {t('config.indrive.tab_by_week')}
             </button>
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          Solo datos manuales (hubs) con bids registrados. Precios rec. &gt; {cfgCountry.currency}{' '}
-          {cfgCountry.outlierThreshold || 100} se excluyen del cálculo de promedio como outliers. La
-          vista <em>Por ciudad/cat</em> promedia toda la historia; para calibrar usá la{' '}
-          <em>Ref. reciente</em> del editor de ajuste (abajo). · Total en BD:{' '}
-          <strong>{counts.total_rows}</strong> | Con bids: <strong>{counts.rows_with_bids}</strong>{' '}
-          | Sin bids:{' '}
+          {t('config.indrive.desc_prefix', {
+            currency: cfgCountry.currency,
+            threshold: cfgCountry.outlierThreshold || 100,
+          })}{' '}
+          · {t('config.indrive.total_db')} <strong>{counts.total_rows}</strong> |{' '}
+          {t('config.indrive.with_bids')} <strong>{counts.rows_with_bids}</strong> |{' '}
+          {t('config.indrive.without_bids')}{' '}
           <strong
             style={{ color: counts.total_rows - counts.rows_with_bids > 0 ? '#dc2626' : 'inherit' }}
           >
@@ -352,25 +357,30 @@ export default function InDriveConfig({ country }) {
               {' '}
               ·{' '}
               <span style={{ color: '#dc2626' }}>
-                ⚠ {summary.reduce((s, r) => s + r.outlierRecs, 0)} precios rec. outlier (&gt;{' '}
-                {cfgCountry.currency} {cfgCountry.outlierThreshold || 100}) excluidos del promedio.
+                ⚠{' '}
+                {t('config.indrive.outlier_warning', {
+                  n: summary.reduce((s, r) => s + r.outlierRecs, 0),
+                  currency: cfgCountry.currency,
+                  threshold: cfgCountry.outlierThreshold || 100,
+                })}
               </span>
             </>
           )}
         </p>
 
-        {analysisLoading && <div className="state-box">Calculando análisis…</div>}
-        {analysisError && <div className="state-box state-box--error">Error: {analysisError}</div>}
+        {analysisLoading && <div className="state-box">{t('config.indrive.calculating')}</div>}
+        {analysisError && (
+          <div className="state-box state-box--error">
+            {t('app.error_prefix')}
+            {analysisError}
+          </div>
+        )}
 
         {!analysisLoading && !analysisError && summary.length === 0 && (
           <div className="state-box">
-            Sin datos manuales de InDrive con bids aún. Una vez que los hubs ingresen observaciones
-            con bids, aquí aparecerá el análisis.
+            {t('config.indrive.empty_title')}
             <br />
-            <em style={{ fontSize: 11, color: '#888' }}>
-              Nota: si Lima no aparece, significa que aún no hay datos manuales de InDrive para Lima
-              (el dato del bot no cuenta porque el bot no captura bids).
-            </em>
+            <em style={{ fontSize: 11, color: '#888' }}>{t('config.indrive.empty_note')}</em>
           </div>
         )}
 
@@ -380,14 +390,14 @@ export default function InDriveConfig({ country }) {
               <table className="config-table">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left' }}>Ciudad</th>
-                    <th style={{ textAlign: 'left' }}>Categoría</th>
-                    <th scope="col">Obs. con bids</th>
-                    <th scope="col">Avg rec.</th>
-                    <th scope="col">Rec. mín</th>
-                    <th scope="col">Rec. máx</th>
-                    <th scope="col">Avg bids</th>
-                    <th scope="col">Diferencia %</th>
+                    <th style={{ textAlign: 'left' }}>{t('filter.city')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('filter.category')}</th>
+                    <th scope="col">{t('config.indrive.col_obs_bids')}</th>
+                    <th scope="col">{t('config.indrive.col_avg_rec')}</th>
+                    <th scope="col">{t('config.indrive.col_min_rec')}</th>
+                    <th scope="col">{t('config.indrive.col_max_rec')}</th>
+                    <th scope="col">{t('config.indrive.col_avg_bids')}</th>
+                    <th scope="col">{t('config.indrive.col_pct_diff')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -412,7 +422,11 @@ export default function InDriveConfig({ country }) {
                         {r.maxRec != null ? `${cfgCountry.currency} ${r.maxRec}` : '—'}
                         {r.outlierRecs > 0 && (
                           <span
-                            title={`${r.outlierRecs} precios > ${cfgCountry.currency} ${cfgCountry.outlierThreshold || 100} excluidos`}
+                            title={t('config.indrive.outlier_excluded_title', {
+                              n: r.outlierRecs,
+                              currency: cfgCountry.currency,
+                              threshold: cfgCountry.outlierThreshold || 100,
+                            })}
                           >
                             {' '}
                             ⚠
@@ -437,10 +451,7 @@ export default function InDriveConfig({ country }) {
                             {parseFloat(r.pctDiff) > 0 ? '+' : ''}
                             {r.pctDiff}%
                             {Math.abs(parseFloat(r.pctDiff)) > 80 && (
-                              <span title="Diferencia extrema — posibles outliers en precio recomendado">
-                                {' '}
-                                ⚠
-                              </span>
+                              <span title={t('config.indrive.extreme_diff_title')}> ⚠</span>
                             )}
                           </span>
                         ) : (
@@ -458,13 +469,13 @@ export default function InDriveConfig({ country }) {
                 <table className="config-table">
                   <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                     <tr>
-                      <th style={{ textAlign: 'left' }}>Ciudad</th>
-                      <th style={{ textAlign: 'left' }}>Categoría</th>
-                      <th style={{ textAlign: 'left' }}>Semana</th>
-                      <th scope="col">Obs.</th>
-                      <th scope="col">Avg rec.</th>
-                      <th scope="col">Avg bids</th>
-                      <th scope="col">Diferencia %</th>
+                      <th style={{ textAlign: 'left' }}>{t('filter.city')}</th>
+                      <th style={{ textAlign: 'left' }}>{t('filter.category')}</th>
+                      <th style={{ textAlign: 'left' }}>{t('config.indrive.col_week')}</th>
+                      <th scope="col">{t('config.indrive.col_obs')}</th>
+                      <th scope="col">{t('config.indrive.col_avg_rec')}</th>
+                      <th scope="col">{t('config.indrive.col_avg_bids')}</th>
+                      <th scope="col">{t('config.indrive.col_pct_diff')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -514,14 +525,16 @@ export default function InDriveConfig({ country }) {
       {/* ── Sección 2: Configuración de ajuste ── */}
       <div className="config-section" style={{ marginTop: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-          <h2 style={{ margin: 0 }}>Configuración de ajuste — Datos del bot</h2>
+          <h2 style={{ margin: 0 }}>{t('config.indrive.config_title')}</h2>
           <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#666' }}>Ref. reciente:</span>
+            <span style={{ fontSize: 12, color: '#666' }}>
+              {t('config.indrive.recent_ref_label')}
+            </span>
             {[
-              { v: 1, l: 'Última sem' },
-              { v: 2, l: '2 sem' },
-              { v: 4, l: '4 sem' },
-              { v: 'all', l: 'Todo' },
+              { v: 1, labelKey: 'config.indrive.window_last_week' },
+              { v: 2, labelKey: 'config.indrive.window_2weeks' },
+              { v: 4, labelKey: 'config.indrive.window_4weeks' },
+              { v: 'all', labelKey: 'config.indrive.window_all' },
             ].map((o) => (
               <button
                 key={String(o.v)}
@@ -530,30 +543,24 @@ export default function InDriveConfig({ country }) {
                 style={tabBtnStyle(refWindow === o.v)}
                 title={
                   o.v === 'all'
-                    ? 'Promedio de toda la historia'
-                    : `Últimas ${o.v} semana(s) con datos`
+                    ? t('config.indrive.window_all_title')
+                    : t('config.indrive.window_n_title', { n: o.v })
                 }
               >
-                {o.l}
+                {t(o.labelKey)}
               </button>
             ))}
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          Define el % a aplicar al precio recomendado de InDrive en datos ingresados por el bot.
-          <strong> Solo aplica a datos del bot</strong> — la data de hubs ya incluye los bids
-          reales.
+          {t('config.indrive.config_desc_1')}
           <br />
-          Fórmula: <code>precio_estimado = precio_recomendado × (1 + ajuste%/100)</code>
+          {t('config.indrive.config_formula')}
           <br />
-          <span style={{ color: '#92400e' }}>
-            Al guardar se recalcula el precio efectivo estimado del bot para el histórico de esa
-            ciudad/categoría (se crea un snapshot antes; el precio recomendado crudo no se
-            modifica).
-          </span>
+          <span style={{ color: '#92400e' }}>{t('config.indrive.config_desc_2')}</span>
         </p>
 
-        {!cfgLoaded && <div className="state-box">Cargando configuración…</div>}
+        {!cfgLoaded && <div className="state-box">{t('config.indrive.loading_config')}</div>}
 
         {cfgLoaded && (
           <>
@@ -576,7 +583,7 @@ export default function InDriveConfig({ country }) {
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle size={14} /> Hay cambios sin guardar en los ajustes de InDrive
+                  <AlertTriangle size={14} /> {t('config.indrive.unsaved_warning')}
                 </span>
                 <Button
                   type="button"
@@ -585,7 +592,7 @@ export default function InDriveConfig({ country }) {
                   onClick={handleDiscardAll}
                   className="rounded-[4px] border-amber-700 bg-transparent text-amber-900 hover:bg-amber-50"
                 >
-                  Descartar cambios
+                  {t('config.discard_changes')}
                 </Button>
               </div>
             )}
@@ -593,15 +600,14 @@ export default function InDriveConfig({ country }) {
             <table className="config-table">
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left' }}>Ciudad</th>
-                  <th style={{ textAlign: 'left' }}>Categoría</th>
-                  <th scope="col">% Ajuste</th>
-                  <th style={{ textAlign: 'left', minWidth: 200 }}>Nota (opcional)</th>
-                  <th
-                    scope="col"
-                    title="Uplift de bids sobre el precio recomendado, en la ventana reciente seleccionada arriba"
-                  >
-                    Ref. reciente
+                  <th style={{ textAlign: 'left' }}>{t('filter.city')}</th>
+                  <th style={{ textAlign: 'left' }}>{t('filter.category')}</th>
+                  <th scope="col">{t('config.indrive.col_pct_adjust')}</th>
+                  <th style={{ textAlign: 'left', minWidth: 200 }}>
+                    {t('config.indrive.col_note_optional')}
+                  </th>
+                  <th scope="col" title={t('config.indrive.recent_ref_col_title')}>
+                    {t('config.indrive.recent_ref')}
                   </th>
                 </tr>
               </thead>
@@ -651,7 +657,7 @@ export default function InDriveConfig({ country }) {
                           type="text"
                           value={cfg.note}
                           onChange={(e) => setCfgField(city, category, 'note', e.target.value)}
-                          placeholder="ej: basado en sem. 12-2026"
+                          placeholder={t('config.indrive.note_placeholder')}
                           style={{
                             width: '100%',
                             padding: '4px 6px',
@@ -673,7 +679,11 @@ export default function InDriveConfig({ country }) {
                             }}
                           >
                             <span
-                              title={`${ref.obs} obs · ${ref.weeksUsed.length} sem: ${ref.weeksUsed.join(', ')}`}
+                              title={t('config.indrive.ref_tooltip', {
+                                obs: ref.obs,
+                                weeks: ref.weeksUsed.length,
+                                list: ref.weeksUsed.join(', '),
+                              })}
                               style={{ color: '#374151', fontWeight: 500 }}
                             >
                               {ref.pct > 0 ? '+' : ''}
@@ -681,7 +691,7 @@ export default function InDriveConfig({ country }) {
                             </span>
                             {ref.obs < 10 && (
                               <span
-                                title={`Pocas observaciones (${ref.obs}) — referencia poco confiable, ampliá la ventana`}
+                                title={t('config.indrive.low_obs_warning', { obs: ref.obs })}
                                 style={{ color: '#f59e0b' }}
                               >
                                 ⚠
@@ -699,14 +709,14 @@ export default function InDriveConfig({ country }) {
                                   String(Math.round(ref.pct * 10) / 10)
                                 )
                               }
-                              title="Usar esta referencia como % de ajuste"
+                              title={t('config.indrive.use_ref_title')}
                               className="h-auto rounded-[4px] border-gray-300 bg-gray-50 px-1.5 py-0.5 text-[11px] leading-none text-gray-700 hover:bg-gray-100"
                             >
                               →
                             </Button>
                           </span>
                         ) : (
-                          <span title="Sin datos en la ventana seleccionada">—</span>
+                          <span title={t('config.indrive.no_ref_data')}>—</span>
                         )}
                       </td>
                     </tr>
@@ -720,13 +730,13 @@ export default function InDriveConfig({ country }) {
                 <Button
                   onClick={() => handleSave({ withSnapshot: true })}
                   disabled={saving || !hasUnsavedChanges}
-                  title={!hasUnsavedChanges ? 'No hay cambios para guardar' : undefined}
+                  title={!hasUnsavedChanges ? t('config.semaforo.no_changes_title') : undefined}
                 >
                   {saving ? (
-                    'Guardando…'
+                    t('account.saving')
                   ) : (
                     <>
-                      <Save size={14} /> Guardar ajustes
+                      <Save size={14} /> {t('config.indrive.save_btn')}
                     </>
                   )}
                 </Button>
@@ -737,12 +747,12 @@ export default function InDriveConfig({ country }) {
                   disabled={saving || !hasUnsavedChanges}
                   title={
                     !hasUnsavedChanges
-                      ? 'No hay cambios para guardar'
-                      : 'Guardar sin crear snapshot de los promedios actuales'
+                      ? t('config.semaforo.no_changes_title')
+                      : t('config.indrive.save_no_snapshot_title')
                   }
                   className="rounded-sm border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100"
                 >
-                  Guardar sin snapshot
+                  {t('config.thresholds.confirm_nosnapshot_btn')}
                 </Button>
               </div>
               <SaveStatusBanner status={saveMsg} onDismiss={() => setSaveMsg(null)} />
