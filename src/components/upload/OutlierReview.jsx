@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 /**
  * OutlierReview — muestra filas con precios sospechosos antes del insert.
@@ -11,6 +12,7 @@ import { Button } from '../ui/shadcn/button'
  *   onCancel()
  */
 export default function OutlierReview({ suspects, onConfirm, onCancel }) {
+  const { t } = useI18n()
   // Estado local: { [idx]: { price: string, exclude: bool } }
   const [edits, setEdits] = useState(() => {
     const init = {}
@@ -55,10 +57,9 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
       <div className="outlier-review__header">
         <div className="outlier-review__icon">⚠️</div>
         <div>
-          <div className="outlier-review__title">Precios sospechosos detectados</div>
+          <div className="outlier-review__title">{t('upload.outlier_title')}</div>
           <div className="outlier-review__sub">
-            {suspects.length} {suspects.length === 1 ? 'fila supera' : 'filas superan'} el límite
-            configurado. Corrige el valor o marca "Excluir" para no insertarla.
+            {t('upload.outlier_sub', { n: suspects.length, count: suspects.length })}
           </div>
         </div>
       </div>
@@ -67,7 +68,7 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
         <input
           type="search"
           className="outlier-review__search"
-          placeholder="🔍 Filtrar (ciudad, categoría, competidor, fecha…)"
+          placeholder={t('upload.outlier_search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -77,18 +78,18 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
             variant="outline"
             size="sm"
             onClick={() => setAllExclude(true)}
-            title="Marcar todas las filas como excluidas"
+            title={t('upload.outlier_exclude_all_title')}
           >
-            ✕ Excluir todas
+            {t('upload.outlier_exclude_all')}
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => setAllExclude(false)}
-            title="Desmarcar todas (incluir todas con su precio actual)"
+            title={t('upload.outlier_include_all_title')}
           >
-            ✓ Incluir todas
+            {t('upload.outlier_include_all')}
           </Button>
         </div>
       </div>
@@ -97,15 +98,15 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
         <table className="outlier-review__table">
           <thead>
             <tr>
-              <th>Ciudad</th>
-              <th>Categoría</th>
-              <th>Competidor</th>
-              <th>Fecha</th>
-              <th>Bracket</th>
-              <th>Precio actual</th>
-              <th>Límite</th>
-              <th>Precio corregido</th>
-              <th>Excluir</th>
+              <th>{t('filter.city')}</th>
+              <th>{t('filter.category')}</th>
+              <th>{t('rawdata.col_competitor')}</th>
+              <th>{t('dataentry.date')}</th>
+              <th>{t('rawdata.col_bracket')}</th>
+              <th>{t('upload.outlier_col_current_price')}</th>
+              <th>{t('upload.outlier_col_limit')}</th>
+              <th>{t('upload.outlier_col_corrected_price')}</th>
+              <th>{t('upload.outlier_col_exclude')}</th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +116,7 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
                   colSpan={9}
                   style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--color-muted)' }}
                 >
-                  Sin filas que coincidan con "{search}"
+                  {t('upload.outlier_no_match', { search })}
                 </td>
               </tr>
             )}
@@ -139,7 +140,7 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
                       value={edit.price}
                       onChange={(e) => setPrice(s.idx, e.target.value)}
                       disabled={edit.exclude}
-                      placeholder="Corregir…"
+                      placeholder={t('upload.outlier_price_placeholder')}
                     />
                   </td>
                   <td>
@@ -159,8 +160,9 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
 
       <div className="outlier-review__footer">
         <div className="outlier-review__summary">
-          Se insertarán <strong>{toInclude}</strong> filas corregidas · Se excluirán{' '}
-          <strong>{toExclude}</strong> filas
+          {t('upload.outlier_will_insert')} <strong>{toInclude}</strong>{' '}
+          {t('upload.outlier_rows_corrected')} · {t('upload.outlier_will_exclude')}{' '}
+          <strong>{toExclude}</strong> {t('upload.outlier_rows_suffix')}
         </div>
         <div className="outlier-review__actions">
           <Button
@@ -168,10 +170,10 @@ export default function OutlierReview({ suspects, onConfirm, onCancel }) {
             className="hover:border-yango hover:bg-[var(--color-yango-light)] hover:text-yango"
             onClick={onCancel}
           >
-            Cancelar
+            {t('app.cancel')}
           </Button>
           <Button className="bg-[#2e7d32] hover:bg-[#1b5e20]" onClick={() => onConfirm(edits)}>
-            Confirmar y continuar →
+            {t('upload.confirm_continue')}
           </Button>
         </div>
       </div>

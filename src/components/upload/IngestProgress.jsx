@@ -1,4 +1,7 @@
+import { useI18n } from '../../context/LanguageContext'
+
 export default function IngestProgress({ current, total, done, error }) {
+  const { t } = useI18n()
   const pct = total > 0 ? Math.round((current / total) * 100) : 0
 
   return (
@@ -9,10 +12,10 @@ export default function IngestProgress({ current, total, done, error }) {
       {error ? (
         <div className="upload-error">{error}</div>
       ) : done ? (
-        <div className="upload-ok">✓ {total} filas insertadas correctamente</div>
+        <div className="upload-ok">{t('upload.rows_inserted_ok', { n: total })}</div>
       ) : (
         <div className="ingest-status">
-          Insertando... {current} / {total} filas ({pct}%)
+          {t('upload.inserting_progress', { current, total, pct })}
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Zap, Search, RotateCcw, Check, AlertTriangle, ScrollText } from 'lucide-react'
 import { sb } from '../../lib/supabase'
 import { useCountry } from '../../context/CountryContext'
+import { useI18n } from '../../context/LanguageContext'
 import { useToast } from '../ui/Toast'
 import EmptyState from '../ui/EmptyState'
 import { SkeletonTable } from '../ui/Skeleton'
@@ -9,54 +10,52 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { Button } from '../ui/shadcn/button'
 
 // Mapa de razones que emite scripts/bot-sync/bot_sync_push.py.
-// label  = texto del pill en la tabla (corto, español).
-// hint   = tooltip al hover (explica QUÉ pasó).
-// action = qué hacer si la fila es buena y querés recuperarla.
+// labelKey/hintKey/actionKey → keys de i18n resueltas en el componente
+// (esta tabla vive fuera del componente, sin acceso a t()).
 const REASON_PILLS = {
   no_rule: {
-    label: 'sin regla',
+    labelKey: 'botdbsync.reason.no_rule.label',
     bg: '#fee2e2',
     fg: '#991b1b',
-    hint: 'La combinación (app, vc, ovc, ciudad) no existe en Bot Rules. El sync no sabe cómo categorizarla, así que la tira.',
-    action: 'Si es data válida, agregá esta combo en Config → Bot Rules.',
+    hintKey: 'botdbsync.reason.no_rule.hint',
+    actionKey: 'botdbsync.reason.no_rule.action',
   },
   no_price: {
-    label: 'sin precio',
+    labelKey: 'botdbsync.reason.no_price.label',
     bg: '#fef3c7',
     fg: '#78350f',
-    hint: 'El bot no devolvió ningún precio (ni regular ni con descuento). Suele pasar cuando el competidor no respondió.',
-    action: 'Nada que hacer — es ruido del bot, no se puede recuperar.',
+    hintKey: 'botdbsync.reason.no_price.hint',
+    actionKey: 'botdbsync.reason.no_price.action',
   },
   incomplete: {
-    label: 'incompleta',
+    labelKey: 'botdbsync.reason.incomplete.label',
     bg: '#fef3c7',
     fg: '#78350f',
-    hint: 'Le falta la ciudad o el nombre de la app — no se puede mapear a una ciudad del dashboard.',
-    action: 'Si la ciudad existe pero el bot la escribe distinto, agregala al mapeo de ciudades.',
+    hintKey: 'botdbsync.reason.incomplete.hint',
+    actionKey: 'botdbsync.reason.incomplete.action',
   },
   no_timestamp: {
-    label: 'sin fecha',
+    labelKey: 'botdbsync.reason.no_timestamp.label',
     bg: '#fef3c7',
     fg: '#78350f',
-    hint: 'La fila no trae timestamp_utc. Sin fecha no se puede insertar.',
-    action: 'Caso raro — avisanos si aparece seguido.',
+    hintKey: 'botdbsync.reason.no_timestamp.hint',
+    actionKey: 'botdbsync.reason.no_timestamp.action',
   },
   outlier: {
-    label: 'precio fuera de rango',
+    labelKey: 'botdbsync.reason.outlier.label',
     bg: '#e0e7ff',
     fg: '#3730a3',
-    hint: 'El precio supera el máximo definido en Price Rules para esa ciudad/categoría/competidor. Se asume error del bot.',
-    action:
-      'Si el precio es real (subió la oferta del mercado), subí el max_price en Config → Price Rules.',
+    hintKey: 'botdbsync.reason.outlier.hint',
+    actionKey: 'botdbsync.reason.outlier.action',
   },
 }
 
-function renderReason(reason) {
+function renderReason(reason, t) {
   const p = REASON_PILLS[reason]
   if (!p) return <span style={{ color: '#94a3b8' }}>—</span>
   return (
     <span
-      title={`${p.hint}\n\n👉 ${p.action}`}
+      title={`${t(p.hintKey)}\n\n👉 ${t(p.actionKey)}`}
       style={{
         padding: '2px 8px',
         borderRadius: 4,
@@ -68,7 +67,7 @@ function renderReason(reason) {
         cursor: 'help',
       }}
     >
-      {p.label}
+      {t(p.labelKey)}
     </span>
   )
 }
@@ -98,6 +97,7 @@ function summarizeReasons(combos) {
 
 export default function BotDbSync() {
   const { country } = useCountry()
+  const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
   const [running, setRunning] = useState(false)
@@ -147,10 +147,9 @@ export default function BotDbSync() {
   // (mig 53). No borra data. Después dispara un sync.
   async function handleResync() {
     const ok = await confirm({
-      title: `Re-sincronizar últimos 30 días — ${country}`,
-      message:
-        'Retrocede el watermark 30 días para re-pedir filas al bot. NO borra observaciones; las nuevas reglas matchearán filas previamente dropeadas. Tarda ~1-2 min.',
-      confirmText: 'Re-sincronizar',
+      title: t('botdbsync.resync_confirm_title', { country }),
+      message: t('botdbsync.resync_confirm_message'),
+      confirmText: t('botdbsync.resync_confirm_btn'),
     })
     if (!ok) return
     setRunning(true)
@@ -161,16 +160,16 @@ export default function BotDbSync() {
       })
       if (error) throw error
       if (data?.ok === false) {
-        toast.err(`No se pudo retroceder watermark: ${data.reason}`)
+        toast.err(t('botdbsync.watermark_fail', { reason: data.reason }))
         return
       }
       toast.ok(
-        `Watermark retrocedido a ${new Date(data.new).toLocaleDateString()}. Disparando sync…`,
+        t('botdbsync.watermark_success', { date: new Date(data.new).toLocaleDateString() }),
         { duration: 6000 }
       )
       await handleSync()
     } catch (e) {
-      toast.err(`Error: ${e.message}`)
+      toast.err(t('botdbsync.resync_error', { msg: e.message }))
     } finally {
       setRunning(false)
     }
@@ -210,16 +209,13 @@ export default function BotDbSync() {
         const hint = json?.hint ? ` (${json.hint})` : ''
         throw new Error((json?.error || `HTTP ${res.status}`) + hint)
       }
-      toast.ok(
-        'Workflow disparado. La corrida tarda ~30-60s en aparecer en "Últimas corridas". Auto-refresh en 60s.',
-        { duration: 8000 }
-      )
+      toast.ok(t('botdbsync.sync_triggered_toast'), { duration: 8000 })
       // Auto-refresh la tabla de corridas en 60s — guardamos el id en
       // ref por si el user navega antes de que dispare.
       if (autoRefreshTimerRef.current) clearTimeout(autoRefreshTimerRef.current)
       autoRefreshTimerRef.current = setTimeout(() => reload(), 60_000)
     } catch (e) {
-      toast.err(`No se pudo disparar el sync: ${e.message}`, { duration: 12000 })
+      toast.err(t('botdbsync.sync_trigger_error', { msg: e.message }), { duration: 12000 })
     } finally {
       setRunning(false)
     }
@@ -251,11 +247,11 @@ export default function BotDbSync() {
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || `HTTP ${res.status}`)
       }
-      toast.ok('Probe disparado. Revisa el log del run en GitHub Actions en ~30s.', {
+      toast.ok(t('botdbsync.probe_triggered_toast'), {
         duration: 7000,
       })
     } catch (e) {
-      toast.err(`No se pudo disparar el probe: ${e.message}`, { duration: 10000 })
+      toast.err(t('botdbsync.probe_trigger_error', { msg: e.message }), { duration: 10000 })
     } finally {
       setProbing(false)
     }
@@ -264,11 +260,9 @@ export default function BotDbSync() {
   return (
     <div style={{ marginTop: 12 }}>
       <div className="config-section">
-        <h2>Sincronización directa con la BD del bot</h2>
+        <h2>{t('botdbsync.title')}</h2>
         <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 12 }}>
-          Lee filas nuevas desde <code>quotes_output</code> en la BD del bot y las inserta en{' '}
-          <code>pricing_observations</code> aplicando los mismos filtros (filas vacías, montos fuera
-          de rango) que el upload manual.
+          {t('botdbsync.desc')}
         </p>
 
         <div
@@ -283,13 +277,10 @@ export default function BotDbSync() {
           }}
         >
           <strong>
-            <Check size={13} className="inline align-text-bottom" /> Modo GitHub Actions activado
+            <Check size={13} className="inline align-text-bottom" />{' '}
+            {t('botdbsync.github_mode_title')}
           </strong>{' '}
-          — el workflow <code>bot-sync</code> lee filas nuevas desde <code>fudobi.helioho.st</code>,
-          aplica los <em>botRules</em> y los <em>price_validation_rules</em> configurados en este
-          dashboard, e inserta solo las que pasan los filtros en <code>pricing_observations</code>.
-          Corre automáticamente cada <strong>30 minutos</strong>. Click en{' '}
-          <strong>Disparar sync ahora</strong> para forzar una corrida sin esperar.
+          — {t('botdbsync.github_mode_desc')}
         </div>
 
         <div
@@ -306,13 +297,13 @@ export default function BotDbSync() {
           }}
         >
           <div style={{ fontSize: 12 }}>
-            <strong>País:</strong> {country}
+            <strong>{t('botdbsync.country_label')}</strong> {country}
           </div>
           <div style={{ fontSize: 12, color: '#475569' }}>
-            <strong>Última sync:</strong>{' '}
+            <strong>{t('botdbsync.last_sync_label')}</strong>{' '}
             {watermark?.last_synced_at
               ? new Date(watermark.last_synced_at).toLocaleString()
-              : '— nunca —'}
+              : t('botdbsync.never')}
           </div>
         </div>
 
@@ -321,13 +312,13 @@ export default function BotDbSync() {
           <Button
             onClick={() => handleSync()}
             disabled={running}
-            title="Dispara el workflow de GitHub Actions Bot Sync con el límite indicado"
+            title={t('botdbsync.sync_button_title')}
           >
             {running ? (
-              'Disparando…'
+              t('botdbsync.triggering')
             ) : (
               <>
-                <Zap size={14} /> Disparar sync ahora
+                <Zap size={14} /> {t('botdbsync.sync_now_btn')}
               </>
             )}
           </Button>
@@ -337,13 +328,13 @@ export default function BotDbSync() {
             className="border-slate-300"
             onClick={handleProbe}
             disabled={probing}
-            title="Dispara el workflow en modo probe (lista columnas, no inserta nada). Útil para test."
+            title={t('botdbsync.probe_button_title')}
           >
             {probing ? (
-              'Disparando…'
+              t('botdbsync.triggering')
             ) : (
               <>
-                <Search size={14} /> Probe
+                <Search size={14} /> {t('botdbsync.probe_btn')}
               </>
             )}
           </Button>
@@ -353,9 +344,9 @@ export default function BotDbSync() {
             className="border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100 hover:text-amber-900"
             onClick={handleResync}
             disabled={running}
-            title="Retrocede el watermark 30d y re-pide filas al bot. Útil después de cambiar bot_rules."
+            title={t('botdbsync.resync_button_title')}
           >
-            <RotateCcw size={14} /> Re-sync 30d
+            <RotateCcw size={14} /> {t('botdbsync.resync_btn')}
           </Button>
           <label
             style={{
@@ -366,7 +357,7 @@ export default function BotDbSync() {
               marginLeft: 'auto',
             }}
           >
-            Límite por corrida
+            {t('botdbsync.limit_per_run')}
             <input
               type="number"
               min="1000"
@@ -394,67 +385,64 @@ export default function BotDbSync() {
                 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 8 }}>
-                  <AlertTriangle size={14} className="inline align-text-bottom" /> El sync descartó{' '}
-                  {total.toLocaleString()} filas en la última corrida
+                  <AlertTriangle size={14} className="inline align-text-bottom" />{' '}
+                  {t('botdbsync.dropped_title', { n: total.toLocaleString() })}
                 </div>
 
                 {/* Breakdown por razón — la info más accionable */}
                 <div style={{ fontSize: 11, color: '#78350f', marginBottom: 10 }}>
-                  <div style={{ marginBottom: 6, fontWeight: 600 }}>¿Por qué?</div>
+                  <div style={{ marginBottom: 6, fontWeight: 600 }}>{t('botdbsync.why_label')}</div>
                   <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
                     {byReason.map((r) => (
                       <li key={r.reason}>
                         <strong>
-                          {r.n.toLocaleString()} filas ({r.pct}%)
+                          {t('botdbsync.rows_pct', { n: r.n.toLocaleString(), pct: r.pct })}
                         </strong>{' '}
-                        — {r.info.label}. <span style={{ color: '#92400e' }}>{r.info.hint}</span>{' '}
-                        <em>{r.info.action}</em>
+                        — {t(r.info.labelKey || r.reason)}.{' '}
+                        <span style={{ color: '#92400e' }}>
+                          {r.info.hintKey ? t(r.info.hintKey) : ''}
+                        </span>{' '}
+                        <em>{r.info.actionKey ? t(r.info.actionKey) : ''}</em>
                       </li>
                     ))}
                   </ul>
                 </div>
 
                 <div style={{ fontSize: 11, color: '#92400e', marginBottom: 8, fontWeight: 600 }}>
-                  Detalle por combinación (top {Math.min(droppedCombos.length, 30)}):
+                  {t('botdbsync.detail_by_combo', { n: Math.min(droppedCombos.length, 30) })}
                 </div>
                 <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                   <table className="config-table" style={{ fontSize: 11 }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left' }} title="Por qué la fila fue descartada">
-                          razón
+                        <th style={{ textAlign: 'left' }} title={t('botdbsync.col_reason_title')}>
+                          {t('botdbsync.col_reason_lower')}
+                        </th>
+                        <th style={{ textAlign: 'left' }} title={t('botdbsync.col_app_bot_title')}>
+                          {t('botdbsync.col_app_bot')}
                         </th>
                         <th
                           style={{ textAlign: 'left' }}
-                          title="Nombre de la app como la reporta el bot (ej. yango_api, indrive_api)"
+                          title={t('botdbsync.col_cat_declared_title')}
                         >
-                          app (bot)
+                          {t('botdbsync.col_cat_declared')}
                         </th>
                         <th
                           style={{ textAlign: 'left' }}
-                          title="vehicle_category — categoría que declara el competidor (ej. economy, comfort, premium)"
+                          title={t('botdbsync.col_cat_observed_title')}
                         >
-                          cat. declarada
+                          {t('botdbsync.col_cat_observed')}
                         </th>
-                        <th
-                          style={{ textAlign: 'left' }}
-                          title="observed_vehicle_category — categoría que el bot deduce mirando el vehículo realmente ofrecido. Suele ser más precisa."
-                        >
-                          cat. observada
-                        </th>
-                        <th style={{ textAlign: 'left' }}>ciudad</th>
-                        <th
-                          style={{ textAlign: 'right' }}
-                          title="Cantidad de filas con esta combinación descartadas en la última corrida"
-                        >
-                          filas
+                        <th style={{ textAlign: 'left' }}>{t('botdbsync.col_city_lower')}</th>
+                        <th style={{ textAlign: 'right' }} title={t('botdbsync.col_rows_title')}>
+                          {t('botdbsync.col_rows_lower')}
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {droppedCombos.slice(0, 30).map((c, i) => (
                         <tr key={i}>
-                          <td>{renderReason(c.reason)}</td>
+                          <td>{renderReason(c.reason, t)}</td>
                           <td>
                             <code>{c.app || '∅'}</code>
                           </td>
@@ -475,35 +463,35 @@ export default function BotDbSync() {
                 </div>
 
                 <div style={{ fontSize: 10, color: '#92400e', marginTop: 8, fontStyle: 'italic' }}>
-                  Hovereá el pill de la razón para ver qué hacer en cada caso. Después de cambiar
-                  reglas, corré <strong>↺ Re-sync 30d</strong> para re-procesar el histórico.
+                  {t('botdbsync.hover_hint_prefix')} <strong>↺ {t('botdbsync.resync_btn')}</strong>{' '}
+                  {t('botdbsync.hover_hint_suffix')}
                 </div>
               </div>
             )
           })()}
 
         {/* Log de corridas */}
-        <h3 style={{ fontSize: 14, marginBottom: 6 }}>Últimas corridas</h3>
+        <h3 style={{ fontSize: 14, marginBottom: 6 }}>{t('botdbsync.recent_runs_title')}</h3>
         {loadingLog ? (
           <SkeletonTable rows={4} cols={6} />
         ) : logRows.length === 0 ? (
           <EmptyState
             icon={<ScrollText size={28} />}
-            title="Sin corridas todavía"
-            message="Haz clic en Sync incremental para ingestar las primeras filas."
+            title={t('botdbsync.empty_runs_title')}
+            message={t('botdbsync.empty_runs_message')}
             compact
           />
         ) : (
           <table className="config-table" style={{ marginTop: 4 }}>
             <thead>
               <tr>
-                <th>Inicio</th>
-                <th>Estado</th>
-                <th style={{ textAlign: 'right' }}>Leídas</th>
-                <th style={{ textAlign: 'right' }}>Insertadas</th>
-                <th style={{ textAlign: 'right' }}>Descartadas</th>
-                <th style={{ textAlign: 'right' }}>Outliers</th>
-                <th style={{ textAlign: 'left' }}>Error</th>
+                <th>{t('botdbsync.col_start')}</th>
+                <th>{t('botdbsync.col_status')}</th>
+                <th style={{ textAlign: 'right' }}>{t('botdbsync.col_read')}</th>
+                <th style={{ textAlign: 'right' }}>{t('botdbsync.col_inserted')}</th>
+                <th style={{ textAlign: 'right' }}>{t('upload.col_discarded')}</th>
+                <th style={{ textAlign: 'right' }}>{t('botdbsync.col_outliers')}</th>
+                <th style={{ textAlign: 'left' }}>{t('botdbsync.col_error')}</th>
               </tr>
             </thead>
             <tbody>

@@ -4,8 +4,10 @@ import { convertBotToExcel } from '../../lib/botToExcel'
 import { useCountry } from '../../context/CountryContext'
 import { usePriceRules } from '../../hooks/usePriceRules'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 export default function BotConverter() {
+  const { t } = useI18n()
   const [result, setResult] = useState(null) // { files, summary, skipped, ok }
   const [outliers, setOutliers] = useState([]) // filas con precio sobre el límite
   const [loading, setLoading] = useState(false)
@@ -84,13 +86,8 @@ export default function BotConverter() {
   return (
     <div className="bot-converter">
       <div className="bot-converter__intro">
-        <p>
-          Convierte el xlsx del bot al formato <strong>CI Final Claude</strong>. Genera un archivo
-          por ciudad listo para usar en el upload manual.
-        </p>
-        <p style={{ fontSize: 12, color: '#888' }}>
-          Competidores incluidos: Yango, Uber, Didi, InDrive · Cabify excluido en esta etapa
-        </p>
+        <p>{t('botconverter.intro')}</p>
+        <p style={{ fontSize: 12, color: '#888' }}>{t('botconverter.competitors_note')}</p>
       </div>
 
       {/* Drop zone */}
@@ -111,9 +108,9 @@ export default function BotConverter() {
         >
           <div className="dropzone__icon">📥</div>
           <div className="dropzone__label">
-            Arrastra el xlsx del bot aquí
+            {t('botconverter.dropzone_label')}
             <br />
-            <span style={{ fontSize: 12, color: '#aaa' }}>o haz clic para seleccionar</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>{t('botconverter.dropzone_sub')}</span>
           </div>
           <input
             ref={inputRef}
@@ -129,14 +126,14 @@ export default function BotConverter() {
       {loading && (
         <div style={{ padding: '30px 0', textAlign: 'center', color: '#555' }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
-          Procesando {fileName}…
+          {t('botconverter.processing', { filename: fileName })}
         </div>
       )}
 
       {/* Error */}
       {result?.error && (
         <div style={{ color: '#dc2626', padding: 16, background: '#fef2f2', borderRadius: 8 }}>
-          ❌ Error: {result.error}
+          {t('botconverter.error', { msg: result.error })}
         </div>
       )}
 
@@ -151,20 +148,20 @@ export default function BotConverter() {
               onClick={handleClear}
               style={{ marginLeft: 'auto' }}
             >
-              Limpiar
+              {t('filter.reset')}
             </Button>
           </div>
 
           {/* Resumen por ciudad */}
           <div className="config-section" style={{ marginBottom: 16 }}>
-            <h2>Resumen de conversión</h2>
+            <h2>{t('botconverter.conversion_summary')}</h2>
             <table className="config-table">
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left' }}>Ciudad</th>
-                  <th>Filas válidas</th>
-                  <th>Archivo</th>
-                  <th>Descargar</th>
+                  <th style={{ textAlign: 'left' }}>{t('filter.city')}</th>
+                  <th>{t('botconverter.col_valid_rows')}</th>
+                  <th>{t('botconverter.col_file')}</th>
+                  <th>{t('botconverter.col_download')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -184,16 +181,18 @@ export default function BotConverter() {
                           className="bg-[#2e7d32] hover:bg-[#1b5e20]"
                           onClick={() => downloadCity(city)}
                         >
-                          ⬇ Descargar
+                          {t('botconverter.download_btn')}
                         </Button>
                       ) : (
-                        <span style={{ color: '#aaa', fontSize: 12 }}>Sin datos</span>
+                        <span style={{ color: '#aaa', fontSize: 12 }}>
+                          {t('botconverter.no_data')}
+                        </span>
                       )}
                     </td>
                   </tr>
                 ))}
                 <tr style={{ background: '#f9fbe7', fontWeight: 700 }}>
-                  <td style={{ textAlign: 'left' }}>TOTAL válidas</td>
+                  <td style={{ textAlign: 'left' }}>{t('botconverter.total_valid')}</td>
                   <td style={{ textAlign: 'right' }}>{result.summary.total.toLocaleString()}</td>
                   <td></td>
                   <td></td>
@@ -209,23 +208,24 @@ export default function BotConverter() {
               style={{ marginBottom: 16, borderLeft: '3px solid #f59e0b', paddingLeft: 12 }}
             >
               <h2 style={{ color: '#92400e', margin: '0 0 6px' }}>
-                ⚠ {outliers.length} precio{outliers.length > 1 ? 's' : ''} sobre el límite
-                configurado
+                {t('botconverter.outliers_title', {
+                  n: outliers.length,
+                  count: outliers.length,
+                })}
               </h2>
               <p style={{ fontSize: 12, color: '#78350f', marginBottom: 10 }}>
-                Estas filas se incluyen en los archivos Excel pero superan los límites de Config →
-                Límites Precio. Revísalas antes de hacer el upload manual.
+                {t('botconverter.outliers_note')}
               </p>
               <table className="config-table" style={{ fontSize: 11 }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left' }}>Ciudad</th>
-                    <th style={{ textAlign: 'left' }}>Categoría</th>
-                    <th style={{ textAlign: 'left' }}>Competidor</th>
-                    <th style={{ textAlign: 'left' }}>Fecha</th>
-                    <th style={{ textAlign: 'left' }}>Bracket</th>
-                    <th>Precio</th>
-                    <th>Límite</th>
+                    <th style={{ textAlign: 'left' }}>{t('filter.city')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('filter.category')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('rawdata.col_competitor')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('dataentry.date')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('rawdata.col_bracket')}</th>
+                    <th>{t('botconverter.col_price')}</th>
+                    <th>{t('upload.outlier_col_limit')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -243,7 +243,7 @@ export default function BotConverter() {
                   {outliers.length > 100 && (
                     <tr>
                       <td colSpan={7} style={{ color: '#888', fontStyle: 'italic' }}>
-                        … y {outliers.length - 100} filas más
+                        {t('botconverter.more_rows', { n: outliers.length - 100 })}
                       </td>
                     </tr>
                   )}
@@ -257,7 +257,9 @@ export default function BotConverter() {
             <div className="config-section">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                 <h2 style={{ margin: 0 }}>
-                  Filas omitidas ({result.skipped.length.toLocaleString()})
+                  {t('botconverter.skipped_rows_title', {
+                    n: result.skipped.length.toLocaleString(),
+                  })}
                 </h2>
                 <button
                   onClick={() => setShowSkip((s) => !s)}
@@ -270,7 +272,7 @@ export default function BotConverter() {
                     cursor: 'pointer',
                   }}
                 >
-                  {showSkip ? 'Ocultar' : 'Ver detalle'}
+                  {showSkip ? t('botconverter.hide') : t('botconverter.view_detail')}
                 </button>
               </div>
 
@@ -278,11 +280,11 @@ export default function BotConverter() {
                 <table className="config-table" style={{ fontSize: 11 }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left' }}>Razón</th>
-                      <th style={{ textAlign: 'left' }}>App</th>
-                      <th style={{ textAlign: 'left' }}>Ciudad</th>
-                      <th style={{ textAlign: 'left' }}>Categoría</th>
-                      <th style={{ textAlign: 'left' }}>Status</th>
+                      <th style={{ textAlign: 'left' }}>{t('botconverter.col_reason')}</th>
+                      <th style={{ textAlign: 'left' }}>{t('botupload.col_app')}</th>
+                      <th style={{ textAlign: 'left' }}>{t('filter.city')}</th>
+                      <th style={{ textAlign: 'left' }}>{t('filter.category')}</th>
+                      <th style={{ textAlign: 'left' }}>{t('botupload.col_status')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -300,7 +302,9 @@ export default function BotConverter() {
                     {result.skipped.length > 200 && (
                       <tr>
                         <td colSpan={5} style={{ color: '#888', fontStyle: 'italic' }}>
-                          … y {(result.skipped.length - 200).toLocaleString()} filas más
+                          {t('botconverter.more_rows', {
+                            n: (result.skipped.length - 200).toLocaleString(),
+                          })}
                         </td>
                       </tr>
                     )}

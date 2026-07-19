@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { sb } from '../../lib/supabase'
 import { mapBotRows } from '../../lib/botMapping'
@@ -6,10 +7,12 @@ import { useCountry } from '../../context/CountryContext'
 import { usePriceRules } from '../../hooks/usePriceRules'
 import OutlierReview from './OutlierReview'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 const BATCH_SIZE = 500
 
 export default function BotUpload() {
+  const { t } = useI18n()
   const { country, dbConfigs } = useCountry()
   const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
   const [rows, setRows] = useState([]) // mapped rows OK
@@ -51,16 +54,16 @@ export default function BotUpload() {
               ? r.recommended_price == null
               : r.price_without_discount == null
           )
-          .map((r) => ({ row: r, reason: 'Sin precio en columna de salida' }))
+          .map((r) => ({ row: r, reason: t('botupload.no_output_price') }))
 
         setRows(validRows)
         setSkipped([...skip, ...noPriceRows])
       } catch (e) {
-        setMessage({ type: 'err', text: 'Error al parsear el archivo: ' + e.message })
+        setMessage({ type: 'err', text: t('botupload.parse_error', { msg: e.message }) })
       }
       setLoading(false)
     },
-    [country, dbConfigs]
+    [country, dbConfigs, t]
   )
 
   const handleDrop = useCallback(
@@ -155,13 +158,13 @@ export default function BotUpload() {
       }
       setMessage({
         type: 'ok',
-        text: `✓ ${inserted} filas del bot insertadas. Los datos de los hubs no fueron afectados.`,
+        text: t('botupload.insert_success', { n: inserted }),
       })
       setRows([])
       setSkipped([])
       setFileName('')
     } catch (e) {
-      setMessage({ type: 'err', text: 'Error al insertar: ' + e.message })
+      setMessage({ type: 'err', text: t('botupload.insert_error', { msg: e.message }) })
     }
     setProgress(null)
   }
@@ -183,11 +186,9 @@ export default function BotUpload() {
       >
         <div className="dropzone__icon">🤖</div>
         <div className="dropzone__text">
-          {fileName
-            ? `Archivo: ${fileName}`
-            : 'Arrastra el CSV del bot aquí o haz clic para seleccionar'}
+          {fileName ? t('botupload.file_label', { name: fileName }) : t('botupload.dropzone_text')}
         </div>
-        <div className="dropzone__hint">Formato: LATAM CI - Peru.csv (output del bot)</div>
+        <div className="dropzone__hint">{t('botupload.dropzone_hint')}</div>
         <input
           id="bot-file-input"
           type="file"
@@ -197,14 +198,14 @@ export default function BotUpload() {
         />
       </div>
 
-      {loading && <div className="state-box">Analizando archivo del bot…</div>}
+      {loading && <div className="state-box">{t('botupload.analyzing')}</div>}
 
       {/* Resumen */}
       {(rows.length > 0 || skipped.length > 0) && !loading && (
         <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-          <div className="upload-ok">✓ {rows.length} filas listas para insertar</div>
+          <div className="upload-ok">{t('botupload.rows_ready', { n: rows.length })}</div>
           {skipped.length > 0 && (
-            <div className="upload-error">⚠ {skipped.length} filas omitidas</div>
+            <div className="upload-error">{t('botupload.rows_skipped', { n: skipped.length })}</div>
           )}
         </div>
       )}
@@ -212,22 +213,22 @@ export default function BotUpload() {
       {/* Preview tabla OK */}
       {rows.length > 0 && !loading && (
         <div className="preview-section" style={{ marginBottom: 14 }}>
-          <h2>Vista previa — primeras 20 filas (OK)</h2>
+          <h2>{t('botupload.preview_title')}</h2>
           <div className="preview-wrap">
             <table className="preview-table">
               <thead>
                 <tr>
-                  <th>Ciudad</th>
-                  <th>Competidor</th>
-                  <th>Categoría</th>
-                  <th>Fecha</th>
-                  <th>Hora</th>
-                  <th>Bracket</th>
-                  <th>Precio</th>
-                  <th>Con desc.</th>
-                  <th>Recom.</th>
-                  <th>Mín. bid</th>
-                  <th>Surge</th>
+                  <th>{t('filter.city')}</th>
+                  <th>{t('rawdata.col_competitor')}</th>
+                  <th>{t('filter.category')}</th>
+                  <th>{t('dataentry.date')}</th>
+                  <th>{t('rawdata.col_time')}</th>
+                  <th>{t('rawdata.col_bracket')}</th>
+                  <th>{t('botupload.col_price')}</th>
+                  <th>{t('botupload.col_with_disc')}</th>
+                  <th>{t('botupload.col_recom')}</th>
+                  <th>{t('botupload.col_min_bid')}</th>
+                  <th>{t('filter.surge')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,17 +256,17 @@ export default function BotUpload() {
       {/* Skipped preview */}
       {skipped.length > 0 && !loading && (
         <div className="preview-section" style={{ marginBottom: 14 }}>
-          <h2>Filas omitidas — primeras 10</h2>
+          <h2>{t('botupload.skipped_title')}</h2>
           <div className="preview-wrap">
             <table className="preview-table">
               <thead>
                 <tr>
-                  <th>App</th>
-                  <th>País</th>
-                  <th>Ciudad</th>
-                  <th>Categoría</th>
-                  <th>Status</th>
-                  <th>Razón de omisión</th>
+                  <th>{t('botupload.col_app')}</th>
+                  <th>{t('botupload.col_country')}</th>
+                  <th>{t('filter.city')}</th>
+                  <th>{t('filter.category')}</th>
+                  <th>{t('botupload.col_status')}</th>
+                  <th>{t('botupload.col_skip_reason')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,7 +293,7 @@ export default function BotUpload() {
             <div className="ingest-bar__fill" style={{ width: `${pct}%` }} />
           </div>
           <div className="ingest-status">
-            Insertando… {progress.done} / {progress.total} ({pct}%)
+            {t('botupload.inserting_progress', { done: progress.done, total: progress.total, pct })}
           </div>
         </div>
       )}
@@ -319,8 +320,8 @@ export default function BotUpload() {
       {/* Warning: sin reglas de precio cargadas */}
       {rulesLoaded && rules.length === 0 && rows.length > 0 && !loading && (
         <div className="upload-error" style={{ marginBottom: 10 }}>
-          ⚠ Sin reglas de precio configuradas para este país — la validación de límites no se
-          aplicará. Ve a Config → Límites Precio para agregar reglas.
+          <AlertTriangle size={14} className="inline align-text-bottom" />{' '}
+          {t('upload.no_price_rules')}
         </div>
       )}
 
@@ -328,7 +329,7 @@ export default function BotUpload() {
       {rows.length > 0 && !loading && !progress && !suspects && (
         <div className="upload-actions">
           <Button className="bg-[#2e7d32] hover:bg-[#1b5e20]" onClick={handleIngestClick}>
-            Insertar {rows.length} filas en la BD
+            {t('botupload.insert_button', { n: rows.length })}
           </Button>
           <Button
             variant="outline"
@@ -339,7 +340,7 @@ export default function BotUpload() {
               setFileName('')
             }}
           >
-            Limpiar
+            {t('filter.reset')}
           </Button>
         </div>
       )}
