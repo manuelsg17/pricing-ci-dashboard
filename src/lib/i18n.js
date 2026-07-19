@@ -51,6 +51,15 @@ export const TRANSLATIONS = {
     'common.empty_state.title': 'No hay datos',
     'common.confirm_dialog.default_title': 'Confirmar acción',
     'common.confirm_dialog.default_message': '¿Estás seguro?',
+    'app.profile_load_error_title': 'No pudimos cargar tu perfil',
+    'app.profile_missing_title': 'Cuenta sin perfil configurado',
+    'app.profile_load_error_body':
+      'Hubo un problema de conexión al verificar tus permisos. Probá de nuevo — si el problema sigue, avisá a un administrador.',
+    'app.profile_missing_body':
+      'Tu cuenta no tiene un perfil de acceso configurado en el dashboard. Contactá a un administrador para que te asigne un rol.',
+    'app.account_suspended_title': 'Acceso Suspendido',
+    'app.account_suspended_body':
+      'Tu cuenta ha sido desactivada. Por favor, contacta al administrador del sistema.',
 
     // ── Cuenta / contraseña ────────────────────────────
     'account.change_password': 'Cambiar contraseña',
@@ -1757,6 +1766,15 @@ export const TRANSLATIONS = {
     'common.empty_state.title': 'No data',
     'common.confirm_dialog.default_title': 'Confirm action',
     'common.confirm_dialog.default_message': 'Are you sure?',
+    'app.profile_load_error_title': "We couldn't load your profile",
+    'app.profile_missing_title': 'Account without a configured profile',
+    'app.profile_load_error_body':
+      'There was a connection problem while checking your permissions. Try again — if it keeps happening, contact an administrator.',
+    'app.profile_missing_body':
+      "Your account doesn't have an access profile configured in the dashboard. Contact an administrator to get a role assigned.",
+    'app.account_suspended_title': 'Access Suspended',
+    'app.account_suspended_body':
+      'Your account has been deactivated. Please contact the system administrator.',
 
     // ── Account / password ─────────────────────────────
     'account.change_password': 'Change password',
@@ -3435,6 +3453,15 @@ export const TRANSLATIONS = {
     'common.empty_state.title': 'Нет данных',
     'common.confirm_dialog.default_title': 'Подтвердить действие',
     'common.confirm_dialog.default_message': 'Вы уверены?',
+    'app.profile_load_error_title': 'Не удалось загрузить ваш профиль',
+    'app.profile_missing_title': 'Аккаунт без настроенного профиля',
+    'app.profile_load_error_body':
+      'Возникла проблема с подключением при проверке ваших прав доступа. Попробуйте снова — если проблема повторяется, обратитесь к администратору.',
+    'app.profile_missing_body':
+      'Для вашего аккаунта не настроен профиль доступа в дашборде. Обратитесь к администратору, чтобы вам назначили роль.',
+    'app.account_suspended_title': 'Доступ приостановлен',
+    'app.account_suspended_body':
+      'Ваш аккаунт был деактивирован. Пожалуйста, обратитесь к администратору системы.',
 
     // ── Аккаунт / пароль ───────────────────────────────
     'account.change_password': 'Сменить пароль',

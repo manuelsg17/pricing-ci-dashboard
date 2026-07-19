@@ -3,6 +3,7 @@ import { useAuth } from './lib/auth'
 import { useAccessControl } from './hooks/useAccessControl'
 import { useCountry } from './context/CountryContext'
 import { FilterProvider } from './context/FilterContext'
+import { useI18n } from './context/LanguageContext'
 import Topbar from './components/layout/Topbar'
 import LoginScreen from './components/layout/LoginScreen'
 import ErrorBoundary from './components/ui/ErrorBoundary'
@@ -25,6 +26,7 @@ const Coverage = lazy(() => import('./pages/Coverage'))
 const Competitividad = lazy(() => import('./pages/Competitividad'))
 
 export default function App() {
+  const { t } = useI18n()
   const { loading, signIn, signOut, changePassword, session } = useAuth()
   const { country, setCountry, availableCountries } = useCountry()
   const {
@@ -103,7 +105,7 @@ export default function App() {
           color: '#888',
         }}
       >
-        Cargando…
+        {t('app.loading')}
       </div>
     )
   }
@@ -131,17 +133,15 @@ export default function App() {
         }}
       >
         <h2 style={{ color: '#d32f2f' }}>
-          {acError ? 'No pudimos cargar tu perfil' : 'Cuenta sin perfil configurado'}
+          {acError ? t('app.profile_load_error_title') : t('app.profile_missing_title')}
         </h2>
         <p style={{ color: '#555', maxWidth: 420 }}>
-          {acError
-            ? 'Hubo un problema de conexión al verificar tus permisos. Probá de nuevo — si el problema sigue, avisá a un administrador.'
-            : 'Tu cuenta no tiene un perfil de acceso configurado en el dashboard. Contactá a un administrador para que te asigne un rol.'}
+          {acError ? t('app.profile_load_error_body') : t('app.profile_missing_body')}
         </p>
         <div style={{ display: 'flex', gap: 12 }}>
           {acError && (
             <Button onClick={reloadAccessControl} className="bg-[#d32f2f] hover:bg-[#d32f2f]">
-              Reintentar
+              {t('app.retry')}
             </Button>
           )}
           <Button
@@ -153,7 +153,7 @@ export default function App() {
                 : 'bg-[#d32f2f] hover:bg-[#d32f2f]'
             }
           >
-            Cerrar sesión
+            {t('app.logout')}
           </Button>
         </div>
       </div>
@@ -174,12 +174,10 @@ export default function App() {
           padding: 20,
         }}
       >
-        <h2 style={{ color: '#d32f2f' }}>Acceso Suspendido</h2>
-        <p style={{ color: '#555' }}>
-          Tu cuenta ha sido desactivada. Por favor, contacta al administrador del sistema.
-        </p>
+        <h2 style={{ color: '#d32f2f' }}>{t('app.account_suspended_title')}</h2>
+        <p style={{ color: '#555' }}>{t('app.account_suspended_body')}</p>
         <Button onClick={signOut} className="bg-[#d32f2f] hover:bg-[#d32f2f]">
-          Cerrar sesión
+          {t('app.logout')}
         </Button>
       </div>
     )
