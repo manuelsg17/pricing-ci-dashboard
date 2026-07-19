@@ -764,6 +764,29 @@ def main():
                 'data_source':            'bot',
             })
 
+        # Dedupe por la misma natural key que usa el ON CONFLICT de la RPC
+        # (mig 90/91): country, city, observed_date, observed_time, category,
+        # competition_name, distance_bracket, surge, data_source. Sin esto,
+        # si dos filas de quotes_output colapsan a la misma key DENTRO del
+        # mismo chunk de 500 (ej. dos scrapes casi simultáneos del mismo
+        # combo), Postgres tira 21000 "ON CONFLICT DO UPDATE command cannot
+        # affect row a second time" y el chunk entero falla — visto en vivo
+        # haciendo un backfill ancho (watermark reseteado varios meses atrás)
+        # para Nepal. Nos quedamos con la última ocurrencia (mismo criterio
+        # de "última escritura gana" que ya aplica la RPC entre corridas).
+        deduped = {}
+        for row in accepted:
+            key = (
+                row['country'], row['city'], row['observed_date'], row['observed_time'],
+                row['category'], row['competition_name'], row['distance_bracket'],
+                row['surge'], row['data_source'],
+            )
+            deduped[key] = row
+        n_dupes = len(accepted) - len(deduped)
+        if n_dupes:
+            print(f'[bot_sync] deduped {n_dupes} rows with colliding natural key', flush=True)
+        accepted = list(deduped.values())
+
         # Insert en lotes — UPSERT idempotente vía RPC `bot_upsert_observations`
         # (mig 91). Por qué RPC y no POST directo con ?on_conflict=:
         #   PostgreSQL exige que para inferir un UNIQUE INDEX **parcial** desde
