@@ -325,25 +325,22 @@ function BracketSection({
     return (
       <div style={{ display: 'flex', gap: 2 }}>
         {types.map(({ key: k, Icon }) => (
-          <button
+          <Button
             key={k}
             type="button"
+            variant="outline"
+            size="icon"
+            className={
+              'h-auto w-auto rounded-[5px] p-[3px_7px]' +
+              (chartType === k
+                ? ' border-yango bg-[var(--color-yango-light)] text-yango hover:bg-[var(--color-yango-light)]'
+                : ' text-muted')
+            }
             onClick={() => setChartType(k)}
             title={t(`dashboard.chart.type_${k}`)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '3px 7px',
-              border: `1px solid ${chartType === k ? 'var(--color-yango)' : 'var(--color-border)'}`,
-              background: chartType === k ? 'var(--color-yango-light)' : 'transparent',
-              color: chartType === k ? 'var(--color-yango)' : 'var(--color-muted)',
-              borderRadius: 5,
-              cursor: 'pointer',
-            }}
           >
             <Icon size={13} />
-          </button>
+          </Button>
         ))}
       </div>
     )
@@ -378,24 +375,16 @@ function BracketSection({
         </span>
 
         {/* #27 collapse toggle */}
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="icon"
+          className="h-auto w-auto shrink-0 rounded-[5px] bg-[var(--color-bg)] px-[5px] py-[2px] text-muted"
           onClick={() => setCollapsed((c) => !c)}
           title={t(collapsed ? 'dashboard.section.expand' : 'dashboard.section.collapse')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            background: 'var(--color-bg)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-muted)',
-            borderRadius: 5,
-            padding: '2px 5px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
         >
           {collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-        </button>
+        </Button>
 
         <span>{label}</span>
         {key === '_wa' && (
@@ -479,28 +468,16 @@ function BracketSection({
                   </span>
                 )
               })}
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                className="ml-1 h-auto gap-1 rounded-[5px] bg-[var(--color-bg)] px-2 py-0.5 text-[10px] font-semibold text-muted"
                 onClick={() => setShowSamples((s) => !s)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  marginLeft: 4,
-                  padding: '2px 8px',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg)',
-                  color: 'var(--color-muted)',
-                  borderRadius: 5,
-                  cursor: 'pointer',
-                  fontSize: 10,
-                  fontWeight: 600,
-                }}
                 title={t('samples.toggle_title')}
               >
                 {showSamples ? <EyeOff size={12} /> : <Eye size={12} />}
                 {showSamples ? t('samples.toggle_hide') : t('samples.toggle_show')}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -654,8 +631,15 @@ function BracketSection({
                               {p.label}
                               {isSort ? (sortConfig.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                               {/* #41 pin button */}
-                              <button
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-auto w-auto p-0 leading-none hover:bg-transparent"
+                                style={{
+                                  opacity: isPinned ? 1 : 0.3,
+                                  color: isPinned ? 'var(--color-yango)' : 'inherit',
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   togglePin(p.key)
@@ -663,20 +647,9 @@ function BracketSection({
                                 title={
                                   isPinned ? t('dashboard.unpin_period') : t('dashboard.pin_period')
                                 }
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  background: 'none',
-                                  border: 'none',
-                                  padding: 0,
-                                  cursor: 'pointer',
-                                  lineHeight: 1,
-                                  opacity: isPinned ? 1 : 0.3,
-                                  color: isPinned ? 'var(--color-yango)' : 'inherit',
-                                }}
                               >
                                 <Pin size={11} />
-                              </button>
+                              </Button>
                             </span>
                           </th>
                         )
@@ -1188,26 +1161,19 @@ function MiniChart({
               const hidden = hiddenComps?.has(comp)
               const color = COMPETITOR_COLORS[comp] || '#999'
               return (
-                <button
+                <Button
                   key={comp}
                   type="button"
-                  onClick={() => toggleHide(comp)}
-                  title={hidden ? t('dashboard.chart.show_comp') : t('dashboard.chart.hide_comp')}
+                  variant="outline"
+                  className="h-auto gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-opacity"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '2px 8px',
-                    borderRadius: 99,
                     border: `1px solid ${hidden ? '#e2e8f0' : color}`,
                     background: hidden ? '#f8fafc' : `${color}18`,
                     color: hidden ? '#94a3b8' : color,
-                    fontSize: 10,
-                    fontWeight: 600,
-                    cursor: 'pointer',
                     opacity: hidden ? 0.5 : 1,
-                    transition: 'opacity 0.15s, background 0.15s',
                   }}
+                  onClick={() => toggleHide(comp)}
+                  title={hidden ? t('dashboard.chart.show_comp') : t('dashboard.chart.hide_comp')}
                 >
                   <span
                     style={{
@@ -1218,7 +1184,7 @@ function MiniChart({
                     }}
                   />
                   {comp}
-                </button>
+                </Button>
               )
             })}
           </div>

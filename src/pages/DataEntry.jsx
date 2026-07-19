@@ -119,13 +119,16 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
           title="Promedio calculado automáticamente"
           style={{ background: avg ? '#f0fdf4' : undefined, cursor: 'default' }}
         />
-        <button
-          className="indrive-toggle"
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-[22px] w-[22px] shrink-0 rounded-sm border-border bg-[var(--color-bg-subtle)] p-0 text-[9px] text-muted hover:border-yango hover:bg-[var(--color-yango-mid)]"
           onClick={() => setOpen((o) => !o)}
           title={open ? 'Cerrar bids' : 'Agregar bids'}
         >
           {open ? '▲' : '▼'}
-        </button>
+        </Button>
       </div>
 
       {open && (
@@ -155,16 +158,28 @@ function InDriveCell({ avg, extra, onChange, hasError }) {
                 onChange={(e) => updateBid(i, e.target.value)}
               />
               {bids.length > 1 && (
-                <button className="indrive-bid-remove" onClick={() => removeBid(i)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-[18px] w-[18px] shrink-0 rounded p-0 text-[10px] text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)]"
+                  onClick={() => removeBid(i)}
+                >
                   ✕
-                </button>
+                </Button>
               )}
             </div>
           ))}
           {bids.length < 5 && (
-            <button className="indrive-bid-add" onClick={addBid}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-0.5 h-auto rounded-sm border-dashed border-yango bg-transparent px-1.5 py-0.5 text-[10px] font-bold text-yango hover:bg-[var(--color-yango-mid)]"
+              onClick={addBid}
+            >
               + Bid
-            </button>
+            </Button>
           )}
         </div>
       )}

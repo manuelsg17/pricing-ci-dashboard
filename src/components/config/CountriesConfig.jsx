@@ -1311,27 +1311,20 @@ export default function CountriesConfig() {
                       <span key={comp} style={competitorTagStyle}>
                         {comp}
                         {!readonly && (
-                          <button
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="ml-1 h-auto w-auto p-0.5 text-xs font-bold leading-none text-red-600 hover:bg-transparent"
                             onClick={() =>
                               removeCompetitor(selectedKey, selectedCityIdx, catIdx, comp)
                             }
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: '#dc2626',
-                              fontWeight: 700,
-                              marginLeft: 4,
-                              padding: '0 2px',
-                              fontSize: 12,
-                              lineHeight: 1,
-                            }}
                             title={t('config.countries_config.remove_competitor_title', {
                               comp,
                             })}
                           >
                             ×
-                          </button>
+                          </Button>
                         )}
                       </span>
                     ))}
