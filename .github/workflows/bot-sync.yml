@@ -50,13 +50,21 @@ on:
   workflow_dispatch:
     inputs:
       limit:
-        description: 'Filas máximas a procesar en esta corrida'
+        description: 'Filas máximas a procesar en esta corrida (subí este número para backfills — con date_from/date_to hasta ~50000 entra cómodo en el timeout)'
         required: false
         default: '5000'
       probe_only:
         description: '¿Solo sondear esquema (sin sync)?'
         required: false
         default: 'false'
+      date_from:
+        description: 'Backfill: fecha desde (YYYY-MM-DD). Requiere date_to. No toca el watermark — el sync incremental normal sigue igual después.'
+        required: false
+        default: ''
+      date_to:
+        description: 'Backfill: fecha hasta (YYYY-MM-DD). Requiere date_from.'
+        required: false
+        default: ''
 
 # Mig 100 (2026-05-30, audit adversarial): restringir permisos del
 # GITHUB_TOKEN al mínimo necesario. Sin esto, hereda write a todos los
@@ -122,7 +130,10 @@ jobs:
   sync:
     needs: discover-countries
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 10 min para el cron horario normal (lotes chicos); 30 min cuando se
+    # dispara a mano — un backfill con date_from/date_to y limit alto
+    # necesita más margen (más filas → más chunks de 500 al upsertear).
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 30 || 10 }}
     # Matriz dinámica: lista de países viene de discover-countries.
     # Para agregar/quitar país: editar country_config.status desde el
     # dashboard, no este archivo.
@@ -171,17 +182,40 @@ jobs:
           # se ejecutaría con los secrets expuestos.
           INPUT_LIMIT:      ${{ inputs.limit }}
           INPUT_PROBE_ONLY: ${{ inputs.probe_only }}
+          INPUT_DATE_FROM:  ${{ inputs.date_from }}
+          INPUT_DATE_TO:    ${{ inputs.date_to }}
         run: |
           set -euo pipefail
           cd scripts/bot-sync
-          # Validar y sanitizar inputs: limit debe ser entero positivo.
+          # Validar y sanitizar inputs: limit debe ser entero positivo,
+          # date_from/date_to (si vienen) deben ser YYYY-MM-DD — mismo
+          # criterio que INPUT_LIMIT (mig 100): nunca interpolar el input
+          # crudo en bash.
           LIMIT="${INPUT_LIMIT:-5000}"
           if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
             echo "::error::limit inválido (debe ser entero positivo): $LIMIT"
             exit 1
           fi
+          DATE_FROM="${INPUT_DATE_FROM:-}"
+          DATE_TO="${INPUT_DATE_TO:-}"
+          for D in "$DATE_FROM" "$DATE_TO"; do
+            if [ -n "$D" ] && ! [[ "$D" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+              echo "::error::fecha inválida (debe ser YYYY-MM-DD): $D"
+              exit 1
+            fi
+          done
+          if [ -n "$DATE_FROM" ] && [ -z "$DATE_TO" ]; then
+            echo "::error::date_from requiere date_to (y viceversa)"
+            exit 1
+          fi
+          if [ -n "$DATE_TO" ] && [ -z "$DATE_FROM" ]; then
+            echo "::error::date_to requiere date_from (y viceversa)"
+            exit 1
+          fi
           if [ "$INPUT_PROBE_ONLY" = "true" ]; then
             python bot_sync_push.py --probe
+          elif [ -n "$DATE_FROM" ]; then
+            python bot_sync_push.py --limit "$LIMIT" --from "$DATE_FROM" --to "$DATE_TO"
           else
             python bot_sync_push.py --limit "$LIMIT"
           fi
