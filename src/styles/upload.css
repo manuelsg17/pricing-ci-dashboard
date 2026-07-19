@@ -28,7 +28,7 @@
 .outlier-review__title {
   font-size: 14px;
   font-weight: 700;
-  color: #92400e;
+  color: var(--color-warning-fg);
   margin-bottom: 2px;
 }
 
@@ -53,7 +53,7 @@
   font-size: 13px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--color-panel);
 }
 .outlier-review__search:focus {
   border-color: var(--color-yango, #ef3022);
@@ -89,7 +89,7 @@
 }
 
 .outlier-review__table tbody tr {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-bg-hover);
 }
 
 .outlier-review__table tbody tr.outlier-row--excluded {
@@ -102,7 +102,7 @@
 }
 
 .outlier-value {
-  color: #dc2626;
+  color: var(--color-danger);
   font-weight: 700;
 }
 
@@ -155,7 +155,7 @@
 
 .upload-overwrite-notice {
   background: #fffbeb;
-  border: 1px solid #fcd34d;
+  border: 1px solid var(--color-warning-border);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
   font-size: 12px;
@@ -291,7 +291,7 @@
   letter-spacing: 0.5px;
   color: var(--color-muted);
   padding: 10px 14px;
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
   border-bottom: 1px solid var(--color-border-soft);
 }
 
@@ -308,7 +308,7 @@
 }
 
 .preview-table th {
-  background: #f0f4f8;
+  background: var(--color-bg-header);
   color: var(--color-muted);
   padding: 4px 8px;
   font-size: 9px;
@@ -326,7 +326,7 @@
 }
 
 .preview-table tbody tr:hover td {
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
 }
 .preview-table .col-computed {
   background: #d4edda;

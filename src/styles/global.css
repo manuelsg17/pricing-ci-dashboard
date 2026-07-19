@@ -59,6 +59,35 @@
   --sem-red-fg: #5a1f1f;
   --sem-none-bg: transparent;
   --sem-none-fg: var(--color-text);
+
+  /* Estado (banners/pills/bordes de éxito-error-warning-info) — Fase 2
+     tokenización: valores extraídos de los hex sueltos ya repetidos en
+     2+ páginas (access-management, data-entry, driver-earnings,
+     dashboard, raw-data, upload, distance-refs, config, market-events).
+     Mismo valor exacto que ya se usaba — cero cambio visual, solo
+     centraliza el origen del color. */
+  --color-bg-subtle: #f8fafc;
+  --color-bg-hover: #f1f5f9;
+  --color-bg-header: #f0f4f8;
+  --color-border-strong: #e2e8f0;
+
+  --color-danger: #dc2626;
+  --color-danger-fg: #991b1b;
+  --color-danger-bg: #fee2e2;
+  --color-danger-bg-subtle: #fef2f2;
+  --color-danger-border: #fca5a5;
+
+  --color-success: #15803d;
+  --color-success-fg: #166534;
+  --color-success-bg: #dcfce7;
+  --color-success-bg-subtle: #f0fdf4;
+  --color-success-border: #86efac;
+
+  --color-warning-fg: #92400e;
+  --color-warning-border: #fcd34d;
+
+  --color-info-fg: #1d4ed8;
+  --color-info-border: #93c5fd;
 }
 
 html,

@@ -173,7 +173,7 @@
 }
 
 .raw-data__table thead tr:last-child th {
-  background: #f1f5f9;
+  background: var(--color-bg-hover);
   padding: 4px 6px;
   border-bottom: 2px solid var(--color-border);
 }
@@ -183,7 +183,7 @@
   height: 24px;
   border: 1px solid var(--color-border);
   border-radius: 3px;
-  background: #fff;
+  background: var(--color-panel);
   color: var(--color-text);
   font-size: 11px;
   padding: 0 6px;
@@ -199,7 +199,7 @@
 }
 
 .raw-data__table tbody tr {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-bg-hover);
   transition: background 0.1s;
 }
 
@@ -218,7 +218,7 @@
 .raw-data__table td {
   padding: 5px 10px;
   color: var(--color-text);
-  border-right: 1px solid #f8fafc;
+  border-right: 1px solid var(--color-bg-subtle);
 }
 
 .raw-data__table td:last-child {
@@ -283,7 +283,7 @@
   font-size: 10px;
   font-weight: 600;
   background: #fef3c7;
-  color: #92400e;
+  color: var(--color-warning-fg);
 }
 
 .badge-surge {
@@ -292,8 +292,8 @@
   border-radius: 10px;
   font-size: 10px;
   font-weight: 600;
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
 }
 
 .badge-no {
@@ -321,10 +321,10 @@
 
 .raw-data__error {
   padding: 14px 16px;
-  background: #fef2f2;
+  background: var(--color-danger-bg-subtle);
   border: 1px solid #fecaca;
   border-radius: var(--radius-md);
-  color: #991b1b;
+  color: var(--color-danger-fg);
   font-size: 13px;
   margin-bottom: 12px;
 }
@@ -346,8 +346,8 @@
   border-radius: 3px;
   font-size: 10px;
   font-weight: 700;
-  background: #dcfce7;
-  color: #166534;
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
   letter-spacing: 0.3px;
 }
 
@@ -358,7 +358,7 @@
 
 /* ── Outlier highlighting ─────────────────────────────────── */
 .cell-outlier {
-  color: #dc2626;
+  color: var(--color-danger);
   font-weight: 700;
 }
 

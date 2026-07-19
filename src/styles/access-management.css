@@ -22,7 +22,7 @@
 .am-tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--color-border-strong);
   margin-bottom: 20px;
 }
 
@@ -62,8 +62,8 @@
 
 /* ── Form ────────────────────────────────────────────────────────── */
 .am-form {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-strong);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
@@ -100,7 +100,7 @@
   border: 1px solid #d1d5db;
   border-radius: 5px;
   font-size: 13px;
-  background: #fff;
+  background: var(--color-panel);
 }
 
 .am-form__actions {
@@ -116,12 +116,12 @@
   margin-bottom: 12px;
 }
 .am-msg--ok {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 .am-msg--err {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
 }
 
 /* ── Empty state ─────────────────────────────────────────────────── */
@@ -141,18 +141,18 @@
 .am-table th {
   text-align: left;
   padding: 8px 10px;
-  background: #f1f5f9;
+  background: var(--color-bg-hover);
   color: #475569;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .am-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-bg-hover);
   vertical-align: middle;
 }
 
@@ -175,7 +175,7 @@
 .am-select {
   padding: 4px 8px;
   font-size: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-strong);
   border-radius: 5px;
 }
 
@@ -187,11 +187,11 @@
   font-weight: 700;
 }
 .am-badge--active {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 .am-badge--inactive {
-  background: #f1f5f9;
+  background: var(--color-bg-hover);
   color: #94a3b8;
 }
 
@@ -203,9 +203,9 @@
 }
 
 .am-role-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-strong);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-panel);
   overflow: hidden;
 }
 
@@ -214,8 +214,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .am-role-card__name {
@@ -287,17 +287,17 @@
   font-size: 12px;
   color: #374151;
   cursor: pointer;
-  background: #f1f5f9;
+  background: var(--color-bg-hover);
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-strong);
   transition: background 0.1s;
 }
 
 .am-check:has(input:checked) {
   background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  border-color: var(--color-info-border);
+  color: var(--color-info-fg);
 }
 
 .am-check input {

@@ -28,14 +28,14 @@
   height: 26px;
   padding: 0 8px;
   font-size: 11px;
-  border: 1px solid #fca5a5;
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-sm);
-  background: #fff;
-  color: #dc2626;
+  background: var(--color-panel);
+  color: var(--color-danger);
   cursor: pointer;
 }
 .btn-delete-sm:hover {
-  background: #fee2e2;
+  background: var(--color-danger-bg);
 }
 
 .save-msg {
@@ -45,14 +45,14 @@
   margin-bottom: 10px;
 }
 .save-msg--ok {
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-  color: #166534;
+  background: var(--color-success-bg-subtle);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success-fg);
 }
 .save-msg--err {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  color: #991b1b;
+  background: var(--color-danger-bg-subtle);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger-fg);
 }
 
 .config-loading {
@@ -135,7 +135,7 @@
 }
 
 .config-table th {
-  background: #f0f4f8;
+  background: var(--color-bg-header);
   padding: 6px 10px;
   text-align: center;
   font-weight: 700;
@@ -154,7 +154,7 @@
 }
 
 .config-table tbody tr:hover td {
-  background: #f8fafc;
+  background: var(--color-bg-subtle);
 }
 
 .config-table td:first-child {
@@ -334,7 +334,7 @@
   top: 2px;
   width: 16px;
   height: 16px;
-  background: #fff;
+  background: var(--color-panel);
   border-radius: 50%;
   transition: transform 0.15s;
   box-shadow: var(--shadow-xs);
