@@ -117,7 +117,15 @@ function resolveByRules(rules, { appKey, vcRaw, ovcRaw, dbCity }) {
   for (const r of rules) {
     if (r.app !== appKey) continue
     if (r.vc !== vcRaw) continue
-    if (r.ovc !== '*' && r.ovc !== ovcRaw) continue
+    // ovc admite variantes separadas por coma (ej. "viaje, viajes
+    // económicos, viaje+") — misma convención que resolve_rule() en
+    // bot_sync_push.py, el pipeline automático real.
+    const ovcVariants = String(r.ovc || '')
+      .toLowerCase()
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+    if (!ovcVariants.includes('*') && !ovcVariants.includes(ovcRaw)) continue
     if (r.cities && !r.cities.includes(dbCity)) continue
     return { competition_name: r.name, category: r.category }
   }

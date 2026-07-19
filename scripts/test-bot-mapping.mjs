@@ -297,6 +297,53 @@ console.log('\n══ Bot mapping tests — path en vivo (botRulesRowsToInternal
   )
 }
 
+// ── Test 13: ovc con variantes separadas por coma (una fila, varios labels) ──
+{
+  console.log('\n[13] ovc="viaje, viajes económicos, viaje+" matchea las 3 variantes, no matchea otras, tolera espacios')
+
+  const rawBotRulesRows = [
+    {
+      country: 'TestLand', app: 'indrive', vc: 'economy',
+      ovc: ' viaje ,viajes económicos, viaje+ ', // espacios de sobra a propósito
+      competition_name: 'InDrive', category: 'Economy', cities: [],
+    },
+  ]
+  const testLandRow = {
+    label: 'TestLand', currency: 'USD', locale: 'es', status: 'active',
+    outlier_threshold: 100, max_price: 500,
+    cities: [{
+      uiName: 'Ciudad', dbName: 'Ciudad', botKey: 'ciudad',
+      categories: [{ name: 'Economy', dbName: 'Economy', competitors: ['InDrive'] }],
+    }],
+    bot_rules: [],
+  }
+  const internal = dbConfigToInternal(testLandRow)
+  internal.botRules = botRulesRowsToInternal(rawBotRulesRows)
+  const dbConfigs = { TestLand: internal }
+
+  for (const variant of ['viaje', 'viajes económicos', 'viaje+']) {
+    const row = makeRow({
+      country: 'TestLand', city: 'ciudad', app: 'indrive',
+      vehicle_category: 'economy', observed_vehicle_category: variant,
+    })
+    const r = mapBotRows([row], 'TestLand', dbConfigs)
+    assert(
+      r.ok.length === 1 && r.ok[0].competition_name === 'InDrive',
+      `ovc="${variant}" matchea la regla multi-variante`
+    )
+  }
+
+  const rowOtra = makeRow({
+    country: 'TestLand', city: 'ciudad', app: 'indrive',
+    vehicle_category: 'economy', observed_vehicle_category: 'otracosa',
+  })
+  const rOtra = mapBotRows([rowOtra], 'TestLand', dbConfigs)
+  assert(
+    rOtra.ok.length === 0 && rOtra.skipped.length === 1,
+    'ovc="otracosa" NO matchea (no está en la lista de variantes)'
+  )
+}
+
 // ── Resumen ───────────────────────────────────────────────────────────
 console.log('\n══════════════════════════════════════════════════════════')
 console.log(`Resultado: ${passed} pasados · ${failed} fallidos`)

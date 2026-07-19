@@ -244,10 +244,18 @@ def load_bot_rules(country):
     rules = []
     for r in rows:
         cities = set(r.get('cities') or [])
+        # ovc admite variantes separadas por coma (ej. "viaje, viajes
+        # económicos, viaje+") para que una sola regla cubra distintos
+        # labels que la misma app manda con el tiempo — se guarda como
+        # set, no como string, para no repetir el split en cada fila
+        # entrante de resolve_rule().
+        ovc_variants = frozenset(
+            v.strip() for v in (r.get('ovc') or '').lower().split(',') if v.strip()
+        )
         rules.append((
             (r.get('app') or '').lower(),
             (r.get('vc') or '').lower(),
-            (r.get('ovc') or '').lower(),
+            ovc_variants,
             r.get('competition_name'),
             r.get('category'),
             cities if cities else None,
@@ -366,12 +374,12 @@ def resolve_rule(app, vc, ovc, db_city):
     a = (app or '').lower()
     v = (vc or '').lower()
     o = (ovc or '').lower()
-    for r_app, r_vc, r_ovc, name, category, cities in BOT_RULES:
+    for r_app, r_vc, r_ovc_variants, name, category, cities in BOT_RULES:
         if r_app != a:
             continue
         if r_vc != v:
             continue
-        if r_ovc != '*' and r_ovc != o:
+        if '*' not in r_ovc_variants and o not in r_ovc_variants:
             continue
         if cities and db_city not in cities:
             continue
