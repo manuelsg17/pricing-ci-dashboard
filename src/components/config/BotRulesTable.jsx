@@ -9,6 +9,7 @@ import { MultiCombobox } from '../ui/shadcn/multi-combobox'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
 // Tabla CRUD de bot_rules. Cada fila mapea (app, vc, ovc, cities) →
@@ -35,6 +36,7 @@ export default function BotRulesTable({ country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
+  const { t } = useI18n()
 
   // Unión: categorías/competidores del país + catálogo canónico.
   // Esto cubre el caso de país recién creado (sin config) — los dropdowns
@@ -222,7 +224,7 @@ export default function BotRulesTable({ country }) {
 
   async function saveRule(rule) {
     if (!rule.app || !rule.vc || !rule.competition_name || !rule.category) {
-      setMsg({ type: 'err', text: 'app, vc, competition_name y category son obligatorios' })
+      setMsg({ type: 'err', text: t('config.botrules.err_required') })
       return
     }
     setSaving(true)
@@ -247,11 +249,17 @@ export default function BotRulesTable({ country }) {
         .eq('id', rule.id))
     }
     if (err) {
-      setMsg({ type: 'err', text: 'Error al guardar: ' + err.message })
+      setMsg({ type: 'err', text: t('config.thresholds.save_error', { msg: err.message }) })
     } else {
       setMsg({
         type: 'ok',
-        text: `Regla guardada: ${payload.app} / ${payload.vc} / ${payload.ovc} → ${payload.competition_name} / ${payload.category}`,
+        text: t('config.botrules.saved_toast', {
+          app: payload.app,
+          vc: payload.vc,
+          ovc: payload.ovc,
+          competitor: payload.competition_name,
+          category: payload.category,
+        }),
       })
       // Sacar la fila local recién guardada para que el sync effect
       // tras el reload la reemplace por la versión canónica del server
@@ -269,23 +277,22 @@ export default function BotRulesTable({ country }) {
       return
     }
     const ok = await confirm({
-      title: 'Eliminar regla bot',
-      message:
-        '¿Eliminar esta regla? Filas del bot que matchaban esta regla dejarán de procesarse.',
+      title: t('config.botrules.delete_confirm_title'),
+      message: t('config.botrules.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     const { error } = await sb.from('bot_rules').delete().eq('id', id)
     if (!error) {
-      setMsg({ type: 'ok', text: 'Regla eliminada.' })
+      setMsg({ type: 'ok', text: t('config.botrules.delete_success') })
       await load()
     } else {
-      setMsg({ type: 'err', text: 'Error al eliminar: ' + error.message })
+      setMsg({ type: 'err', text: t('config.citimeslots.delete_error', { msg: error.message }) })
     }
   }
 
-  if (loading) return <div className="config-loading">Cargando reglas del bot…</div>
+  if (loading) return <div className="config-loading">{t('config.botrules.loading')}</div>
 
   const dirtyCellStyle = {
     background: '#fef3c7',
@@ -312,14 +319,10 @@ export default function BotRulesTable({ country }) {
     <div className="config-section">
       <h2 className="with-icon">
         <Bot size={15} />
-        Reglas del Bot — {country}
+        {t('config.botrules.title', { country })}
       </h2>
       <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 8 }}>
-        El bot scrapea precios y los manda con sus propios nombres técnicos. Estas reglas son el{' '}
-        <strong>traductor</strong>: le dicen al sistema “cuando llegue esto del bot, guardalo como
-        este competidor y esta categoría”.{' '}
-        <strong>Si un precio del bot no matchea ninguna regla, se descarta</strong> — por eso el
-        botón amarillo de abajo te avisa si está llegando data que se está perdiendo.
+        {t('config.botrules.desc')}
       </p>
       <div
         style={{
@@ -332,9 +335,7 @@ export default function BotRulesTable({ country }) {
           borderRadius: 6,
         }}
       >
-        <strong>Ejemplo:</strong> el bot manda <code>app=uber_api · vc=comfort · ovc=*</code> → la
-        regla lo traduce a <strong>Uber / Comfort</strong>. El <code>*</code> significa “cualquier
-        valor”. Ciudades vacío = aplica a todo el país.
+        {t('config.botrules.example')}
       </div>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -348,7 +349,7 @@ export default function BotRulesTable({ country }) {
           onClick={() => addRule()}
         >
           <Plus size={13} />
-          Nueva regla
+          {t('config.botrules.add_btn')}
         </Button>
         {unmatched.length > 0 && (
           <button
@@ -367,7 +368,11 @@ export default function BotRulesTable({ country }) {
             }}
           >
             <AlertTriangle size={13} />
-            {unmatched.length} combos no matcheados ({showUnmatched ? 'ocultar' : 'ver'})
+            {t('config.botrules.unmatched_count', {
+              n: unmatched.length,
+              count: unmatched.length,
+            })}{' '}
+            ({showUnmatched ? t('config.botrules.hide') : t('config.botrules.view')})
           </button>
         )}
       </div>
@@ -385,9 +390,7 @@ export default function BotRulesTable({ country }) {
           }}
         >
           <div style={{ fontSize: 11, color: '#78350f', marginBottom: 8, fontWeight: 600 }}>
-            Combinaciones (app, vc, ovc, city) que aparecen en el bot pero no matchean ninguna regla
-            activa (últimos 7 días). Hacé clic en <strong>+ Agregar</strong> para crear una regla
-            pre-rellenada.
+            {t('config.botrules.unmatched_desc')}
           </div>
           <table className="config-table" style={{ fontSize: 11 }}>
             <thead>
@@ -419,7 +422,7 @@ export default function BotRulesTable({ country }) {
                   <td>
                     <Button type="button" size="sm" onClick={() => addFromUnmatched(c)}>
                       <Plus size={11} />
-                      Agregar
+                      {t('config.botrules.add_short')}
                     </Button>
                   </td>
                 </tr>
@@ -442,7 +445,7 @@ export default function BotRulesTable({ country }) {
                 paddingBottom: 0,
               }}
             >
-              LO QUE MANDA EL BOT
+              {t('config.botrules.section_bot_sends')}
             </th>
             <th
               colSpan={2}
@@ -454,26 +457,26 @@ export default function BotRulesTable({ country }) {
                 paddingBottom: 0,
               }}
             >
-              → CÓMO LO VES EN EL DASHBOARD
+              {t('config.botrules.section_dashboard_view')}
             </th>
             <th colSpan={3} style={{ borderBottom: 'none' }}></th>
           </tr>
           <tr>
-            <th scope="col" title="Identificador de la app en el scraper (ej: uber_api, yango_api)">
+            <th scope="col" title={t('config.botrules.app_title')}>
               app
             </th>
-            <th scope="col" title="Categoría de vehículo según el bot (ej: economy, comfort)">
+            <th scope="col" title={t('config.botrules.vc_title')}>
               vc
             </th>
-            <th scope="col" title="Categoría original del competidor. * = cualquier valor">
+            <th scope="col" title={t('config.botrules.ovc_title')}>
               ovc
             </th>
-            <th scope="col">Competidor</th>
-            <th scope="col">Categoría</th>
-            <th scope="col" title="Vacío = todas las ciudades del país">
-              Ciudades
+            <th scope="col">{t('config.commissions.col_competitor')}</th>
+            <th scope="col">{t('filter.category')}</th>
+            <th scope="col" title={t('config.botrules.cities_title')}>
+              {t('config.botrules.col_cities')}
             </th>
-            <th scope="col">Activa</th>
+            <th scope="col">{t('config.bands.col_active')}</th>
             <th scope="col"></th>
           </tr>
         </thead>
@@ -512,9 +515,9 @@ export default function BotRulesTable({ country }) {
                     items={competitorItems}
                     value={rule.competition_name || ''}
                     onValueChange={(v) => updateRule(rule.id, 'competition_name', v)}
-                    placeholder="— Elegir —"
-                    searchPlaceholder="Buscar competidor…"
-                    emptyText="Sin resultados."
+                    placeholder={t('config.bands.select_placeholder')}
+                    searchPlaceholder={t('config.commissions.search_competitor')}
+                    emptyText={t('config.commissions.no_results')}
                     triggerClassName="text-xs"
                     style={dirty ? dirtyTriggerStyle : undefined}
                   />
@@ -524,9 +527,9 @@ export default function BotRulesTable({ country }) {
                     items={categoryItems}
                     value={rule.category || ''}
                     onValueChange={(v) => updateRule(rule.id, 'category', v)}
-                    placeholder="— Elegir —"
-                    searchPlaceholder="Buscar categoría…"
-                    emptyText="Sin resultados."
+                    placeholder={t('config.bands.select_placeholder')}
+                    searchPlaceholder={t('config.bands.search_category')}
+                    emptyText={t('config.commissions.no_results')}
                     triggerClassName="text-xs"
                     style={dirty ? dirtyTriggerStyle : undefined}
                   />
@@ -537,16 +540,23 @@ export default function BotRulesTable({ country }) {
                       items={cityItems}
                       value={rule.cities || []}
                       onValueChange={(v) => updateRule(rule.id, 'cities', v)}
-                      allLabel="Todas las ciudades"
-                      searchPlaceholder="Buscar ciudad…"
-                      emptyText="Ciudad no encontrada."
+                      allLabel={t('config.commissions.all_cities')}
+                      searchPlaceholder={t('config.commissions.search_city')}
+                      emptyText={t('config.botrules.city_not_found')}
                       style={dirty ? dirtyTriggerStyle : undefined}
                       triggerClassName="text-xs"
                     />
                   </div>
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <label className="toggle-switch" title={rule.active ? 'Activa' : 'Inactiva'}>
+                  <label
+                    className="toggle-switch"
+                    title={
+                      rule.active
+                        ? t('config.bands.active_title')
+                        : t('config.bands.inactive_title')
+                    }
+                  >
                     <input
                       type="checkbox"
                       checked={!!rule.active}
@@ -561,18 +571,18 @@ export default function BotRulesTable({ country }) {
                     size="sm"
                     onClick={() => saveRule(rule)}
                     disabled={saving || !dirty}
-                    title={!dirty ? 'Sin cambios' : undefined}
+                    title={!dirty ? t('config.commissions.no_changes_title') : undefined}
                   >
                     <Save size={11} />
-                    {rule._new ? 'Crear' : 'Guardar'}
+                    {rule._new ? t('config.commissions.create_btn') : t('app.save')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="border-red-300 text-red-600 hover:bg-red-100"
-                    aria-label="Eliminar"
-                    title="Eliminar"
+                    aria-label={t('app.delete')}
+                    title={t('app.delete')}
                     onClick={() => deleteRule(rule.id)}
                   >
                     <Trash2 size={12} />

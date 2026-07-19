@@ -1195,6 +1195,39 @@ export const TRANSLATIONS = {
     'config.airports.empty':
       'No hay aeropuertos configurados para este país. Agregá uno con el botón de arriba.',
 
+    // ── BotRulesTable ───────────────────────────────────────────────
+    'config.botrules.title': 'Reglas del Bot — {country}',
+    'config.botrules.desc':
+      'El bot scrapea precios y los manda con sus propios nombres técnicos. Estas reglas son el traductor: le dicen al sistema "cuando llegue esto del bot, guardalo como este competidor y esta categoría". Si un precio del bot no matchea ninguna regla, se descarta — por eso el botón amarillo de abajo te avisa si está llegando data que se está perdiendo.',
+    'config.botrules.example':
+      'Ejemplo: el bot manda app=uber_api · vc=comfort · ovc=* → la regla lo traduce a Uber / Comfort. El * significa "cualquier valor". Ciudades vacío = aplica a todo el país.',
+    'config.botrules.add_btn': 'Nueva regla',
+    'config.botrules.unmatched_count': {
+      one: '{n} combo no matcheado',
+      other: '{n} combos no matcheados',
+    },
+    'config.botrules.hide': 'ocultar',
+    'config.botrules.view': 'ver',
+    'config.botrules.unmatched_desc':
+      'Combinaciones (app, vc, ovc, city) que aparecen en el bot pero no matchean ninguna regla activa (últimos 7 días). Hacé clic en + Agregar para crear una regla pre-rellenada.',
+    'config.botrules.add_short': 'Agregar',
+    'config.botrules.loading': 'Cargando reglas del bot…',
+    'config.botrules.section_bot_sends': 'LO QUE MANDA EL BOT',
+    'config.botrules.section_dashboard_view': '→ CÓMO LO VES EN EL DASHBOARD',
+    'config.botrules.app_title': 'Identificador de la app en el scraper (ej: uber_api, yango_api)',
+    'config.botrules.vc_title': 'Categoría de vehículo según el bot (ej: economy, comfort)',
+    'config.botrules.ovc_title': 'Categoría original del competidor. * = cualquier valor',
+    'config.botrules.cities_title': 'Vacío = todas las ciudades del país',
+    'config.botrules.col_cities': 'Ciudades',
+    'config.botrules.city_not_found': 'Ciudad no encontrada.',
+    'config.botrules.err_required': 'app, vc, competition_name y category son obligatorios',
+    'config.botrules.saved_toast':
+      'Regla guardada: {app} / {vc} / {ovc} → {competitor} / {category}',
+    'config.botrules.delete_confirm_title': 'Eliminar regla bot',
+    'config.botrules.delete_confirm_message':
+      '¿Eliminar esta regla? Filas del bot que matchaban esta regla dejarán de procesarse.',
+    'config.botrules.delete_success': 'Regla eliminada.',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -2357,6 +2390,38 @@ export const TRANSLATIONS = {
     'config.airports.delete_success': 'Marker deleted.',
     'config.airports.empty':
       'No airports configured for this country. Add one with the button above.',
+
+    // ── BotRulesTable ───────────────────────────────────────────────
+    'config.botrules.title': 'Bot Rules — {country}',
+    'config.botrules.desc':
+      'The bot scrapes prices and sends them with its own technical names. These rules are the translator: they tell the system "when this comes from the bot, save it as this competitor and this category". If a bot price doesn\'t match any rule, it gets dropped — that\'s why the yellow button below warns you if incoming data is being lost.',
+    'config.botrules.example':
+      'Example: the bot sends app=uber_api · vc=comfort · ovc=* → the rule translates it to Uber / Comfort. * means "any value". Empty cities = applies to the whole country.',
+    'config.botrules.add_btn': 'New rule',
+    'config.botrules.unmatched_count': {
+      one: '{n} unmatched combo',
+      other: '{n} unmatched combos',
+    },
+    'config.botrules.hide': 'hide',
+    'config.botrules.view': 'view',
+    'config.botrules.unmatched_desc':
+      "Combinations (app, vc, ovc, city) that show up from the bot but don't match any active rule (last 7 days). Click + Add to create a pre-filled rule.",
+    'config.botrules.add_short': 'Add',
+    'config.botrules.loading': 'Loading bot rules…',
+    'config.botrules.section_bot_sends': 'WHAT THE BOT SENDS',
+    'config.botrules.section_dashboard_view': '→ HOW YOU SEE IT IN THE DASHBOARD',
+    'config.botrules.app_title': 'App identifier in the scraper (e.g: uber_api, yango_api)',
+    'config.botrules.vc_title': 'Vehicle category per the bot (e.g: economy, comfort)',
+    'config.botrules.ovc_title': "Competitor's original category. * = any value",
+    'config.botrules.cities_title': 'Empty = all cities in the country',
+    'config.botrules.col_cities': 'Cities',
+    'config.botrules.city_not_found': 'City not found.',
+    'config.botrules.err_required': 'app, vc, competition_name and category are required',
+    'config.botrules.saved_toast': 'Rule saved: {app} / {vc} / {ovc} → {competitor} / {category}',
+    'config.botrules.delete_confirm_title': 'Delete bot rule',
+    'config.botrules.delete_confirm_message':
+      'Delete this rule? Bot rows matching this rule will stop being processed.',
+    'config.botrules.delete_success': 'Rule deleted.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -3553,6 +3618,41 @@ export const TRANSLATIONS = {
     'config.airports.delete_success': 'Маркер удалён.',
     'config.airports.empty':
       'Для этой страны не настроено ни одного аэропорта. Добавьте его кнопкой выше.',
+
+    // ── BotRulesTable ───────────────────────────────────────────────
+    'config.botrules.title': 'Правила бота — {country}',
+    'config.botrules.desc':
+      'Бот собирает цены и отправляет их со своими техническими названиями. Эти правила — переводчик: они говорят системе «когда придёт это от бота, сохрани как этого конкурента и эту категорию». Если цена бота не совпадает ни с одним правилом, она отбрасывается — поэтому жёлтая кнопка ниже предупреждает, если теряются входящие данные.',
+    'config.botrules.example':
+      'Пример: бот отправляет app=uber_api · vc=comfort · ovc=* → правило переводит это в Uber / Comfort. * означает «любое значение». Пустые города = применяется ко всей стране.',
+    'config.botrules.add_btn': 'Новое правило',
+    'config.botrules.unmatched_count': {
+      one: '{n} несопоставленная комбинация',
+      few: '{n} несопоставленные комбинации',
+      many: '{n} несопоставленных комбинаций',
+      other: '{n} несопоставленных комбинаций',
+    },
+    'config.botrules.hide': 'скрыть',
+    'config.botrules.view': 'посмотреть',
+    'config.botrules.unmatched_desc':
+      'Комбинации (app, vc, ovc, city), которые встречаются у бота, но не совпадают ни с одним активным правилом (последние 7 дней). Нажмите + Добавить, чтобы создать предзаполненное правило.',
+    'config.botrules.add_short': 'Добавить',
+    'config.botrules.loading': 'Загрузка правил бота…',
+    'config.botrules.section_bot_sends': 'ЧТО ОТПРАВЛЯЕТ БОТ',
+    'config.botrules.section_dashboard_view': '→ КАК ЭТО ВИДНО В ДАШБОРДЕ',
+    'config.botrules.app_title': 'Идентификатор приложения в скрапере (напр.: uber_api, yango_api)',
+    'config.botrules.vc_title': 'Категория транспорта по данным бота (напр.: economy, comfort)',
+    'config.botrules.ovc_title': 'Исходная категория конкурента. * = любое значение',
+    'config.botrules.cities_title': 'Пусто = все города страны',
+    'config.botrules.col_cities': 'Города',
+    'config.botrules.city_not_found': 'Город не найден.',
+    'config.botrules.err_required': 'app, vc, competition_name и category обязательны',
+    'config.botrules.saved_toast':
+      'Правило сохранено: {app} / {vc} / {ovc} → {competitor} / {category}',
+    'config.botrules.delete_confirm_title': 'Удалить правило бота',
+    'config.botrules.delete_confirm_message':
+      'Удалить это правило? Строки бота, соответствующие этому правилу, перестанут обрабатываться.',
+    'config.botrules.delete_success': 'Правило удалено.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
