@@ -200,15 +200,17 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
         {country === 'Peru' && t('config.weights.info_peru_note')}
       </div>
 
-      <div className="city-tabs" style={{ marginBottom: 6 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
         {weightCities.map((c) => (
-          <button
+          <Button
             key={c}
-            className={`city-tab${activeCity === c ? ' active' : ''}`}
+            variant={activeCity === c ? 'default' : 'outline'}
+            size="sm"
+            className="rounded-full"
             onClick={() => setActiveCity(c)}
           >
             {c === 'all' ? t('config.weights.global_default') : c}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -224,22 +226,19 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
       >
         <strong style={{ marginRight: 4 }}>{t('config.weights.category_label')}</strong>
         {weightCategories.map((c) => (
-          <button
+          <Button
             key={c}
+            variant="outline"
+            size="sm"
+            className={
+              activeCategory === c
+                ? 'h-auto rounded-full border-[1.5px] border-blue-600 bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-900 hover:bg-blue-100'
+                : 'h-auto rounded-full px-2.5 py-1 text-[11px] font-normal text-slate-600'
+            }
             onClick={() => setActiveCategory(c)}
-            style={{
-              padding: '4px 10px',
-              borderRadius: 14,
-              fontSize: 11,
-              border: activeCategory === c ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
-              background: activeCategory === c ? '#dbeafe' : '#fff',
-              color: activeCategory === c ? '#1e3a8a' : '#475569',
-              fontWeight: activeCategory === c ? 600 : 400,
-              cursor: 'pointer',
-            }}
           >
             {c === 'all' ? t('config.weights.all_categories_default') : c}
-          </button>
+          </Button>
         ))}
       </div>
 

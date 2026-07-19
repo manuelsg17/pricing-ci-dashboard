@@ -171,32 +171,6 @@
   margin-bottom: 12px;
 }
 
-.drefs-cat-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: 1.5px solid var(--color-border);
-  border-radius: 20px;
-  background: var(--color-bg);
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.drefs-cat-tab:hover {
-  border-color: var(--color-yango);
-  color: var(--color-yango);
-}
-.drefs-cat-tab.active {
-  background: var(--color-yango);
-  color: #fff;
-  border-color: var(--color-yango);
-  font-weight: 600;
-}
-
 .drefs-cat-count {
   background: rgba(0, 0, 0, 0.15);
   border-radius: 10px;
@@ -207,7 +181,7 @@
   text-align: center;
 }
 
-.drefs-cat-tab.active .drefs-cat-count {
+.drefs-cat-count--active {
   background: rgba(255, 255, 255, 0.3);
 }
 

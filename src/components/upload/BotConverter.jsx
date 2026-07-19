@@ -261,19 +261,14 @@ export default function BotConverter() {
                     n: result.skipped.length.toLocaleString(),
                   })}
                 </h2>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-auto rounded px-2 py-0.5 text-[11px] font-normal"
                   onClick={() => setShowSkip((s) => !s)}
-                  style={{
-                    fontSize: 11,
-                    padding: '2px 8px',
-                    borderRadius: 4,
-                    border: '1px solid #d1d5db',
-                    background: '#f9fafb',
-                    cursor: 'pointer',
-                  }}
                 >
                   {showSkip ? t('botconverter.hide') : t('botconverter.view_detail')}
-                </button>
+                </Button>
               </div>
 
               {showSkip && (

@@ -195,19 +195,24 @@ export default function DistanceRefs() {
 
       {/* Category tabs */}
       <div className="drefs-cat-tabs">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            className={`drefs-cat-tab${uiCat === cat ? ' active' : ''}`}
-            onClick={() => handleCatChange(cat)}
-          >
-            {cat}
-            {/* badge de cuántas rutas tiene */}
-            <span className="drefs-cat-count">
-              {refs.filter((r) => r.category === (config.uiToDbCategory?.[cat] || cat)).length}
-            </span>
-          </button>
-        ))}
+        {categories.map((cat) => {
+          const active = uiCat === cat
+          return (
+            <Button
+              key={cat}
+              variant={active ? 'default' : 'outline'}
+              size="sm"
+              className="gap-1.5 rounded-full"
+              onClick={() => handleCatChange(cat)}
+            >
+              {cat}
+              {/* badge de cuántas rutas tiene */}
+              <span className={`drefs-cat-count${active ? ' drefs-cat-count--active' : ''}`}>
+                {refs.filter((r) => r.category === (config.uiToDbCategory?.[cat] || cat)).length}
+              </span>
+            </Button>
+          )
+        })}
       </div>
 
       <div className="drefs-section">

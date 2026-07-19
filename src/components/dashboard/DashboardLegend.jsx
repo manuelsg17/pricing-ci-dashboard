@@ -74,26 +74,29 @@ export default function DashboardLegend({ country, dbCity, dbCategory }) {
 
   if (!open) {
     return (
-      <button
+      <Button
         type="button"
-        className="toolbar-btn"
+        variant="outline"
+        size="sm"
         onClick={() => setOpen(true)}
         title={t('legend.button_title')}
       >
         <Info size={14} /> {t('legend.button')}
-      </button>
+      </Button>
     )
   }
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="toolbar-btn toolbar-btn--active"
+        variant="outline"
+        size="sm"
+        className="border-yango bg-[var(--color-yango-light)] text-[var(--color-yango-dark)] hover:bg-[var(--color-yango-light)]"
         onClick={() => setOpen(false)}
       >
         <Info size={14} /> {t('legend.button')}
-      </button>
+      </Button>
       <div
         role="dialog"
         aria-modal="true"

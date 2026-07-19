@@ -166,27 +166,15 @@ export default function YangoGmvConfig({ country }) {
           {VARIANTS.map((v) => {
             const disabled = v.key === 'vip' && city !== 'Lima'
             return (
-              <button
+              <Button
                 key={v.key}
+                variant={variant === v.key ? 'default' : 'outline'}
+                size="sm"
                 onClick={() => setVariant(v.key)}
                 disabled={disabled}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  border:
-                    '1px solid ' +
-                    (variant === v.key
-                      ? 'var(--color-yango, #E53935)'
-                      : 'var(--color-border, #e2e8f0)'),
-                  background: variant === v.key ? 'var(--color-yango, #E53935)' : '#fff',
-                  color: variant === v.key ? '#fff' : 'var(--color-muted)',
-                  opacity: disabled ? 0.4 : 1,
-                }}
               >
                 {t(v.labelKey)}
-              </button>
+              </Button>
             )
           })}
         </div>

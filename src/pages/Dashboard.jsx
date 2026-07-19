@@ -543,22 +543,29 @@ function DashboardContent() {
             >
               <LineChartIcon size={14} style={{ color: '#16a34a' }} /> Analytics
             </Button>
-            <button
-              className={`toolbar-btn${simEnabled ? ' toolbar-btn--active' : ''}`}
+            <Button
+              variant="outline"
+              size="sm"
+              className={
+                simEnabled
+                  ? 'border-yango bg-[var(--color-yango-light)] text-[var(--color-yango-dark)] hover:bg-[var(--color-yango-light)]'
+                  : ''
+              }
               onClick={() => setSimEnabled((s) => !s)}
               title={t('dashboard.sim.toggle_tooltip')}
             >
               <SlidersHorizontal size={14} />{' '}
               {simEnabled ? t('dashboard.sim.on') : t('dashboard.sim.toggle')}
-            </button>
+            </Button>
             <div style={{ position: 'relative' }}>
-              <button
-                className="toolbar-btn"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setExportOpen((o) => !o)}
                 title="Exportar PNG / CSV / PDF"
               >
                 <Download size={14} /> Exportar <ChevronDown size={13} style={{ opacity: 0.6 }} />
-              </button>
+              </Button>
               {exportOpen && (
                 <>
                   <div
@@ -764,16 +771,16 @@ function DashboardContent() {
               <RotateCcw size={12} /> {t('dashboard.reset_order')}
             </Button>
           )}
-          <button
-            className="filter-bar-toggle__btn"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          <Button
+            variant="outline"
+            className="h-auto rounded-full border-border px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted hover:border-yango hover:text-yango"
             onClick={() => setFilterBarVisible((v) => !v)}
             title={filterBarVisible ? t('filter.collapse') : t('filter.expand')}
           >
             <SlidersHorizontal size={12} />
             {filterBarVisible ? t('filter.collapse') : t('filter.expand')}
             {filterBarVisible ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
+          </Button>
         </div>
         <FilterBar className={filterBarVisible ? '' : 'filter-bar--collapsed'} />
       </div>
