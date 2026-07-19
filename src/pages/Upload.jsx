@@ -16,7 +16,7 @@ import BotFreshnessBadge from '../components/ui/BotFreshnessBadge'
 import { usePriceRules } from '../hooks/usePriceRules'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { sanitizeBatch } from '../algorithms/ingestionFilters'
-import { normalizeCompetitorName, normalizeBracket, toSnakeCase } from '../lib/normalize'
+import { normalizeBracket, toSnakeCase } from '../lib/normalize'
 import { TUKTUK_DISTRICTS, normalizeTukTukDistrict } from '../lib/tuktukDistricts'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
@@ -727,14 +727,8 @@ export default function Upload() {
 
     // ── Paso 2: Pre-computar campos calculados en cada fila ────────────────
     const finalRows = rowsToInsert.map((r) => {
-      // Normalizar competition_name context-aware. En city='Corp' colapsa
-      // 'YangoEconomy' → 'Yango Economy' (el canónico del dashboard usa
-      // espacios en Corp); en el resto deja 'YangoComfort' intacto (es
-      // sub-variante legítima en E/C). Ver src/lib/normalize.js.
-      const competition_name = normalizeCompetitorName(r.competition_name, { city: r.city })
       let row = {
         ...r,
-        competition_name,
         country,
         data_source: 'manual',
         upload_batch_id: batchId,
@@ -742,11 +736,27 @@ export default function Upload() {
           ? (isRushHour(r.observed_time, r.city) ?? r.rush_hour)
           : r.rush_hour,
       }
+      // Fase 1.4 paso 2: competition_name ya NO se normaliza acá antes del
+      // insert — el trigger SQL trg_normalize_competitor (mig 70/72/97,
+      // normalize_competitor_name(raw, city)) es la única autoridad y cubre
+      // el 100% de los paths de insert, incluido este (INSERT directo).
+      // Doble normalización JS+trigger fue exactamente el patrón del
+      // incidente mig 68→97; baseline de divergencia = 0 en 1.36M filas
+      // (ver scripts/check-normalization-drift.sql) antes de sacar este
+      // lado redundante.
+      //
       // Para InDrive: calcular minimal_bid y price_without_discount desde bids
       // si las fórmulas de Excel no fueron evaluadas (llegan como 0 o null).
       // Mig 98: bid_4/bid_5 dropeados (>99% NULL históricamente, marginales
-      // para el promedio). Quedan bid_1/bid_2/bid_3.
-      if (row.competition_name === 'InDrive') {
+      // para el promedio). Quedan bid_1/bid_2/bid_3. Comparación case-
+      // insensitive sobre el valor crudo porque ya no pasa por
+      // normalizeCompetitorName() en este punto (el trigger lo normaliza
+      // recién al escribir en BD).
+      if (
+        String(row.competition_name || '')
+          .trim()
+          .toLowerCase() === 'indrive'
+      ) {
         const bidVals = [row.bid_1, row.bid_2, row.bid_3]
           .map((b) => parseFloat(b))
           .filter((n) => !isNaN(n) && n > 0)
