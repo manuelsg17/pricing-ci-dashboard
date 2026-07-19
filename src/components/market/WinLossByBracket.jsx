@@ -1,19 +1,26 @@
 import { useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { useI18n } from '../../context/LanguageContext'
 
-export default function WinLossByBracket({ priceMatrix = {}, periods = [], competitors = [], compareVs = 'Yango' }) {
+export default function WinLossByBracket({
+  priceMatrix = {},
+  periods = [],
+  competitors = [],
+  compareVs = 'Yango',
+}) {
+  const { t } = useI18n()
   const grid = useMemo(() => {
     if (!periods?.length || !competitors?.length) return []
-    return periods.map(p => {
+    return periods.map((p) => {
       const wins = {}
       let totalChecked = 0
       let totalWon = 0
       for (const b of BRACKETS) {
         const arr = competitors
-          .map(c => ({ comp: c, price: priceMatrix?.[c]?.[p.key]?.[b] }))
-          .filter(x => x.price != null)
+          .map((c) => ({ comp: c, price: priceMatrix?.[c]?.[p.key]?.[b] }))
+          .filter((x) => x.price != null)
         if (arr.length < 2) {
-          wins[b] = null   // sin comparables, no se puede determinar líder
+          wins[b] = null // sin comparables, no se puede determinar líder
           continue
         }
         totalChecked++
@@ -31,7 +38,7 @@ export default function WinLossByBracket({ priceMatrix = {}, periods = [], compe
     const result = {}
     for (const b of BRACKETS) {
       let total = 0
-      let won  = 0
+      let won = 0
       for (const row of grid) {
         if (row.wins[b] === null) continue
         total++
@@ -43,7 +50,11 @@ export default function WinLossByBracket({ priceMatrix = {}, periods = [], compe
   }, [grid])
 
   if (!grid.length) {
-    return <div style={{ fontSize: 12, color: 'var(--color-muted)', textAlign: 'center', padding: 12 }}>Sin datos.</div>
+    return (
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', textAlign: 'center', padding: 12 }}>
+        {t('market.win_loss.no_data')}
+      </div>
+    )
   }
 
   return (
@@ -51,24 +62,31 @@ export default function WinLossByBracket({ priceMatrix = {}, periods = [], compe
       <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
         <thead>
           <tr style={{ background: '#f8fafc' }}>
-            <th style={th}>Período</th>
-            {BRACKETS.map(b => <th key={b} style={th}>{BRACKET_LABELS[b]}</th>)}
-            <th style={th}>Total</th>
+            <th style={th}>{t('market.win_loss.col_period')}</th>
+            {BRACKETS.map((b) => (
+              <th key={b} style={th}>
+                {BRACKET_LABELS[b]}
+              </th>
+            ))}
+            <th style={th}>{t('market.col_total')}</th>
           </tr>
         </thead>
         <tbody>
           {grid.map((row, i) => (
             <tr key={i} style={{ borderBottom: '1px solid var(--color-border-soft)' }}>
               <td style={{ ...td, fontWeight: 600, textAlign: 'left' }}>{row.period.label}</td>
-              {BRACKETS.map(b => {
+              {BRACKETS.map((b) => {
                 const v = row.wins[b]
                 return (
-                  <td key={b} style={{
-                    ...td,
-                    background: v === 'win' ? '#dcfce7' : v === 'loss' ? '#fee2e2' : '#f1f5f9',
-                    color:      v === 'win' ? '#166534' : v === 'loss' ? '#991b1b' : '#94a3b8',
-                    fontSize: 14,
-                  }}>
+                  <td
+                    key={b}
+                    style={{
+                      ...td,
+                      background: v === 'win' ? '#dcfce7' : v === 'loss' ? '#fee2e2' : '#f1f5f9',
+                      color: v === 'win' ? '#166534' : v === 'loss' ? '#991b1b' : '#94a3b8',
+                      fontSize: 14,
+                    }}
+                  >
                     {v === 'win' ? '✓' : v === 'loss' ? '✗' : '—'}
                   </td>
                 )
@@ -79,14 +97,24 @@ export default function WinLossByBracket({ priceMatrix = {}, periods = [], compe
             </tr>
           ))}
           <tr style={{ background: '#fffbe5', fontWeight: 700 }}>
-            <td style={{ ...td, textAlign: 'left' }}>% líder</td>
-            {BRACKETS.map(b => {
+            <td style={{ ...td, textAlign: 'left' }}>{t('market.win_loss.row_leader_pct')}</td>
+            {BRACKETS.map((b) => {
               const pct = byBracketPct[b]
               return (
-                <td key={b} style={{
-                  ...td,
-                  color: pct == null ? '#94a3b8' : pct >= 67 ? '#15803d' : pct >= 33 ? '#a16207' : '#b91c1c',
-                }}>
+                <td
+                  key={b}
+                  style={{
+                    ...td,
+                    color:
+                      pct == null
+                        ? '#94a3b8'
+                        : pct >= 67
+                          ? '#15803d'
+                          : pct >= 33
+                            ? '#a16207'
+                            : '#b91c1c',
+                  }}
+                >
                   {pct == null ? '—' : `${pct}%`}
                 </td>
               )
@@ -96,7 +124,7 @@ export default function WinLossByBracket({ priceMatrix = {}, periods = [], compe
         </tbody>
       </table>
       <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 8 }}>
-        ✓ {compareVs} fue el más barato del bracket · ✗ otro competidor lideró · — sin comparables.
+        {t('market.win_loss.footer', { comp: compareVs })}
       </div>
     </div>
   )

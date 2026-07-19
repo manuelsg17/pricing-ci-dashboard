@@ -2,26 +2,18 @@ import { useEffect, useState, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { normalizeCompetitorName } from '../../lib/normalize'
+import { useI18n } from '../../context/LanguageContext'
 
-const TIME_SLOTS = [
-  { key: 'early_morning', label: 'Madrugada' },
-  { key: 'morning', label: 'Mañana' },
-  { key: 'midday', label: 'Mediodía' },
-  { key: 'afternoon', label: 'Tarde' },
-  { key: 'evening', label: 'Noche' },
-]
-
-const DOWS = [
-  { key: 1, label: 'Lun' },
-  { key: 2, label: 'Mar' },
-  { key: 3, label: 'Mié' },
-  { key: 4, label: 'Jue' },
-  { key: 5, label: 'Vie' },
-  { key: 6, label: 'Sáb' },
-  { key: 7, label: 'Dom' },
-]
+const TIME_SLOT_KEYS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
+const DOW_KEYS = [1, 2, 3, 4, 5, 6, 7]
 
 export default function HeatmapDayHour({ filters, competitors = [], focusComp = 'Yango' }) {
+  const { t } = useI18n()
+  const TIME_SLOTS = TIME_SLOT_KEYS.map((key) => ({
+    key,
+    label: t(`market.heatmap.time_slot_${key}`),
+  }))
+  const DOWS = DOW_KEYS.map((key) => ({ key, label: t(`market.heatmap.dow_${key}`) }))
   const [rawRows, setRawRows] = useState([])
   const [loading, setLoading] = useState(false)
 
@@ -72,14 +64,14 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
     }
 
     const grid = {}
-    for (const dow of DOWS) {
-      grid[dow.key] = {}
-      for (const tod of TIME_SLOTS) {
+    for (const dowKey of DOW_KEYS) {
+      grid[dowKey] = {}
+      for (const todKey of TIME_SLOT_KEYS) {
         const arr = competitors
           .map((c) => {
             // Con una sola semana de rango cada celda es un único día×franja,
             // así que basta n>=1 — el n exacto se ve en el tooltip.
-            const cell = map[c]?.[dow.key]?.[tod.key]
+            const cell = map[c]?.[dowKey]?.[todKey]
             if (!cell || cell.n < 1) return null
             return { comp: c, avg: cell.avg, n: cell.n }
           })
@@ -88,7 +80,7 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
 
         const focusEntry = arr.find((x) => x.comp === focusComp)
         const focusRank = focusEntry ? arr.findIndex((x) => x.comp === focusComp) + 1 : null
-        grid[dow.key][tod.key] = {
+        grid[dowKey][todKey] = {
           rank: focusRank,
           total: arr.length,
           avg: focusEntry?.avg ?? null,
@@ -102,7 +94,7 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
   if (loading && !rawRows.length) {
     return (
       <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: 12 }}>
-        Cargando heatmap…
+        {t('market.heatmap.loading')}
       </div>
     )
   }
@@ -110,7 +102,7 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
   return (
     <div style={{ overflowX: 'auto' }}>
       <div style={{ fontSize: 11, color: 'var(--color-muted)', marginBottom: 10 }}>
-        Posición de{' '}
+        {t('market.heatmap.header_prefix')}{' '}
         <strong
           style={{
             background: COMPETITOR_COLORS[focusComp] || '#64748b',
@@ -121,16 +113,20 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
         >
           {focusComp}
         </strong>{' '}
-        en cada combinación día×hora · semana del {fmtShort(startDate)} al {fmtShort(endDate)} ·{' '}
-        {filters.dbCity} · {filters.dbCategory}
+        {t('market.heatmap.header_suffix', {
+          start: fmtShort(startDate),
+          end: fmtShort(endDate),
+          city: filters.dbCity,
+          category: filters.dbCategory,
+        })}
       </div>
       <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
           <tr>
             <th style={hth}></th>
-            {TIME_SLOTS.map((t) => (
-              <th key={t.key} style={hth}>
-                {t.label}
+            {TIME_SLOTS.map((slot) => (
+              <th key={slot.key} style={hth}>
+                {slot.label}
               </th>
             ))}
           </tr>
@@ -139,11 +135,11 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
           {DOWS.map((d) => (
             <tr key={d.key}>
               <td style={{ ...htd, fontWeight: 700, background: '#f8fafc' }}>{d.label}</td>
-              {TIME_SLOTS.map((t) => {
-                const c = cells[d.key]?.[t.key]
+              {TIME_SLOTS.map((slot) => {
+                const c = cells[d.key]?.[slot.key]
                 return (
                   <td
-                    key={t.key}
+                    key={slot.key}
                     style={{
                       ...htd,
                       background: getRankBg(c?.rank),
@@ -151,8 +147,14 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
                     }}
                     title={
                       c?.n
-                        ? `${focusComp}: ${c.avg.toFixed(2)} · n=${c.n} · ${c.rank}º de ${c.total}`
-                        : 'Sin datos suficientes'
+                        ? t('market.heatmap.tooltip_with_data', {
+                            comp: focusComp,
+                            avg: c.avg.toFixed(2),
+                            n: c.n,
+                            rank: c.rank,
+                            total: c.total,
+                          })
+                        : t('market.heatmap.tooltip_no_data')
                     }
                   >
                     {c?.rank ? `${c.rank}º` : '—'}
@@ -174,18 +176,18 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
         }}
       >
         <span>
-          <span style={swatch('#dcfce7')} /> 1º (líder)
+          <span style={swatch('#dcfce7')} /> {t('market.heatmap.legend_leader')}
         </span>
         <span>
-          <span style={swatch('#fef9c3')} /> 2º
+          <span style={swatch('#fef9c3')} /> {t('market.heatmap.legend_2')}
         </span>
         <span>
-          <span style={swatch('#ffedd5')} /> 3º
+          <span style={swatch('#ffedd5')} /> {t('market.heatmap.legend_3')}
         </span>
         <span>
-          <span style={swatch('#fee2e2')} /> 4º+
+          <span style={swatch('#fee2e2')} /> {t('market.heatmap.legend_4plus')}
         </span>
-        <span>· hover una celda para ver promedio y n</span>
+        <span>{t('market.heatmap.legend_hover_hint')}</span>
       </div>
     </div>
   )
