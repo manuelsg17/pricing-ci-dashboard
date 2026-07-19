@@ -35,23 +35,19 @@ export function RealtimeSyncProvider({ children }) {
     enabled: !!session,
     onForeignChange: ({ table, country, userEmail, sameUser }) => {
       const tableLabelKey = `realtime.table.${table}`
-      const tableLabel    = t(tableLabelKey)
+      const tableLabel = t(tableLabelKey)
       // t() devuelve la key si no la encuentra; en ese caso usamos el nombre
       // crudo de la tabla como fallback.
-      const finalTableLabel = (tableLabel === tableLabelKey) ? table : tableLabel
+      const finalTableLabel = tableLabel === tableLabelKey ? table : tableLabel
 
-      const countryLabel = country ? (t(`country.${country}`) || country) : null
+      const countryLabel = country ? t(`country.${country}`) || country : null
       const target = countryLabel
-        ? t('realtime.country_label')
-            .replace('{table}', finalTableLabel)
-            .replace('{country}', countryLabel)
+        ? t('realtime.country_label', { table: finalTableLabel, country: countryLabel })
         : finalTableLabel
 
       const msg = sameUser
-        ? t('realtime.other_session').replace('{target}', target)
-        : t('realtime.other_user')
-            .replace('{user}', userEmail || t('realtime.someone'))
-            .replace('{target}', target)
+        ? t('realtime.other_session', { target })
+        : t('realtime.other_user', { user: userEmail || t('realtime.someone'), target })
 
       toast.info(msg, { duration: 6000 })
     },
@@ -77,7 +73,7 @@ export function RealtimeSyncProvider({ children }) {
       toast.push({
         type: 'info',
         title: t('app.new_version_title'),
-        text:  t('app.new_version_body'),
+        text: t('app.new_version_body'),
         duration: 60_000,
         // Cuando el toast expira o el usuario lo cierra (× icon), el
         // ToastItem llama onClose → la API de Toast no propaga eso a
@@ -117,7 +113,9 @@ export function RealtimeSyncProvider({ children }) {
       setTimeout(() => window.location.reload(), 1500)
     })
     channel.subscribe()
-    return () => { sb.removeChannel(channel) }
+    return () => {
+      sb.removeChannel(channel)
+    }
   }, [session])
 
   return children

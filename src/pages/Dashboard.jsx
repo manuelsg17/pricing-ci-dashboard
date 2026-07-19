@@ -449,16 +449,14 @@ function DashboardContent() {
     pdf.setFontSize(14)
     pdf.setTextColor(229, 57, 53)
     pdf.text(
-      t('dashboard.pdf.title')
-        .replace('{city}', filters.dbCity)
-        .replace('{category}', filters.dbCategory),
+      t('dashboard.pdf.title', { city: filters.dbCity, category: filters.dbCategory }),
       14,
       16
     )
     pdf.setFontSize(9)
     pdf.setTextColor(100, 100, 100)
     pdf.text(
-      `${t('dashboard.pdf.exported_at').replace('{date}', new Date().toLocaleDateString(locale))}  |  ${filters.viewMode}  |  ${kpis?.lastPeriodLabel || ''}`,
+      `${t('dashboard.pdf.exported_at', { date: new Date().toLocaleDateString(locale) })}  |  ${filters.viewMode}  |  ${kpis?.lastPeriodLabel || ''}`,
       14,
       22
     )
@@ -728,9 +726,10 @@ function DashboardContent() {
               </div>
               <div className="kpi-card__sub">
                 {kpis.yangoComparablePeriods
-                  ? kpis.yangoComparablePeriods === 1
-                    ? t('dashboard.kpi.in_n_period').replace('{n}', kpis.yangoComparablePeriods)
-                    : t('dashboard.kpi.in_n_periods').replace('{n}', kpis.yangoComparablePeriods)
+                  ? t('dashboard.kpi.in_n_periods', {
+                      n: kpis.yangoComparablePeriods,
+                      count: kpis.yangoComparablePeriods,
+                    })
                   : ''}
               </div>
             </div>

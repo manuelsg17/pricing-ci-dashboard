@@ -436,7 +436,7 @@ function BracketSection({
                 letterSpacing: 0,
                 flexWrap: 'wrap',
               }}
-              title={t('samples.summary_title_attr').replace('{label}', summaryPeriodLabel)}
+              title={t('samples.summary_title_attr', { label: summaryPeriodLabel })}
             >
               <span style={{ color: 'var(--color-muted)', marginRight: 2 }}>
                 n {summaryPeriodLabel}

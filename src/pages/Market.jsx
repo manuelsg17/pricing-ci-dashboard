@@ -24,10 +24,12 @@ function MarketContent() {
   // Sprint 2.4: weights/semaforo desde ConfigProvider en lugar de props.
   const { weights: dbWeights, semaforo: dbSemaforo } = useConfigContext()
 
-  const {
-    loading, error,
-    priceMatrix, periods,
-  } = usePricingData(filters, dbWeights, locale, dbSemaforo)
+  const { loading, error, priceMatrix, periods } = usePricingData(
+    filters,
+    dbWeights,
+    locale,
+    dbSemaforo
+  )
 
   // Heatmap necesita un competidor focal — por defecto Yango (compareVs)
   const [focusComp, setFocusComp] = useState(null)
@@ -43,10 +45,7 @@ function MarketContent() {
       {/* Reusable filter bar */}
       <div className="filter-bar-wrapper" style={{ marginBottom: 12 }}>
         <div className="filter-bar-toggle">
-          <button
-            className="filter-bar-toggle__btn"
-            onClick={() => setFilterBarVisible(v => !v)}
-          >
+          <button className="filter-bar-toggle__btn" onClick={() => setFilterBarVisible((v) => !v)}>
             {filterBarVisible ? t('filter.collapse_long') : t('filter.expand_long')}
           </button>
         </div>
@@ -54,14 +53,17 @@ function MarketContent() {
       </div>
 
       {error && (
-        <div className="state-box state-box--error">{t('app.error_prefix')}{humanizeError(error)}</div>
+        <div className="state-box state-box--error">
+          {t('app.error_prefix')}
+          {humanizeError(error)}
+        </div>
       )}
 
       {loading && (!periods || periods.length === 0) ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
           {t('market.loading')}
         </div>
-      ) : (!periods || periods.length === 0) ? (
+      ) : !periods || periods.length === 0 ? (
         <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-muted)' }}>
           {t('market.empty_state')}
         </div>
@@ -88,7 +90,7 @@ function MarketContent() {
             <CollapsibleSection
               id="winloss"
               title={t('market.section.winloss_title')}
-              subtitle={t('market.section.winloss_subtitle').replace('{comp}', filters.compareVs)}
+              subtitle={t('market.section.winloss_subtitle', { comp: filters.compareVs })}
               defaultOpen
             >
               <WinLossByBracket
@@ -109,14 +111,19 @@ function MarketContent() {
               action={
                 <select
                   value={effectiveFocus}
-                  onChange={e => setFocusComp(e.target.value)}
+                  onChange={(e) => setFocusComp(e.target.value)}
                   style={{
-                    fontSize: 12, padding: '4px 8px',
+                    fontSize: 12,
+                    padding: '4px 8px',
                     border: '1px solid var(--color-border)',
                     borderRadius: 4,
                   }}
                 >
-                  {(filters.competitors || []).map(c => <option key={c} value={c}>{c}</option>)}
+                  {(filters.competitors || []).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               }
             >

@@ -471,8 +471,7 @@ export const TRANSLATIONS = {
     'dashboard.kpi.yango_leader_pct': '% Yango líder',
     'dashboard.kpi.leader_pct_tooltip':
       'Porcentaje de períodos visibles donde Yango fue el más barato del mercado',
-    'dashboard.kpi.in_n_periods': 'en {n} períodos',
-    'dashboard.kpi.in_n_period': 'en {n} período',
+    'dashboard.kpi.in_n_periods': { one: 'en {n} período', other: 'en {n} períodos' },
     'dashboard.kpi.outliers_label': 'Outliers (7d)',
     'dashboard.kpi.outliers_tooltip':
       'Outliers detectados por el bot en los últimos 7 días — descartados por exceder los límites de price_validation_rules',
@@ -990,8 +989,7 @@ export const TRANSLATIONS = {
     'dashboard.kpi.yango_leader_pct': '% Yango leader',
     'dashboard.kpi.leader_pct_tooltip':
       'Percentage of visible periods where Yango was the cheapest in the market',
-    'dashboard.kpi.in_n_periods': 'over {n} periods',
-    'dashboard.kpi.in_n_period': 'over {n} period',
+    'dashboard.kpi.in_n_periods': { one: 'over {n} period', other: 'over {n} periods' },
     'dashboard.kpi.outliers_label': 'Outliers (7d)',
     'dashboard.kpi.outliers_tooltip':
       'Outliers detected by the bot in the last 7 days — discarded for exceeding price_validation_rules limits',
@@ -1506,8 +1504,12 @@ export const TRANSLATIONS = {
     'dashboard.kpi.yango_leader_pct': '% Yango лидер',
     'dashboard.kpi.leader_pct_tooltip':
       'Процент видимых периодов, когда Yango был самым дешёвым на рынке',
-    'dashboard.kpi.in_n_periods': 'из {n} периодов',
-    'dashboard.kpi.in_n_period': 'из {n} периода',
+    'dashboard.kpi.in_n_periods': {
+      one: 'из {n} периода',
+      few: 'из {n} периодов',
+      many: 'из {n} периодов',
+      other: 'из {n} периодов',
+    },
     'dashboard.kpi.outliers_label': 'Выбросы (7д)',
     'dashboard.kpi.outliers_tooltip':
       'Выбросы, обнаруженные ботом за последние 7 дней — отклонены за превышение лимитов price_validation_rules',
@@ -1579,7 +1581,38 @@ export const TRANSLATIONS = {
   },
 }
 
-// Fallback: if a key is missing in the selected language, return Spanish
-export function translate(lang, key) {
-  return TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS['es']?.[key] ?? key
+// Fallback: if a key is missing in the selected language, return Spanish.
+//
+// vars (opcional) soporta dos cosas para que un string dinámico no
+// necesite un caso especial por callsite:
+//   - Interpolación:   t('key', { name: 'Ana' })   → reemplaza {name} en el string
+//   - Pluralización:   t('key', { count: n })       → si TRANSLATIONS[lang][key]
+//     es un objeto { one, other, ... } (form ICU-lite; ver PLURAL_RULES),
+//     se elige la forma correcta vía Intl.PluralRules(lang).select(count)
+//     antes de interpolar. `count` también queda disponible como {count}
+//     para el string elegido.
+function pluralForm(lang, count) {
+  try {
+    return new Intl.PluralRules(lang).select(count)
+  } catch {
+    return count === 1 ? 'one' : 'other'
+  }
+}
+
+export function translate(lang, key, vars) {
+  let entry = TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS['es']?.[key] ?? key
+
+  if (entry && typeof entry === 'object') {
+    const count = vars?.count ?? 0
+    const rule = pluralForm(lang, count)
+    entry = entry[rule] ?? entry.other ?? Object.values(entry)[0] ?? key
+  }
+
+  if (typeof entry === 'string' && vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      entry = entry.replaceAll(`{${k}}`, v)
+    }
+  }
+
+  return entry
 }

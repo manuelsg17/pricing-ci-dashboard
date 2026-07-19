@@ -13,7 +13,7 @@ export function LanguageProvider({ children }) {
     localStorage.setItem('lang', code)
   }, [])
 
-  const t = useCallback((key) => translate(lang, key), [lang])
+  const t = useCallback((key, vars) => translate(lang, key, vars), [lang])
 
   const locale = LOCALE_MAP[lang] || 'es-PE'
 
