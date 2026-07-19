@@ -20,6 +20,7 @@ import { normalizeCompetitorName, normalizeBracket, toSnakeCase } from '../lib/n
 import { TUKTUK_DISTRICTS, normalizeTukTukDistrict } from '../lib/tuktukDistricts'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
 import '../styles/upload.css'
 
@@ -479,6 +480,7 @@ import { useCountry } from '../context/CountryContext'
 
 export default function Upload() {
   const { country, countryConfig: config } = useCountry()
+  const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
   const [sheets, setSheets] = useState([])
@@ -574,7 +576,9 @@ export default function Upload() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      setParsing(`Procesando ${i + 1}/${files.length}: ${file.name}…`)
+      setParsing(
+        t('upload.processing_file', { i: i + 1, total: files.length, filename: file.name })
+      )
       // Dar un tick al navegador para que renderice el mensaje
       await new Promise((r) => setTimeout(r, 0))
 
@@ -647,7 +651,12 @@ export default function Upload() {
     if (stats.missingFields > 0 || stats.missingPrice > 0) {
       const total = stats.missingFields + stats.missingPrice
       toast.warn(
-        `${total} fila${total === 1 ? '' : 's'} descartada${total === 1 ? '' : 's'} por incompletas (${stats.missingFields} sin campos clave, ${stats.missingPrice} sin precio).`,
+        t('upload.sanitize_warning', {
+          total,
+          count: total,
+          missingFields: stats.missingFields,
+          missingPrice: stats.missingPrice,
+        }),
         { duration: 6000 }
       )
     }
@@ -700,12 +709,14 @@ export default function Upload() {
       .map(([city, { min, max }]) => `${city}: ${min === max ? min : `${min} → ${max}`}`)
       .join(' · ')
     const ok = await confirm({
-      title: 'Confirmar ingesta',
-      message:
-        `Se reemplazarán las filas manuales existentes en ${country} para:\n\n${summary}\n\n` +
-        `Total a insertar: ${rowsToInsert.length} filas. Esta acción no se puede deshacer automáticamente.`,
-      confirmText: `Reemplazar e insertar`,
-      cancelText: 'Cancelar',
+      title: t('upload.ingest_confirm_title'),
+      message: t('upload.ingest_confirm_message', {
+        country,
+        summary,
+        n: rowsToInsert.length,
+      }),
+      confirmText: t('upload.ingest_confirm_btn'),
+      cancelText: t('app.cancel'),
       danger: true,
     })
     if (!ok) return
@@ -815,7 +826,7 @@ export default function Upload() {
           marginBottom: 8,
         }}
       >
-        <h1 style={{ margin: 0 }}>Cargar Data</h1>
+        <h1 style={{ margin: 0 }}>{t('upload.title')}</h1>
         <BotFreshnessBadge variant="pill" />
       </div>
 
@@ -825,25 +836,25 @@ export default function Upload() {
           className={`upload-tab${uploadTab === 'manual' ? ' active' : ''}`}
           onClick={() => setUploadTab('manual')}
         >
-          <ClipboardList size={14} /> Excel / CSV Manual
+          <ClipboardList size={14} /> {t('upload.tab_manual')}
         </button>
         <button
           className={`upload-tab${uploadTab === 'bot' ? ' active' : ''}`}
           onClick={() => setUploadTab('bot')}
         >
-          <Bot size={14} /> Bot Data
+          <Bot size={14} /> {t('upload.tab_bot')}
         </button>
         <button
           className={`upload-tab${uploadTab === 'convert' ? ' active' : ''}`}
           onClick={() => setUploadTab('convert')}
         >
-          <RefreshCw size={14} /> Bot → Excel
+          <RefreshCw size={14} /> {t('upload.tab_convert')}
         </button>
         <button
           className={`upload-tab${uploadTab === 'dbsync' ? ' active' : ''}`}
           onClick={() => setUploadTab('dbsync')}
         >
-          <Plug size={14} /> Bot DB Sync
+          <Plug size={14} /> {t('upload.tab_dbsync')}
         </button>
       </div>
 
@@ -882,36 +893,36 @@ export default function Upload() {
                   marginBottom: 8,
                 }}
               >
-                <h2 style={{ margin: 0 }}>Archivos detectados — verifica la ciudad asignada</h2>
+                <h2 style={{ margin: 0 }}>{t('upload.files_detected_title')}</h2>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setAllSheetsIncluded(true)}
-                    title="Marcar todas las pestañas como incluidas"
+                    title={t('upload.include_all_title')}
                   >
-                    <Check size={14} /> Incluir todas
+                    <Check size={14} /> {t('upload.include_all')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setAllSheetsIncluded(false)}
-                    title="Saltar todas — después incluís solo las que querés"
+                    title={t('upload.skip_all_title')}
                   >
-                    <X size={14} /> Saltar todas
+                    <X size={14} /> {t('upload.skip_all')}
                   </Button>
                 </div>
               </div>
               <table className="config-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 60 }}>Incluir</th>
-                    <th style={{ textAlign: 'left' }}>Archivo / Pestaña</th>
-                    <th style={{ textAlign: 'left' }}>Ciudad detectada</th>
-                    <th># Filas válidas</th>
-                    <th style={{ textAlign: 'left' }}>Descartadas</th>
+                    <th style={{ width: 60 }}>{t('upload.col_include')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('upload.col_file_sheet')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('upload.col_detected_city')}</th>
+                    <th>{t('upload.col_valid_rows')}</th>
+                    <th style={{ textAlign: 'left' }}>{t('upload.col_discarded')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -922,10 +933,10 @@ export default function Upload() {
                     const dCorp = s.droppedCorpYango || 0
                     const dropped = dDate + dComp + dCat + dCorp
                     const parts = []
-                    if (dDate > 0) parts.push(`${dDate} sin fecha`)
-                    if (dComp > 0) parts.push(`${dComp} sin competidor`)
-                    if (dCat > 0) parts.push(`${dCat} sin categoría`)
-                    if (dCorp > 0) parts.push(`${dCorp} Corp con "Yango" anónimo`)
+                    if (dDate > 0) parts.push(t('upload.dropped_no_date', { n: dDate }))
+                    if (dComp > 0) parts.push(t('upload.dropped_no_competitor', { n: dComp }))
+                    if (dCat > 0) parts.push(t('upload.dropped_no_category', { n: dCat }))
+                    if (dCorp > 0) parts.push(t('upload.dropped_corp_yango', { n: dCorp }))
                     const isIncluded = s.included !== false
                     return (
                       <tr key={i} style={isIncluded ? undefined : { opacity: 0.45 }}>
@@ -935,7 +946,9 @@ export default function Upload() {
                             checked={isIncluded}
                             onChange={() => toggleSheetIncluded(i)}
                             title={
-                              isIncluded ? 'Click para saltar esta pestaña' : 'Click para incluirla'
+                              isIncluded
+                                ? t('upload.toggle_skip_title')
+                                : t('upload.toggle_include_title')
                             }
                             style={{ cursor: 'pointer', width: 16, height: 16 }}
                           />
@@ -974,8 +987,10 @@ export default function Upload() {
                   <tr style={{ background: '#f9fbe7', fontWeight: 700 }}>
                     <td></td>
                     <td style={{ textAlign: 'left' }}>
-                      TOTAL ({sheets.filter((s) => s.included !== false).length} de {sheets.length}{' '}
-                      pestañas)
+                      {t('upload.total_sheets', {
+                        included: sheets.filter((s) => s.included !== false).length,
+                        total: sheets.length,
+                      })}
                     </td>
                     <td></td>
                     <td style={{ textAlign: 'right' }}>{allRows.length.toLocaleString()}</td>
@@ -988,8 +1003,8 @@ export default function Upload() {
 
           {sheets.length > 0 && allRows.length === 0 && (
             <div className="upload-error" style={{ marginBottom: 10 }}>
-              <AlertTriangle size={14} className="inline align-text-bottom" /> Todas las pestañas
-              están saltadas. Incluí al menos una para poder insertar.
+              <AlertTriangle size={14} className="inline align-text-bottom" />{' '}
+              {t('upload.all_sheets_skipped')}
             </div>
           )}
 
@@ -1004,18 +1019,15 @@ export default function Upload() {
                 className="config-section"
                 style={{ marginBottom: 12, borderLeft: '3px solid #f59e0b' }}
               >
-                <strong>🛺 TukTuk — distritos válidos (columna Zone):</strong>{' '}
+                <strong>🛺 {t('upload.tuktuk_districts_title')}</strong>{' '}
                 {TUKTUK_DISTRICTS.join(' · ')}
                 <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
-                  TukTuk opera dentro de cada distrito → la columna <code>Zone</code> debe traer uno
-                  de estos (se normaliza solo: mayúsculas/acentos/nombre completo).
+                  {t('upload.tuktuk_zone_hint')}
                 </div>
                 {totalNo > 0 && (
                   <div style={{ marginTop: 6, color: '#b45309', fontWeight: 600 }}>
-                    <AlertTriangle size={14} className="inline align-text-bottom" /> {totalNo} fila
-                    {totalNo === 1 ? '' : 's'} TukTuk sin distrito válido — completá/corregí la
-                    columna Zone. (No se descartan, pero no aparecerán en el selector de zona del
-                    dashboard.)
+                    <AlertTriangle size={14} className="inline align-text-bottom" />{' '}
+                    {t('upload.tuktuk_no_district', { n: totalNo, count: totalNo })}
                   </div>
                 )}
               </div>
@@ -1044,9 +1056,8 @@ export default function Upload() {
 
           {rulesLoaded && rules.length === 0 && allRows.length > 0 && (
             <div className="upload-error" style={{ marginBottom: 10 }}>
-              <AlertTriangle size={14} className="inline align-text-bottom" /> Sin reglas de precio
-              configuradas para este país — la validación de límites no se aplicará. Ve a Config →
-              Límites Precio para agregar reglas.
+              <AlertTriangle size={14} className="inline align-text-bottom" />{' '}
+              {t('upload.no_price_rules')}
             </div>
           )}
 
@@ -1055,17 +1066,15 @@ export default function Upload() {
               {!progress?.done && (
                 <>
                   <div className="upload-overwrite-notice">
-                    <AlertTriangle size={14} className="inline align-text-bottom" /> Al insertar se{' '}
-                    <strong>borrarán automáticamente</strong> las filas existentes del mismo rango
-                    de fechas y ciudad, luego se insertan las nuevas. Subir el mismo Excel dos veces
-                    no genera duplicados.
+                    <AlertTriangle size={14} className="inline align-text-bottom" />{' '}
+                    {t('upload.overwrite_notice')}
                   </div>
                   <Button
                     className="bg-[#2e7d32] hover:bg-[#1b5e20]"
                     onClick={handleIngestClick}
                     disabled={!!progress && !progress.done && !progress.error}
                   >
-                    Insertar {allRows.length.toLocaleString()} filas en Supabase
+                    {t('upload.insert_button', { n: allRows.length.toLocaleString() })}
                   </Button>
                 </>
               )}
@@ -1074,7 +1083,7 @@ export default function Upload() {
                 className="hover:border-yango hover:bg-[var(--color-yango-light)] hover:text-yango"
                 onClick={handleClear}
               >
-                Limpiar
+                {t('filter.reset')}
               </Button>
             </div>
           )}

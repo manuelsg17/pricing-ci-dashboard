@@ -696,6 +696,55 @@ export const TRANSLATIONS = {
     'distancerefs.save_all_partial':
       '{saved} guardadas, {failed} con error. Revisa los campos faltantes.',
 
+    // ── Upload page ────────────────────────────────────────────────────
+    'upload.title': 'Cargar Data',
+    'upload.tab_manual': 'Excel / CSV Manual',
+    'upload.tab_bot': 'Bot Data',
+    'upload.tab_convert': 'Bot → Excel',
+    'upload.tab_dbsync': 'Bot DB Sync',
+    'upload.processing_file': 'Procesando {i}/{total}: {filename}…',
+    'upload.files_detected_title': 'Archivos detectados — verifica la ciudad asignada',
+    'upload.include_all_title': 'Marcar todas las pestañas como incluidas',
+    'upload.include_all': 'Incluir todas',
+    'upload.skip_all_title': 'Saltar todas — después incluís solo las que querés',
+    'upload.skip_all': 'Saltar todas',
+    'upload.col_include': 'Incluir',
+    'upload.col_file_sheet': 'Archivo / Pestaña',
+    'upload.col_detected_city': 'Ciudad detectada',
+    'upload.col_valid_rows': '# Filas válidas',
+    'upload.col_discarded': 'Descartadas',
+    'upload.dropped_no_date': '{n} sin fecha',
+    'upload.dropped_no_competitor': '{n} sin competidor',
+    'upload.dropped_no_category': '{n} sin categoría',
+    'upload.dropped_corp_yango': '{n} Corp con "Yango" anónimo',
+    'upload.toggle_skip_title': 'Click para saltar esta pestaña',
+    'upload.toggle_include_title': 'Click para incluirla',
+    'upload.total_sheets': 'TOTAL ({included} de {total} pestañas)',
+    'upload.all_sheets_skipped':
+      'Todas las pestañas están saltadas. Incluí al menos una para poder insertar.',
+    'upload.tuktuk_districts_title': 'TukTuk — distritos válidos (columna Zone):',
+    'upload.tuktuk_zone_hint':
+      'TukTuk opera dentro de cada distrito → la columna Zone debe traer uno de estos (se normaliza solo: mayúsculas/acentos/nombre completo).',
+    'upload.tuktuk_no_district': {
+      one: '{n} fila TukTuk sin distrito válido — completá/corregí la columna Zone. (No se descartan, pero no aparecerán en el selector de zona del dashboard.)',
+      other:
+        '{n} filas TukTuk sin distrito válido — completá/corregí la columna Zone. (No se descartan, pero no aparecerán en el selector de zona del dashboard.)',
+    },
+    'upload.no_price_rules':
+      'Sin reglas de precio configuradas para este país — la validación de límites no se aplicará. Ve a Config → Límites Precio para agregar reglas.',
+    'upload.overwrite_notice':
+      'Al insertar se borrarán automáticamente las filas existentes del mismo rango de fechas y ciudad, luego se insertan las nuevas. Subir el mismo Excel dos veces no genera duplicados.',
+    'upload.insert_button': 'Insertar {n} filas en Supabase',
+    'upload.sanitize_warning': {
+      one: '{total} fila descartada por incompletas ({missingFields} sin campos clave, {missingPrice} sin precio).',
+      other:
+        '{total} filas descartadas por incompletas ({missingFields} sin campos clave, {missingPrice} sin precio).',
+    },
+    'upload.ingest_confirm_title': 'Confirmar ingesta',
+    'upload.ingest_confirm_message':
+      'Se reemplazarán las filas manuales existentes en {country} para:\n\n{summary}\n\nTotal a insertar: {n} filas. Esta acción no se puede deshacer automáticamente.',
+    'upload.ingest_confirm_btn': 'Reemplazar e insertar',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -1367,6 +1416,55 @@ export const TRANSLATIONS = {
     },
     'distancerefs.save_all_partial':
       '{saved} saved, {failed} with errors. Check the missing fields.',
+
+    // ── Upload page ────────────────────────────────────────────────────
+    'upload.title': 'Upload Data',
+    'upload.tab_manual': 'Excel / CSV Manual',
+    'upload.tab_bot': 'Bot Data',
+    'upload.tab_convert': 'Bot → Excel',
+    'upload.tab_dbsync': 'Bot DB Sync',
+    'upload.processing_file': 'Processing {i}/{total}: {filename}…',
+    'upload.files_detected_title': 'Files detected — verify the assigned city',
+    'upload.include_all_title': 'Mark all sheets as included',
+    'upload.include_all': 'Include all',
+    'upload.skip_all_title': 'Skip all — then include only the ones you want',
+    'upload.skip_all': 'Skip all',
+    'upload.col_include': 'Include',
+    'upload.col_file_sheet': 'File / Sheet',
+    'upload.col_detected_city': 'Detected city',
+    'upload.col_valid_rows': '# Valid rows',
+    'upload.col_discarded': 'Discarded',
+    'upload.dropped_no_date': '{n} no date',
+    'upload.dropped_no_competitor': '{n} no competitor',
+    'upload.dropped_no_category': '{n} no category',
+    'upload.dropped_corp_yango': '{n} Corp with anonymous "Yango"',
+    'upload.toggle_skip_title': 'Click to skip this sheet',
+    'upload.toggle_include_title': 'Click to include it',
+    'upload.total_sheets': 'TOTAL ({included} of {total} sheets)',
+    'upload.all_sheets_skipped':
+      'All sheets are skipped. Include at least one to be able to insert.',
+    'upload.tuktuk_districts_title': 'TukTuk — valid districts (Zone column):',
+    'upload.tuktuk_zone_hint':
+      'TukTuk operates within each district → the Zone column must carry one of these (auto-normalized: casing/accents/full name).',
+    'upload.tuktuk_no_district': {
+      one: '{n} TukTuk row without a valid district — fill in/fix the Zone column. (Not discarded, but won’t show up in the dashboard’s zone selector.)',
+      other:
+        '{n} TukTuk rows without a valid district — fill in/fix the Zone column. (Not discarded, but won’t show up in the dashboard’s zone selector.)',
+    },
+    'upload.no_price_rules':
+      'No price rules configured for this country — limit validation will not apply. Go to Config → Price Limits to add rules.',
+    'upload.overwrite_notice':
+      'Inserting will automatically delete existing rows for the same date range and city, then insert the new ones. Uploading the same Excel twice does not create duplicates.',
+    'upload.insert_button': 'Insert {n} rows into Supabase',
+    'upload.sanitize_warning': {
+      one: '{total} row discarded as incomplete ({missingFields} missing key fields, {missingPrice} missing price).',
+      other:
+        '{total} rows discarded as incomplete ({missingFields} missing key fields, {missingPrice} missing price).',
+    },
+    'upload.ingest_confirm_title': 'Confirm ingestion',
+    'upload.ingest_confirm_message':
+      'This will replace the existing manual rows in {country} for:\n\n{summary}\n\nTotal to insert: {n} rows. This action cannot be undone automatically.',
+    'upload.ingest_confirm_btn': 'Replace and insert',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -2059,6 +2157,59 @@ export const TRANSLATIONS = {
     },
     'distancerefs.save_all_partial':
       '{saved} сохранено, {failed} с ошибкой. Проверьте недостающие поля.',
+
+    // ── Upload page ────────────────────────────────────────────────────
+    'upload.title': 'Загрузка данных',
+    'upload.tab_manual': 'Excel / CSV вручную',
+    'upload.tab_bot': 'Данные бота',
+    'upload.tab_convert': 'Бот → Excel',
+    'upload.tab_dbsync': 'Синхронизация БД бота',
+    'upload.processing_file': 'Обработка {i}/{total}: {filename}…',
+    'upload.files_detected_title': 'Найденные файлы — проверьте назначенный город',
+    'upload.include_all_title': 'Отметить все вкладки как включённые',
+    'upload.include_all': 'Включить все',
+    'upload.skip_all_title': 'Пропустить все — затем включите только нужные',
+    'upload.skip_all': 'Пропустить все',
+    'upload.col_include': 'Включить',
+    'upload.col_file_sheet': 'Файл / Вкладка',
+    'upload.col_detected_city': 'Определённый город',
+    'upload.col_valid_rows': '# Валидных строк',
+    'upload.col_discarded': 'Отброшено',
+    'upload.dropped_no_date': '{n} без даты',
+    'upload.dropped_no_competitor': '{n} без конкурента',
+    'upload.dropped_no_category': '{n} без категории',
+    'upload.dropped_corp_yango': '{n} Corp с анонимным "Yango"',
+    'upload.toggle_skip_title': 'Клик, чтобы пропустить эту вкладку',
+    'upload.toggle_include_title': 'Клик, чтобы включить её',
+    'upload.total_sheets': 'ИТОГО ({included} из {total} вкладок)',
+    'upload.all_sheets_skipped':
+      'Все вкладки пропущены. Включите хотя бы одну, чтобы можно было вставить данные.',
+    'upload.tuktuk_districts_title': 'TukTuk — валидные районы (колонка Zone):',
+    'upload.tuktuk_zone_hint':
+      'TukTuk работает внутри каждого района → колонка Zone должна содержать один из них (нормализуется автоматически: регистр/акценты/полное имя).',
+    'upload.tuktuk_no_district': {
+      one: '{n} строка TukTuk без валидного района — заполните/исправьте колонку Zone. (Не отбрасываются, но не появятся в селекторе зоны дашборда.)',
+      few: '{n} строки TukTuk без валидного района — заполните/исправьте колонку Zone. (Не отбрасываются, но не появятся в селекторе зоны дашборда.)',
+      many: '{n} строк TukTuk без валидного района — заполните/исправьте колонку Zone. (Не отбрасываются, но не появятся в селекторе зоны дашборда.)',
+      other:
+        '{n} строк TukTuk без валидного района — заполните/исправьте колонку Zone. (Не отбрасываются, но не появятся в селекторе зоны дашборда.)',
+    },
+    'upload.no_price_rules':
+      'Нет настроенных ценовых правил для этой страны — валидация лимитов не будет применяться. Перейдите в Config → Ценовые лимиты, чтобы добавить правила.',
+    'upload.overwrite_notice':
+      'При вставке автоматически удалятся существующие строки за тот же диапазон дат и город, затем вставятся новые. Повторная загрузка того же Excel не создаёт дубликатов.',
+    'upload.insert_button': 'Вставить {n} строк в Supabase',
+    'upload.sanitize_warning': {
+      one: '{total} строка отброшена как неполная ({missingFields} без ключевых полей, {missingPrice} без цены).',
+      few: '{total} строки отброшены как неполные ({missingFields} без ключевых полей, {missingPrice} без цены).',
+      many: '{total} строк отброшено как неполные ({missingFields} без ключевых полей, {missingPrice} без цены).',
+      other:
+        '{total} строк отброшено как неполные ({missingFields} без ключевых полей, {missingPrice} без цены).',
+    },
+    'upload.ingest_confirm_title': 'Подтвердить загрузку',
+    'upload.ingest_confirm_message':
+      'Существующие вручную загруженные строки в {country} будут заменены для:\n\n{summary}\n\nВсего к вставке: {n} строк. Это действие нельзя отменить автоматически.',
+    'upload.ingest_confirm_btn': 'Заменить и вставить',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
