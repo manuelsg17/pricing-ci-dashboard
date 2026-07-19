@@ -3,10 +3,12 @@ import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useCountry } from '../../context/CountryContext'
 import { Button } from '../ui/shadcn/button'
 
 export default function PriceRulesTable({ country }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
   const defaultCity = config.dbCities[0] || 'Lima'
 

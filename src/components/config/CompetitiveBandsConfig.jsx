@@ -3,6 +3,7 @@ import { Percent, Plus, Trash2, Save } from 'lucide-react'
 import { useCompetitiveBands } from '../../hooks/useCompetitiveBands'
 import { useCompetitiveBandAnalysis } from '../../hooks/useCompetitiveBandAnalysis'
 import { useConfigContext } from '../../context/ConfigProvider'
+import { useCountry } from '../../context/CountryContext'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
@@ -66,7 +67,8 @@ function BandPreviewCell({ country, competitorName, category, minPct, maxPct }) 
 }
 
 export default function CompetitiveBandsConfig({ country }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
   const {
     allRows,

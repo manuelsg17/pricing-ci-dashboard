@@ -4,6 +4,7 @@ import { SIMPLE_AVG_SINCE } from '../../algorithms/weightedAverage'
 import { isoWeekMonday } from '../../lib/dateUtils'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useCountry } from '../../context/CountryContext'
 import { sb } from '../../lib/supabase'
 import { Button } from '../ui/shadcn/button'
 
@@ -18,7 +19,8 @@ const WA_SIMPLE_FROM = isoWeekMonday(
 ).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
 
 export default function WeightsTable({ weights, onSave, saving, country }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const weightCities = useMemo(() => ['all', ...config.dbCities], [config.dbCities])
 
   // Lista de categorías disponibles para el país. 'all' es default y

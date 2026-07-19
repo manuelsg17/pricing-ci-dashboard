@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig } from '../../lib/constants'
+import { useCountry } from '../../context/CountryContext'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Button } from '../ui/shadcn/button'
 
 export default function RushHourConfig({ country }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
   const allCities = ['all', ...config.dbCities]
 

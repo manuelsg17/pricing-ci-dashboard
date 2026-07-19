@@ -3,6 +3,7 @@ import { Bot, Plus, Trash2, AlertTriangle, Save } from 'lucide-react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { CATALOG_CATEGORIES, CATALOG_COMPETITORS } from '../../lib/catalogs'
+import { useCountry } from '../../context/CountryContext'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate'
 import { MultiCombobox } from '../ui/shadcn/multi-combobox'
 import { Combobox } from '../ui/shadcn/combobox'
@@ -25,7 +26,14 @@ import { Button } from '../ui/shadcn/button'
 // porque NO es config — es agregación de observaciones recientes y no
 // se beneficia del cache estable.
 export default function BotRulesTable({ country }) {
-  const config = getCountryConfig(country)
+  // dbConfigs es obligatorio acá: países DB-only (Bolivia, Nepal, etc.)
+  // tienen una entrada hardcoded "stub" en constants.js con solo la data
+  // del scaffolding inicial (ej. Bolivia: solo 'Santa Cruz'). Sin pasar
+  // dbConfigs, getCountryConfig() devuelve ese stub viejo y las ciudades
+  // agregadas después desde Config → Países (ej. Cochabamba, La Paz) no
+  // aparecen acá — bug real reportado onboardeando Bolivia.
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
 
   // Unión: categorías/competidores del país + catálogo canónico.

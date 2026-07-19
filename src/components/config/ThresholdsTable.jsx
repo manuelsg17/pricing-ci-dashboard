@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useCountry } from '../../context/CountryContext'
 import { sb } from '../../lib/supabase'
 import { Button } from '../ui/shadcn/button'
 
 export default function ThresholdsTable({ thresholds, onSave, saving, country }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
 
   const [selectedCity, setSelectedCity] = useState(config.dbCities[0])
   const [selectedCat, setSelectedCat] = useState(

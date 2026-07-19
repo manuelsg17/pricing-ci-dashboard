@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { sb } from '../../lib/supabase'
 import { getCountryConfig, BRACKET_LABELS, BRACKETS, COMPETITOR_COLORS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import { useCountry } from '../../context/CountryContext'
 import { Info } from 'lucide-react'
 import { Button } from '../ui/shadcn/button'
 
@@ -20,7 +21,8 @@ export default function DashboardLegend({ country, dbCity, dbCategory }) {
   const [open, setOpen] = useState(false)
   const [thresholds, setThresholds] = useState([])
   const [loading, setLoading] = useState(false)
-  const config = useMemo(() => getCountryConfig(country), [country])
+  const { dbConfigs } = useCountry()
+  const config = useMemo(() => getCountryConfig(country, dbConfigs), [country, dbConfigs])
   const { t } = useI18n()
 
   // Fetch thresholds del (country, city, category) actual sólo cuando

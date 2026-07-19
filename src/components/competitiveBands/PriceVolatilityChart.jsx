@@ -5,6 +5,7 @@ import { Combobox } from '../ui/shadcn/combobox'
 import { Button } from '../ui/shadcn/button'
 import { usePriceVolatility } from '../../hooks/usePriceVolatility'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
+import { useCountry } from '../../context/CountryContext'
 import { formatCurrency, formatCount } from '../../lib/format'
 import { exportPriceVolatilityCsv } from '../../lib/competitiveBandsExport'
 
@@ -44,7 +45,8 @@ function VolatilityTooltip({ active, payload, currency }) {
 // semanas del período). Rango ancho = precio inconsistente para
 // situaciones similares; rango angosto = precio predecible.
 export default function PriceVolatilityChart({ country, yearStart, weekStart, yearEnd, weekEnd }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const currency = config.currency
 
   const categoryItems = useMemo(() => {

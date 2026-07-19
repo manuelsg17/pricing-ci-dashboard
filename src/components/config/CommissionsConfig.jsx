@@ -5,6 +5,7 @@ import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useCountry } from '../../context/CountryContext'
 import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
@@ -27,7 +28,8 @@ const DIRTY_TRIGGER_STYLE = {
 }
 
 export default function CommissionsConfig({ country }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
 
   const competitorItems = useMemo(

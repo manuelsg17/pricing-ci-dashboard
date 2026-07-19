@@ -6,6 +6,7 @@ import { describeBonus } from '../../lib/competitorBonus'
 import SaveStatusBanner from './SaveStatusBanner'
 import BonusWizard from './BonusWizard'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useCountry } from '../../context/CountryContext'
 import { Button } from '../ui/shadcn/button'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
@@ -97,7 +98,8 @@ function Field({ label, children }) {
 }
 
 export default function BonusesConfig({ country }) {
-  const config = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
   const CITY_OPTIONS = [
     { value: '', label: 'Todas' },

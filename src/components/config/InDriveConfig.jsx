@@ -19,11 +19,13 @@ import { getCountryConfig } from '../../lib/constants'
 import { computeRecentRef } from '../../algorithms/indriveRef'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useCountry } from '../../context/CountryContext'
 import { Button } from '../ui/shadcn/button'
 
 export default function InDriveConfig({ country }) {
   const confirm = useConfirm()
-  const cfgCountry = getCountryConfig(country)
+  const { dbConfigs } = useCountry()
+  const cfgCountry = getCountryConfig(country, dbConfigs)
 
   const CONFIG_ROWS = useMemo(() => {
     return cfgCountry.dbCities.flatMap((city) => {
