@@ -6,6 +6,7 @@ import { stripAccents, toDbKey } from '../../lib/normalize'
 import { useConfirm } from '../ui/ConfirmDialog'
 import SaveStatusBanner from './SaveStatusBanner'
 import { Button } from '../ui/shadcn/button'
+import { useI18n } from '../../context/LanguageContext'
 
 const ISO_CODES = [
   'PE',
@@ -42,18 +43,19 @@ const DEFAULT_DISTANCE_THRESHOLDS_KM = {
 // Pasos del wizard. Solo Identidad y Moneda son obligatorios para
 // crear el país; el resto se puede completar después editando.
 const STEPS = [
-  { id: 'identity', label: '1. Identidad', required: true },
-  { id: 'currency', label: '2. Moneda', required: true },
-  { id: 'cities', label: '3. Ciudades', required: false },
-  { id: 'categories', label: '4. Categorías', required: false },
-  { id: 'competitors', label: '5. Competidores', required: false },
-  { id: 'weights', label: '6. Pesos (opcional)', required: false },
-  { id: 'botrules', label: '7. Bot Rules (opcional)', required: false },
-  { id: 'review', label: '8. Revisión', required: true },
+  { id: 'identity', labelKey: 'config.country_wizard.step1_label', required: true },
+  { id: 'currency', labelKey: 'config.country_wizard.step2_label', required: true },
+  { id: 'cities', labelKey: 'config.country_wizard.step3_label', required: false },
+  { id: 'categories', labelKey: 'config.country_wizard.step4_label', required: false },
+  { id: 'competitors', labelKey: 'config.country_wizard.step5_label', required: false },
+  { id: 'weights', labelKey: 'config.country_wizard.step6_label', required: false },
+  { id: 'botrules', labelKey: 'config.country_wizard.step7_label', required: false },
+  { id: 'review', labelKey: 'config.country_wizard.step8_label', required: true },
 ]
 
 export default function CountryWizard({ onClose, onCreated }) {
   const confirm = useConfirm()
+  const { t } = useI18n()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -209,19 +211,16 @@ export default function CountryWizard({ onClose, onCreated }) {
       step >= 0 &&
       (!draft.country_key.trim() || !/^[A-Z][A-Za-z0-9]+$/.test(draft.country_key))
     ) {
-      if (step === 0)
-        errs.push(
-          'country_key debe empezar con mayúscula y contener solo letras (ej: Mexico, NewLand)'
-        )
+      if (step === 0) errs.push(t('config.country_wizard.err_country_key'))
     }
     if (step >= 0 && !draft.label.trim()) {
-      if (step === 0) errs.push('label es obligatorio')
+      if (step === 0) errs.push(t('config.country_wizard.err_label'))
     }
     if (step >= 1 && !draft.currency.trim()) {
-      if (step === 1) errs.push('currency es obligatorio')
+      if (step === 1) errs.push(t('config.country_wizard.err_currency'))
     }
     return errs
-  }, [step, draft])
+  }, [step, draft, t])
 
   const canAdvance = stepErrors.length === 0
 
@@ -456,14 +455,14 @@ export default function CountryWizard({ onClose, onCreated }) {
 
       setMsg({
         type: 'ok',
-        text: `País "${draft.label}" creado en status=draft. Revisá el checklist abajo y activá cuando esté listo.`,
+        text: t('config.country_wizard.created_toast', { label: draft.label }),
       })
       try {
         localStorage.removeItem(DRAFT_KEY)
       } catch {}
       if (onCreated) onCreated(draft.country_key)
     } catch (e) {
-      setMsg({ type: 'err', text: 'Error al crear país: ' + e.message })
+      setMsg({ type: 'err', text: t('config.country_wizard.create_error', { error: e.message }) })
     } finally {
       setSaving(false)
     }
@@ -471,10 +470,10 @@ export default function CountryWizard({ onClose, onCreated }) {
 
   async function handleCancel() {
     const ok = await confirm({
-      title: 'Cancelar wizard',
-      message: 'Vas a descartar todos los cambios del wizard. El draft local también se borrará.',
-      confirmText: 'Descartar',
-      cancelText: 'Volver',
+      title: t('config.country_wizard.cancel_title'),
+      message: t('config.country_wizard.cancel_message'),
+      confirmText: t('config.country_wizard.cancel_confirm_btn'),
+      cancelText: t('config.country_wizard.cancel_back_btn'),
       danger: true,
     })
     if (!ok) return
@@ -496,14 +495,14 @@ export default function CountryWizard({ onClose, onCreated }) {
           marginBottom: 12,
         }}
       >
-        <h2>Wizard — Crear país nuevo</h2>
+        <h2>{t('config.country_wizard.title')}</h2>
         <Button
           variant="outline"
           size="sm"
           onClick={handleCancel}
           className="rounded-[4px] border-slate-300"
         >
-          ✕ Cerrar
+          ✕ {t('config.country_wizard.close_btn')}
         </Button>
       </div>
 
@@ -526,8 +525,8 @@ export default function CountryWizard({ onClose, onCreated }) {
             }}
           >
             {i < step && '✓ '}
-            {s.label}
-            {!s.required && i >= step && ' *opcional*'}
+            {t(s.labelKey)}
+            {!s.required && i >= step && ` *${t('config.country_wizard.optional_suffix')}*`}
           </button>
         ))}
       </div>
@@ -541,23 +540,25 @@ export default function CountryWizard({ onClose, onCreated }) {
         {/* PASO 1: Identidad */}
         {activeStep.id === 'identity' && (
           <div>
-            <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>Identidad del país</h3>
+            <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>
+              {t('config.country_wizard.identity_heading')}
+            </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field label="country_key (clave única, sin espacios)" required>
+              <Field label={t('config.country_wizard.country_key_label')} required>
                 <input
                   value={draft.country_key}
                   onChange={(e) => update('country_key', e.target.value.replace(/\s+/g, ''))}
                   placeholder="Mexico"
                 />
               </Field>
-              <Field label="Label visible">
+              <Field label={t('config.country_wizard.label_field_label')}>
                 <input
                   value={draft.label}
                   onChange={(e) => update('label', e.target.value)}
                   placeholder="México"
                 />
               </Field>
-              <Field label="ISO-2 (opcional)">
+              <Field label={t('config.country_wizard.iso2_label')}>
                 <input
                   list="wizard-iso-list"
                   value={draft.iso2}
@@ -570,7 +571,7 @@ export default function CountryWizard({ onClose, onCreated }) {
                   ))}
                 </datalist>
               </Field>
-              <Field label="Nombre nativo (opcional)">
+              <Field label={t('config.country_wizard.native_label_label')}>
                 <input
                   value={draft.native_label}
                   onChange={(e) => update('native_label', e.target.value)}
@@ -584,15 +585,17 @@ export default function CountryWizard({ onClose, onCreated }) {
         {/* PASO 2: Moneda */}
         {activeStep.id === 'currency' && (
           <div>
-            <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>Moneda y escala</h3>
+            <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>
+              {t('config.country_wizard.currency_heading')}
+            </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              <Field label="Moneda (ISO-4217)" required>
+              <Field label={t('config.country_wizard.currency_field_label')} required>
                 <input
                   list="wizard-curr-list"
                   value={draft.currency}
                   onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                   placeholder="USD"
-                  title="Auto-aplica defaults razonables para outlier y max_price"
+                  title={t('config.country_wizard.currency_title_hint')}
                 />
                 <datalist id="wizard-curr-list">
                   {Object.keys(CURRENCY_PRESETS).map((c) => (
@@ -600,17 +603,17 @@ export default function CountryWizard({ onClose, onCreated }) {
                   ))}
                 </datalist>
               </Field>
-              <Field label="Locale">
+              <Field label={t('config.country_wizard.locale_label')}>
                 <input value={draft.locale} onChange={(e) => update('locale', e.target.value)} />
               </Field>
-              <Field label="Outlier threshold">
+              <Field label={t('config.country_wizard.outlier_threshold_label')}>
                 <input
                   type="number"
                   value={draft.outlier_threshold}
                   onChange={(e) => update('outlier_threshold', e.target.value)}
                 />
               </Field>
-              <Field label="Max price (filtro)">
+              <Field label={t('config.country_wizard.max_price_label')}>
                 <input
                   type="number"
                   value={draft.max_price}
@@ -619,8 +622,7 @@ export default function CountryWizard({ onClose, onCreated }) {
               </Field>
             </div>
             <p style={{ fontSize: 11, color: '#64748b', marginTop: 10 }}>
-              Los valores por defecto se ajustan automáticamente al elegir la moneda (PEN: ~100s,
-              COP: ~300K, NPR: ~5K, etc.). Podés editarlos.
+              {t('config.country_wizard.currency_defaults_note')}
             </p>
           </div>
         )}
@@ -628,10 +630,11 @@ export default function CountryWizard({ onClose, onCreated }) {
         {/* PASO 3: Ciudades */}
         {activeStep.id === 'cities' && (
           <div>
-            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>Ciudades del país</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>
+              {t('config.country_wizard.cities_heading')}
+            </h3>
             <p style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
-              dbName y botKey se sugieren automáticamente sin acentos. Podés agregar ciudades
-              después de crear el país.
+              {t('config.country_wizard.cities_note')}
             </p>
             {draft.cities.map((c, i) => (
               <div
@@ -643,7 +646,7 @@ export default function CountryWizard({ onClose, onCreated }) {
                   marginBottom: 8,
                 }}
               >
-                <Field label={i === 0 ? 'Nombre UI' : ''}>
+                <Field label={i === 0 ? t('config.country_wizard.ui_name_label') : ''}>
                   <input
                     value={c.uiName}
                     onChange={(e) => updateCity(i, 'uiName', e.target.value)}
@@ -681,7 +684,7 @@ export default function CountryWizard({ onClose, onCreated }) {
               onClick={addCity}
               className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
             >
-              + Agregar ciudad
+              + {t('config.country_wizard.add_city_btn')}
             </Button>
           </div>
         )}
@@ -689,12 +692,14 @@ export default function CountryWizard({ onClose, onCreated }) {
         {/* PASO 4: Categorías */}
         {activeStep.id === 'categories' && (
           <div>
-            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>Categorías por ciudad</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>
+              {t('config.country_wizard.categories_heading')}
+            </h3>
             <p style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
-              Usá el dropdown con el catálogo canónico para evitar typos.
+              {t('config.country_wizard.categories_note')}
             </p>
             {draft.cities.length === 0 ? (
-              <em style={{ color: '#888' }}>No hay ciudades. Volvé al paso 3 para agregarlas.</em>
+              <em style={{ color: '#888' }}>{t('config.country_wizard.no_cities_categories')}</em>
             ) : (
               draft.cities.map((c, ci) => (
                 <div
@@ -708,7 +713,7 @@ export default function CountryWizard({ onClose, onCreated }) {
                   }}
                 >
                   <strong style={{ fontSize: 12 }}>
-                    {c.uiName || c.dbName || '(ciudad sin nombre)'}
+                    {c.uiName || c.dbName || t('config.country_wizard.unnamed_city')}
                   </strong>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
                     {c.categories.map((cat, cti) => (
@@ -730,7 +735,7 @@ export default function CountryWizard({ onClose, onCreated }) {
                     style={{ marginTop: 6 }}
                     value=""
                   >
-                    <option value="">+ Agregar categoría…</option>
+                    <option value="">{t('config.country_wizard.add_category_option')}</option>
                     {CATALOG_CATEGORIES.map((cc) => (
                       <option key={cc.value} value={cc.value}>
                         {cc.label}
@@ -747,10 +752,10 @@ export default function CountryWizard({ onClose, onCreated }) {
         {activeStep.id === 'competitors' && (
           <div>
             <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>
-              Competidores por (ciudad, categoría)
+              {t('config.country_wizard.competitors_heading')}
             </h3>
             {draft.cities.length === 0 ? (
-              <em style={{ color: '#888' }}>No hay ciudades configuradas.</em>
+              <em style={{ color: '#888' }}>{t('config.country_wizard.no_cities_competitors')}</em>
             ) : (
               draft.cities.map((c, ci) => (
                 <div key={ci} style={{ marginBottom: 12 }}>
@@ -799,16 +804,17 @@ export default function CountryWizard({ onClose, onCreated }) {
         {/* PASO 6: Pesos */}
         {activeStep.id === 'weights' && (
           <div>
-            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>Pesos del WA por bracket (opcional)</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>
+              {t('config.country_wizard.weights_heading')}
+            </h3>
             <p style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
-              Defaults sensatos pre-cargados. Aplicados como (city='all', category='all'). Podés
-              agregar pesos por (city, category) después en /config → Pesos.
+              {t('config.country_wizard.weights_note')}
             </p>
             <table className="config-table">
               <thead>
                 <tr>
-                  <th scope="col">Bracket</th>
-                  <th scope="col">Peso %</th>
+                  <th scope="col">{t('config.thresholds.col_bracket')}</th>
+                  <th scope="col">{t('config.country_wizard.weight_pct_col')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -831,7 +837,7 @@ export default function CountryWizard({ onClose, onCreated }) {
                   style={{ background: Math.abs(totalWeight - 100) < 0.5 ? '#f0fdf4' : '#fef2f2' }}
                 >
                   <td>
-                    <strong>Total</strong>
+                    <strong>{t('config.weights.total_label')}</strong>
                   </td>
                   <td>
                     <strong
@@ -849,10 +855,11 @@ export default function CountryWizard({ onClose, onCreated }) {
         {/* PASO 7: Bot Rules */}
         {activeStep.id === 'botrules' && (
           <div>
-            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>Bot rules (opcional)</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>
+              {t('config.country_wizard.botrules_heading')}
+            </h3>
             <p style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
-              Pre-rellenadas según moneda. Podés editar/agregar/quitar. Si dejás vacío, configurá
-              después en /config → Bot Rules.
+              {t('config.country_wizard.botrules_note')}
             </p>
             <div style={{ maxHeight: 240, overflowY: 'auto' }}>
               <table className="config-table" style={{ fontSize: 11 }}>
@@ -861,8 +868,8 @@ export default function CountryWizard({ onClose, onCreated }) {
                     <th scope="col">app</th>
                     <th scope="col">vc</th>
                     <th scope="col">ovc</th>
-                    <th scope="col">Competidor</th>
-                    <th scope="col">Categoría</th>
+                    <th scope="col">{t('config.commissions.col_competitor')}</th>
+                    <th scope="col">{t('filter.category')}</th>
                     <th scope="col"></th>
                   </tr>
                 </thead>
@@ -982,7 +989,7 @@ export default function CountryWizard({ onClose, onCreated }) {
               }
               className="border-dashed bg-transparent font-semibold text-muted hover:border-yango hover:bg-transparent hover:text-yango"
             >
-              + Regla
+              + {t('config.country_wizard.add_rule_btn')}
             </Button>
           </div>
         )}
@@ -990,34 +997,42 @@ export default function CountryWizard({ onClose, onCreated }) {
         {/* PASO 8: Revisión */}
         {activeStep.id === 'review' && (
           <div>
-            <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>Revisión final</h3>
+            <h3 style={{ margin: '0 0 12px', fontSize: 14 }}>
+              {t('config.country_wizard.review_heading')}
+            </h3>
             <ul style={{ fontSize: 12, color: '#475569', lineHeight: 1.8 }}>
               <li>
-                <strong>Identidad:</strong> {draft.country_key} ({draft.label}
+                <strong>{t('config.country_wizard.review_identity_label')}</strong>{' '}
+                {draft.country_key} ({draft.label}
                 {draft.iso2 ? `, ${draft.iso2}` : ''})
               </li>
               <li>
-                <strong>Moneda:</strong> {draft.currency} ({draft.locale}, outlier=
+                <strong>{t('config.country_wizard.review_currency_label')}</strong> {draft.currency}{' '}
+                ({draft.locale}, outlier=
                 {draft.outlier_threshold}, maxPrice={draft.max_price})
               </li>
               <li>
-                <strong>Ciudades:</strong> {draft.cities.length} (
-                {draft.cities.map((c) => c.dbName).join(', ') || '—'})
+                <strong>{t('config.country_wizard.review_cities_label')}</strong>{' '}
+                {draft.cities.length} ({draft.cities.map((c) => c.dbName).join(', ') || '—'})
               </li>
               <li>
-                <strong>Categorías totales:</strong>{' '}
+                <strong>{t('config.country_wizard.review_categories_label')}</strong>{' '}
                 {draft.cities.reduce((s, c) => s + c.categories.length, 0)}
               </li>
               <li>
-                <strong>Pesos sum:</strong> {totalWeight.toFixed(2)}%{' '}
-                {Math.abs(totalWeight - 100) < 0.5 ? '✓' : '⚠ se guardarán solo si suman 100%'}
+                <strong>{t('config.country_wizard.review_weights_label')}</strong>{' '}
+                {totalWeight.toFixed(2)}%{' '}
+                {Math.abs(totalWeight - 100) < 0.5
+                  ? '✓'
+                  : `⚠ ${t('config.country_wizard.review_weights_warning')}`}
               </li>
               <li>
-                <strong>Bot rules:</strong> {draft.botRules.length}
+                <strong>{t('config.country_wizard.review_botrules_label')}</strong>{' '}
+                {draft.botRules.length}
               </li>
               <li>
-                <strong>Status inicial:</strong> <code>draft</code> (no aparecerá en el selector
-                global hasta que lo actives)
+                <strong>{t('config.country_wizard.review_status_label')}</strong> <code>draft</code>{' '}
+                ({t('config.country_wizard.review_status_note')})
               </li>
             </ul>
 
@@ -1031,7 +1046,9 @@ export default function CountryWizard({ onClose, onCreated }) {
                   border: '1px solid #e2e8f0',
                 }}
               >
-                <strong style={{ fontSize: 12 }}>Validación post-creación:</strong>
+                <strong style={{ fontSize: 12 }}>
+                  {t('config.country_wizard.validation_heading')}
+                </strong>
                 <table className="config-table" style={{ marginTop: 6, fontSize: 11 }}>
                   <tbody>
                     {validation.map((v) => (
@@ -1069,8 +1086,7 @@ export default function CountryWizard({ onClose, onCreated }) {
                   </tbody>
                 </table>
                 <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-                  ℹ Después podés activar el país desde /config → Países cambiando{' '}
-                  <code>status</code> a <code>active</code>.
+                  ℹ {t('config.country_wizard.validation_footer_note')}
                 </p>
               </div>
             )}
@@ -1086,7 +1102,7 @@ export default function CountryWizard({ onClose, onCreated }) {
           disabled={step === 0}
           className="rounded-[4px] border-slate-300"
         >
-          ← Anterior
+          ← {t('config.country_wizard.prev_btn')}
         </Button>
 
         {stepErrors.length > 0 && (
@@ -1101,7 +1117,7 @@ export default function CountryWizard({ onClose, onCreated }) {
 
         {step < STEPS.length - 1 ? (
           <Button onClick={() => setStep((s) => s + 1)} disabled={!canAdvance}>
-            Siguiente →
+            {t('config.country_wizard.next_btn')} →
           </Button>
         ) : (
           // Bug previo: `validation` siendo `[]` se evaluaba truthy y dejaba
@@ -1109,7 +1125,11 @@ export default function CountryWizard({ onClose, onCreated }) {
           // explícito para identificar "creado". Si saving o canAdvance, también
           // disabled — el resto del tiempo, habilitado.
           <Button onClick={handleFinish} disabled={saving || !canAdvance || validation !== null}>
-            {saving ? 'Creando…' : validation !== null ? '✓ Creado' : 'Crear país (status=draft)'}
+            {saving
+              ? t('config.country_wizard.creating_btn')
+              : validation !== null
+                ? `✓ ${t('config.country_wizard.created_btn')}`
+                : t('config.country_wizard.create_country_btn')}
           </Button>
         )}
       </div>
