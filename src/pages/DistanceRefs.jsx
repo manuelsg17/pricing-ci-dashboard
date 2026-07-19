@@ -9,9 +9,11 @@ import { Button } from '../components/ui/shadcn/button'
 import '../styles/distance-refs.css'
 
 import { useCountry } from '../context/CountryContext'
+import { useI18n } from '../context/LanguageContext'
 
 export default function DistanceRefs() {
   const { country, countryConfig: config } = useCountry()
+  const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -95,9 +97,9 @@ export default function DistanceRefs() {
         delete n[row.id]
         return n
       })
-      toast.ok('Ruta guardada.')
+      toast.ok(t('distancerefs.saved_toast'))
     } else {
-      toast.err('Error al guardar la ruta.')
+      toast.err(t('distancerefs.save_error_toast'))
     }
   }
 
@@ -111,15 +113,14 @@ export default function DistanceRefs() {
       return
     }
     const ok = await confirm({
-      title: 'Eliminar ruta de referencia',
-      message:
-        '¿Eliminar esta ruta? Si está usada en sesiones de CI activas, la sesión perderá esa referencia.',
+      title: t('distancerefs.delete_confirm_title'),
+      message: t('distancerefs.delete_confirm_message'),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('app.delete'),
     })
     if (!ok) return
     const success = await deleteRef(id)
-    if (success !== false) toast.ok('Ruta eliminada.')
+    if (success !== false) toast.ok(t('distancerefs.deleted_toast'))
   }
 
   // Agregar todos los brackets para la categoría seleccionada
@@ -131,7 +132,7 @@ export default function DistanceRefs() {
   const handleSaveAll = async () => {
     const toSave = filteredRefs.filter((r) => r._isNew || edits[r.id])
     if (!toSave.length) {
-      toast.info('No hay cambios pendientes.')
+      toast.info(t('distancerefs.no_pending_changes'))
       return
     }
     setBulkSaving(true)
@@ -164,22 +165,18 @@ export default function DistanceRefs() {
       } else failed++
     }
     setBulkSaving(false)
-    if (failed === 0)
-      toast.ok(`${saved} ruta${saved === 1 ? '' : 's'} guardada${saved === 1 ? '' : 's'}.`)
-    else toast.warn(`${saved} guardadas, ${failed} con error. Revisa los campos faltantes.`)
+    if (failed === 0) toast.ok(t('distancerefs.save_all_success', { n: saved, count: saved }))
+    else toast.warn(t('distancerefs.save_all_partial', { saved, failed }))
   }
 
   return (
     <div className="drefs-page">
-      <h1>Distancias de Referencia</h1>
-      <p className="drefs-page__desc">
-        Base de consulta de rutas usadas para el CI. Al agregar una categoría completa se crean los
-        6 brackets de una vez.
-      </p>
+      <h1>{t('distancerefs.title')}</h1>
+      <p className="drefs-page__desc">{t('distancerefs.desc')}</p>
 
       {/* City selector */}
       <div className="drefs-filters">
-        <span className="drefs-filters__label">Ciudad</span>
+        <span className="drefs-filters__label">{t('filter.city')}</span>
         <select value={dbCity} onChange={(e) => handleCityChange(e.target.value)}>
           {uiCities.map((c) => (
             <option key={c} value={c}>
@@ -189,7 +186,12 @@ export default function DistanceRefs() {
         </select>
       </div>
 
-      {error && <div className="drefs-error">Error: {error}</div>}
+      {error && (
+        <div className="drefs-error">
+          {t('app.error_prefix')}
+          {error}
+        </div>
+      )}
 
       {/* Category tabs */}
       <div className="drefs-cat-tabs">
@@ -211,10 +213,10 @@ export default function DistanceRefs() {
       <div className="drefs-section">
         <div className="drefs-section__header">
           <span className="drefs-section__title">
-            {dbCity} — {uiCat} — {filteredRefs.length} rutas
+            {dbCity} — {uiCat} — {filteredRefs.length} {t('distancerefs.routes_suffix')}
             {pendingCount > 0 && (
               <span className="drefs-pending-badge">
-                {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+                {t('distancerefs.pending_badge', { n: pendingCount, count: pendingCount })}
               </span>
             )}
           </span>
@@ -226,11 +228,11 @@ export default function DistanceRefs() {
                 onClick={handleSaveAll}
                 disabled={bulkSaving || saving}
               >
-                {bulkSaving ? 'Guardando…' : `💾 Guardar todos (${pendingCount})`}
+                {bulkSaving ? t('account.saving') : t('distancerefs.save_all', { n: pendingCount })}
               </Button>
             )}
             <Button size="sm" onClick={handleAddCategory} disabled={saving || bulkSaving}>
-              + Agregar {uiCat} completa
+              {t('distancerefs.add_category_full', { cat: uiCat })}
             </Button>
             <Button
               variant="outline"
@@ -241,7 +243,7 @@ export default function DistanceRefs() {
               }}
               disabled={saving}
             >
-              + Fila individual
+              {t('distancerefs.add_single_row')}
             </Button>
           </div>
         </div>
@@ -251,21 +253,21 @@ export default function DistanceRefs() {
         ) : filteredRefs.length === 0 ? (
           <EmptyState
             icon="🛣️"
-            title={`Sin rutas para ${dbCity} · ${uiCat}`}
-            message={`Crea las rutas de referencia para este bucket. Haz clic en "+ Agregar ${uiCat} completa" para generar los 6 brackets de una vez.`}
+            title={t('distancerefs.empty_title', { city: dbCity, cat: uiCat })}
+            message={t('distancerefs.empty_message', { cat: uiCat })}
           />
         ) : (
           <div className="drefs-table-wrap">
             <table className="drefs-table">
               <thead>
                 <tr>
-                  <th>Bracket</th>
-                  <th>Punto A</th>
-                  <th>Coord. A</th>
-                  <th>Punto B</th>
-                  <th>Coord. B</th>
-                  <th>Dist. Waze (km)</th>
-                  <th>Acciones</th>
+                  <th>{t('rawdata.col_bracket')}</th>
+                  <th>{t('dataentry.col_point_a')}</th>
+                  <th>{t('distancerefs.col_coord_a')}</th>
+                  <th>{t('dataentry.col_point_b')}</th>
+                  <th>{t('distancerefs.col_coord_b')}</th>
+                  <th>{t('distancerefs.col_dist_waze')}</th>
+                  <th>{t('distancerefs.col_actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -279,7 +281,7 @@ export default function DistanceRefs() {
                         value={getField(row.id, 'bracket', row.bracket)}
                         onChange={(e) => setField(row.id, 'bracket', e.target.value)}
                       >
-                        <option value="">— Elige —</option>
+                        <option value="">{t('distancerefs.choose_placeholder')}</option>
                         {BRACKETS.map((b) => (
                           <option key={b} value={b}>
                             {BRACKET_LABELS[b]}
@@ -290,7 +292,7 @@ export default function DistanceRefs() {
                     <td>
                       <input
                         className="wide"
-                        placeholder="Nombre punto A"
+                        placeholder={t('distancerefs.point_a_placeholder')}
                         value={getField(row.id, 'point_a', row.point_a)}
                         onChange={(e) => setField(row.id, 'point_a', e.target.value)}
                       />
@@ -306,7 +308,7 @@ export default function DistanceRefs() {
                     <td>
                       <input
                         className="wide"
-                        placeholder="Nombre punto B"
+                        placeholder={t('distancerefs.point_b_placeholder')}
                         value={getField(row.id, 'point_b', row.point_b)}
                         onChange={(e) => setField(row.id, 'point_b', e.target.value)}
                       />
@@ -333,7 +335,7 @@ export default function DistanceRefs() {
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <Button size="sm" onClick={() => handleSave(row)} disabled={saving}>
-                          Guardar
+                          {t('app.save')}
                         </Button>
                         <Button
                           variant="outline"

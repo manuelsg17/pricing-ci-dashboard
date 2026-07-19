@@ -663,6 +663,39 @@ export const TRANSLATIONS = {
     'rawdata.export_success': '{n} filas exportadas.',
     'rawdata.export_error': 'Error al exportar: {msg}',
 
+    // ── Distance Refs page ─────────────────────────────────────────────
+    'distancerefs.title': 'Distancias de Referencia',
+    'distancerefs.desc':
+      'Base de consulta de rutas usadas para el CI. Al agregar una categoría completa se crean los 6 brackets de una vez.',
+    'distancerefs.routes_suffix': 'rutas',
+    'distancerefs.pending_badge': { one: '{n} pendiente', other: '{n} pendientes' },
+    'distancerefs.save_all': '💾 Guardar todos ({n})',
+    'distancerefs.add_category_full': '+ Agregar {cat} completa',
+    'distancerefs.add_single_row': '+ Fila individual',
+    'distancerefs.empty_title': 'Sin rutas para {city} · {cat}',
+    'distancerefs.empty_message':
+      'Crea las rutas de referencia para este bucket. Haz clic en "+ Agregar {cat} completa" para generar los 6 brackets de una vez.',
+    'distancerefs.col_coord_a': 'Coord. A',
+    'distancerefs.col_coord_b': 'Coord. B',
+    'distancerefs.col_dist_waze': 'Dist. Waze (km)',
+    'distancerefs.col_actions': 'Acciones',
+    'distancerefs.choose_placeholder': '— Elige —',
+    'distancerefs.point_a_placeholder': 'Nombre punto A',
+    'distancerefs.point_b_placeholder': 'Nombre punto B',
+    'distancerefs.delete_confirm_title': 'Eliminar ruta de referencia',
+    'distancerefs.delete_confirm_message':
+      '¿Eliminar esta ruta? Si está usada en sesiones de CI activas, la sesión perderá esa referencia.',
+    'distancerefs.saved_toast': 'Ruta guardada.',
+    'distancerefs.save_error_toast': 'Error al guardar la ruta.',
+    'distancerefs.deleted_toast': 'Ruta eliminada.',
+    'distancerefs.no_pending_changes': 'No hay cambios pendientes.',
+    'distancerefs.save_all_success': {
+      one: '{n} ruta guardada.',
+      other: '{n} rutas guardadas.',
+    },
+    'distancerefs.save_all_partial':
+      '{saved} guardadas, {failed} con error. Revisa los campos faltantes.',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -1301,6 +1334,39 @@ export const TRANSLATIONS = {
     'rawdata.export_confirm_btn': 'Export',
     'rawdata.export_success': '{n} rows exported.',
     'rawdata.export_error': 'Export error: {msg}',
+
+    // ── Distance Refs page ─────────────────────────────────────────────
+    'distancerefs.title': 'Reference Distances',
+    'distancerefs.desc':
+      'Reference lookup for routes used in CI. Adding a full category creates all 6 brackets at once.',
+    'distancerefs.routes_suffix': 'routes',
+    'distancerefs.pending_badge': { one: '{n} pending', other: '{n} pending' },
+    'distancerefs.save_all': '💾 Save all ({n})',
+    'distancerefs.add_category_full': '+ Add all {cat}',
+    'distancerefs.add_single_row': '+ Single row',
+    'distancerefs.empty_title': 'No routes for {city} · {cat}',
+    'distancerefs.empty_message':
+      'Create the reference routes for this bucket. Click "+ Add all {cat}" to generate all 6 brackets at once.',
+    'distancerefs.col_coord_a': 'Coord. A',
+    'distancerefs.col_coord_b': 'Coord. B',
+    'distancerefs.col_dist_waze': 'Waze Dist. (km)',
+    'distancerefs.col_actions': 'Actions',
+    'distancerefs.choose_placeholder': '— Choose —',
+    'distancerefs.point_a_placeholder': 'Point A name',
+    'distancerefs.point_b_placeholder': 'Point B name',
+    'distancerefs.delete_confirm_title': 'Delete reference route',
+    'distancerefs.delete_confirm_message':
+      'Delete this route? If it is used in active CI sessions, the session will lose that reference.',
+    'distancerefs.saved_toast': 'Route saved.',
+    'distancerefs.save_error_toast': 'Error saving the route.',
+    'distancerefs.deleted_toast': 'Route deleted.',
+    'distancerefs.no_pending_changes': 'No pending changes.',
+    'distancerefs.save_all_success': {
+      one: '{n} route saved.',
+      other: '{n} routes saved.',
+    },
+    'distancerefs.save_all_partial':
+      '{saved} saved, {failed} with errors. Check the missing fields.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -1953,6 +2019,46 @@ export const TRANSLATIONS = {
     'rawdata.export_confirm_btn': 'Экспорт',
     'rawdata.export_success': '{n} строк экспортировано.',
     'rawdata.export_error': 'Ошибка экспорта: {msg}',
+
+    // ── Distance Refs page ─────────────────────────────────────────────
+    'distancerefs.title': 'Эталонные расстояния',
+    'distancerefs.desc':
+      'Справочник маршрутов, используемых для CI. При добавлении полной категории сразу создаются все 6 брекетов.',
+    'distancerefs.routes_suffix': 'маршрутов',
+    'distancerefs.pending_badge': {
+      one: '{n} ожидает сохранения',
+      few: '{n} ожидают сохранения',
+      many: '{n} ожидают сохранения',
+      other: '{n} ожидают сохранения',
+    },
+    'distancerefs.save_all': '💾 Сохранить все ({n})',
+    'distancerefs.add_category_full': '+ Добавить {cat} целиком',
+    'distancerefs.add_single_row': '+ Отдельная строка',
+    'distancerefs.empty_title': 'Нет маршрутов для {city} · {cat}',
+    'distancerefs.empty_message':
+      'Создайте эталонные маршруты для этого набора. Нажмите «+ Добавить {cat} целиком», чтобы сразу создать все 6 брекетов.',
+    'distancerefs.col_coord_a': 'Коорд. A',
+    'distancerefs.col_coord_b': 'Коорд. Б',
+    'distancerefs.col_dist_waze': 'Дист. Waze (км)',
+    'distancerefs.col_actions': 'Действия',
+    'distancerefs.choose_placeholder': '— Выбрать —',
+    'distancerefs.point_a_placeholder': 'Название точки A',
+    'distancerefs.point_b_placeholder': 'Название точки Б',
+    'distancerefs.delete_confirm_title': 'Удалить эталонный маршрут',
+    'distancerefs.delete_confirm_message':
+      'Удалить этот маршрут? Если он используется в активных сессиях CI, сессия потеряет эту ссылку.',
+    'distancerefs.saved_toast': 'Маршрут сохранён.',
+    'distancerefs.save_error_toast': 'Ошибка при сохранении маршрута.',
+    'distancerefs.deleted_toast': 'Маршрут удалён.',
+    'distancerefs.no_pending_changes': 'Нет ожидающих изменений.',
+    'distancerefs.save_all_success': {
+      one: '{n} маршрут сохранён.',
+      few: '{n} маршрута сохранено.',
+      many: '{n} маршрутов сохранено.',
+      other: '{n} маршрута сохранено.',
+    },
+    'distancerefs.save_all_partial':
+      '{saved} сохранено, {failed} с ошибкой. Проверьте недостающие поля.',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
