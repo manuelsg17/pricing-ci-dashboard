@@ -565,6 +565,33 @@ export const TRANSLATIONS = {
     'competitividad.week_range.12': 'Últimas 12 semanas',
     'competitividad.week_range.26': 'Últimas 26 semanas',
 
+    // ── Market Events page ─────────────────────────────────────────────
+    'market_events.title': 'Anotaciones de Mercado',
+    'market_events.desc':
+      'Registra eventos externos (huelgas, lluvia, feriados, promos) que puedan explicar variaciones en los precios. Los eventos aparecen en los gráficos del Dashboard en vista diaria.',
+    'market_events.add_event': '+ Nuevo evento',
+    'market_events.count': { one: '{n} evento', other: '{n} eventos' },
+    'market_events.col_type': 'Tipo',
+    'market_events.col_description': 'Descripción',
+    'market_events.empty_title': 'Sin eventos en este período',
+    'market_events.empty_message':
+      'Haz clic en "+ Nuevo evento" para agregar uno. Los eventos aparecen sobre los gráficos del Dashboard en vista diaria.',
+    'market_events.description_placeholder': 'Describe el evento…',
+    'market_events.delete_confirm_title': 'Eliminar evento',
+    'market_events.delete_confirm_message':
+      '¿Eliminar este evento de mercado? Esta acción no se puede deshacer.',
+    'market_events.err_empty_description': 'La descripción no puede estar vacía.',
+    'market_events.saved_toast': 'Evento guardado.',
+    'market_events.save_error': 'Error al guardar: {msg}',
+    'market_events.deleted_toast': 'Evento eliminado.',
+    'market_events.delete_error': 'Error al eliminar: {msg}',
+    'market_events.type.huelga': 'Huelga',
+    'market_events.type.lluvia': 'Lluvia',
+    'market_events.type.feriado': 'Feriado',
+    'market_events.type.promo_competidor': 'Promo competidor',
+    'market_events.type.regulacion': 'Regulación',
+    'market_events.type.otro': 'Otro',
+
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
   },
@@ -1106,6 +1133,33 @@ export const TRANSLATIONS = {
     'competitividad.week_range.8': 'Last 8 weeks',
     'competitividad.week_range.12': 'Last 12 weeks',
     'competitividad.week_range.26': 'Last 26 weeks',
+
+    // ── Market Events page ─────────────────────────────────────────────
+    'market_events.title': 'Market Annotations',
+    'market_events.desc':
+      'Log external events (strikes, rain, holidays, promos) that could explain price swings. Events show up on the Dashboard charts in daily view.',
+    'market_events.add_event': '+ New event',
+    'market_events.count': { one: '{n} event', other: '{n} events' },
+    'market_events.col_type': 'Type',
+    'market_events.col_description': 'Description',
+    'market_events.empty_title': 'No events in this period',
+    'market_events.empty_message':
+      'Click "+ New event" to add one. Events show up over the Dashboard charts in daily view.',
+    'market_events.description_placeholder': 'Describe the event…',
+    'market_events.delete_confirm_title': 'Delete event',
+    'market_events.delete_confirm_message':
+      'Delete this market event? This action cannot be undone.',
+    'market_events.err_empty_description': 'Description cannot be empty.',
+    'market_events.saved_toast': 'Event saved.',
+    'market_events.save_error': 'Save error: {msg}',
+    'market_events.deleted_toast': 'Event deleted.',
+    'market_events.delete_error': 'Delete error: {msg}',
+    'market_events.type.huelga': 'Strike',
+    'market_events.type.lluvia': 'Rain',
+    'market_events.type.feriado': 'Holiday',
+    'market_events.type.promo_competidor': 'Competitor promo',
+    'market_events.type.regulacion': 'Regulation',
+    'market_events.type.otro': 'Other',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -1656,6 +1710,38 @@ export const TRANSLATIONS = {
     'competitividad.week_range.8': 'Последние 8 недель',
     'competitividad.week_range.12': 'Последние 12 недель',
     'competitividad.week_range.26': 'Последние 26 недель',
+
+    // ── Market Events page ─────────────────────────────────────────────
+    'market_events.title': 'Рыночные события',
+    'market_events.desc':
+      'Записывайте внешние события (забастовки, дождь, праздники, промо), которые могут объяснить колебания цен. События отображаются на графиках Дашборда в дневном виде.',
+    'market_events.add_event': '+ Новое событие',
+    'market_events.count': {
+      one: '{n} событие',
+      few: '{n} события',
+      many: '{n} событий',
+      other: '{n} события',
+    },
+    'market_events.col_type': 'Тип',
+    'market_events.col_description': 'Описание',
+    'market_events.empty_title': 'Нет событий за этот период',
+    'market_events.empty_message':
+      'Нажмите «+ Новое событие», чтобы добавить. События отображаются на графиках Дашборда в дневном виде.',
+    'market_events.description_placeholder': 'Опишите событие…',
+    'market_events.delete_confirm_title': 'Удалить событие',
+    'market_events.delete_confirm_message':
+      'Удалить это рыночное событие? Это действие нельзя отменить.',
+    'market_events.err_empty_description': 'Описание не может быть пустым.',
+    'market_events.saved_toast': 'Событие сохранено.',
+    'market_events.save_error': 'Ошибка сохранения: {msg}',
+    'market_events.deleted_toast': 'Событие удалено.',
+    'market_events.delete_error': 'Ошибка удаления: {msg}',
+    'market_events.type.huelga': 'Забастовка',
+    'market_events.type.lluvia': 'Дождь',
+    'market_events.type.feriado': 'Праздник',
+    'market_events.type.promo_competidor': 'Промо конкурента',
+    'market_events.type.regulacion': 'Регулирование',
+    'market_events.type.otro': 'Другое',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
