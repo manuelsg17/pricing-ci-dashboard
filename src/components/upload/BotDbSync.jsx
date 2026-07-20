@@ -8,6 +8,7 @@ import EmptyState from '../ui/EmptyState'
 import { SkeletonTable } from '../ui/Skeleton'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Button } from '../ui/shadcn/button'
+import BotCoveragePanel from './BotCoveragePanel'
 
 // Mapa de razones que emite scripts/bot-sync/bot_sync_push.py.
 // labelKey/hintKey/actionKey → keys de i18n resueltas en el componente
@@ -549,6 +550,8 @@ export default function BotDbSync() {
             </tbody>
           </table>
         )}
+
+        <BotCoveragePanel country={country} t={t} />
       </div>
     </div>
   )

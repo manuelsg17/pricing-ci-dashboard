@@ -1198,6 +1198,15 @@ export const TRANSLATIONS = {
     'botdbsync.hover_hint_prefix':
       'Hovereá el pill de la razón para ver qué hacer en cada caso. Después de cambiar reglas, corré',
     'botdbsync.hover_hint_suffix': 'para re-procesar el histórico.',
+    'botdbsync.coverage_title': 'Frescura de la data por ciudad y bracket',
+    'botdbsync.coverage_subtitle':
+      'Última observación que llegó del bot para cada ciudad y tramo de distancia. Refleja lo que el bot realmente produjo (no cuándo corrió el sync): si una celda queda muy atrás del resto de su fila, el bot dejó de scrapear ese bracket.',
+    'botdbsync.coverage_col_city': 'Ciudad',
+    'botdbsync.coverage_cell_title':
+      'Última obs: {date} {time} · {n} filas en las últimas 48h · {gap} min detrás del bracket más fresco de esta ciudad',
+    'botdbsync.coverage_cell_none': 'Sin data reciente para este bracket',
+    'botdbsync.coverage_legend':
+      'Verde = al día · Amarillo = >1h detrás del bracket más fresco de su ciudad · Rojo = >3h detrás (posible stall del bot).',
     'botdbsync.recent_runs_title': 'Últimas corridas',
     'botdbsync.empty_runs_title': 'Sin corridas todavía',
     'botdbsync.empty_runs_message':
@@ -3164,6 +3173,15 @@ export const TRANSLATIONS = {
     'botdbsync.hover_hint_prefix':
       'Hover the reason pill to see what to do in each case. After changing rules, run',
     'botdbsync.hover_hint_suffix': 'to reprocess the history.',
+    'botdbsync.coverage_title': 'Data freshness by city and bracket',
+    'botdbsync.coverage_subtitle':
+      'Latest observation received from the bot for each city and distance bracket. Reflects what the bot actually produced (not when the sync ran): if a cell falls far behind the rest of its row, the bot stopped scraping that bracket.',
+    'botdbsync.coverage_col_city': 'City',
+    'botdbsync.coverage_cell_title':
+      "Last obs: {date} {time} · {n} rows in the last 48h · {gap} min behind this city's freshest bracket",
+    'botdbsync.coverage_cell_none': 'No recent data for this bracket',
+    'botdbsync.coverage_legend':
+      "Green = up to date · Yellow = >1h behind its city's freshest bracket · Red = >3h behind (possible bot stall).",
     'botdbsync.recent_runs_title': 'Latest runs',
     'botdbsync.empty_runs_title': 'No runs yet',
     'botdbsync.empty_runs_message': 'Click Incremental Sync to ingest the first rows.',
@@ -5156,6 +5174,15 @@ export const TRANSLATIONS = {
     'botdbsync.hover_hint_prefix':
       'Наведите на плашку причины, чтобы узнать, что делать в каждом случае. После изменения правил запустите',
     'botdbsync.hover_hint_suffix': 'для повторной обработки истории.',
+    'botdbsync.coverage_title': 'Свежесть данных по городу и брекету',
+    'botdbsync.coverage_subtitle':
+      'Последнее наблюдение, полученное от бота для каждого города и диапазона расстояния. Отражает то, что бот реально произвёл (а не когда запускался синк): если ячейка сильно отстаёт от остальных в строке, бот перестал собирать этот брекет.',
+    'botdbsync.coverage_col_city': 'Город',
+    'botdbsync.coverage_cell_title':
+      'Последнее набл.: {date} {time} · {n} строк за последние 48ч · на {gap} мин позади самого свежего брекета этого города',
+    'botdbsync.coverage_cell_none': 'Нет свежих данных по этому брекету',
+    'botdbsync.coverage_legend':
+      'Зелёный = актуально · Жёлтый = >1ч позади самого свежего брекета города · Красный = >3ч позади (возможный сбой бота).',
     'botdbsync.recent_runs_title': 'Последние прогоны',
     'botdbsync.empty_runs_title': 'Прогонов пока нет',
     'botdbsync.empty_runs_message': 'Нажмите Incremental Sync, чтобы загрузить первые строки.',
