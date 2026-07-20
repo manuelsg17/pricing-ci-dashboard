@@ -520,6 +520,9 @@ export const TRANSLATIONS = {
     'dataentry.no_routes_at_all': 'No hay rutas configuradas para esta ciudad todavía.',
     'dataentry.extra_routes_title': 'Rutas adicionales',
     'dataentry.own_route_note': 'Ruta propia',
+    'dataentry.eta_placeholder': 'ETA',
+    'dataentry.eta_title': 'ETA en minutos (opcional) — se completa antes del precio',
+    'dataentry.price_placeholder': 'Precio',
     'dataentry.missing_cats_note': 'Sin ruta en este bracket para: {cats}.',
     'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
     'dataentry.other_draft_note': 'Tenés un borrador sin terminar en {city}, {date} ({n} celdas).',
@@ -530,11 +533,11 @@ export const TRANSLATIONS = {
     'dataentry.legend_step2':
       '2. Elegí el bracket (Very Short → Very Long) — la ruta (Punto A → Punto B) aparece una sola vez.',
     'dataentry.legend_step3':
-      '3. Llená los precios de todas las categorías y franjas horarias para esa ruta antes de pasar a la siguiente.',
+      '3. Para cada competidor poné el ETA (minutos, opcional) y el precio. Completá todas las categorías y franjas de esa ruta antes de pasar a la siguiente. Podés colapsar/expandir cada bracket tocando su cabecera.',
     'dataentry.legend_step4':
       '4. Para InDrive, tocá ▼ para agregar hasta 3 bids — el promedio se calcula solo.',
     'dataentry.legend_step5':
-      '5. Guardá seguido con "💾 Guardar progreso" (podés guardar filas parciales cuantas veces quieras). Tu progreso también se autoguarda en este navegador cada 2 segundos.',
+      '5. Guardá seguido con "💾 Guardar progreso" (podés guardar filas parciales cuantas veces quieras). Además tu progreso se autoguarda solo en este navegador: NO se pierde si actualizás la página, cambiás de ciudad o cerrás por error — al volver, sigue todo cargado.',
     'dataentry.legend_step6': '6. Cuando toda la grilla esté completa, tocá "⏹ Terminar Sesión".',
 
     // ── Earnings ──────────────────────────────────────
@@ -2518,6 +2521,9 @@ export const TRANSLATIONS = {
     'dataentry.no_routes_at_all': 'No routes configured for this city yet.',
     'dataentry.extra_routes_title': 'Additional routes',
     'dataentry.own_route_note': 'Own route',
+    'dataentry.eta_placeholder': 'ETA',
+    'dataentry.eta_title': 'ETA in minutes (optional) — fill it before the price',
+    'dataentry.price_placeholder': 'Price',
     'dataentry.missing_cats_note': 'No route in this bracket for: {cats}.',
     'dataentry.autosaved_ago': 'Autosaved {s}s ago',
     'dataentry.other_draft_note': 'You have an unfinished draft in {city}, {date} ({n} cells).',
@@ -2528,11 +2534,11 @@ export const TRANSLATIONS = {
     'dataentry.legend_step2':
       '2. Pick a bracket (Very Short → Very Long) — the route (Point A → Point B) shows up once.',
     'dataentry.legend_step3':
-      '3. Fill in prices for all categories and timeslots for that route before moving to the next one.',
+      '3. For each competitor enter the ETA (minutes, optional) and the price. Fill all categories and timeslots for that route before moving to the next one. You can collapse/expand each bracket by tapping its header.',
     'dataentry.legend_step4':
       '4. For InDrive, tap ▼ to add up to 3 bids — the average is calculated for you.',
     'dataentry.legend_step5':
-      '5. Save often with "💾 Save progress" (you can save partial rows as many times as you want). Your progress is also autosaved in this browser every 2 seconds.',
+      '5. Save often with "💾 Save progress" (you can save partial rows as many times as you want). Your progress is also autosaved in this browser: it is NOT lost if you refresh, switch city, or close by mistake — when you come back, everything is still there.',
     'dataentry.legend_step6': '6. Once the whole grid is complete, tap "⏹ End Session".',
 
     'earnings.title': 'Driver Earnings',
@@ -4499,6 +4505,9 @@ export const TRANSLATIONS = {
     'dataentry.no_routes_at_all': 'Маршруты для этого города ещё не настроены.',
     'dataentry.extra_routes_title': 'Дополнительные маршруты',
     'dataentry.own_route_note': 'Свой маршрут',
+    'dataentry.eta_placeholder': 'ETA',
+    'dataentry.eta_title': 'ETA в минутах (необязательно) — заполните до цены',
+    'dataentry.price_placeholder': 'Цена',
     'dataentry.missing_cats_note': 'Нет маршрута в этом брекете для: {cats}.',
     'dataentry.autosaved_ago': 'Автосохранено {s} с назад',
     'dataentry.other_draft_note': 'У вас есть незавершённый черновик в {city}, {date} ({n} ячеек).',
@@ -4509,11 +4518,11 @@ export const TRANSLATIONS = {
     'dataentry.legend_step2':
       '2. Выберите брекет (Very Short → Very Long) — маршрут (Точка А → Точка Б) показывается один раз.',
     'dataentry.legend_step3':
-      '3. Заполните цены для всех категорий и таймслотов этого маршрута, прежде чем переходить к следующему.',
+      '3. Для каждого конкурента укажите ETA (в минутах, необязательно) и цену. Заполните все категории и таймслоты этого маршрута, прежде чем переходить к следующему. Можно свернуть/развернуть каждый брекет, нажав на его заголовок.',
     'dataentry.legend_step4':
       '4. Для InDrive нажмите ▼, чтобы добавить до 3 ставок — среднее считается автоматически.',
     'dataentry.legend_step5':
-      '5. Сохраняйте прогресс почаще кнопкой "💾 Сохранить прогресс" (можно сохранять неполные строки сколько угодно раз). Прогресс также автосохраняется в этом браузере каждые 2 секунды.',
+      '5. Сохраняйте прогресс почаще кнопкой "💾 Сохранить прогресс" (можно сохранять неполные строки сколько угодно раз). Прогресс также автосохраняется в этом браузере: он НЕ теряется при обновлении страницы, смене города или случайном закрытии — когда вернётесь, всё на месте.',
     'dataentry.legend_step6': '6. Когда вся таблица заполнена, нажмите "⏹ Завершить сессию".',
 
     'earnings.title': 'Доходы водителей',

@@ -302,6 +302,30 @@
   color: var(--color-muted);
 }
 
+/* Input de ETA (min) — arriba del precio, más chico y con un tinte distinto
+   para que se distinga a simple vista del precio. */
+.de-eta-input {
+  width: 72px;
+  padding: 2px 6px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: right;
+  font-size: 11px;
+  outline: none;
+  background: var(--color-bg-subtle);
+  color: var(--color-muted);
+  transition: border-color 0.15s;
+}
+.de-eta-input:focus {
+  border-style: solid;
+  border-color: var(--color-yango);
+  color: var(--color-text);
+}
+.de-eta-input:not(:placeholder-shown) {
+  border-style: solid;
+  color: var(--color-text);
+}
+
 /* ── InDrive expandible ──────────────────────────────────── */
 .indrive-cell {
   display: flex;
@@ -489,14 +513,34 @@
   background: var(--color-panel);
 }
 
+/* La cabecera del bracket es un <button> colapsable (expande/contrae el
+   grupo). Reset de estilos nativos + full width + puntero. */
 .de-bracket-route-header {
   display: flex;
   align-items: baseline;
   gap: 10px;
   flex-wrap: wrap;
+  width: 100%;
   padding: 10px 16px;
   background: var(--color-bg-header);
+  border: none;
   border-bottom: 1px solid var(--color-border-soft);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.de-bracket-route-header:hover {
+  background: var(--color-bg-hover);
+}
+
+.de-bracket-chevron {
+  align-self: center;
+  font-size: 10px;
+  color: var(--color-muted);
+  width: 10px;
+  flex-shrink: 0;
 }
 
 .de-bracket-label {

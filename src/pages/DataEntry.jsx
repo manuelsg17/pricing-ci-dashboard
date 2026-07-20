@@ -81,6 +81,10 @@ export default function DataEntry() {
   const [entries, setEntries] = useState({})
   // indriveExtra: key = `${uiCat}|${refId}|${tsLabel}` → { bids, minBid }
   const [indriveExtra, setIndriveExtra] = useState({})
+  // etaEntries: key = `${uiCat}|${refId}|${tsLabel}|${comp}` → ETA en minutos
+  // (string). Opcional: se captura antes del precio pero no bloquea el
+  // "completado" de la fila (el guardado usa los precios). Va a eta_min.
+  const [etaEntries, setEtaEntries] = useState({})
   // errorKeys: Set of price keys with error
   const [errorKeys, setErrorKeys] = useState(new Set())
 
@@ -188,6 +192,7 @@ export default function DataEntry() {
     setRefs([]) // Limpiar rutas antiguas inmediatamente
     setEntries({})
     setIndriveExtra({})
+    setEtaEntries({})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, countryConfig])
 
@@ -197,6 +202,7 @@ export default function DataEntry() {
     setRefsLoading(true)
     setEntries({})
     setIndriveExtra({})
+    setEtaEntries({})
     setErrorKeys(new Set())
     setMsg(null)
     sb.from('distance_references')
@@ -216,6 +222,7 @@ export default function DataEntry() {
   useEffect(() => {
     setEntries({})
     setIndriveExtra({})
+    setEtaEntries({})
     setErrorKeys(new Set())
     setMsg(null)
   }, [date])
@@ -238,10 +245,12 @@ export default function DataEntry() {
       if (raw) {
         const parsed = JSON.parse(raw)
         const filled = countFilledEntries(parsed.entries)
-        if (filled > 0) {
+        const etaFilled = countFilledEntries(parsed.etaEntries)
+        if (filled > 0 || etaFilled > 0) {
           const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
           setEntries({ ...parsed.entries, ...avgUpdates })
           setIndriveExtra(capped)
+          setEtaEntries(parsed.etaEntries || {})
           if (typeof parsed.surge === 'boolean') setSurge(parsed.surge)
           setLastDraftSavedAt(parsed.savedAt || null)
           setMsg({
@@ -265,10 +274,16 @@ export default function DataEntry() {
     if (!draftHydratedRef.current) return
     const id = setTimeout(() => {
       try {
-        const hasData = countFilledEntries(entries) > 0 || hasMeaningfulIndriveExtra(indriveExtra)
+        const hasData =
+          countFilledEntries(entries) > 0 ||
+          countFilledEntries(etaEntries) > 0 ||
+          hasMeaningfulIndriveExtra(indriveExtra)
         if (hasData) {
           const savedAt = Date.now()
-          localStorage.setItem(draftKey, JSON.stringify({ entries, indriveExtra, surge, savedAt }))
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({ entries, indriveExtra, etaEntries, surge, savedAt })
+          )
           setLastDraftSavedAt(savedAt)
         } else {
           localStorage.removeItem(draftKey)
@@ -277,9 +292,45 @@ export default function DataEntry() {
       } catch {
         /* quota / disabled */
       }
-    }, 2000)
+    }, 1500)
     return () => clearTimeout(id)
-  }, [entries, indriveExtra, surge, draftKey])
+  }, [entries, indriveExtra, etaEntries, surge, draftKey])
+
+  // Ref siempre al día con el último estado — para el flush síncrono de abajo.
+  const draftSnapshotRef = useRef({ entries, indriveExtra, etaEntries, surge })
+  draftSnapshotRef.current = { entries, indriveExtra, etaEntries, surge }
+
+  // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
+  // página (desmontar / navegar a otra sección). El autosave con debounce
+  // podría no haber disparado sus últimos ~1.5s; sin este flush, cambiar de
+  // pestaña o de ciudad "por casualidad" perdía las últimas celdas cargadas.
+  // El cleanup corre con la clave VIEJA (closure de draftKey) y el último
+  // estado (ref) ANTES de que los resets de ciudad/fecha limpien `entries`.
+  useEffect(() => {
+    return () => {
+      try {
+        const s = draftSnapshotRef.current
+        const hasData =
+          countFilledEntries(s.entries) > 0 ||
+          countFilledEntries(s.etaEntries) > 0 ||
+          hasMeaningfulIndriveExtra(s.indriveExtra)
+        if (hasData) {
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({
+              entries: s.entries,
+              indriveExtra: s.indriveExtra,
+              etaEntries: s.etaEntries,
+              surge: s.surge,
+              savedAt: Date.now(),
+            })
+          )
+        }
+      } catch {
+        /* quota / disabled */
+      }
+    }
+  }, [draftKey])
 
   const clearDraft = useCallback(() => {
     try {
@@ -289,7 +340,10 @@ export default function DataEntry() {
 
   // ── Aviso del navegador si hay cambios sin guardar ─────
   useEffect(() => {
-    const hasUnsaved = countFilledEntries(entries) > 0 || hasMeaningfulIndriveExtra(indriveExtra)
+    const hasUnsaved =
+      countFilledEntries(entries) > 0 ||
+      countFilledEntries(etaEntries) > 0 ||
+      hasMeaningfulIndriveExtra(indriveExtra)
     if (!hasUnsaved) return
     const handler = (e) => {
       e.preventDefault()
@@ -297,7 +351,7 @@ export default function DataEntry() {
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [entries, indriveExtra])
+  }, [entries, etaEntries, indriveExtra])
 
   // ── Indicador "guardado hace Xs" — ticker ──────────────
   useEffect(() => {
@@ -420,6 +474,14 @@ export default function DataEntry() {
   const getEntry = (uiCat, refId, tsLabel, comp) =>
     entries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
 
+  // ETA por competidor (misma clave que el precio, guardado aparte en
+  // etaEntries → columna eta_min). Opcional: no cuenta para el "completado".
+  const getEta = (uiCat, refId, tsLabel, comp) =>
+    etaEntries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
+  const setEta = useCallback((uiCat, refId, tsLabel, comp, val) => {
+    setEtaEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
+  }, [])
+
   const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
     setIndriveExtra((prev) => ({ ...prev, [indKey(uiCat, refId, tsLabel)]: extra }))
     setEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, 'InDrive')]: avg }))
@@ -458,6 +520,7 @@ export default function DataEntry() {
         // mandar más de 3, aunque un borrador viejo en localStorage tenga más.
         const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 3) : []
         const minBid = comp === 'InDrive' ? extra?.minBid || null : null
+        const etaNum = parseFloat(etaEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
         return {
           price: isNaN(price) ? null : price,
           comp,
@@ -469,6 +532,7 @@ export default function DataEntry() {
           week,
           bids,
           minBid,
+          eta: isNaN(etaNum) ? null : etaNum,
         }
       })
       .filter((r) => r.price !== null)
@@ -489,6 +553,7 @@ export default function DataEntry() {
       surge,
       distance_bracket: r.ref.bracket,
       distance_km: r.ref.waze_distance ?? null,
+      eta_min: r.eta ?? null,
       point_a: r.ref.point_a ?? null,
       point_b: r.ref.point_b ?? null,
       price_without_discount: r.price,
@@ -613,9 +678,16 @@ export default function DataEntry() {
       })
     }
 
-    // Guardado exitoso → el borrador local ya no es necesario
-    clearDraft()
-    setLastDraftSavedAt(null)
+    // SOLO "Terminar Sesión" limpia el borrador local. "Guardar progreso" NO
+    // lo borra: es un checkpoint intermedio y el hub sigue trabajando. Si lo
+    // limpiáramos acá, un refresh después de "Guardar progreso" dejaría la
+    // grilla vacía (el form no recarga lo ya guardado en la BD) y el hub
+    // creería que perdió todo. El re-guardado es idempotente (DELETE+INSERT
+    // por categoría/franja), así que conservar el borrador es seguro.
+    if (isFinish) {
+      clearDraft()
+      setLastDraftSavedAt(null)
+    }
     setSaving(false)
     return true
   }
@@ -832,6 +904,8 @@ export default function DataEntry() {
                   catColors={CAT_COLORS}
                   getEntry={getEntry}
                   setEntry={setEntry}
+                  getEta={getEta}
+                  setEta={setEta}
                   indriveExtra={indriveExtra}
                   setIndrive={setIndrive}
                   indKey={indKey}
@@ -857,6 +931,8 @@ export default function DataEntry() {
                       catColors={CAT_COLORS}
                       getEntry={getEntry}
                       setEntry={setEntry}
+                      getEta={getEta}
+                      setEta={setEta}
                       indriveExtra={indriveExtra}
                       setIndrive={setIndrive}
                       indKey={indKey}
