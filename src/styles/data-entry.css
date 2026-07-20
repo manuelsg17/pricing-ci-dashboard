@@ -326,6 +326,32 @@
   color: var(--color-text);
 }
 
+/* Input de precio CON descuento — debajo del precio principal. Tinte verde
+   suave (descuento = ahorro) y más chico, para que quede claro que es
+   secundario frente al precio SIN descuento. */
+.de-disc-input {
+  width: 72px;
+  padding: 2px 6px;
+  border: 1px dashed var(--color-success-border);
+  border-radius: var(--radius-sm);
+  text-align: right;
+  font-size: 11px;
+  outline: none;
+  background: var(--color-success-bg-subtle);
+  color: var(--color-muted);
+  transition: border-color 0.15s;
+}
+.de-disc-input:focus {
+  border-style: solid;
+  border-color: var(--color-success-fg);
+  color: var(--color-text);
+}
+.de-disc-input:not(:placeholder-shown) {
+  border-style: solid;
+  color: var(--color-success-fg);
+  font-weight: 600;
+}
+
 /* ── InDrive expandible ──────────────────────────────────── */
 .indrive-cell {
   display: flex;

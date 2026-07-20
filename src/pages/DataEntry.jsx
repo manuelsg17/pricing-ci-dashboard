@@ -85,6 +85,11 @@ export default function DataEntry() {
   // (string). Opcional: se captura antes del precio pero no bloquea el
   // "completado" de la fila (el guardado usa los precios). Va a eta_min.
   const [etaEntries, setEtaEntries] = useState({})
+  // discEntries: key = `${uiCat}|${refId}|${tsLabel}|${comp}` → precio CON
+  // descuento (string). El precio principal es el SIN descuento (entries);
+  // este es un extra opcional que no bloquea el "completado". Va a
+  // price_with_discount.
+  const [discEntries, setDiscEntries] = useState({})
   // errorKeys: Set of price keys with error
   const [errorKeys, setErrorKeys] = useState(new Set())
 
@@ -193,6 +198,7 @@ export default function DataEntry() {
     setEntries({})
     setIndriveExtra({})
     setEtaEntries({})
+    setDiscEntries({})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, countryConfig])
 
@@ -203,6 +209,7 @@ export default function DataEntry() {
     setEntries({})
     setIndriveExtra({})
     setEtaEntries({})
+    setDiscEntries({})
     setErrorKeys(new Set())
     setMsg(null)
     sb.from('distance_references')
@@ -223,6 +230,7 @@ export default function DataEntry() {
     setEntries({})
     setIndriveExtra({})
     setEtaEntries({})
+    setDiscEntries({})
     setErrorKeys(new Set())
     setMsg(null)
   }, [date])
@@ -246,11 +254,13 @@ export default function DataEntry() {
         const parsed = JSON.parse(raw)
         const filled = countFilledEntries(parsed.entries)
         const etaFilled = countFilledEntries(parsed.etaEntries)
-        if (filled > 0 || etaFilled > 0) {
+        const discFilled = countFilledEntries(parsed.discEntries)
+        if (filled > 0 || etaFilled > 0 || discFilled > 0) {
           const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
           setEntries({ ...parsed.entries, ...avgUpdates })
           setIndriveExtra(capped)
           setEtaEntries(parsed.etaEntries || {})
+          setDiscEntries(parsed.discEntries || {})
           if (typeof parsed.surge === 'boolean') setSurge(parsed.surge)
           setLastDraftSavedAt(parsed.savedAt || null)
           setMsg({
@@ -277,12 +287,13 @@ export default function DataEntry() {
         const hasData =
           countFilledEntries(entries) > 0 ||
           countFilledEntries(etaEntries) > 0 ||
+          countFilledEntries(discEntries) > 0 ||
           hasMeaningfulIndriveExtra(indriveExtra)
         if (hasData) {
           const savedAt = Date.now()
           localStorage.setItem(
             draftKey,
-            JSON.stringify({ entries, indriveExtra, etaEntries, surge, savedAt })
+            JSON.stringify({ entries, indriveExtra, etaEntries, discEntries, surge, savedAt })
           )
           setLastDraftSavedAt(savedAt)
         } else {
@@ -294,11 +305,11 @@ export default function DataEntry() {
       }
     }, 1500)
     return () => clearTimeout(id)
-  }, [entries, indriveExtra, etaEntries, surge, draftKey])
+  }, [entries, indriveExtra, etaEntries, discEntries, surge, draftKey])
 
   // Ref siempre al día con el último estado — para el flush síncrono de abajo.
-  const draftSnapshotRef = useRef({ entries, indriveExtra, etaEntries, surge })
-  draftSnapshotRef.current = { entries, indriveExtra, etaEntries, surge }
+  const draftSnapshotRef = useRef({ entries, indriveExtra, etaEntries, discEntries, surge })
+  draftSnapshotRef.current = { entries, indriveExtra, etaEntries, discEntries, surge }
 
   // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
   // página (desmontar / navegar a otra sección). El autosave con debounce
@@ -313,6 +324,7 @@ export default function DataEntry() {
         const hasData =
           countFilledEntries(s.entries) > 0 ||
           countFilledEntries(s.etaEntries) > 0 ||
+          countFilledEntries(s.discEntries) > 0 ||
           hasMeaningfulIndriveExtra(s.indriveExtra)
         if (hasData) {
           localStorage.setItem(
@@ -321,6 +333,7 @@ export default function DataEntry() {
               entries: s.entries,
               indriveExtra: s.indriveExtra,
               etaEntries: s.etaEntries,
+              discEntries: s.discEntries,
               surge: s.surge,
               savedAt: Date.now(),
             })
@@ -343,6 +356,7 @@ export default function DataEntry() {
     const hasUnsaved =
       countFilledEntries(entries) > 0 ||
       countFilledEntries(etaEntries) > 0 ||
+      countFilledEntries(discEntries) > 0 ||
       hasMeaningfulIndriveExtra(indriveExtra)
     if (!hasUnsaved) return
     const handler = (e) => {
@@ -351,7 +365,7 @@ export default function DataEntry() {
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [entries, etaEntries, indriveExtra])
+  }, [entries, etaEntries, discEntries, indriveExtra])
 
   // ── Indicador "guardado hace Xs" — ticker ──────────────
   useEffect(() => {
@@ -482,6 +496,15 @@ export default function DataEntry() {
     setEtaEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
   }, [])
 
+  // Precio CON descuento por competidor (misma clave que el precio principal,
+  // guardado aparte en discEntries → columna price_with_discount). Opcional:
+  // no cuenta para el "completado" de la fila.
+  const getDisc = (uiCat, refId, tsLabel, comp) =>
+    discEntries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
+  const setDisc = useCallback((uiCat, refId, tsLabel, comp, val) => {
+    setDiscEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
+  }, [])
+
   const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
     setIndriveExtra((prev) => ({ ...prev, [indKey(uiCat, refId, tsLabel)]: extra }))
     setEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, 'InDrive')]: avg }))
@@ -521,6 +544,7 @@ export default function DataEntry() {
         const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 5) : []
         const minBid = comp === 'InDrive' ? extra?.minBid || null : null
         const etaNum = parseFloat(etaEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
+        const discNum = parseFloat(discEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
         return {
           price: isNaN(price) ? null : price,
           comp,
@@ -533,6 +557,7 @@ export default function DataEntry() {
           bids,
           minBid,
           eta: isNaN(etaNum) ? null : etaNum,
+          disc: isNaN(discNum) ? null : discNum,
         }
       })
       .filter((r) => r.price !== null)
@@ -557,6 +582,7 @@ export default function DataEntry() {
       point_a: r.ref.point_a ?? null,
       point_b: r.ref.point_b ?? null,
       price_without_discount: r.price,
+      price_with_discount: r.disc ?? null,
       year: r.year,
       week: r.week,
       data_source: 'manual',
@@ -906,6 +932,8 @@ export default function DataEntry() {
                   setEntry={setEntry}
                   getEta={getEta}
                   setEta={setEta}
+                  getDisc={getDisc}
+                  setDisc={setDisc}
                   indriveExtra={indriveExtra}
                   setIndrive={setIndrive}
                   indKey={indKey}
@@ -933,6 +961,8 @@ export default function DataEntry() {
                       setEntry={setEntry}
                       getEta={getEta}
                       setEta={setEta}
+                      getDisc={getDisc}
+                      setDisc={setDisc}
                       indriveExtra={indriveExtra}
                       setIndrive={setIndrive}
                       indKey={indKey}

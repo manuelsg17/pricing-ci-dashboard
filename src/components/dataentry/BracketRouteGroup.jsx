@@ -30,7 +30,8 @@ function unionCompetitorOrder(presentCats, uiCity, country, dbConfigs) {
 // aunque una categoría tenga menos competidores que otra.
 //
 // Cada celda de competidor apila, de arriba hacia abajo: badge → ETA (min) →
-// precio. La cabecera del grupo se puede colapsar/expandir (empieza abierta).
+// precio (SIN descuento, el principal) → precio CON descuento (opcional). La
+// cabecera del grupo se puede colapsar/expandir (empieza abierta).
 export default function BracketRouteGroup({
   bracket,
   group,
@@ -44,6 +45,8 @@ export default function BracketRouteGroup({
   setEntry,
   getEta,
   setEta,
+  getDisc,
+  setDisc,
   indriveExtra,
   setIndrive,
   indKey,
@@ -164,6 +167,27 @@ export default function BracketRouteGroup({
                             }
                           />
                         )
+                        // Precio CON descuento — debajo del precio principal
+                        // (sin descuento), para todos los competidores. Opcional.
+                        const discInput = (
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="de-disc-input"
+                            placeholder={t('dataentry.disc_placeholder')}
+                            title={t('dataentry.disc_title')}
+                            value={getDisc(uiCat, ref.id, ts.label, comp)}
+                            onChange={(e) =>
+                              setDisc(
+                                uiCat,
+                                ref.id,
+                                ts.label,
+                                comp,
+                                sanitizeDecimalInput(e.target.value)
+                              )
+                            }
+                          />
+                        )
                         return (
                           <div key={comp} className={`de-cell${hasErr ? ' de-td-error' : ''}`}>
                             <span className="de-cell-label">
@@ -197,6 +221,7 @@ export default function BracketRouteGroup({
                                 }
                               />
                             )}
+                            {discInput}
                           </div>
                         )
                       })}

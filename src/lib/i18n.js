@@ -523,6 +523,9 @@ export const TRANSLATIONS = {
     'dataentry.eta_placeholder': 'ETA',
     'dataentry.eta_title': 'ETA en minutos (opcional) — se completa antes del precio',
     'dataentry.price_placeholder': 'Precio',
+    'dataentry.disc_placeholder': 'Precio c/desc',
+    'dataentry.disc_title':
+      'Precio CON descuento (opcional) — el precio principal es el SIN descuento',
     'dataentry.missing_cats_note': 'Sin ruta en este bracket para: {cats}.',
     'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
     'dataentry.other_draft_note': 'Tenés un borrador sin terminar en {city}, {date} ({n} celdas).',
@@ -2526,6 +2529,9 @@ export const TRANSLATIONS = {
     'dataentry.eta_placeholder': 'ETA',
     'dataentry.eta_title': 'ETA in minutes (optional) — fill it before the price',
     'dataentry.price_placeholder': 'Price',
+    'dataentry.disc_placeholder': 'Disc. price',
+    'dataentry.disc_title':
+      'Price WITH discount (optional) — the main price is the one WITHOUT discount',
     'dataentry.missing_cats_note': 'No route in this bracket for: {cats}.',
     'dataentry.autosaved_ago': 'Autosaved {s}s ago',
     'dataentry.other_draft_note': 'You have an unfinished draft in {city}, {date} ({n} cells).',
@@ -4512,6 +4518,8 @@ export const TRANSLATIONS = {
     'dataentry.eta_placeholder': 'ETA',
     'dataentry.eta_title': 'ETA в минутах (необязательно) — заполните до цены',
     'dataentry.price_placeholder': 'Цена',
+    'dataentry.disc_placeholder': 'Цена со ск.',
+    'dataentry.disc_title': 'Цена СО скидкой (необязательно) — основная цена — БЕЗ скидки',
     'dataentry.missing_cats_note': 'Нет маршрута в этом брекете для: {cats}.',
     'dataentry.autosaved_ago': 'Автосохранено {s} с назад',
     'dataentry.other_draft_note': 'У вас есть незавершённый черновик в {city}, {date} ({n} ячеек).',
