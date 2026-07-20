@@ -1,14 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../ui/shadcn/button'
 import { sanitizeDecimalInput } from '../../lib/format'
-
-// El promedio se calcula SOLO con los bids — el mínimo es un dato de
-// referencia aparte (se guarda en minimal_bid), nunca entra al promedio.
-function calcIndriveAvg(bids) {
-  const nums = bids.map((b) => parseFloat(b)).filter((n) => !isNaN(n) && n > 0)
-  if (!nums.length) return ''
-  return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2)
-}
+import { calcIndriveAvg } from '../../lib/indriveAvg'
 
 // Mig 98: bid_4/bid_5 dropeados de pricing_observations — cap en 3 bids
 // (ver Upload.jsx / algorithms/indrive.js, mismo criterio).

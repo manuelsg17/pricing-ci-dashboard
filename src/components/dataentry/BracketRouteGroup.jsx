@@ -50,7 +50,11 @@ export default function BracketRouteGroup({
   const presentCats = categories.filter((c) => byCategory[c])
   const missingCats = categories.filter((c) => !byCategory[c])
   const allComps = unionCompetitorOrder(presentCats, uiCity, country, dbConfigs)
-  const rowTemplate = `${CHIP_COL_WIDTH}px repeat(${allComps.length}, minmax(90px, 1fr))`
+  // Ancho fijo (no `1fr`) — con `1fr` las columnas se estiraban para llenar
+  // todo el ancho de pantallas anchas, dejando mucho espacio vacío entre
+  // competidores. Fijo mantiene las columnas juntas sin importar el ancho
+  // del contenedor.
+  const rowTemplate = `${CHIP_COL_WIDTH}px repeat(${allComps.length}, 92px)`
 
   return (
     <div className="de-bracket-group">

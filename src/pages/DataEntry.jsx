@@ -5,6 +5,7 @@ import { getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
+import { capIndriveExtraBids } from '../lib/indriveAvg'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
@@ -42,29 +43,6 @@ function fmtElapsed(ms) {
   if (h > 0)
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-// El promedio se calcula SOLO con los bids — el mínimo es un dato de
-// referencia aparte (se guarda en minimal_bid), nunca entra al promedio.
-function calcIndriveAvg(bids) {
-  const nums = bids.map((b) => parseFloat(b)).filter((n) => !isNaN(n) && n > 0)
-  if (!nums.length) return ''
-  return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2)
-}
-
-// Mig 98: bid_4/bid_5 dropeados de pricing_observations. Un borrador guardado
-// en localStorage antes de este fix puede traer hasta 5 bids — se truncan a
-// 3 al restaurar (y se recalcula el promedio) para que la UI no muestre algo
-// que el guardado va a cortar silenciosamente.
-function capIndriveExtraBids(indriveExtra) {
-  const capped = {}
-  const avgUpdates = {}
-  for (const [key, extra] of Object.entries(indriveExtra || {})) {
-    const bids = (extra?.bids || []).slice(0, 3)
-    capped[key] = { ...extra, bids }
-    avgUpdates[`${key}|InDrive`] = calcIndriveAvg(bids)
-  }
-  return { capped, avgUpdates }
 }
 
 // Cuenta solo celdas con un valor numérico real — una celda tipeada y
