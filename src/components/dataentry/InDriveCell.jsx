@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { Button } from '../ui/shadcn/button'
+import { sanitizeDecimalInput } from '../../lib/format'
 
-function calcIndriveAvg(bids, minBid) {
+// El promedio se calcula SOLO con los bids — el mínimo es un dato de
+// referencia aparte (se guarda en minimal_bid), nunca entra al promedio.
+function calcIndriveAvg(bids) {
   const nums = bids.map((b) => parseFloat(b)).filter((n) => !isNaN(n) && n > 0)
-  if (minBid) {
-    const mn = parseFloat(minBid)
-    if (!isNaN(mn) && mn > 0) nums.push(mn)
-  }
   if (!nums.length) return ''
   return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2)
 }
@@ -21,25 +20,24 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
   function updateBid(i, val) {
     const newBids = [...bids]
     newBids[i] = val
-    const newAvg = calcIndriveAvg(newBids, minBid)
-    onChange({ bids: newBids, minBid }, newAvg)
+    onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids))
   }
 
   function updateMin(val) {
-    const newAvg = calcIndriveAvg(bids, val)
-    onChange({ bids, minBid: val }, newAvg)
+    // El mínimo no afecta el promedio — solo se actualiza su propio valor.
+    onChange({ bids, minBid: val }, avg)
   }
 
   function addBid() {
     if (bids.length >= 3) return
     const newBids = [...bids, '']
-    onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids, minBid))
+    onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids))
   }
 
   function removeBid(i) {
     if (bids.length <= 1) return
     const newBids = bids.filter((_, j) => j !== i)
-    onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids, minBid))
+    onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids))
   }
 
   return (
@@ -47,7 +45,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
       <div className="indrive-cell__row">
         <input
           className="de-price-input indrive-avg"
-          type="number"
+          type="text"
           value={avg}
           readOnly
           placeholder="Promedio"
@@ -71,26 +69,24 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
           <div className="indrive-bid-row">
             <span className="indrive-bid-label">Mín</span>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               className="indrive-bid-input"
               placeholder="0.00"
               value={minBid}
-              min="0"
-              step="0.01"
-              onChange={(e) => updateMin(e.target.value)}
+              onChange={(e) => updateMin(sanitizeDecimalInput(e.target.value))}
             />
           </div>
           {bids.map((b, i) => (
             <div key={i} className="indrive-bid-row">
               <span className="indrive-bid-label">Bid {i + 1}</span>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 className="indrive-bid-input"
                 placeholder="0.00"
                 value={b}
-                min="0"
-                step="0.01"
-                onChange={(e) => updateBid(i, e.target.value)}
+                onChange={(e) => updateBid(i, sanitizeDecimalInput(e.target.value))}
               />
               {bids.length > 1 && (
                 <Button

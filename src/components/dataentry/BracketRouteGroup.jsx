@@ -1,4 +1,5 @@
 import { BRACKET_LABELS, getCompetitors } from '../../lib/constants'
+import { sanitizeDecimalInput } from '../../lib/format'
 import CompBadge from './CompBadge'
 import InDriveCell from './InDriveCell'
 
@@ -142,13 +143,20 @@ export default function BracketRouteGroup({
                           <CompBadge comp={comp} />
                         </span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
                           placeholder="—"
-                          min="0"
-                          step="0.01"
                           value={getEntry(uiCat, ref.id, ts.label, comp)}
-                          onChange={(e) => setEntry(uiCat, ref.id, ts.label, comp, e.target.value)}
+                          onChange={(e) =>
+                            setEntry(
+                              uiCat,
+                              ref.id,
+                              ts.label,
+                              comp,
+                              sanitizeDecimalInput(e.target.value)
+                            )
+                          }
                         />
                       </div>
                     )

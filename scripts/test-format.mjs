@@ -2,7 +2,7 @@
 // Tests para src/lib/format.js — separadores de miles y decimales.
 // Run: node scripts/test-format.mjs
 
-import { formatPrice, formatCurrency, formatCount } from '../src/lib/format.js'
+import { formatPrice, formatCurrency, formatCount, sanitizeDecimalInput } from '../src/lib/format.js'
 
 let pass = 0, fail = 0, failures = []
 function assert(cond, label) {
@@ -53,6 +53,20 @@ console.log('\n══ format.js tests ══')
   assert(formatCount(1000000) === '1,000,000','millón')
   assert(formatCount(0)       === '0',       '0 → 0')
   assert(formatCount(null)    === '—',       'null → —')
+}
+
+// — sanitizeDecimalInput: decimal siempre en punto (Ingresar CI)
+{
+  console.log('\n[5] sanitizeDecimalInput — solo puntos, como el Excel viejo')
+  assert(sanitizeDecimalInput('13,2') === '13.2', 'coma tipeada → punto: 13,2 → 13.2')
+  assert(sanitizeDecimalInput('13.2') === '13.2', 'punto ya correcto se mantiene')
+  assert(sanitizeDecimalInput('13')   === '13',   'entero se mantiene')
+  assert(sanitizeDecimalInput('')     === '',     'vacío se mantiene vacío')
+  assert(sanitizeDecimalInput('1.2.3') === '1.23', 'puntos de más se colapsan: 1.2.3 → 1.23')
+  assert(sanitizeDecimalInput('13,2abc') === '13.2', 'letras se descartan: 13,2abc → 13.2')
+  assert(sanitizeDecimalInput('  13,50  ') === '13.50', 'espacios se descartan (no son dígito ni punto)')
+  assert(sanitizeDecimalInput(null) === '', 'null → vacío, no crashea')
+  assert(sanitizeDecimalInput(undefined) === '', 'undefined → vacío, no crashea')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

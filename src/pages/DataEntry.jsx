@@ -42,12 +42,10 @@ function fmtElapsed(ms) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-function calcIndriveAvg(bids, minBid) {
+// El promedio se calcula SOLO con los bids — el mínimo es un dato de
+// referencia aparte (se guarda en minimal_bid), nunca entra al promedio.
+function calcIndriveAvg(bids) {
   const nums = bids.map((b) => parseFloat(b)).filter((n) => !isNaN(n) && n > 0)
-  if (minBid) {
-    const mn = parseFloat(minBid)
-    if (!isNaN(mn) && mn > 0) nums.push(mn)
-  }
   if (!nums.length) return ''
   return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2)
 }
@@ -62,7 +60,7 @@ function capIndriveExtraBids(indriveExtra) {
   for (const [key, extra] of Object.entries(indriveExtra || {})) {
     const bids = (extra?.bids || []).slice(0, 3)
     capped[key] = { ...extra, bids }
-    avgUpdates[`${key}|InDrive`] = calcIndriveAvg(bids, extra?.minBid || '')
+    avgUpdates[`${key}|InDrive`] = calcIndriveAvg(bids)
   }
   return { capped, avgUpdates }
 }

@@ -43,3 +43,26 @@ export function formatCount(value) {
   if (!isFinite(n)) return '—'
   return n.toLocaleString('en-US')
 }
+
+/**
+ * Sanitiza texto tipeado en un input de precio para que el decimal SIEMPRE
+ * sea un punto — el Excel que reemplaza "Ingresar CI" solo admitía puntos,
+ * y los inputs `type="number"` nativos muestran coma como decimal en
+ * navegadores con locale es-* (aunque el valor interno siga siendo con
+ * punto), lo que confunde a los hubs. Convierte cualquier coma tipeada a
+ * punto, descarta cualquier otro caracter no numérico, y colapsa puntos de
+ * más (deja solo el primero).
+ * Ej: "13,2" → "13.2"; "1.2.3" → "1.23"; "13,2abc" → "13.2"
+ * @param {string} raw
+ * @returns {string}
+ */
+export function sanitizeDecimalInput(raw) {
+  let v = String(raw ?? '')
+    .replace(',', '.')
+    .replace(/[^0-9.]/g, '')
+  const firstDot = v.indexOf('.')
+  if (firstDot !== -1) {
+    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replaceAll('.', '')
+  }
+  return v
+}
