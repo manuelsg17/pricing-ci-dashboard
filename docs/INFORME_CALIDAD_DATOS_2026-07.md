@@ -17,7 +17,7 @@ Los dos más graves explican por qué el tablero se veía "congelado":
 
 Ambos ya están resueltos y verificados en producción. También corregimos varias fórmulas de promedio —entre ellas, un promedio de InDrive que salía demasiado bajo y hacía ver a Yango **menos competitivo de lo que realmente es**— y tapamos fugas por las que cargas manuales enteras de Perú y Colombia se descartaban en silencio.
 
-Queda **un frente abierto** —el filtro de TukTuk, que hoy infla su precio promedio en ~55 %— y **un factor externo** que no controlamos —el bot de scraping, que a veces deja de producir datos—, que ahora sí es visible gracias a un nuevo panel de frescura.
+Durante esta misma revisión detectamos y **corregimos** un problema que estaba inflando el precio promedio de **TukTuk en ~55 %** (S/ 6,90 vs S/ 4,25 real): un filtro que su equipo había diseñado nunca había llegado a activarse en el proceso que realmente corre en producción. Queda **un solo factor externo** que no controlamos —el bot de scraping, que a veces deja de producir datos—, que ahora sí es visible gracias a un nuevo panel de frescura.
 
 ---
 
@@ -121,46 +121,49 @@ Al abrir el detalle detrás de un número, la ventana lista hasta 500 filas y mo
 
 ## 3. Tabla resumen
 
-| Problema                                                                        | Impacto en los números                                            | Estado           |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------- |
-| Lista de reglas vacía descartaba el 100 % de cargas manuales de Perú y Colombia | **Alto** — 0 muestras de esas subidas semanales                   | ✅ En producción |
-| Tope de 5.000 filas/hora → Perú 43 días atrasado ("dashboard congelado")        | **Alto** — precios y conteos de más de un mes atrás               | ✅ En producción |
-| Refresh de la "foto" se caía entero → dashboard congelado                       | **Alto** — mostraba 78 muestras vs 2.515 reales (~97 % menos)     | ✅ En producción |
-| Muestras de tramos largos/aeropuerto perdidas por la marca de agua              | **Alto** — sub-conteo y sesgo por tramo, recurrente               | ✅ En producción |
-| "Promedio Ponderado" → "Promedio Simple" + blindaje de pesos de Perú            | **Alto** — cambia el número titular Yango vs competencia          | ✅ En producción |
-| Promedio de InDrive incluía el "Mínimo"                                         | **Alto** — hasta ~25 % más bajo; Yango se veía menos competitivo  | ✅ En producción |
-| Carga manual usa reglas en vivo (no una foto vieja)                             | **Medio** — evita que reaparezca el descarte del 100 %            | ✅ En producción |
-| Regla multi-variante (nombres nuevos del mismo producto)                        | **Medio** — recupera ~529 observaciones sin capturar              | ✅ En producción |
-| Backfill por rango de fechas + dedup (recuperación de historia)                 | **Medio** — habilita recargar meses de historia                   | ✅ En producción |
-| Promedio "congelado" de InDrive deformado por cruce de tablas                   | **Medio** — foto acotada (casi nunca llegaba a escribirse)        | ✅ En producción |
-| "Ref. reciente" de InDrive (últimas semanas vs toda la historia)                | **Medio** — recalibra el ajuste (al aplicarlo el analista)        | ✅ En producción |
-| Detalle de observaciones decía "500" como total                                 | **Medio** — corrige el tamaño de muestra reportado                | ✅ En producción |
-| Precios con coma se malformaban (separador decimal)                             | **Medio** — evita precios en cero o muestras vacías               | ✅ En producción |
-| Emparejamiento de rutas por posición (caso TukTuk)                              | **Bajo** — riesgo de mala atribución, prevenido antes de liberar  | ✅ Corregido     |
-| Etiqueta de zona en 2.376 muestras de aeropuerto                                | **Bajo** — no cambia promedios por ciudad, solo el corte por zona | ✅ Aplicado      |
-| Renombres, banners y normalizaciones preventivas                                | Ninguno — presentación / anti-regresión                           | ✅ En producción |
-| **Filtro de TukTuk (viajes largos irreales)**                                   | **Abierto** — infla el promedio de TukTuk ~55 %                   | ⚠️ **Pendiente** |
+| Problema                                                                        | Impacto en los números                                                | Estado           |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ---------------- |
+| Lista de reglas vacía descartaba el 100 % de cargas manuales de Perú y Colombia | **Alto** — 0 muestras de esas subidas semanales                       | ✅ En producción |
+| Tope de 5.000 filas/hora → Perú 43 días atrasado ("dashboard congelado")        | **Alto** — precios y conteos de más de un mes atrás                   | ✅ En producción |
+| Refresh de la "foto" se caía entero → dashboard congelado                       | **Alto** — mostraba 78 muestras vs 2.515 reales (~97 % menos)         | ✅ En producción |
+| Muestras de tramos largos/aeropuerto perdidas por la marca de agua              | **Alto** — sub-conteo y sesgo por tramo, recurrente                   | ✅ En producción |
+| "Promedio Ponderado" → "Promedio Simple" + blindaje de pesos de Perú            | **Alto** — cambia el número titular Yango vs competencia              | ✅ En producción |
+| Promedio de InDrive incluía el "Mínimo"                                         | **Alto** — hasta ~25 % más bajo; Yango se veía menos competitivo      | ✅ En producción |
+| Carga manual usa reglas en vivo (no una foto vieja)                             | **Medio** — evita que reaparezca el descarte del 100 %                | ✅ En producción |
+| Regla multi-variante (nombres nuevos del mismo producto)                        | **Medio** — recupera ~529 observaciones sin capturar                  | ✅ En producción |
+| Backfill por rango de fechas + dedup (recuperación de historia)                 | **Medio** — habilita recargar meses de historia                       | ✅ En producción |
+| Promedio "congelado" de InDrive deformado por cruce de tablas                   | **Medio** — foto acotada (casi nunca llegaba a escribirse)            | ✅ En producción |
+| "Ref. reciente" de InDrive (últimas semanas vs toda la historia)                | **Medio** — recalibra el ajuste (al aplicarlo el analista)            | ✅ En producción |
+| Detalle de observaciones decía "500" como total                                 | **Medio** — corrige el tamaño de muestra reportado                    | ✅ En producción |
+| Precios con coma se malformaban (separador decimal)                             | **Medio** — evita precios en cero o muestras vacías                   | ✅ En producción |
+| Emparejamiento de rutas por posición (caso TukTuk)                              | **Bajo** — riesgo de mala atribución, prevenido antes de liberar      | ✅ Corregido     |
+| Etiqueta de zona en 2.376 muestras de aeropuerto                                | **Bajo** — no cambia promedios por ciudad, solo el corte por zona     | ✅ Aplicado      |
+| Renombres, banners y normalizaciones preventivas                                | Ninguno — presentación / anti-regresión                               | ✅ En producción |
+| **Filtro de TukTuk (viajes largos irreales)**                                   | **Alto** — corrige el promedio de TukTuk de S/ 6,90 a S/ 4,25 (−38 %) | ✅ Corregido     |
 
 ---
 
-## 4. Lo que sigue / lo que no depende de nosotros
+## 4. Corregido en esta revisión, y lo que no depende de nosotros
 
-### Filtro de TukTuk — abierto (depende de nosotros)
+### Filtro de TukTuk — detectado y corregido en esta revisión
 
-El TukTuk son viajes cortos dentro de un mismo distrito, pero el bot viene muestreando viajes de TukTuk en tramos "largo/muy largo" que en la vida real no existen. Se diseñó un filtro para descartar esas muestras, pero **quedó colocado en un componente que en la práctica no es el que corre en producción**. Verificado hoy contra la base de producción (muestras de TukTuk desde el 14-jul):
+El TukTuk son viajes cortos dentro de un mismo distrito, pero el bot venía muestreando viajes de TukTuk en tramos "largo/muy largo" que en la vida real no existen. Su equipo ya había diseñado un filtro para descartar esas muestras, pero **quedó colocado en un componente que no era el que realmente corre en producción**, así que nunca llegó a activarse. Verificado contra la base de producción, el efecto era claro:
 
-| Tramo         | Muestras | Precio promedio | ¿Con distrito? |
-| ------------- | -------- | --------------- | -------------- |
-| very_short    | 280      | S/ 2,66         | 0 %            |
-| short         | 393      | S/ 3,77         | 0 %            |
-| median        | 392      | S/ 5,66         | 0 %            |
-| average       | 136      | S/ 6,43         | 0 %            |
-| **long**      | **282**  | **S/ 8,07**     | 0 %            |
-| **very_long** | **370**  | **S/ 13,90**    | 0 %            |
+| Tramo         | Muestras (histórico) | Precio promedio |
+| ------------- | -------------------- | --------------- |
+| very_short    | 1.910                | S/ 2,57         |
+| short         | 2.872                | S/ 3,54         |
+| median        | 2.186                | S/ 5,24         |
+| average       | 1.640                | S/ 6,13         |
+| **long**      | **1.928**            | **S/ 7,50**     |
+| **very_long** | **3.168**            | **S/ 13,72**    |
 
-- Los tramos **long** y **very_long** (irreales para un TukTuk) inflan el promedio de **~S/ 4,4 a ~S/ 6,9 (+55 %)**.
-- El **100 % de las muestras de TukTuk quedan sin distrito**, así que no se pueden filtrar por zona.
-- **Este problema NO está cerrado.** El próximo paso es portar el filtro (y el guardado del distrito) a la pieza que realmente ingesta la data cada hora. Lo señalamos explícitamente para no presentarlo como resuelto.
+**Qué se hizo (todo aplicado y verificado):**
+
+- Se **activó el filtro en el proceso real** (el que ingesta la data cada hora): a partir de ahora no entran viajes de TukTuk sin distrito.
+- Se **limpiaron 5.096 muestras irreales** (tramos largo/muy largo) ya cargadas, con respaldo previo. El promedio de TukTuk se corrigió de **S/ 6,90 a S/ 4,25** (el valor real).
+- Se habilitó el **guardado del distrito** de cada TukTuk, para poder filtrar por zona cuando la fuente traiga el distrito de cada ruta.
+- El dashboard ya refleja el promedio corregido.
 
 ### El scraper externo a veces no produce data (no lo controlamos)
 
@@ -172,6 +175,6 @@ El bot que scrapea los precios de la competencia es 100 % externo a este sistema
 
 ## 5. Cierre
 
-La gran mayoría de lo que estaba distorsionando los números y el volumen de muestras **ya está corregido y verificado en producción**: el dashboard volvió a estar al día, los conteos reflejan la evidencia real y el número de comparación Yango vs competencia se calcula con la metodología acordada.
+Todo lo que estaba distorsionando los números y el volumen de muestras **ya está corregido y verificado en producción**: el dashboard volvió a estar al día, los conteos reflejan la evidencia real, el número de comparación Yango vs competencia se calcula con la metodología acordada y el promedio de TukTuk quedó en su valor real.
 
-Quedan **dos frentes claros y accionables**: cerrar el filtro de TukTuk en el pipeline real (bajo nuestro control, con camino ya definido) y seguir vigilando los cortes del scraper externo con el nuevo panel de frescura. Ambos ya están identificados.
+Queda **un solo frente**, que no depende de nosotros: los cortes ocasionales del scraper externo, que ahora vigilamos con el nuevo panel de frescura para detectarlos apenas ocurren. En resumen: la base de datos que alimenta las decisiones de pricing es hoy considerablemente más completa, más fresca y más fiel a la realidad del mercado que hace unas semanas.
