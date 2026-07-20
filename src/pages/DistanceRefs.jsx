@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
+import { sb } from '../lib/supabase'
 import { useDistanceRefs } from '../hooks/useDistanceRefs'
 import { BRACKETS, BRACKET_LABELS, getCityLabel } from '../lib/constants'
+import { applyFillIfMissingCascade } from '../lib/distanceRefsReplication'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
@@ -43,7 +45,7 @@ export default function DistanceRefs() {
 
   // dbCat usa lookup o el mismo si no está mapeado
   const dbCat = config.uiToDbCategory?.[uiCat] || uiCat
-  const { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows } =
+  const { refs, loading, saving, error, saveRef, deleteRef, addRow, addCategoryRows, reload } =
     useDistanceRefs(dbCity, country)
 
   // Local edits
@@ -74,6 +76,25 @@ export default function DistanceRefs() {
     setUiCat(cat)
   }
 
+  // Copia la ruta recién guardada a las categorías hermanas (misma ciudad) y,
+  // si corresponde, a la ciudad "_Airport_B" pareja — solo donde falte data,
+  // nunca pisa algo que ya tenga su propia ruta. Best-effort: un fallo acá
+  // no debe opacar el guardado principal, que ya se confirmó con su propio
+  // toast.
+  async function runReplicationCascade(payload) {
+    try {
+      const { filled } = await applyFillIfMissingCascade(sb, {
+        country,
+        dbCity,
+        savedRow: payload,
+        categoriesForCity: categories,
+      })
+      if (filled.length > 0) await reload()
+    } catch {
+      toast.warn(t('distancerefs.replication_error_toast'))
+    }
+  }
+
   const handleSave = async (row) => {
     const merged = { ...row, ...edits[row.id] }
     const payload = {
@@ -98,6 +119,7 @@ export default function DistanceRefs() {
         return n
       })
       toast.ok(t('distancerefs.saved_toast'))
+      await runReplicationCascade(payload)
     } else {
       toast.err(t('distancerefs.save_error_toast'))
     }
@@ -162,6 +184,7 @@ export default function DistanceRefs() {
           delete n[row.id]
           return n
         })
+        await runReplicationCascade(payload)
       } else failed++
     }
     setBulkSaving(false)

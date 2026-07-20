@@ -990,6 +990,8 @@ export const TRANSLATIONS = {
       '¿Eliminar esta ruta? Si está usada en sesiones de CI activas, la sesión perderá esa referencia.',
     'distancerefs.saved_toast': 'Ruta guardada.',
     'distancerefs.save_error_toast': 'Error al guardar la ruta.',
+    'distancerefs.replication_error_toast':
+      'La ruta se guardó, pero no se pudo replicar a las categorías/ciudad hermanas.',
     'distancerefs.deleted_toast': 'Ruta eliminada.',
     'distancerefs.no_pending_changes': 'No hay cambios pendientes.',
     'distancerefs.save_all_success': {
@@ -2957,6 +2959,8 @@ export const TRANSLATIONS = {
       'Delete this route? If it is used in active CI sessions, the session will lose that reference.',
     'distancerefs.saved_toast': 'Route saved.',
     'distancerefs.save_error_toast': 'Error saving the route.',
+    'distancerefs.replication_error_toast':
+      'The route was saved, but could not be copied to sibling categories/city.',
     'distancerefs.deleted_toast': 'Route deleted.',
     'distancerefs.no_pending_changes': 'No pending changes.',
     'distancerefs.save_all_success': {
@@ -4934,6 +4938,8 @@ export const TRANSLATIONS = {
       'Удалить этот маршрут? Если он используется в активных сессиях CI, сессия потеряет эту ссылку.',
     'distancerefs.saved_toast': 'Маршрут сохранён.',
     'distancerefs.save_error_toast': 'Ошибка при сохранении маршрута.',
+    'distancerefs.replication_error_toast':
+      'Маршрут сохранён, но не удалось скопировать его в смежные категории/город.',
     'distancerefs.deleted_toast': 'Маршрут удалён.',
     'distancerefs.no_pending_changes': 'Нет ожидающих изменений.',
     'distancerefs.save_all_success': {

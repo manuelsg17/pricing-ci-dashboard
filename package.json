@@ -23,7 +23,9 @@
     "test:format": "node scripts/test-format.mjs",
     "test:normalize-competitor": "node scripts/test-normalize-competitor.mjs",
     "test:ingestion-corp": "node scripts/test-ingestion-corp.mjs",
-    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config && npm run test:catalogs && npm run test:weights-cascade && npm run test:simple-avg-cutoff && npm run test:indrive-recent-ref && npm run test:format && npm run test:normalize-competitor && npm run test:ingestion-corp",
+    "test:distance-refs-replication": "node scripts/test-distance-refs-replication.mjs",
+    "test:bracket-order": "node scripts/test-bracket-order.mjs",
+    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config && npm run test:catalogs && npm run test:weights-cascade && npm run test:simple-avg-cutoff && npm run test:indrive-recent-ref && npm run test:format && npm run test:normalize-competitor && npm run test:ingestion-corp && npm run test:distance-refs-replication && npm run test:bracket-order",
     "check:rls-drift": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -f scripts/check-rls-policy-drift.sql",
     "check:normalization-drift": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -f scripts/check-normalization-drift.sql"
   },
