@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { BRACKETS, getCompetitors, resolveDbParams } from '../lib/constants'
+import { getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
+import { getSourceCategory } from '../lib/distanceRefsReplication'
+import { buildRefsByBracket } from '../lib/bracketGrouping'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
@@ -63,6 +65,21 @@ function capIndriveExtraBids(indriveExtra) {
     avgUpdates[`${key}|InDrive`] = calcIndriveAvg(bids)
   }
   return { capped, avgUpdates }
+}
+
+// Cuenta solo celdas con un valor numérico real — una celda tipeada y
+// después borrada de nuevo (queda como '' en `entries`) NO cuenta como
+// "dato sin guardar". Usado tanto para el borrador local propio como para
+// leer borradores de OTRAS ciudades/fechas en localStorage, así una fila
+// "fantasma" (vacía pero con claves) nunca gana contra un borrador real.
+function countFilledEntries(entries) {
+  return Object.values(entries || {}).filter((v) => v !== '' && !isNaN(parseFloat(v))).length
+}
+
+function hasMeaningfulIndriveExtra(indriveExtra) {
+  return Object.values(indriveExtra || {}).some(
+    (extra) => (extra?.bids || []).some((b) => b !== '') || (extra?.minBid || '') !== ''
+  )
 }
 
 import { useCountry } from '../context/CountryContext'
@@ -242,14 +259,16 @@ export default function DataEntry() {
       const raw = localStorage.getItem(draftKey)
       if (raw) {
         const parsed = JSON.parse(raw)
-        if (parsed.entries && Object.keys(parsed.entries).length > 0) {
+        const filled = countFilledEntries(parsed.entries)
+        if (filled > 0) {
           const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
           setEntries({ ...parsed.entries, ...avgUpdates })
           setIndriveExtra(capped)
+          if (typeof parsed.surge === 'boolean') setSurge(parsed.surge)
           setLastDraftSavedAt(parsed.savedAt || null)
           setMsg({
             type: 'ok',
-            text: `📝 Borrador restaurado (${Object.keys(parsed.entries).length} celdas).`,
+            text: `📝 Borrador restaurado (${filled} celdas).`,
           })
         }
       }
@@ -268,10 +287,10 @@ export default function DataEntry() {
     if (!draftHydratedRef.current) return
     const id = setTimeout(() => {
       try {
-        const hasData = Object.keys(entries).length > 0 || Object.keys(indriveExtra).length > 0
+        const hasData = countFilledEntries(entries) > 0 || hasMeaningfulIndriveExtra(indriveExtra)
         if (hasData) {
           const savedAt = Date.now()
-          localStorage.setItem(draftKey, JSON.stringify({ entries, indriveExtra, savedAt }))
+          localStorage.setItem(draftKey, JSON.stringify({ entries, indriveExtra, surge, savedAt }))
           setLastDraftSavedAt(savedAt)
         } else {
           localStorage.removeItem(draftKey)
@@ -282,7 +301,7 @@ export default function DataEntry() {
       }
     }, 2000)
     return () => clearTimeout(id)
-  }, [entries, indriveExtra, draftKey])
+  }, [entries, indriveExtra, surge, draftKey])
 
   const clearDraft = useCallback(() => {
     try {
@@ -292,7 +311,7 @@ export default function DataEntry() {
 
   // ── Aviso del navegador si hay cambios sin guardar ─────
   useEffect(() => {
-    const hasUnsaved = Object.keys(entries).length > 0
+    const hasUnsaved = countFilledEntries(entries) > 0 || hasMeaningfulIndriveExtra(indriveExtra)
     if (!hasUnsaved) return
     const handler = (e) => {
       e.preventDefault()
@@ -300,7 +319,7 @@ export default function DataEntry() {
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [entries])
+  }, [entries, indriveExtra])
 
   // ── Indicador "guardado hace Xs" — ticker ──────────────
   useEffect(() => {
@@ -313,20 +332,23 @@ export default function DataEntry() {
   const [otherDraft, setOtherDraft] = useState(null)
 
   useEffect(() => {
-    if (Object.keys(entries).length > 0) {
+    if (countFilledEntries(entries) > 0) {
       setOtherDraft(null)
       return
     }
-    try {
-      const prefix = `de:draft:${country}:`
-      let best = null
-      for (let i = 0; i < localStorage.length; i++) {
+    const prefix = `de:draft:${country}:`
+    let best = null
+    for (let i = 0; i < localStorage.length; i++) {
+      // Try/catch POR CLAVE — un borrador corrupto (ej. localStorage
+      // manipulado a mano, o un JSON parcial de un crash) no debe abortar
+      // el escaneo entero y esconder los demás borradores válidos.
+      try {
         const k = localStorage.key(i)
         if (!k || !k.startsWith(prefix) || k === draftKey) continue
         const raw = localStorage.getItem(k)
         if (!raw) continue
         const parsed = JSON.parse(raw)
-        const count = Object.keys(parsed.entries || {}).length
+        const count = countFilledEntries(parsed?.entries)
         if (count === 0) continue
         const rest = k.slice(prefix.length) // "{city}:{date}"
         const sep = rest.lastIndexOf(':')
@@ -335,11 +357,11 @@ export default function DataEntry() {
         if (!best || savedAt > best.savedAt) {
           best = { key: k, city: rest.slice(0, sep), date: rest.slice(sep + 1), count, savedAt }
         }
+      } catch {
+        /* borrador corrupto en esta clave puntual — seguir con las demás */
       }
-      setOtherDraft(best)
-    } catch {
-      setOtherDraft(null)
     }
+    setOtherDraft(best)
     // Re-escanea solo al cambiar de vista (o cuando la vista actual queda
     // vacía), no en cada tecla — `entries` se lee en el cuerpo del efecto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -373,43 +395,28 @@ export default function DataEntry() {
     return result
   }, [refs, dbCatToUICat, categories])
 
-  // ── Categoría "ancla" — Economy/Comfort es siempre la primera categoría
-  // configurada por ciudad (countryConfig.categoriesByCity); es la fuente
-  // de verdad para "qué ruta se muestra" en el flujo por bracket.
-  const sourceCategory = categories[0]
+  // ── Categoría "ancla" — la primera categoría configurada por ciudad que
+  // no esté excluida de la replicación (countryConfig.categoriesByCity);
+  // es la fuente de verdad para "qué ruta se muestra" en el flujo por
+  // bracket. Reutiliza el mismo criterio que la cascada de Distancias de
+  // Referencia para que "categoría fuente" signifique lo mismo en toda la
+  // app.
+  const sourceCategory = getSourceCategory(categories)
 
   // ── Agrupar rutas por bracket (flujo "Ingresar CI" por bracket) ───────
-  // Cada grupo ancla en la ruta de sourceCategory para ese bracket; las
-  // demás categorías se alinean por posición. Si una categoría tiene más
-  // rutas que la ancla para el mismo bracket (raro — distance_references no
-  // tiene constraint único), esas quedan en `extras` para no perderlas.
-  const refsByBracket = useMemo(() => {
-    if (!sourceCategory) return []
-    const anchorRefs = refsByUICat[sourceCategory] || []
-    return BRACKETS.map((bracket) => {
-      const bracketAnchors = anchorRefs.filter((r) => r.bracket === bracket)
-      const byCatBracket = {}
-      for (const uiCat of categories) {
-        byCatBracket[uiCat] = (refsByUICat[uiCat] || []).filter((r) => r.bracket === bracket)
-      }
-      const groups = bracketAnchors.map((anchorRef, idx) => {
-        const byCategory = {}
-        for (const uiCat of categories) {
-          byCategory[uiCat] = uiCat === sourceCategory ? anchorRef : byCatBracket[uiCat][idx]
-        }
-        return { anchorRef, byCategory }
-      })
-      const extras = []
-      for (const uiCat of categories) {
-        if (uiCat === sourceCategory) continue
-        const arr = byCatBracket[uiCat]
-        for (let i = bracketAnchors.length; i < arr.length; i++) {
-          extras.push({ uiCat, ref: arr[i] })
-        }
-      }
-      return { bracket, groups, extras }
-    }).filter((b) => b.groups.length > 0 || b.extras.length > 0)
-  }, [refsByUICat, categories, sourceCategory])
+  // Cada grupo ancla en UNA ruta de sourceCategory para ese bracket. Una
+  // categoría hermana solo se empareja con esa ancla si tiene EXACTAMENTE
+  // una ruta en ese bracket (y la ancla también) — si tiene 0, no hay ruta
+  // (ver missingCats); si tiene 2+, no hay forma confiable de saber cuál
+  // corresponde a cuál posición del ancla (emparejar por índice de array
+  // podría mezclar rutas sin ninguna relación real, ej. TukTuk con varias
+  // rutas por distrito en el mismo bracket) — esas quedan en `extras`,
+  // mostradas cada una con su propia cabecera de ruta en vez de arriesgar
+  // un emparejamiento incorrecto y silencioso.
+  const refsByBracket = useMemo(
+    () => buildRefsByBracket(refsByUICat, categories, sourceCategory),
+    [refsByUICat, categories, sourceCategory]
+  )
 
   // Categorías sin ninguna ruta en toda la ciudad (no solo en un bracket
   // puntual) — se avisa una sola vez arriba de la grilla.
@@ -457,9 +464,7 @@ export default function DataEntry() {
   }
 
   // ── Count filled ───────────────────────────────────────
-  const filledCount = useMemo(() => {
-    return Object.values(entries).filter((v) => v !== '' && !isNaN(parseFloat(v))).length
-  }, [entries])
+  const filledCount = useMemo(() => countFilledEntries(entries), [entries])
 
   // ── Build rows to insert ───────────────────────────────
   function buildRows(uiCat, ref, ts) {

@@ -15,6 +15,8 @@ import {
   applyFillIfMissingCascade,
 } from '../src/lib/distanceRefsReplication.js'
 
+const COLOMBIA_CATS = ['Economy', 'Bike', 'Comfort']
+
 let pass = 0,
   fail = 0,
   failures = []
@@ -44,6 +46,13 @@ const LIMA_CATS = ['Economy/Comfort', 'Comfort+', 'Premier', 'XL', 'TukTuk', 'Co
   )
   assert(REPLICATION_EXCLUDED_CATEGORIES.includes('TukTuk'), 'TukTuk está excluido')
   assert(REPLICATION_EXCLUDED_CATEGORIES.includes('Corp'), 'Corp está excluido')
+  assert(REPLICATION_EXCLUDED_CATEGORIES.includes('Bike'), 'Bike (Colombia) está excluido')
+  assert(getSourceCategory(COLOMBIA_CATS) === 'Economy', 'Colombia: fuente = Economy (Bike no puede ser fuente)')
+  assert(
+    getSourceCategory(['TukTuk', 'Economy/Comfort']) === 'Economy/Comfort',
+    'si la excluida quedó primera en la lista, se salta y toma la siguiente'
+  )
+  assert(getSourceCategory(['TukTuk', 'Corp']) === null, 'ciudad con solo categorías excluidas → null')
 }
 
 {
@@ -195,7 +204,7 @@ function makeFakeSb(initialRows, markerRows) {
   console.log('\n[7] Cascada: llena hermanas vacías, respeta las que ya tienen datos, sin ciudad pareja')
   const sb = makeFakeSb(
     [
-      // Premier ya tiene su propia ruta — no debe tocarse
+      // Premier ya tiene su propia ruta completa — no debe tocarse ni un campo
       {
         id: 1,
         country: 'Peru',
@@ -203,7 +212,10 @@ function makeFakeSb(initialRows, markerRows) {
         category: 'Premier',
         bracket: 'short',
         point_a: 'Ruta propia A',
+        coordinate_a: '-12.00,-77.00',
         point_b: 'Ruta propia B',
+        coordinate_b: '-12.01,-77.01',
+        waze_distance: 3.3,
       },
     ],
     [] // Lima no tiene par de aeropuerto
@@ -229,6 +241,73 @@ function makeFakeSb(initialRows, markerRows) {
   assert(premier.point_a === 'Ruta propia A', 'Premier con datos propios queda intacto')
   const comfortPlus = sb._rows().find((r) => r.category === 'Comfort+')
   assert(comfortPlus.point_a === 'Plaza Mayor' && comfortPlus.point_b === 'Miraflores', 'Comfort+ se llenó con la ruta de Economy/Comfort')
+}
+
+{
+  console.log('\n[9] Cascada: completa SOLO los campos vacíos, nunca pisa un campo con dato propio')
+  const sb = makeFakeSb(
+    [
+      // Comfort+ ya tiene su propia distancia medida, pero todavía no le
+      // cargaron los puntos A/B — no debe perder waze_distance.
+      {
+        id: 1,
+        country: 'Peru',
+        city: 'Lima',
+        category: 'Comfort+',
+        bracket: 'short',
+        point_a: '',
+        point_b: '',
+        waze_distance: 12.4,
+      },
+    ],
+    []
+  )
+  const savedRow = {
+    category: 'Economy/Comfort',
+    bracket: 'short',
+    point_a: 'Plaza Mayor',
+    point_b: 'Miraflores',
+    waze_distance: 15.0,
+  }
+  await applyFillIfMissingCascade(sb, {
+    country: 'Peru',
+    dbCity: 'Lima',
+    savedRow,
+    categoriesForCity: LIMA_CATS,
+  })
+  const comfortPlus = sb._rows().find((r) => r.category === 'Comfort+')
+  assert(comfortPlus.point_a === 'Plaza Mayor', 'point_a (vacío) se completó')
+  assert(comfortPlus.point_b === 'Miraflores', 'point_b (vacío) se completó')
+  assert(comfortPlus.waze_distance === 12.4, 'waze_distance (con dato propio) NO se pisó con el 15.0 de Economy/Comfort')
+}
+
+{
+  console.log('\n[10] Cascada: un par de airport_markers mal configurado en ciclo no cuelga')
+  const sb = makeFakeSb(
+    [],
+    [
+      { country: 'Peru', city_from: 'Lima_Airport_A', city_to: 'Lima_Airport_B' },
+      // Fila mal configurada: apunta de vuelta a A, formando un ciclo.
+      { country: 'Peru', city_from: 'Lima_Airport_B', city_to: 'Lima_Airport_A' },
+    ]
+  )
+  const savedRow = {
+    category: 'Economy/Comfort',
+    bracket: 'short',
+    point_a: 'Aeropuerto',
+    point_b: 'Centro',
+    waze_distance: 10,
+  }
+  const start = Date.now()
+  const result = await applyFillIfMissingCascade(sb, {
+    country: 'Peru',
+    dbCity: 'Lima_Airport_A',
+    savedRow,
+    categoriesForCity: LIMA_CATS,
+  })
+  assert(Date.now() - start < 5000, 'termina rápido en vez de recursar infinitamente A↔B')
+  const filledCities = new Set(result.filled.map((f) => f.city))
+  assert(filledCities.has('Lima_Airport_A') && filledCities.has('Lima_Airport_B'), 'igual llena ambos lados una vez')
 }
 
 {

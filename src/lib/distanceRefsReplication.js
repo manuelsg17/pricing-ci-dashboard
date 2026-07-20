@@ -5,16 +5,19 @@
 // airport_markers, también a la ciudad "_Airport_B" pareja (con Punto A/B
 // invertidos).
 //
-// Es solo una ayuda para no tipear lo mismo varias veces — NUNCA pisa una
-// fila que ya tenga datos propios, porque las categorías/ciudades hermanas
+// Es solo una ayuda para no tipear lo mismo varias veces — NUNCA pisa un
+// CAMPO que ya tenga dato propio, porque las categorías/ciudades hermanas
 // pueden tener rutas genuinamente distintas a propósito.
 
-// TukTuk y Corp son verticales distintas (otro tipo de vehículo / otra
+// TukTuk, Corp y Bike son verticales distintas (otro tipo de vehículo / otra
 // ciudad-tab entera) — no tiene sentido copiarles rutas de auto.
-export const REPLICATION_EXCLUDED_CATEGORIES = ['TukTuk', 'Corp']
+export const REPLICATION_EXCLUDED_CATEGORIES = ['TukTuk', 'Corp', 'Bike']
 
+// Primera categoría de la ciudad que no esté excluida — nunca asume que
+// categoriesByCity[0] es automáticamente válida (un país onboardeado a
+// futuro podría cargar TukTuk/Bike primero).
 export function getSourceCategory(categoriesForCity) {
-  return categoriesForCity?.[0] || null
+  return (categoriesForCity || []).find((c) => !REPLICATION_EXCLUDED_CATEGORIES.includes(c)) || null
 }
 
 export function getSiblingCategories(categoriesForCity, sourceCategory) {
@@ -54,14 +57,22 @@ export function buildMirroredBPayload(sourceRow, targetCategory) {
   }
 }
 
+const FILLABLE_FIELDS = ['point_a', 'coordinate_a', 'point_b', 'coordinate_b', 'waze_distance']
+
+function isBlankField(v) {
+  return v === null || v === undefined || String(v).trim() === ''
+}
+
 // Busca la fila (country, city, category, bracket). Si no existe, la
-// inserta con `payload`. Si existe pero está vacía, la completa. Si ya
-// tiene datos propios, la deja intacta y solo la devuelve (para que el
-// llamador pueda seguir la cascada de siblings con SUS datos actuales).
+// inserta con `payload`. Si existe, completa SOLO los campos que esa fila
+// tiene realmente vacíos — nunca pisa un campo que ya tenga su propio dato,
+// aunque otro campo de esa misma fila esté vacío (ej. una fila con
+// waze_distance cargado pero point_a/point_b aún sin llenar no debe perder
+// su distancia solo porque "parece" una fila vacía).
 async function fillIfMissing(sb, { country, city, category, bracket, payload }) {
   const { data: existingRows } = await sb
     .from('distance_references')
-    .select('id, point_a, point_b')
+    .select('*')
     .eq('country', country)
     .eq('city', city)
     .eq('category', category)
@@ -78,36 +89,46 @@ async function fillIfMissing(sb, { country, city, category, bracket, payload }) 
     return { row: inserted, filled: !!inserted }
   }
 
-  if (!hasRouteData(existing)) {
-    const { data: updated } = await sb
-      .from('distance_references')
-      .update(payload)
-      .eq('id', existing.id)
-      .select()
-      .single()
-    return { row: updated, filled: !!updated }
+  const patch = {}
+  for (const field of FILLABLE_FIELDS) {
+    if (isBlankField(existing[field]) && !isBlankField(payload[field])) {
+      patch[field] = payload[field]
+    }
   }
 
-  const { data: full } = await sb
+  if (Object.keys(patch).length === 0) {
+    return { row: existing, filled: false }
+  }
+
+  const { data: updated } = await sb
     .from('distance_references')
-    .select('*')
+    .update(patch)
     .eq('id', existing.id)
+    .select()
     .single()
-  return { row: full, filled: false }
+  return { row: updated, filled: !!updated }
 }
 
 // Orquestador. `savedRow` es la fila recién guardada (payload plano, no hace
 // falta esperar el round-trip de saveRef). Best-effort: nunca lanza — un
 // fallo acá no debe bloquear ni revertir el guardado principal que le
 // importa al usuario.
+//
+// `visitedCities` evita un ciclo infinito si algún día airport_markers
+// llegara a tener un par mal configurado (ej. dos filas que se apunten
+// mutuamente A→B y B→A) — hoy no pasa con los pares reales, pero
+// AirportMarkersTable.jsx no valida eso al guardar, así que el guard vive
+// acá como red de seguridad.
 export async function applyFillIfMissingCascade(
   sb,
-  { country, dbCity, savedRow, categoriesForCity }
+  { country, dbCity, savedRow, categoriesForCity, visitedCities = new Set() }
 ) {
   const filled = []
   const sourceCategory = getSourceCategory(categoriesForCity)
   if (!sourceCategory || savedRow.category !== sourceCategory) return { filled }
   if (!savedRow.bracket || !hasRouteData(savedRow)) return { filled }
+  if (visitedCities.has(dbCity)) return { filled }
+  visitedCities.add(dbCity)
 
   for (const cat of getSiblingCategories(categoriesForCity, sourceCategory)) {
     const { filled: did } = await fillIfMissing(sb, {
@@ -127,7 +148,7 @@ export async function applyFillIfMissingCascade(
     .eq('city_from', dbCity)
     .limit(1)
   const cityTo = markers?.[0]?.city_to
-  if (cityTo) {
+  if (cityTo && !visitedCities.has(cityTo)) {
     const { row: bRow, filled: didFillB } = await fillIfMissing(sb, {
       country,
       city: cityTo,
@@ -137,13 +158,12 @@ export async function applyFillIfMissingCascade(
     })
     if (didFillB) filled.push({ city: cityTo, category: sourceCategory, bracket: savedRow.bracket })
     if (bRow) {
-      // Un solo salto — airport_markers.city_from nunca es un "_Airport_B",
-      // así que esta llamada recursiva no vuelve a encontrar pareja.
       const nested = await applyFillIfMissingCascade(sb, {
         country,
         dbCity: cityTo,
         savedRow: bRow,
         categoriesForCity,
+        visitedCities,
       })
       filled.push(...nested.filled)
     }

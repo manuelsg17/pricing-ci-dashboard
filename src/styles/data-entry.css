@@ -557,11 +557,18 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* En pantallas angostas (bracket con muchos competidores, ej.
+     Economy/Comfort con 6) las filas escrollean horizontalmente en vez de
+     quedar recortadas por el `overflow: hidden` de .de-bracket-group. */
+  overflow-x: auto;
 }
 
 /* grid-template-columns se fija inline por grupo (mismo template para
    todas las filas del grupo) — así la columna de cada competidor queda
-   alineada verticalmente aunque una categoría tenga menos competidores. */
+   alineada verticalmente aunque una categoría tenga menos competidores.
+   min-width: max-content evita que el grid se comprima por debajo de lo
+   que sus columnas necesitan — así .de-cat-rows tiene algo real para
+   escrollear en vez de que el grid se aplaste y clippee igual. */
 .de-cat-row {
   display: grid;
   align-items: center;
@@ -569,6 +576,7 @@
   padding: 6px 8px;
   border-radius: var(--radius-sm);
   background: var(--color-bg-subtle);
+  min-width: max-content;
 }
 
 .de-cat-row--partial {
