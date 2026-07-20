@@ -105,7 +105,7 @@ export default function BotDbSync() {
   const [watermark, setWatermark] = useState(null)
   const [logRows, setLogRows] = useState([])
   const [loadingLog, setLoadingLog] = useState(true)
-  const [limit, setLimit] = useState(5000)
+  const [limit, setLimit] = useState(20000)
   // Combos (app, vc, ovc, city) que NO matchearon ninguna regla en la
   // última corrida ok. Permiten click-to-add a bot_rules.
   const [droppedCombos, setDroppedCombos] = useState([])
@@ -200,7 +200,7 @@ export default function BotDbSync() {
             : `Bearer ${anonKey}`,
         },
         body: JSON.stringify({
-          limit: Number(limit) || 5000,
+          limit: Number(limit) || 20000,
           probe_only: false,
         }),
       })
