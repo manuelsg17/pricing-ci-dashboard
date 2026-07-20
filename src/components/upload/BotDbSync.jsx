@@ -49,6 +49,13 @@ const REASON_PILLS = {
     hintKey: 'botdbsync.reason.outlier.hint',
     actionKey: 'botdbsync.reason.outlier.action',
   },
+  tuktuk_no_zone: {
+    labelKey: 'botdbsync.reason.tuktuk_no_zone.label',
+    bg: '#fce7f3',
+    fg: '#9d174d',
+    hintKey: 'botdbsync.reason.tuktuk_no_zone.hint',
+    actionKey: 'botdbsync.reason.tuktuk_no_zone.action',
+  },
 }
 
 function renderReason(reason, t) {

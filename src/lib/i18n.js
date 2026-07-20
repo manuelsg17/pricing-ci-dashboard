@@ -1156,6 +1156,11 @@ export const TRANSLATIONS = {
       'El precio supera el máximo definido en Price Rules para esa ciudad/categoría/competidor. Se asume error del bot.',
     'botdbsync.reason.outlier.action':
       'Si el precio es real (subió la oferta del mercado), subí el max_price en Config → Price Rules.',
+    'botdbsync.reason.tuktuk_no_zone.label': 'TukTuk sin distrito',
+    'botdbsync.reason.tuktuk_no_zone.hint':
+      'TukTuk opera intra-distrito (viajes cortos). Se descartan las filas de TukTuk que no traen main_category=tuktuk + zona (distrito), porque suelen ser rutas long/very_long irreales que inflan el promedio.',
+    'botdbsync.reason.tuktuk_no_zone.action':
+      'Curá el Excel-fuente de rutas del bot para que TukTuk traiga main_category=tuktuk y la zona (distrito). Hasta entonces no entra data nueva de TukTuk del bot.',
     'botdbsync.title': 'Sincronización directa con la BD del bot',
     'botdbsync.desc':
       'Lee filas nuevas desde quotes_output en la BD del bot y las inserta en pricing_observations aplicando los mismos filtros (filas vacías, montos fuera de rango) que el upload manual.',
@@ -3133,6 +3138,11 @@ export const TRANSLATIONS = {
       'The price exceeds the maximum defined in Price Rules for that city/category/competitor. Assumed to be a bot error.',
     'botdbsync.reason.outlier.action':
       'If the price is real (market offer went up), raise max_price in Config → Price Rules.',
+    'botdbsync.reason.tuktuk_no_zone.label': 'TukTuk without district',
+    'botdbsync.reason.tuktuk_no_zone.hint':
+      'TukTuk operates intra-district (short trips). TukTuk rows without main_category=tuktuk + zone (district) are dropped, since they are usually unreal long/very_long routes that inflate the average.',
+    'botdbsync.reason.tuktuk_no_zone.action':
+      'Curate the bot route source Excel so TukTuk carries main_category=tuktuk and the zone (district). Until then, no new TukTuk bot data is ingested.',
     'botdbsync.title': 'Direct sync with the bot DB',
     'botdbsync.desc':
       'Reads new rows from quotes_output in the bot DB and inserts them into pricing_observations applying the same filters (empty rows, out-of-range amounts) as the manual upload.',
@@ -5133,6 +5143,11 @@ export const TRANSLATIONS = {
       'Цена превышает максимум, заданный в Price Rules для этого города/категории/конкурента. Предполагается ошибка бота.',
     'botdbsync.reason.outlier.action':
       'Если цена реальна (выросло рыночное предложение), поднимите max_price в Config → Price Rules.',
+    'botdbsync.reason.tuktuk_no_zone.label': 'TukTuk без района',
+    'botdbsync.reason.tuktuk_no_zone.hint':
+      'TukTuk работает внутри района (короткие поездки). Строки TukTuk без main_category=tuktuk + зоны (района) отбрасываются, так как это обычно нереальные маршруты long/very_long, завышающие среднее.',
+    'botdbsync.reason.tuktuk_no_zone.action':
+      'Отредактируйте исходный Excel маршрутов бота, чтобы TukTuk содержал main_category=tuktuk и зону (район). До этого новые данные TukTuk от бота не загружаются.',
     'botdbsync.title': 'Прямая синхронизация с БД бота',
     'botdbsync.desc':
       'Читает новые строки из quotes_output в БД бота и вставляет их в pricing_observations, применяя те же фильтры (пустые строки, суммы вне диапазона), что и ручная загрузка.',

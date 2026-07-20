@@ -736,6 +736,23 @@ def main():
                 dropped_tracker[('no_rule', raw_app, raw_vc, raw_ovc, db_city)] += 1
                 continue
 
+            # ── Gate de TukTuk (mig 113, AHORA en el camino real de prod) ─────
+            # TukTuk opera intra-distrito (viajes cortos): solo entran filas
+            # curadas con main_category='tuktuk' Y zone (distrito). Sin este
+            # gate el bot cuela rutas long/very_long irreales que inflan el
+            # promedio (~S/6.9 vs ~S/4.4 real) y, al venir sin distrito, no se
+            # pueden filtrar por zona. El gate vivía SOLO en la función SQL
+            # sync_bot_quotes (mig 113) y en el Edge Function — ninguno corre
+            # en producción; el sync real es ESTE script. Mismo predicado que
+            # mig 113: el `or None` es obligatorio (main_category o zone vacíos
+            # → se descarta; nunca dejar pasar TukTuk sin distrito).
+            main_cat_lc = (raw.get('main_category') or '').strip().replace(' ', '').lower() or None
+            zone_val = (raw.get('zone') or '').strip() or None
+            if category == 'TukTuk' and not (main_cat_lc == 'tuktuk' and zone_val):
+                stats['dropped'] += 1
+                dropped_tracker[('tuktuk_no_zone', raw_app, raw_vc, raw_ovc, db_city)] += 1
+                continue
+
             # Precios — el bot usa price_regular_value y price_discounted_value
             rec = raw.get('price_regular_value')      # precio sin descuento
             pwd = raw.get('price_discounted_value')   # precio con descuento (puede ser NULL)
@@ -801,6 +818,13 @@ def main():
                 'eta_min':                float(raw['eta_mins']) if raw.get('eta_mins') is not None else None,
                 'surge':                  raw.get('surge'),
                 'distance_bracket':       norm_bracket,
+                # zone = distrito, SOLO para TukTuk (igual que mig 113). Otras
+                # categorías → None para no interferir con el ruteo de
+                # aeropuerto por zone (trigger mig 83). Este valor recién
+                # PERSISTE cuando el RPC bot_upsert_observations incluya `zone`
+                # en su INSERT (mig 135); hasta entonces se manda pero el RPC
+                # lo ignora (inofensivo).
+                'zone':                   zone_val if category == 'TukTuk' else None,
                 'distance_km':            distance_km,
                 'point_a':                point_a,
                 'point_b':                point_b,
