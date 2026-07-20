@@ -93,6 +93,7 @@ export function useDistanceRefs(dbCity, country) {
         point_b: '',
         coordinate_b: '',
         waze_distance: '',
+        zone: '',
         _isNew: true,
       },
     ])
@@ -111,6 +112,7 @@ export function useDistanceRefs(dbCity, country) {
         point_b: '',
         coordinate_b: '',
         waze_distance: '',
+        zone: '',
         _isNew: true,
       }))
       setRefs((prev) => [...prev, ...newRows])

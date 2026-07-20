@@ -559,11 +559,13 @@
   gap: 6px;
 }
 
+/* grid-template-columns se fija inline por grupo (mismo template para
+   todas las filas del grupo) — así la columna de cada competidor queda
+   alineada verticalmente aunque una categoría tenga menos competidores. */
 .de-cat-row {
-  display: flex;
+  display: grid;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
   padding: 6px 8px;
   border-radius: var(--radius-sm);
   background: var(--color-bg-subtle);
@@ -577,7 +579,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 96px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .de-cat-chip {
@@ -598,12 +601,6 @@
   cursor: help;
 }
 
-.de-cat-row-cells {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .de-cell {
   display: flex;
   flex-direction: column;
@@ -611,6 +608,13 @@
   gap: 2px;
   padding: 3px;
   border-radius: var(--radius-sm);
+  min-width: 0;
+}
+
+/* Columna de un competidor que esta categoría no tiene — placeholder vacío
+   para no romper la alineación de columnas con las otras filas. */
+.de-cell--na {
+  min-width: 0;
 }
 
 .de-cell-label {

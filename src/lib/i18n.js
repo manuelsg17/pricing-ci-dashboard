@@ -985,6 +985,8 @@ export const TRANSLATIONS = {
     'distancerefs.choose_placeholder': '— Elige —',
     'distancerefs.point_a_placeholder': 'Nombre punto A',
     'distancerefs.point_b_placeholder': 'Nombre punto B',
+    'distancerefs.col_zone': 'Zona',
+    'distancerefs.zone_placeholder': 'Ej. San Juan de Lurigancho',
     'distancerefs.delete_confirm_title': 'Eliminar ruta de referencia',
     'distancerefs.delete_confirm_message':
       '¿Eliminar esta ruta? Si está usada en sesiones de CI activas, la sesión perderá esa referencia.',
@@ -2954,6 +2956,8 @@ export const TRANSLATIONS = {
     'distancerefs.choose_placeholder': '— Choose —',
     'distancerefs.point_a_placeholder': 'Point A name',
     'distancerefs.point_b_placeholder': 'Point B name',
+    'distancerefs.col_zone': 'Zone',
+    'distancerefs.zone_placeholder': 'E.g. San Juan de Lurigancho',
     'distancerefs.delete_confirm_title': 'Delete reference route',
     'distancerefs.delete_confirm_message':
       'Delete this route? If it is used in active CI sessions, the session will lose that reference.',
@@ -4933,6 +4937,8 @@ export const TRANSLATIONS = {
     'distancerefs.choose_placeholder': '— Выбрать —',
     'distancerefs.point_a_placeholder': 'Название точки A',
     'distancerefs.point_b_placeholder': 'Название точки Б',
+    'distancerefs.col_zone': 'Зона',
+    'distancerefs.zone_placeholder': 'Напр. Сан-Хуан-де-Луриганчо',
     'distancerefs.delete_confirm_title': 'Удалить эталонный маршрут',
     'distancerefs.delete_confirm_message':
       'Удалить этот маршрут? Если он используется в активных сессиях CI, сессия потеряет эту ссылку.',

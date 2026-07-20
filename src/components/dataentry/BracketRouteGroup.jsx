@@ -2,10 +2,30 @@ import { BRACKET_LABELS, getCompetitors } from '../../lib/constants'
 import CompBadge from './CompBadge'
 import InDriveCell from './InDriveCell'
 
+const CHIP_COL_WIDTH = 150
+
+// Orden canónico de competidores para esta ruta: arranca con la lista de la
+// primera categoría presente (normalmente Economy/Comfort, que ya trae el
+// orden completo) y agrega al final cualquier competidor de otra categoría
+// que no haya aparecido todavía — así todas las filas comparten el mismo
+// orden de columnas.
+function unionCompetitorOrder(presentCats, uiCity, country, dbConfigs) {
+  const order = []
+  for (const uiCat of presentCats) {
+    for (const comp of getCompetitors(uiCity, uiCat, null, country, dbConfigs)) {
+      if (!order.includes(comp)) order.push(comp)
+    }
+  }
+  return order
+}
+
 // Un bracket + una ruta (Punto A → Punto B) mostrada una sola vez, con todas
 // las categorías configuradas para la ciudad llenándose juntas debajo — así
 // es como el hub realmente busca el precio (una búsqueda de A→B en el
-// celular ya muestra todas las categorías a la vez).
+// celular ya muestra todas las categorías a la vez). Cada fila de categoría
+// es un grid con el mismo `grid-template-columns` que las demás filas del
+// grupo, para que la columna de cada competidor quede alineada verticalmente
+// aunque una categoría tenga menos competidores que otra.
 export default function BracketRouteGroup({
   bracket,
   group,
@@ -28,6 +48,8 @@ export default function BracketRouteGroup({
   const { anchorRef, byCategory } = group
   const presentCats = categories.filter((c) => byCategory[c])
   const missingCats = categories.filter((c) => !byCategory[c])
+  const allComps = unionCompetitorOrder(presentCats, uiCity, country, dbConfigs)
+  const rowTemplate = `${CHIP_COL_WIDTH}px repeat(${allComps.length}, minmax(90px, 1fr))`
 
   return (
     <div className="de-bracket-group">
@@ -69,6 +91,7 @@ export default function BracketRouteGroup({
                 <div
                   key={uiCat}
                   className={`de-cat-row${state === 'partial' ? ' de-cat-row--partial' : ''}`}
+                  style={{ gridTemplateColumns: rowTemplate }}
                 >
                   <div className="de-cat-row-head">
                     <span
@@ -90,47 +113,46 @@ export default function BracketRouteGroup({
                       </span>
                     )}
                   </div>
-                  <div className="de-cat-row-cells">
-                    {comps.map((comp) => {
-                      const key = priceKey(uiCat, ref.id, ts.label, comp)
-                      const hasErr = errorKeys.has(key)
-                      if (comp === 'InDrive') {
-                        return (
-                          <div key={comp} className={`de-cell${hasErr ? ' de-td-error' : ''}`}>
-                            <span className="de-cell-label">
-                              <CompBadge comp={comp} />
-                            </span>
-                            <InDriveCell
-                              avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
-                              extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
-                              onChange={(extra, avg) =>
-                                setIndrive(uiCat, ref.id, ts.label, extra, avg)
-                              }
-                              hasError={hasErr}
-                            />
-                          </div>
-                        )
-                      }
+                  {allComps.map((comp) => {
+                    if (!comps.includes(comp)) {
+                      return <div key={comp} className="de-cell de-cell--na" aria-hidden="true" />
+                    }
+                    const key = priceKey(uiCat, ref.id, ts.label, comp)
+                    const hasErr = errorKeys.has(key)
+                    if (comp === 'InDrive') {
                       return (
                         <div key={comp} className={`de-cell${hasErr ? ' de-td-error' : ''}`}>
                           <span className="de-cell-label">
                             <CompBadge comp={comp} />
                           </span>
-                          <input
-                            type="number"
-                            className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
-                            placeholder="—"
-                            min="0"
-                            step="0.01"
-                            value={getEntry(uiCat, ref.id, ts.label, comp)}
-                            onChange={(e) =>
-                              setEntry(uiCat, ref.id, ts.label, comp, e.target.value)
+                          <InDriveCell
+                            avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
+                            extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
+                            onChange={(extra, avg) =>
+                              setIndrive(uiCat, ref.id, ts.label, extra, avg)
                             }
+                            hasError={hasErr}
                           />
                         </div>
                       )
-                    })}
-                  </div>
+                    }
+                    return (
+                      <div key={comp} className={`de-cell${hasErr ? ' de-td-error' : ''}`}>
+                        <span className="de-cell-label">
+                          <CompBadge comp={comp} />
+                        </span>
+                        <input
+                          type="number"
+                          className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
+                          placeholder="—"
+                          min="0"
+                          step="0.01"
+                          value={getEntry(uiCat, ref.id, ts.label, comp)}
+                          onChange={(e) => setEntry(uiCat, ref.id, ts.label, comp, e.target.value)}
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })}

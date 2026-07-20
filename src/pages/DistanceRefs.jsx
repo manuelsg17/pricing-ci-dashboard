@@ -110,6 +110,7 @@ export default function DistanceRefs() {
         merged.waze_distance !== '' && merged.waze_distance != null
           ? Number(merged.waze_distance)
           : null,
+      zone: merged.zone || '',
     }
     const ok = await saveRef(payload)
     if (ok) {
@@ -175,6 +176,7 @@ export default function DistanceRefs() {
           merged.waze_distance !== '' && merged.waze_distance != null
             ? Number(merged.waze_distance)
             : null,
+        zone: merged.zone || '',
       }
       const ok = await saveRef(payload)
       if (ok) {
@@ -277,7 +279,7 @@ export default function DistanceRefs() {
         </div>
 
         {loading ? (
-          <SkeletonTable rows={6} cols={7} />
+          <SkeletonTable rows={6} cols={uiCat === 'TukTuk' ? 8 : 7} />
         ) : filteredRefs.length === 0 ? (
           <EmptyState
             icon="🛣️"
@@ -295,6 +297,7 @@ export default function DistanceRefs() {
                   <th>{t('dataentry.col_point_b')}</th>
                   <th>{t('distancerefs.col_coord_b')}</th>
                   <th>{t('distancerefs.col_dist_waze')}</th>
+                  {uiCat === 'TukTuk' && <th>{t('distancerefs.col_zone')}</th>}
                   <th>{t('distancerefs.col_actions')}</th>
                 </tr>
               </thead>
@@ -360,6 +363,16 @@ export default function DistanceRefs() {
                         onChange={(e) => setField(row.id, 'waze_distance', e.target.value)}
                       />
                     </td>
+                    {uiCat === 'TukTuk' && (
+                      <td>
+                        <input
+                          className="wide"
+                          placeholder={t('distancerefs.zone_placeholder')}
+                          value={getField(row.id, 'zone', row.zone)}
+                          onChange={(e) => setField(row.id, 'zone', e.target.value)}
+                        />
+                      </td>
+                    )}
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <Button size="sm" onClick={() => handleSave(row)} disabled={saving}>
