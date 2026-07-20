@@ -6,3 +6,6 @@ dist
 # .env (sin punto extra) SÍ se commitea a propósito — solo tiene defaults
 # sin secretos (ver comentario en ese archivo). Los secretos reales viven
 # en .env.local, cubierto arriba y también por *.local.
+
+# Informes exportados (generados desde el .md con scripts/md-to-*)
+docs/export/
