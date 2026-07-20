@@ -30,6 +30,15 @@ const CAT_COLORS = {
   Comfort: { bg: '#f0fdf4', border: '#86efac', text: '#15803d', accent: '#22c55e' },
 }
 
+// ⚠ PROVISIONAL (semana de texteo, 2026-07-20): permitir "Terminar Sesión"
+// cuando el HP completó AL MENOS UN turno entero (Mañana / Tarde / Noche) con
+// todos sus brackets, sin exigir los 3 turnos. No se permite terminar con
+// filas a medias (parciales) — esas se siguen marcando como error.
+//
+// PARA VOLVER AL MODO ESTRICTO (toda la grilla completa, los 3 turnos): poner
+// FINISH_REQUIRES_ALL = true (una línea) y listo.
+const FINISH_REQUIRES_ALL = false
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -76,6 +85,12 @@ export default function DataEntry() {
   const [surge, setSurge] = useState(false)
   const [refs, setRefs] = useState([])
   const [refsLoading, setRefsLoading] = useState(false)
+  // Ciudad a la que pertenecen las `refs` actualmente en estado. Clave para
+  // "Abrir" una sesión de OTRA ciudad: sin esto, el effect de carga corría en
+  // el mismo commit con las refs de la ciudad anterior (refsLoading todavía
+  // false) y mapeaba mal la data. Se setea recién cuando las refs de la ciudad
+  // objetivo llegaron.
+  const [refsDbCity, setRefsDbCity] = useState(null)
 
   // entries: key = `${uiCat}|${refId}|${tsLabel}|${comp}` → price string
   const [entries, setEntries] = useState({})
@@ -100,6 +115,18 @@ export default function DataEntry() {
   const sessionStartRef = useRef(null)
   const [sessionActive, setSessionActive] = useState(false)
   const [elapsed, setElapsed] = useState('00:00')
+
+  // "Abrir" una sesión pasada del historial: al hacer click seteamos ciudad+
+  // fecha y dejamos acá {dbCity, date} pendiente; cuando las rutas de esa
+  // ciudad terminan de cargar, un effect trae las observaciones guardadas de
+  // esa fecha y las vuelca al formulario para editar/agregar.
+  const [pendingLoad, setPendingLoad] = useState(null)
+  // Combos (dbCategory|HH:MM) que se cargaron al "Abrir" una sesión pasada.
+  // Al re-guardar, el DELETE tiene que cubrir también estos combos aunque el
+  // HP los haya vaciado — si no, borrar una franja entera dejaría filas
+  // huérfanas en BD (el DELETE base solo cubre lo que se re-inserta). Null en
+  // el flujo normal (carga desde cero), así que no cambia ese caso.
+  const [loadedCombos, setLoadedCombos] = useState(null)
 
   // Session history
   const [showHistory, setShowHistory] = useState(false)
@@ -127,6 +154,18 @@ export default function DataEntry() {
     () => resolveDbParams(uiCity, categories[0] || '', null, country, dbConfigs),
     [uiCity, categories, country, dbConfigs]
   )
+
+  // Mapa inverso dbCity → uiCity, para "Abrir" una sesión del historial (que
+  // guarda la ciudad en formato BD) y saber a qué pestaña de ciudad saltar.
+  const dbCityToUiCity = useMemo(() => {
+    const m = {}
+    for (const c of uiCities) {
+      const cats = countryConfig.categoriesByCity[c] || []
+      const { dbCity: dc } = resolveDbParams(c, cats[0] || '', null, country, dbConfigs)
+      if (dc) m[dc] = c
+    }
+    return m
+  }, [uiCities, countryConfig, country, dbConfigs])
 
   // Reverse lookup: dbCategory → uiCategory for the current city
   // Built from countryConfig.categoryDbMap entries matching uiCity
@@ -199,6 +238,7 @@ export default function DataEntry() {
     setIndriveExtra({})
     setEtaEntries({})
     setDiscEntries({})
+    setLoadedCombos(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, countryConfig])
 
@@ -206,10 +246,12 @@ export default function DataEntry() {
   useEffect(() => {
     if (!dbCity) return
     setRefsLoading(true)
+    setRefsDbCity(null) // las refs en estado ya no corresponden a `dbCity`
     setEntries({})
     setIndriveExtra({})
     setEtaEntries({})
     setDiscEntries({})
+    setLoadedCombos(null)
     setErrorKeys(new Set())
     setMsg(null)
     sb.from('distance_references')
@@ -221,6 +263,7 @@ export default function DataEntry() {
       .order('point_a')
       .then(({ data }) => {
         setRefs(data || [])
+        setRefsDbCity(dbCity)
         setRefsLoading(false)
       })
   }, [dbCity, country])
@@ -231,9 +274,27 @@ export default function DataEntry() {
     setIndriveExtra({})
     setEtaEntries({})
     setDiscEntries({})
+    setLoadedCombos(null)
     setErrorKeys(new Set())
     setMsg(null)
   }, [date])
+
+  // ── "Abrir" sesión del historial → cargar observaciones guardadas ──────
+  // Espera a que las rutas de la ciudad objetivo estén cargadas (refsLoading
+  // false) y a que ciudad+fecha actuales coincidan con lo pedido. Los effects
+  // de reset de arriba ya limpiaron el form; acá solo se vuelca lo de BD.
+  useEffect(() => {
+    if (!pendingLoad) return
+    if (refsLoading) return
+    // Las refs en estado tienen que ser YA las de la ciudad objetivo (no las
+    // de la ciudad anterior en el commit del click). Esto evita mapear la data
+    // contra rutas equivocadas y limpiar pendingLoad antes de tiempo.
+    if (refsDbCity !== pendingLoad.dbCity) return
+    if (pendingLoad.dbCity !== dbCity || pendingLoad.date !== date) return
+    loadObservationsIntoForm(pendingLoad.dbCity, pendingLoad.date)
+    setPendingLoad(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLoad, refsLoading, refsDbCity, dbCity, date, refs])
 
   // ── Autosave a localStorage (draft) ────────────────────
   // Clave por (country, uiCity, date). Restaura al cambiar a una clave con
@@ -646,6 +707,11 @@ export default function DataEntry() {
           `${resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory}|${r.ts.start_time?.slice(0, 5)}`
       )
     )
+    // Si la sesión se abrió del historial para editar, incluir también los
+    // combos (categoría|franja) que se cargaron aunque ahora queden vacíos —
+    // así, si el HP borra una franja/categoría entera, se elimina en BD en vez
+    // de quedar huérfana (el DELETE base solo cubre lo que se re-inserta).
+    if (loadedCombos) for (const c of loadedCombos) combos.add(c)
     for (const combo of combos) {
       const [cat, time] = combo.split('|')
       const { error: delErr } = await sb
@@ -743,13 +809,46 @@ export default function DataEntry() {
     await performSave(rowsToInsert, false)
   }
 
+  // ¿Está ENTERO un turno (ts)? Todas las filas (categoría × ruta) de esa
+  // franja tienen que estar full, y tiene que haber al menos una fila real
+  // (si la ciudad no tiene rutas, no cuenta como "turno completo").
+  function isTimeslotComplete(ts) {
+    let total = 0
+    let full = 0
+    for (const uiCat of categories) {
+      for (const ref of refsByUICat[uiCat] || []) {
+        total++
+        if (rowState(uiCat, ref, ts) === 'full') full++
+      }
+    }
+    return total > 0 && full === total
+  }
+
   // ── Terminar sesión ────────────────────────────────────
   async function handleFinishSession() {
-    const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
-    if (hasPartial || hasEmpty) {
-      setMsg({ type: 'err', text: t('dataentry.err_finish') })
-      return
+    if (FINISH_REQUIRES_ALL) {
+      // Modo estricto: toda la grilla (los 3 turnos) tiene que estar llena.
+      const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
+      if (hasPartial || hasEmpty) {
+        setMsg({ type: 'err', text: t('dataentry.err_finish') })
+        return
+      }
+    } else {
+      // Modo provisional: no se permiten filas a medias (parciales)…
+      const { hasPartial } = validateAndCollectErrors(false)
+      if (hasPartial) {
+        setMsg({ type: 'err', text: t('dataentry.err_partial') })
+        return
+      }
+      // …y hay que tener al menos UN turno entero (Mañana/Tarde/Noche).
+      if (!timeslots.some(isTimeslotComplete)) {
+        setMsg({ type: 'err', text: t('dataentry.err_finish_need_timeslot') })
+        return
+      }
     }
+    // buildRows ya filtra las celdas vacías, así que en modo provisional solo
+    // se guardan las filas que el HP realmente llenó (los turnos incompletos
+    // no generan filas).
     const rowsToInsert = []
     for (const uiCat of categories) {
       for (const ref of refsByUICat[uiCat] || []) {
@@ -758,7 +857,114 @@ export default function DataEntry() {
         }
       }
     }
+    if (!rowsToInsert.length) {
+      setMsg({ type: 'err', text: t('dataentry.err_no_full') })
+      return
+    }
     await performSave(rowsToInsert, true)
+  }
+
+  // ── Abrir una sesión pasada para editar/agregar ───────
+  function openHistorySession(s) {
+    const targetUi = dbCityToUiCity[s.city] || s.city
+    // Arrancar una sesión para que aparezcan Guardar/Terminar y el HP pueda
+    // editar y re-guardar (el guardado es idempotente: DELETE+INSERT por
+    // categoría/franja, así que re-guardar la misma fecha la actualiza).
+    if (!sessionActive) {
+      sessionStartRef.current = Date.now()
+      setSessionActive(true)
+    }
+    setShowHistory(false)
+    setUiCity(targetUi)
+    setDate(s.observed_date)
+    setPendingLoad({ dbCity: s.city, date: s.observed_date })
+    setMsg({ type: 'ok', text: t('dataentry.loading_session') })
+  }
+
+  // Trae las observaciones manuales de (ciudad, fecha) y las vuelca al form,
+  // mapeando cada fila de BD de vuelta a (uiCat, refId, franja, competidor).
+  // Las filas que no se puedan mapear (ruta borrada, franja fuera del set,
+  // etc.) se saltan en silencio — nunca rompen la carga del resto.
+  async function loadObservationsIntoForm(loadDbCity, loadDate) {
+    const { data, error } = await sb
+      .from('pricing_observations')
+      .select(
+        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5'
+      )
+      .eq('country', country)
+      .eq('city', loadDbCity)
+      .eq('observed_date', loadDate)
+      .eq('data_source', 'manual')
+    if (error) {
+      setMsg({ type: 'err', text: `${t('dataentry.err_load_session')} ${error.message}` })
+      return
+    }
+
+    // (categoría|bracket|A|B) → ref; fallback a (categoría|bracket) solo si es
+    // único (si hay 2+ rutas por bracket, ej. TukTuk por distrito, no hay forma
+    // confiable de adivinar cuál, así que no se usa el fallback).
+    const refByFull = {}
+    const refByCatBracket = {}
+    for (const r of refs) {
+      refByFull[`${r.category}|${r.bracket}|${r.point_a ?? ''}|${r.point_b ?? ''}`] = r
+      const cb = `${r.category}|${r.bracket}`
+      refByCatBracket[cb] = cb in refByCatBracket ? null : r
+    }
+    const tsByTime = {}
+    for (const ts of timeslots) tsByTime[ts.start_time?.slice(0, 5)] = ts.label
+    const compMapByCat = {} // uiCat → { nombreNormalizado: nombreCatálogo }
+
+    const newEntries = {}
+    const newEta = {}
+    const newDisc = {}
+    const newIndrive = {}
+    const combos = new Set() // (dbCategory|HH:MM) de lo que se cargó, para el DELETE al re-guardar
+    let mapped = 0
+
+    for (const row of data || []) {
+      const uiCat = dbCatToUICat[row.category]
+      if (!uiCat) continue
+      const ref =
+        refByFull[
+          `${row.category}|${row.distance_bracket}|${row.point_a ?? ''}|${row.point_b ?? ''}`
+        ] || refByCatBracket[`${row.category}|${row.distance_bracket}`]
+      if (!ref) continue
+      const tsLabel = tsByTime[(row.observed_time || '').slice(0, 5)]
+      if (!tsLabel) continue
+
+      if (!compMapByCat[uiCat]) {
+        const map = {}
+        for (const c of getCompetitors(uiCity, uiCat, null, country, dbConfigs)) {
+          map[normalizeCompetitorName(c, { city: loadDbCity })] = c
+        }
+        compMapByCat[uiCat] = map
+      }
+      const comp = compMapByCat[uiCat][row.competition_name] || row.competition_name
+
+      combos.add(`${row.category}|${(row.observed_time || '').slice(0, 5)}`)
+      const k = priceKey(uiCat, ref.id, tsLabel, comp)
+      if (row.price_without_discount != null) newEntries[k] = String(row.price_without_discount)
+      if (row.price_with_discount != null) newDisc[k] = String(row.price_with_discount)
+      if (row.eta_min != null) newEta[k] = String(row.eta_min)
+      if (comp === 'InDrive') {
+        const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
+          .filter((b) => b != null)
+          .map((b) => String(b))
+        newIndrive[indKey(uiCat, ref.id, tsLabel)] = {
+          bids: bids.length ? bids : [''],
+          minBid: row.minimal_bid != null ? String(row.minimal_bid) : '',
+        }
+      }
+      mapped++
+    }
+
+    setEntries(newEntries)
+    setEtaEntries(newEta)
+    setDiscEntries(newDisc)
+    setIndriveExtra(newIndrive)
+    setLoadedCombos(combos.size ? combos : null)
+    setErrorKeys(new Set())
+    setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
   }
 
   // ── Total expected rows ────────────────────────────────
@@ -1076,6 +1282,7 @@ export default function DataEntry() {
                       <th>{t('dataentry.col_end')}</th>
                       <th>{t('dataentry.col_duration')}</th>
                       <th>{t('dataentry.col_obs')}</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1102,6 +1309,17 @@ export default function DataEntry() {
                             <strong>{s.duration_minutes} min</strong>
                           </td>
                           <td>{s.rows_saved}</td>
+                          <td>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openHistorySession(s)}
+                              disabled={saving}
+                              title={t('dataentry.open_session_title')}
+                            >
+                              {t('dataentry.open_session')}
+                            </Button>
+                          </td>
                         </tr>
                       )
                     })}

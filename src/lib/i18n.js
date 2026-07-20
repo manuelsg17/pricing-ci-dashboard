@@ -516,7 +516,15 @@ export const TRANSLATIONS = {
     'dataentry.err_partial':
       'Hay filas incompletas (marcadas en rojo). Completa todas las casillas de esa fila o déjala completamente vacía.',
     'dataentry.err_no_full': 'No hay filas completamente llenas para guardar.',
+    'dataentry.open_session': 'Abrir',
+    'dataentry.open_session_title': 'Abrir esta sesión para editar o agregar información',
+    'dataentry.loading_session': 'Cargando sesión…',
+    'dataentry.session_loaded':
+      'Sesión cargada ({n} celdas). Podés editar o agregar y volver a guardar.',
+    'dataentry.err_load_session': 'No se pudo cargar la sesión:',
     'dataentry.err_finish': 'Para terminar la sesión, todas las filas deben estar llenas.',
+    'dataentry.err_finish_need_timeslot':
+      'Para terminar la sesión, completá al menos un turno entero (Mañana, Tarde o Noche) con todos sus brackets.',
     'dataentry.no_routes_at_all': 'No hay rutas configuradas para esta ciudad todavía.',
     'dataentry.extra_routes_title': 'Rutas adicionales',
     'dataentry.own_route_note': 'Ruta propia',
@@ -2522,7 +2530,14 @@ export const TRANSLATIONS = {
     'dataentry.err_partial':
       'There are incomplete rows (marked in red). Fill all cells in the row or leave it completely empty.',
     'dataentry.err_no_full': 'No fully completed rows to save.',
+    'dataentry.open_session': 'Open',
+    'dataentry.open_session_title': 'Open this session to edit or add data',
+    'dataentry.loading_session': 'Loading session…',
+    'dataentry.session_loaded': 'Session loaded ({n} cells). You can edit or add and save again.',
+    'dataentry.err_load_session': 'Could not load the session:',
     'dataentry.err_finish': 'To end the session, all rows must be filled.',
+    'dataentry.err_finish_need_timeslot':
+      'To end the session, complete at least one full timeslot (Morning, Afternoon or Night) with all its brackets.',
     'dataentry.no_routes_at_all': 'No routes configured for this city yet.',
     'dataentry.extra_routes_title': 'Additional routes',
     'dataentry.own_route_note': 'Own route',
@@ -4511,7 +4526,15 @@ export const TRANSLATIONS = {
     'dataentry.err_partial':
       'Есть незавершённые строки (выделены красным). Заполните все ячейки строки или оставьте её полностью пустой.',
     'dataentry.err_no_full': 'Нет полностью заполненных строк для сохранения.',
+    'dataentry.open_session': 'Открыть',
+    'dataentry.open_session_title': 'Открыть эту сессию для редактирования или добавления данных',
+    'dataentry.loading_session': 'Загрузка сессии…',
+    'dataentry.session_loaded':
+      'Сессия загружена ({n} ячеек). Можно редактировать/добавлять и сохранить снова.',
+    'dataentry.err_load_session': 'Не удалось загрузить сессию:',
     'dataentry.err_finish': 'Для завершения сессии все строки должны быть заполнены.',
+    'dataentry.err_finish_need_timeslot':
+      'Чтобы завершить сессию, заполните хотя бы один полный слот (Утро, День или Ночь) со всеми брекетами.',
     'dataentry.no_routes_at_all': 'Маршруты для этого города ещё не настроены.',
     'dataentry.extra_routes_title': 'Дополнительные маршруты',
     'dataentry.own_route_note': 'Свой маршрут',
