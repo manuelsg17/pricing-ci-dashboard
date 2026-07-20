@@ -1203,6 +1203,10 @@ export const TRANSLATIONS = {
     'botdbsync.hover_hint_prefix':
       'Hovereá el pill de la razón para ver qué hacer en cada caso. Después de cambiar reglas, corré',
     'botdbsync.hover_hint_suffix': 'para re-procesar el histórico.',
+    'dashboard.coverage.title': 'Frescura de la data del bot',
+    'dashboard.coverage.status_ok': 'Todo al día',
+    'dashboard.coverage.status_warn': '{n} tramo(s) con retraso',
+    'dashboard.coverage.status_bad': '{n} tramo(s) atrasado(s) · posible corte del bot',
     'botdbsync.coverage_title': 'Frescura de la data por ciudad y bracket',
     'botdbsync.coverage_subtitle':
       'Última observación que llegó del bot para cada ciudad y tramo de distancia. Refleja lo que el bot realmente produjo (no cuándo corrió el sync): si una celda queda muy atrás del resto de su fila, el bot dejó de scrapear ese bracket.',
@@ -3183,6 +3187,10 @@ export const TRANSLATIONS = {
     'botdbsync.hover_hint_prefix':
       'Hover the reason pill to see what to do in each case. After changing rules, run',
     'botdbsync.hover_hint_suffix': 'to reprocess the history.',
+    'dashboard.coverage.title': 'Bot data freshness',
+    'dashboard.coverage.status_ok': 'All up to date',
+    'dashboard.coverage.status_warn': '{n} bracket(s) lagging',
+    'dashboard.coverage.status_bad': '{n} bracket(s) stale · possible bot outage',
     'botdbsync.coverage_title': 'Data freshness by city and bracket',
     'botdbsync.coverage_subtitle':
       'Latest observation received from the bot for each city and distance bracket. Reflects what the bot actually produced (not when the sync ran): if a cell falls far behind the rest of its row, the bot stopped scraping that bracket.',
@@ -5189,6 +5197,10 @@ export const TRANSLATIONS = {
     'botdbsync.hover_hint_prefix':
       'Наведите на плашку причины, чтобы узнать, что делать в каждом случае. После изменения правил запустите',
     'botdbsync.hover_hint_suffix': 'для повторной обработки истории.',
+    'dashboard.coverage.title': 'Свежесть данных бота',
+    'dashboard.coverage.status_ok': 'Всё актуально',
+    'dashboard.coverage.status_warn': '{n} брекет(ов) с задержкой',
+    'dashboard.coverage.status_bad': '{n} брекет(ов) устарел(и) · возможен сбой бота',
     'botdbsync.coverage_title': 'Свежесть данных по городу и брекету',
     'botdbsync.coverage_subtitle':
       'Последнее наблюдение, полученное от бота для каждого города и диапазона расстояния. Отражает то, что бот реально произвёл (а не когда запускался синк): если ячейка сильно отстаёт от остальных в строке, бот перестал собирать этот брекет.',
