@@ -14,7 +14,11 @@ POR QUÉ ESTE SCRIPT (y no la Edge Function sync-bot-quotes):
 
 QUÉ HACE:
     1. SELECT de quotes_output (BD local del bot) desde el último
-       watermark guardado en Supabase.
+       watermark guardado en Supabase, con un MARGEN DE RE-LECTURA hacia
+       atrás (BOT_SYNC_LOOKBACK_HOURS, default 6h) para rescatar filas que
+       el bot inserta fuera de orden de timestamp (rutas lentas de computar
+       como very_long/aeropuerto llegan tarde y el watermark ya pasó su
+       timestamp). El UPSERT idempotente hace que re-leer sea inofensivo.
     2. Normaliza con las MISMAS reglas que usan el upload manual y la
        Edge Function (botRules, CATEGORY_NORMALIZE, etc.).
     3. Filtra:
@@ -512,7 +516,7 @@ def main():
     p.add_argument('--probe', action='store_true', help='Solo listar columnas y 3 filas de ejemplo')
     p.add_argument('--from', dest='date_from', help='Backfill: fecha desde (YYYY-MM-DD)')
     p.add_argument('--to',   dest='date_to',   help='Backfill: fecha hasta (YYYY-MM-DD)')
-    p.add_argument('--limit', type=int, default=5000, help='Máximo de filas por corrida')
+    p.add_argument('--limit', type=int, default=20000, help='Máximo de filas por corrida')
     args = p.parse_args()
 
     country = os.environ.get('BOT_SYNC_COUNTRY', 'Peru')
@@ -642,14 +646,36 @@ def main():
             )
         else:
             wm = get_watermark(country)
+            # MARGEN DE RE-LECTURA (lookback). No basta con `timestamp_utc >
+            # wm`: el watermark avanza al MÁXIMO timestamp_utc leído, pero el
+            # bot NO inserta en orden estricto de timestamp. Una ruta lenta de
+            # computar (ETA largo → típico en very_long, y rutas de aeropuerto)
+            # se inserta en quotes_output DESPUÉS que una ruta corta scrapeada
+            # más tarde, pero con un timestamp_utc ANTERIOR. Si el sync corrió
+            # entremedio y avanzó el watermark más allá de ese timestamp, la
+            # fila lenta cae en `timestamp_utc > wm` = falso y se pierde PARA
+            # SIEMPRE — se ve como "very_long/very_short tienen menos data que
+            # short/median" aunque el bot sí las produjo.
+            #
+            # Fix: releer una ventana hacia atrás desde el watermark. Como el
+            # insert final es un UPSERT idempotente sobre la natural key (RPC
+            # bot_upsert_observations), re-leer filas ya sincronizadas es un
+            # no-op — nunca duplica, solo rescata las que llegaron tarde. El
+            # watermark nunca retrocede (la fila que lo fijó cae dentro de la
+            # ventana y se re-lee), así que no hay riesgo de loop.
+            #
+            # LOOKBACK_HOURS configurable (default 6h): cubre de sobra el lag
+            # de inserción intra-ciclo (minutos), con cron horario. Subirlo si
+            # alguna vez se detecta que el bot inserta con >6h de atraso.
+            lookback_h = float(os.environ.get('BOT_SYNC_LOOKBACK_HOURS', '6'))
             cur.execute(
                 f'SELECT * FROM {fq_table} '
-                f'WHERE timestamp_utc > %s '
+                f'WHERE timestamp_utc > (%s::timestamptz - (%s * INTERVAL \'1 hour\')) '
                 f'  AND lower(status) = %s '
                 f'  AND lower(business_unit) = %s '
                 f'  AND country = %s '
                 f'ORDER BY timestamp_utc LIMIT %s',
-                (wm, 'ok', 'ridehailing', country, args.limit),
+                (wm, lookback_h, 'ok', 'ridehailing', country, args.limit),
             )
         rows = cur.fetchall()
         stats['read'] = len(rows)
