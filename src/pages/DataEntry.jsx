@@ -516,9 +516,9 @@ export default function DataEntry() {
         const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
         const price = parseFloat(raw)
         const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
-        // Mig 98: bid_4/bid_5 no existen en pricing_observations — nunca
-        // mandar más de 3, aunque un borrador viejo en localStorage tenga más.
-        const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 3) : []
+        // Mig 136: pricing_observations vuelve a tener bid_1..bid_5 → hasta 5
+        // bids. Guarda por si un borrador trajera más (nunca debería).
+        const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 5) : []
         const minBid = comp === 'InDrive' ? extra?.minBid || null : null
         const etaNum = parseFloat(etaEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
         return {

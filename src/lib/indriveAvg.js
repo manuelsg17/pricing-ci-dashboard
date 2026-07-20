@@ -11,15 +11,17 @@ export function calcIndriveAvg(bids) {
   return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2)
 }
 
-// Mig 98: bid_4/bid_5 dropeados de pricing_observations. Un borrador guardado
-// en localStorage antes de este fix puede traer hasta 5 bids — se truncan a
-// 3 al restaurar (y se recalcula el promedio) para que la UI no muestre algo
-// que el guardado va a cortar silenciosamente.
+// Mig 136: pricing_observations vuelve a tener bid_1..bid_5 → cap en 5 bids.
+// Guarda de seguridad al restaurar un borrador de localStorage: si por
+// cualquier motivo trae más de 5 bids, se truncan a 5 (y se recalcula el
+// promedio) para que la UI no muestre algo que el guardado va a cortar.
+export const MAX_INDRIVE_BIDS = 5
+
 export function capIndriveExtraBids(indriveExtra) {
   const capped = {}
   const avgUpdates = {}
   for (const [key, extra] of Object.entries(indriveExtra || {})) {
-    const bids = (extra?.bids || []).slice(0, 3)
+    const bids = (extra?.bids || []).slice(0, MAX_INDRIVE_BIDS)
     capped[key] = { ...extra, bids }
     avgUpdates[`${key}|InDrive`] = calcIndriveAvg(bids)
   }

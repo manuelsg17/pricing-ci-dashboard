@@ -25,6 +25,8 @@ const HEADERS = [
   'Bid 1',
   'Bid 2',
   'Bid 3',
+  'Bid 4',
+  'Bid 5',
   'ETA (min)',
 ]
 
@@ -68,6 +70,8 @@ function buildRow(r) {
     toNumberOrNull(r.bid_1),
     toNumberOrNull(r.bid_2),
     toNumberOrNull(r.bid_3),
+    toNumberOrNull(r.bid_4),
+    toNumberOrNull(r.bid_5),
     toNumberOrNull(r.eta_min),
   ]
 }

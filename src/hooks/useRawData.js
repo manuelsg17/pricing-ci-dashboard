@@ -8,7 +8,7 @@ const EXPORT_CHUNK_SIZE = 1000
 // Columnas compartidas por la tabla en pantalla y el export de data raw —
 // una sola fuente de verdad para que ambos siempre muestren lo mismo.
 export const RAW_DATA_COLUMNS =
-  'id, country, city, year, week, observed_date, observed_time, rush_hour, surge, category, competition_name, data_source, distance_bracket, zone, distance_km, point_a, point_b, price_without_discount, price_with_discount, recommended_price, minimal_bid, bid_1, bid_2, bid_3, eta_min'
+  'id, country, city, year, week, observed_date, observed_time, rush_hour, surge, category, competition_name, data_source, distance_bracket, zone, distance_km, point_a, point_b, price_without_discount, price_with_discount, recommended_price, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, eta_min'
 
 // Aplica el mismo set de filtros de RawData.jsx a un query builder de
 // supabase-js — compartido entre fetch() (paginado, para la tabla) y

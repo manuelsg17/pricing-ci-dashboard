@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Tests para src/lib/indriveAvg.js — promedio de InDrive (solo bids, el
-// mínimo NUNCA entra) y el tope de 3 bids al restaurar un borrador viejo
-// (mig 98: bid_4/bid_5 dropeados de pricing_observations).
+// mínimo NUNCA entra) y el tope de 5 bids al restaurar un borrador
+// (mig 136: bid_4/bid_5 re-agregados a pricing_observations).
 //
 // Run: node scripts/test-indrive-avg.mjs
 
@@ -59,31 +59,47 @@ console.log('\n══ indriveAvg tests ══')
 }
 
 {
-  console.log('\n[5] capIndriveExtraBids: trunca a 3 bids y recalcula el promedio')
+  console.log('\n[5a] calcIndriveAvg: promedio con los 5 bids (mig 136)')
+  assert(calcIndriveAvg(['15', '13', '17']) === '15.00', "3 bids 15/13/17 → 15.00")
+  assert(calcIndriveAvg(['10', '20', '30', '40', '50']) === '30.00', "5 bids → 30.00")
+}
+
+{
+  console.log('\n[5b] capIndriveExtraBids: mantiene hasta 5 bids y recalcula el promedio')
   const indriveExtra = {
-    'Economy/Comfort|1|Mañana': { bids: ['10', '10', '10', '40', '50'], minBid: '5' },
+    'Economy/Comfort|1|Mañana': { bids: ['10', '20', '30', '40', '50'], minBid: '5' },
   }
   const { capped, avgUpdates } = capIndriveExtraBids(indriveExtra)
   assert(
-    capped['Economy/Comfort|1|Mañana'].bids.length === 3,
-    "se truncan 5 bids a 3"
-  )
-  assert(
-    JSON.stringify(capped['Economy/Comfort|1|Mañana'].bids) === JSON.stringify(['10', '10', '10']),
-    "conserva los primeros 3, descarta bid_4 y bid_5"
+    capped['Economy/Comfort|1|Mañana'].bids.length === 5,
+    "5 bids se conservan (ya no se trunca a 3)"
   )
   assert(
     capped['Economy/Comfort|1|Mañana'].minBid === '5',
     "minBid no se toca al capear bids"
   )
   assert(
-    avgUpdates['Economy/Comfort|1|Mañana|InDrive'] === '10.00',
-    "el promedio se recalcula SOLO con los 3 bids que quedaron (10.00), no con los 5 originales"
+    avgUpdates['Economy/Comfort|1|Mañana|InDrive'] === '30.00',
+    "el promedio usa los 5 bids (30.00)"
   )
 }
 
 {
-  console.log('\n[6] capIndriveExtraBids: borrador ya con 3 o menos bids queda intacto')
+  console.log('\n[5c] capIndriveExtraBids: guarda de seguridad — 6+ bids se truncan a 5')
+  const indriveExtra = {
+    key1: { bids: ['10', '10', '10', '10', '10', '999'], minBid: '' },
+  }
+  const { capped, avgUpdates } = capIndriveExtraBids(indriveExtra)
+  assert(capped.key1.bids.length === 5, "6 bids se truncan a 5")
+  assert(
+    JSON.stringify(capped.key1.bids) === JSON.stringify(['10', '10', '10', '10', '10']),
+    "conserva los primeros 5, descarta el 6º"
+  )
+  assert(avgUpdates['key1|InDrive'] === '10.00', "promedio recalculado solo con los 5 (10.00)")
+}
+
+{
+  console.log('\n[6] capIndriveExtraBids: borrador ya con 5 o menos bids queda intacto')
   const indriveExtra = {
     key1: { bids: ['15', '25'], minBid: '' },
   }

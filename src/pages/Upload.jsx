@@ -64,11 +64,12 @@ const COL_MAP = {
   'Bid 1': 'bid_1',
   'Bid 2': 'bid_2',
   'Bid 3': 'bid_3',
-  // Mig 98 (2026-05-30): columnas bid_4, bid_5, discount_offer, diff,
-  // for_pivot fueron eliminadas de pricing_observations (>99% NULL, sin
-  // uso real). Mandarlas en el INSERT rompe el schema cache de PostgREST.
-  // Las columnas del Excel quedan ignoradas — el dato no se persistía
-  // de todos modos para el WA / dashboard.
+  'Bid 4': 'bid_4',
+  'Bid 5': 'bid_5',
+  // Mig 136 (2026-07-20): bid_4/bid_5 re-agregados a pricing_observations
+  // para que los hubs puedan cargar hasta 5 bids de InDrive (el promedio usa
+  // todos). discount_offer/diff/for_pivot siguen dropeados (mig 98) — se
+  // ignoran si aparecen en el Excel.
 }
 
 // Normalización de categorías del Excel legacy → nombre canónico en BD nuevo.
@@ -169,8 +170,8 @@ function parseExcelTime(val) {
 }
 
 // Columnas que deben ser números en la BD.
-// Mig 98 dropeó bid_4/bid_5/discount_offer/diff de pricing_observations
-// (>99% NULL). Quitadas del set y de COL_MAP — el INSERT ya no las envía.
+// Mig 136 re-agregó bid_4/bid_5 (hasta 5 bids InDrive). discount_offer/diff
+// siguen dropeados (mig 98) — no van en el INSERT.
 const NUMERIC_COLS = new Set([
   'distance_km',
   'travel_time_min',
@@ -182,6 +183,8 @@ const NUMERIC_COLS = new Set([
   'bid_1',
   'bid_2',
   'bid_3',
+  'bid_4',
+  'bid_5',
 ])
 
 // Columnas que deben ser enteros
@@ -747,17 +750,15 @@ export default function Upload() {
       //
       // Para InDrive: calcular minimal_bid y price_without_discount desde bids
       // si las fórmulas de Excel no fueron evaluadas (llegan como 0 o null).
-      // Mig 98: bid_4/bid_5 dropeados (>99% NULL históricamente, marginales
-      // para el promedio). Quedan bid_1/bid_2/bid_3. Comparación case-
-      // insensitive sobre el valor crudo porque ya no pasa por
-      // normalizeCompetitorName() en este punto (el trigger lo normaliza
-      // recién al escribir en BD).
+      // Mig 136: bid_1..bid_5 (hasta 5 bids). Comparación case-insensitive
+      // sobre el valor crudo porque ya no pasa por normalizeCompetitorName()
+      // en este punto (el trigger lo normaliza recién al escribir en BD).
       if (
         String(row.competition_name || '')
           .trim()
           .toLowerCase() === 'indrive'
       ) {
-        const bidVals = [row.bid_1, row.bid_2, row.bid_3]
+        const bidVals = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
           .map((b) => parseFloat(b))
           .filter((n) => !isNaN(n) && n > 0)
         if (bidVals.length) {

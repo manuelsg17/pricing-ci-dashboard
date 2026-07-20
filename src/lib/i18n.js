@@ -535,7 +535,7 @@ export const TRANSLATIONS = {
     'dataentry.legend_step3':
       '3. Para cada competidor poné el ETA (minutos, opcional) y el precio. Completá todas las categorías y franjas de esa ruta antes de pasar a la siguiente. Podés colapsar/expandir cada bracket tocando su cabecera.',
     'dataentry.legend_step4':
-      '4. Para InDrive, tocá ▼ para agregar hasta 3 bids — el promedio se calcula solo.',
+      '4. Para InDrive, tocá ▼ para anotar hasta 5 bids (cada oferta de conductor) — el promedio se calcula solo con los bids. El "Mín" es solo referencia y NO entra al promedio. Ej.: Bid 1=15, Bid 2=13, Bid 3=17 → promedio 15.00. Tocá "?" en el panel para ver el ejemplo.',
     'dataentry.legend_step5':
       '5. Guardá seguido con "💾 Guardar progreso" (podés guardar filas parciales cuantas veces quieras). Además tu progreso se autoguarda solo en este navegador: NO se pierde si actualizás la página, cambiás de ciudad o cerrás por error — al volver, sigue todo cargado.',
     'dataentry.legend_step6': '6. Cuando toda la grilla esté completa, tocá "⏹ Terminar Sesión".',
@@ -943,6 +943,8 @@ export const TRANSLATIONS = {
     'rawdata.col_bid_1': 'Bid 1',
     'rawdata.col_bid_2': 'Bid 2',
     'rawdata.col_bid_3': 'Bid 3',
+    'rawdata.col_bid_4': 'Bid 4',
+    'rawdata.col_bid_5': 'Bid 5',
     'rawdata.col_eta_min': 'ETA (min)',
     'rawdata.edit_hint_title': 'Doble clic para editar',
     'rawdata.loading_data': 'Cargando datos…',
@@ -2536,7 +2538,7 @@ export const TRANSLATIONS = {
     'dataentry.legend_step3':
       '3. For each competitor enter the ETA (minutes, optional) and the price. Fill all categories and timeslots for that route before moving to the next one. You can collapse/expand each bracket by tapping its header.',
     'dataentry.legend_step4':
-      '4. For InDrive, tap ▼ to add up to 3 bids — the average is calculated for you.',
+      '4. For InDrive, tap ▼ to record up to 5 bids (each driver offer) — the average is computed from the bids only. "Mín" is reference only and does NOT count toward the average. E.g. Bid 1=15, Bid 2=13, Bid 3=17 → average 15.00. Tap "?" in the panel for the example.',
     'dataentry.legend_step5':
       '5. Save often with "💾 Save progress" (you can save partial rows as many times as you want). Your progress is also autosaved in this browser: it is NOT lost if you refresh, switch city, or close by mistake — when you come back, everything is still there.',
     'dataentry.legend_step6': '6. Once the whole grid is complete, tap "⏹ End Session".',
@@ -2936,6 +2938,8 @@ export const TRANSLATIONS = {
     'rawdata.col_bid_1': 'Bid 1',
     'rawdata.col_bid_2': 'Bid 2',
     'rawdata.col_bid_3': 'Bid 3',
+    'rawdata.col_bid_4': 'Bid 4',
+    'rawdata.col_bid_5': 'Bid 5',
     'rawdata.col_eta_min': 'ETA (min)',
     'rawdata.edit_hint_title': 'Double-click to edit',
     'rawdata.loading_data': 'Loading data…',
@@ -4520,7 +4524,7 @@ export const TRANSLATIONS = {
     'dataentry.legend_step3':
       '3. Для каждого конкурента укажите ETA (в минутах, необязательно) и цену. Заполните все категории и таймслоты этого маршрута, прежде чем переходить к следующему. Можно свернуть/развернуть каждый брекет, нажав на его заголовок.',
     'dataentry.legend_step4':
-      '4. Для InDrive нажмите ▼, чтобы добавить до 3 ставок — среднее считается автоматически.',
+      '4. Для InDrive нажмите ▼, чтобы записать до 5 ставок (каждое предложение водителя) — среднее считается только по ставкам. «Мин» — это справочное значение и НЕ входит в среднее. Напр.: Ставка 1=15, Ставка 2=13, Ставка 3=17 → среднее 15.00. Нажмите «?» на панели, чтобы увидеть пример.',
     'dataentry.legend_step5':
       '5. Сохраняйте прогресс почаще кнопкой "💾 Сохранить прогресс" (можно сохранять неполные строки сколько угодно раз). Прогресс также автосохраняется в этом браузере: он НЕ теряется при обновлении страницы, смене города или случайном закрытии — когда вернётесь, всё на месте.',
     'dataentry.legend_step6': '6. Когда вся таблица заполнена, нажмите "⏹ Завершить сессию".',
@@ -4933,6 +4937,8 @@ export const TRANSLATIONS = {
     'rawdata.col_bid_1': 'Ставка 1',
     'rawdata.col_bid_2': 'Ставка 2',
     'rawdata.col_bid_3': 'Ставка 3',
+    'rawdata.col_bid_4': 'Ставка 4',
+    'rawdata.col_bid_5': 'Ставка 5',
     'rawdata.col_eta_min': 'ETA (мин)',
     'rawdata.edit_hint_title': 'Двойной клик для редактирования',
     'rawdata.loading_data': 'Загрузка данных…',

@@ -86,7 +86,7 @@ export default function RawDataTable({
             <th colSpan={4} className="col-price">
               {t('rawdata.col_group_prices', { currency: config.currency })}
             </th>
-            <th colSpan={3} className="col-bid">
+            <th colSpan={5} className="col-bid">
               {t('rawdata.col_group_bids')}
             </th>
             <th className="col-eta">{t('rawdata.col_eta')}</th>
@@ -115,6 +115,8 @@ export default function RawDataTable({
             <th className="col-bid">{t('rawdata.col_bid_1')}</th>
             <th className="col-bid">{t('rawdata.col_bid_2')}</th>
             <th className="col-bid">{t('rawdata.col_bid_3')}</th>
+            <th className="col-bid">{t('rawdata.col_bid_4')}</th>
+            <th className="col-bid">{t('rawdata.col_bid_5')}</th>
             <th className="col-eta">{t('rawdata.col_eta_min')}</th>
             <th className="col-actions"></th>
           </tr>
@@ -122,14 +124,14 @@ export default function RawDataTable({
         <tbody>
           {loading && rows.length === 0 && (
             <tr>
-              <td colSpan={26} className="raw-data__state">
+              <td colSpan={25} className="raw-data__state">
                 {t('rawdata.loading_data')}
               </td>
             </tr>
           )}
           {!loading && rows.length === 0 && (
             <tr>
-              <td colSpan={26} className="raw-data__state">
+              <td colSpan={25} className="raw-data__state">
                 {t('rawdata.no_rows')}
               </td>
             </tr>
@@ -220,6 +222,8 @@ export default function RawDataTable({
               <td className="col-bid">{renderEditable(r, 'bid_1')}</td>
               <td className="col-bid">{renderEditable(r, 'bid_2')}</td>
               <td className="col-bid">{renderEditable(r, 'bid_3')}</td>
+              <td className="col-bid">{renderEditable(r, 'bid_4')}</td>
+              <td className="col-bid">{renderEditable(r, 'bid_5')}</td>
               <td className="col-eta">{fmt(r.eta_min, 1)}</td>
               <td className="col-actions">
                 <Button

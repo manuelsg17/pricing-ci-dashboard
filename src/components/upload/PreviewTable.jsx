@@ -15,6 +15,8 @@ const PREVIEW_COLS = [
   { key: 'bid_1', labelKey: 'rawdata.col_bid_1' },
   { key: 'bid_2', labelKey: 'rawdata.col_bid_2' },
   { key: 'bid_3', labelKey: 'rawdata.col_bid_3' },
+  { key: 'bid_4', labelKey: 'rawdata.col_bid_4' },
+  { key: 'bid_5', labelKey: 'rawdata.col_bid_5' },
   { key: '_effective_price', labelKey: 'upload.preview_col_effective_price', computed: true },
 ]
 

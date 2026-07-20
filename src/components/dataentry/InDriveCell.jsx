@@ -3,10 +3,15 @@ import { Button } from '../ui/shadcn/button'
 import { sanitizeDecimalInput } from '../../lib/format'
 import { calcIndriveAvg } from '../../lib/indriveAvg'
 
-// Mig 98: bid_4/bid_5 dropeados de pricing_observations — cap en 3 bids
-// (ver Upload.jsx / algorithms/indrive.js, mismo criterio).
+// Mig 136: bid_4/bid_5 re-agregados a pricing_observations — cap en 5 bids
+// (ver Upload.jsx / algorithms/indrive.js / lib/indriveAvg.js, mismo criterio).
+// El promedio se calcula SOLO con los bids; el "mínimo" es referencia y nunca
+// entra al promedio.
+const MAX_BIDS = 5
+
 export default function InDriveCell({ avg, extra, onChange, hasError }) {
   const [open, setOpen] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const bids = extra?.bids || ['']
   const minBid = extra?.minBid || ''
 
@@ -22,7 +27,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
   }
 
   function addBid() {
-    if (bids.length >= 3) return
+    if (bids.length >= MAX_BIDS) return
     const newBids = [...bids, '']
     onChange({ bids: newBids, minBid }, calcIndriveAvg(newBids))
   }
@@ -59,8 +64,49 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
 
       {open && (
         <div className="indrive-bids-panel">
+          <div className="indrive-bids-head">
+            <span className="indrive-bids-title">Bids InDrive</span>
+            <button
+              type="button"
+              className="indrive-help-btn"
+              onClick={() => setShowHelp((h) => !h)}
+              title="¿Qué es el mínimo y qué son los bids?"
+            >
+              {showHelp ? '✕' : '?'}
+            </button>
+          </div>
+
+          {showHelp && (
+            <div className="indrive-help">
+              <p>
+                En InDrive cada conductor ofrece un precio (un <strong>bid</strong>). Anotá cada
+                oferta que veas en la app, hasta 5.
+              </p>
+              <p>
+                <strong>Mín</strong> = el precio mínimo que sugiere InDrive para el viaje. Es solo
+                referencia: <u>no</u> entra al promedio.
+              </p>
+              <p>
+                El <strong>Promedio</strong> (la casilla verde) se calcula solo con los bids.
+              </p>
+              <div className="indrive-help-example">
+                <div className="indrive-help-example-title">Ejemplo</div>
+                <div>Mín 8.00 · Bid 1 = 15 · Bid 2 = 13 · Bid 3 = 17</div>
+                <div>
+                  Promedio = (15 + 13 + 17) ÷ 3 = <strong>15.00</strong> &nbsp;(el 8.00 del mínimo
+                  no cuenta)
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="indrive-bid-row">
-            <span className="indrive-bid-label">Mín</span>
+            <span
+              className="indrive-bid-label"
+              title="Precio mínimo sugerido por InDrive — solo referencia, no entra al promedio"
+            >
+              Mín
+            </span>
             <input
               type="text"
               inputMode="decimal"
@@ -94,7 +140,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
               )}
             </div>
           ))}
-          {bids.length < 3 && (
+          {bids.length < MAX_BIDS && (
             <Button
               type="button"
               variant="outline"
