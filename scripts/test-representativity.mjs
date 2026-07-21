@@ -111,6 +111,36 @@ console.log('\n══ representativity tests ══')
   assert(computeRepresentativity(null).totalCells === 0, 'null no crashea')
 }
 
+{
+  console.log('\n[9] no_data ("atendida sin oferta"): estado aparte, no penaliza ni alerta')
+  const rows = [
+    { city: 'Lima', category: 'Eco', competition_name: 'Uber', distance_bracket: 'short', bot_n: 50, manual_n: 0 }, // ok
+    { city: 'Lima', category: 'Eco', competition_name: 'Didi', distance_bracket: 'short', bot_n: 0, manual_n: 3, no_data_n: 2 }, // 3<10 pero S/D → atendida sin oferta
+    { city: 'Lima', category: 'Eco', competition_name: 'Cabify', distance_bracket: 'short', bot_n: 0, manual_n: 4, no_data_n: 0 }, // 4<10 sin S/D → roja
+    { city: 'Lima', category: 'Eco', competition_name: 'InDrive', distance_bracket: 'long', bot_n: 0, manual_n: 0, no_data_n: 5 }, // solo S/D → atendida sin oferta
+  ]
+  const s = computeRepresentativity(rows)
+  assert(s.totalCells === 4, '4 celdas')
+  assert(s.green === 1, '1 verde (Uber 50)')
+  assert(s.attendedNoOffer === 2, '2 atendidas sin oferta (Didi, InDrive)')
+  assert(s.red === 1, '1 roja real (Cabify)')
+  assert(s.noSource === 1 && s.redCells.length === 1, 'la alerta solo tiene la Cabify')
+  assert(s.redCells[0].comp === 'Cabify', 'la roja es Cabify')
+  assert(s.covered === 1 && s.coveragePct === 50, 'cobertura 1/(4-2) = 50% (excluye sin-oferta)')
+}
+
+{
+  console.log('\n[10] todo "sin oferta" → 100% (nada que medir)')
+  const rows = [
+    { city: 'X', category: 'Eco', competition_name: 'Uber', distance_bracket: 'short', bot_n: 0, manual_n: 0, no_data_n: 3 },
+    { city: 'X', category: 'Eco', competition_name: 'Didi', distance_bracket: 'short', bot_n: 0, manual_n: 0, no_data_n: 1 },
+  ]
+  const s = computeRepresentativity(rows)
+  assert(s.attendedNoOffer === 2 && s.covered === 0, '2 sin oferta, 0 cubiertas')
+  assert(s.coveragePct === 100 && s.level === 'ok', 'sin nada que medir → 100% ok')
+  assert(s.noSource === 0 && s.redCells.length === 0, 'sin alerta de faltantes')
+}
+
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)
 if (fail > 0) {
   console.log('\nFallidos:')

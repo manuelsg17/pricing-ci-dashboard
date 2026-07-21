@@ -46,6 +46,10 @@ export function classifyCell(row) {
   const comp = row.competition_name
   const bot = Number(row.bot_n) || 0
   const man = Number(row.manual_n) || 0
+  // Muestras "sin data" (S/D): el hub atendió la celda, no había oferta. NO son
+  // muestras de precio (no cuentan para el piso), pero indican que la celda fue
+  // atendida — no es un hueco de medición.
+  const noData = Number(row.no_data_n) || 0
   const total = bot + man
   const f = cellFloor(comp)
   const level = levelForTotal(total, comp)
@@ -58,6 +62,9 @@ export function classifyCell(row) {
     else if (botOk) source = 'bot'
     else source = 'pooled'
   }
+  // "Atendida sin oferta": no llega al piso de precio pero el hub la marcó S/D.
+  // No es un hueco (no va a la alerta de faltantes) ni penaliza la salud.
+  const attendedNoOffer = level === 'bad' && noData > 0
   return {
     city: row.city,
     category: row.category,
@@ -65,11 +72,13 @@ export function classifyCell(row) {
     bracket: row.distance_bracket,
     bot,
     man,
+    noData,
     total,
     floor: f,
     optimo: cellOptimo(comp),
     level,
     source,
+    attendedNoOffer,
   }
 }
 
@@ -84,7 +93,8 @@ export function computeRepresentativity(rows) {
   const cells = (rows || []).map(classifyCell)
   let green = 0
   let amber = 0
-  let red = 0
+  let red = 0 // bajo piso Y sin marca S/D → hueco real de medición
+  let attendedNoOffer = 0 // atendida, sin oferta (S/D) — ni verde ni faltante
   let botFloor = 0 // celdas donde el bot solo ya llega al piso
   let appsFloor = 0 // celdas donde las apps solas ya llegan al piso
   let appsEssential = 0 // celdas representables SOLO gracias a las apps (bot < piso)
@@ -93,6 +103,7 @@ export function computeRepresentativity(rows) {
   for (const c of cells) {
     if (c.level === 'ok') green++
     else if (c.level === 'warn') amber++
+    else if (c.attendedNoOffer) attendedNoOffer++
     else red++
     if (c.bot >= c.floor) botFloor++
     if (c.man >= c.floor) appsFloor++
@@ -102,13 +113,21 @@ export function computeRepresentativity(rows) {
   }
   const totalCells = cells.length
   const covered = green + amber
-  const coverageRatio = totalCells ? covered / totalCells : 1
-  const redCells = cells.filter((c) => c.level === 'bad').sort((a, b) => a.total - b.total)
+  // Las celdas "atendidas sin oferta" se excluyen del universo esperado: no se
+  // puede tener precio representativo donde no hay oferta, así que no penalizan
+  // la salud. Si TODO es sin-oferta, la representatividad es 100% (nada que medir).
+  const expected = totalCells - attendedNoOffer
+  const coverageRatio = expected > 0 ? covered / expected : 1
+  // Alerta de faltantes: solo huecos reales (bajo piso, sin marca S/D).
+  const redCells = cells
+    .filter((c) => c.level === 'bad' && !c.attendedNoOffer)
+    .sort((a, b) => a.total - b.total)
   return {
     totalCells,
     green,
     amber,
     red,
+    attendedNoOffer,
     covered,
     coverageRatio,
     coveragePct: Math.round(coverageRatio * 100),

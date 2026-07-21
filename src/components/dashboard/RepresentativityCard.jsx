@@ -143,6 +143,12 @@ export default function RepresentativityCard() {
         )}
         {s.pooledOnly > 0 &&
           chip('#fffbeb', '#b45309', t('dashboard.repr.pooled_fragile', { n: s.pooledOnly }))}
+        {s.attendedNoOffer > 0 &&
+          chip(
+            '#fef3c7',
+            '#b45309',
+            `🚫 ${t('dashboard.repr.attended_no_offer', { n: s.attendedNoOffer })}`
+          )}
       </div>
 
       {/* Alerta: celdas sin fuente confiable */}
