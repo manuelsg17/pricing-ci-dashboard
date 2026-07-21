@@ -776,6 +776,13 @@ export default function Upload() {
     })
 
     // ── Paso 3: DELETE por ciudad+rango de fechas ─────────────────────────
+    // ACOTADO al Excel (uploaded_by IS NULL): así este import NO borra lo que
+    // cargaron los hubs a mano en "Ingresar CI" (esas filas llevan
+    // uploaded_by = email del hub, mig 139). El Excel solo reemplaza sus
+    // propias filas previas (y las legacy sin dueño, mayormente de Excel).
+    // Excel y hub comparten data_source='manual' y se fusionan como muestras
+    // en la MV (agrupa por data_source, no por uploaded_by) → el Excel aparece
+    // como una muestra adicional junto a la del hub, sin pisarla.
     for (const [city, { min, max }] of Object.entries(cityDateRanges)) {
       const { error: delErr } = await sb
         .from('pricing_observations')
@@ -783,6 +790,7 @@ export default function Upload() {
         .eq('country', country)
         .eq('city', city)
         .eq('data_source', 'manual')
+        .is('uploaded_by', null)
         .gte('observed_date', min)
         .lte('observed_date', max)
       if (delErr) {

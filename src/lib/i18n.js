@@ -1076,7 +1076,7 @@ export const TRANSLATIONS = {
     'upload.no_price_rules':
       'Sin reglas de precio configuradas para este país — la validación de límites no se aplicará. Ve a Config → Límites Precio para agregar reglas.',
     'upload.overwrite_notice':
-      'Al insertar se borrarán automáticamente las filas existentes del mismo rango de fechas y ciudad, luego se insertan las nuevas. Subir el mismo Excel dos veces no genera duplicados.',
+      'Al insertar se reemplazan solo las filas de Excel previas del mismo rango de fechas y ciudad. Lo que cargaron los hubs a mano en "Ingresar CI" NO se toca: queda como una muestra adicional. Subir el mismo Excel dos veces no genera duplicados.',
     'upload.insert_button': 'Insertar {n} filas en Supabase',
     'upload.sanitize_warning': {
       one: '{total} fila descartada por incompletas ({missingFields} sin campos clave, {missingPrice} sin precio).',
@@ -1085,7 +1085,7 @@ export const TRANSLATIONS = {
     },
     'upload.ingest_confirm_title': 'Confirmar ingesta',
     'upload.ingest_confirm_message':
-      'Se reemplazarán las filas manuales existentes en {country} para:\n\n{summary}\n\nTotal a insertar: {n} filas. Esta acción no se puede deshacer automáticamente.',
+      'Se reemplazarán solo las filas de Excel previas en {country} para:\n\n{summary}\n\nLo cargado a mano por los hubs no se borra. Total a insertar: {n} filas. Esta acción no se puede deshacer automáticamente.',
     'upload.ingest_confirm_btn': 'Reemplazar e insertar',
     'upload.dropzone_invalid': 'Solo se aceptan archivos .xlsx, .xls o .csv',
     'upload.dropzone_text': 'Arrastra uno o varios archivos aquí, o haz clic para seleccionar',
@@ -3127,7 +3127,7 @@ export const TRANSLATIONS = {
     'upload.no_price_rules':
       'No price rules configured for this country — limit validation will not apply. Go to Config → Price Limits to add rules.',
     'upload.overwrite_notice':
-      'Inserting will automatically delete existing rows for the same date range and city, then insert the new ones. Uploading the same Excel twice does not create duplicates.',
+      'Inserting only replaces previous Excel rows for the same date range and city. What hubs entered by hand in "Ingresar CI" is NOT touched: it stays as an additional sample. Uploading the same Excel twice does not create duplicates.',
     'upload.insert_button': 'Insert {n} rows into Supabase',
     'upload.sanitize_warning': {
       one: '{total} row discarded as incomplete ({missingFields} missing key fields, {missingPrice} missing price).',
@@ -3136,7 +3136,7 @@ export const TRANSLATIONS = {
     },
     'upload.ingest_confirm_title': 'Confirm ingestion',
     'upload.ingest_confirm_message':
-      'This will replace the existing manual rows in {country} for:\n\n{summary}\n\nTotal to insert: {n} rows. This action cannot be undone automatically.',
+      'This will replace only previous Excel rows in {country} for:\n\n{summary}\n\nData entered by hand by the hubs is not deleted. Total to insert: {n} rows. This action cannot be undone automatically.',
     'upload.ingest_confirm_btn': 'Replace and insert',
     'upload.dropzone_invalid': 'Only .xlsx, .xls or .csv files are accepted',
     'upload.dropzone_text': 'Drag one or more files here, or click to select',
@@ -5191,7 +5191,7 @@ export const TRANSLATIONS = {
     'upload.no_price_rules':
       'Нет настроенных ценовых правил для этой страны — валидация лимитов не будет применяться. Перейдите в Config → Ценовые лимиты, чтобы добавить правила.',
     'upload.overwrite_notice':
-      'При вставке автоматически удалятся существующие строки за тот же диапазон дат и город, затем вставятся новые. Повторная загрузка того же Excel не создаёт дубликатов.',
+      'При вставке заменяются только предыдущие строки Excel за тот же диапазон дат и город. То, что хабы ввели вручную в «Ingresar CI», НЕ затрагивается: остаётся как дополнительная выборка. Повторная загрузка того же Excel не создаёт дубликатов.',
     'upload.insert_button': 'Вставить {n} строк в Supabase',
     'upload.sanitize_warning': {
       one: '{total} строка отброшена как неполная ({missingFields} без ключевых полей, {missingPrice} без цены).',
@@ -5202,7 +5202,7 @@ export const TRANSLATIONS = {
     },
     'upload.ingest_confirm_title': 'Подтвердить загрузку',
     'upload.ingest_confirm_message':
-      'Существующие вручную загруженные строки в {country} будут заменены для:\n\n{summary}\n\nВсего к вставке: {n} строк. Это действие нельзя отменить автоматически.',
+      'Будут заменены только предыдущие строки Excel в {country} для:\n\n{summary}\n\nДанные, введённые хабами вручную, не удаляются. Всего к вставке: {n} строк. Это действие нельзя отменить автоматически.',
     'upload.ingest_confirm_btn': 'Заменить и вставить',
     'upload.dropzone_invalid': 'Принимаются только файлы .xlsx, .xls или .csv',
     'upload.dropzone_text': 'Перетащите один или несколько файлов сюда, или нажмите для выбора',
