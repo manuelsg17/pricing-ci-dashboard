@@ -24,6 +24,7 @@ const BotVsHubs = lazy(() => import('./pages/BotVsHubs'))
 const Market = lazy(() => import('./pages/Market'))
 const Coverage = lazy(() => import('./pages/Coverage'))
 const Competitividad = lazy(() => import('./pages/Competitividad'))
+const Monitoring = lazy(() => import('./pages/Monitoring'))
 
 export default function App() {
   const { t } = useI18n()
@@ -35,6 +36,7 @@ export default function App() {
     error: acError,
     canAccess,
     canAccessCountry,
+    isAdmin,
     loading: acLoading,
     reload: reloadAccessControl,
   } = useAccessControl()
@@ -192,6 +194,7 @@ export default function App() {
         onLogout={signOut}
         changePassword={changePassword}
         canAccess={canAccess}
+        isAdmin={isAdmin}
         allowedCountries={allowedCountries}
       />
 
@@ -222,6 +225,7 @@ export default function App() {
             {activeTab === 'upload' && canAccess('upload') && <Upload />}
             {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
             {activeTab === 'access' && canAccess('access') && <AccessManagement />}
+            {activeTab === 'monitoring' && isAdmin && <Monitoring />}
           </Suspense>
         </ErrorBoundary>
       </FilterProvider>

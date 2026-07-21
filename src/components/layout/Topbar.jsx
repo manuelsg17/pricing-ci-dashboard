@@ -28,6 +28,7 @@ const getNav = (t) => [
     icon: '🗄️',
     children: [
       { id: 'dataentry', label: t('nav.dataentry') },
+      { id: 'monitoring', label: t('nav.monitoring'), adminOnly: true },
       { id: 'upload', label: t('nav.upload') },
       { id: 'rawdata', label: t('nav.rawdata') },
       { id: 'botvshubs', label: t('nav.botvshubs') },
@@ -174,8 +175,13 @@ export default function Topbar({
   onLogout,
   changePassword,
   canAccess = () => true,
+  isAdmin = false,
   allowedCountries = COUNTRIES,
 }) {
+  // Un ítem de nav visible: los `adminOnly` (ej. Monitoreo) se gatean por isAdmin
+  // — no por canAccess ni por permisos de sección (así no se puede "regalar" a
+  // otro rol desde la UI de Roles). El resto, por canAccess.
+  const canShow = (item) => (item.adminOnly ? isAdmin : canAccess(item.id))
   const { lang, setLang, languages, t } = useI18n()
   const { country, setCountry, countryConfig } = useCountry()
   // Prioridad: countryConfig.iso2 / nativeLabel (de DB) → COUNTRY_CONFIG
@@ -216,7 +222,7 @@ export default function Topbar({
       <div className="topbar__tabs">
         {navItems.map((item) => {
           if (item.direct) {
-            if (!canAccess(item.id)) return null
+            if (!canShow(item)) return null
             return (
               <button
                 key={item.id}
@@ -227,7 +233,7 @@ export default function Topbar({
               </button>
             )
           }
-          const visibleChildren = item.children.filter((c) => canAccess(c.id))
+          const visibleChildren = item.children.filter((c) => canShow(c))
           if (visibleChildren.length === 0) return null
           return (
             <DropdownMenu
