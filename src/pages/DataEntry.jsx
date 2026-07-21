@@ -591,30 +591,31 @@ export default function DataEntry() {
     return () => clearInterval(id)
   }, [lastDraftSavedAt])
 
-  // ── Otro borrador sin terminar (distinta ciudad/fecha) ─
-  const [otherDraft, setOtherDraft] = useState(null)
+  // ── Borradores sin terminar (todos, por país) ──────────
+  // Un "borrador" = una (ciudad, fecha) con datos SIN TERMINAR, guardado solo
+  // en este navegador (localStorage, uno por país/ciudad/fecha). Escaneamos
+  // TODAS las claves de este país para: (1) listarle al hub sus borradores con
+  // Reanudar/Descartar y (2) aplicar el tope de MAX_DRAFTS borradores a la vez.
+  // draftScanTick fuerza un re-escaneo tras terminar/descartar una sesión.
+  const MAX_DRAFTS = 2
+  const [activeDrafts, setActiveDrafts] = useState([])
+  const [draftScanTick, setDraftScanTick] = useState(0)
 
   useEffect(() => {
-    if (countAllFilled(entries, indriveExtra) + naKeys.size > 0) {
-      setOtherDraft(null)
-      return
-    }
     const prefix = `de:draft:${country}:`
-    let best = null
+    const list = []
     for (let i = 0; i < localStorage.length; i++) {
-      // Try/catch POR CLAVE — un borrador corrupto (ej. localStorage
-      // manipulado a mano, o un JSON parcial de un crash) no debe abortar
-      // el escaneo entero y esconder los demás borradores válidos.
+      // Try/catch POR CLAVE — un borrador corrupto no debe abortar el escaneo
+      // entero y esconder los demás borradores válidos.
       try {
         const k = localStorage.key(i)
-        if (!k || !k.startsWith(prefix) || k === draftKey) continue
+        if (!k || !k.startsWith(prefix)) continue
         const raw = localStorage.getItem(k)
         if (!raw) continue
         const parsed = JSON.parse(raw)
-        // Contar TODO lo cargable del borrador: precios + InDrive solo-recomendado
-        // + celdas marcadas "sin data" (naKeys) — si acá se contaran solo los
-        // números de `entries`, un borrador 100% S/D o solo-recomendado no se
-        // ofrecería para reanudar aunque el autosave sí lo persistió.
+        // Contar TODO lo cargable: precios + InDrive solo-recomendado + celdas
+        // "sin data" (naKeys). Un borrador 100% S/D o solo-recomendado igual es
+        // un borrador real que el autosave persistió.
         const count =
           countAllFilled(parsed?.entries, parsed?.indriveExtra) +
           (Array.isArray(parsed?.naKeys) ? parsed.naKeys.length : 0)
@@ -622,35 +623,38 @@ export default function DataEntry() {
         const rest = k.slice(prefix.length) // "{city}:{date}"
         const sep = rest.lastIndexOf(':')
         if (sep === -1) continue
-        const savedAt = parsed.savedAt || 0
-        if (!best || savedAt > best.savedAt) {
-          best = { key: k, city: rest.slice(0, sep), date: rest.slice(sep + 1), count, savedAt }
-        }
+        list.push({
+          key: k,
+          city: rest.slice(0, sep),
+          date: rest.slice(sep + 1),
+          count,
+          savedAt: parsed.savedAt || 0,
+        })
       } catch {
         /* borrador corrupto en esta clave puntual — seguir con las demás */
       }
     }
-    setOtherDraft(best)
-    // Re-escanea solo al cambiar de vista (o cuando la vista actual queda
-    // vacía), no en cada tecla — `entries` se lee en el cuerpo del efecto.
+    list.sort((a, b) => b.savedAt - a.savedAt)
+    setActiveDrafts(list)
+    // Re-escanea al cambiar de vista/país o cuando algo cambia el set de
+    // borradores (terminar/descartar bumpean draftScanTick).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country, draftKey])
+  }, [country, draftKey, draftScanTick])
 
-  function jumpToOtherDraft() {
-    if (!otherDraft) return
-    setUiCity(otherDraft.city)
-    setDate(otherDraft.date)
-    setOtherDraft(null)
+  function resumeDraft(d) {
+    setUiCity(d.city)
+    setDate(d.date)
+    setMsg(null)
   }
 
-  function discardOtherDraft() {
-    if (!otherDraft) return
+  function discardDraft(d) {
     try {
-      localStorage.removeItem(otherDraft.key)
+      localStorage.removeItem(d.key)
     } catch {
       /* ignore */
     }
-    setOtherDraft(null)
+    setActiveDrafts((prev) => prev.filter((x) => x.key !== d.key))
+    setDraftScanTick((tk) => tk + 1)
   }
 
   // ── Group refs by UI category + bracket ───────────────
@@ -868,6 +872,19 @@ export default function DataEntry() {
     () => countAllFilled(entries, indriveExtra) + naKeys.size,
     [entries, indriveExtra, naKeys]
   )
+
+  // Borradores DISTINTOS al de la vista actual (para el banner de la lista) y si
+  // llegamos al tope. blockNewSlot: la vista actual está vacía Y ya hay
+  // MAX_DRAFTS borradores en OTRAS ciudades/fechas → hay que terminar/descartar
+  // uno antes de empezar este (evita acumular borradores a medias). No bloquea
+  // si estás editando un borrador existente ni una sesión reabierta del
+  // historial (loadedCombos seteado).
+  const otherDrafts = useMemo(
+    () => activeDrafts.filter((d) => d.key !== draftKey),
+    [activeDrafts, draftKey]
+  )
+  const atDraftCap = otherDrafts.length >= MAX_DRAFTS
+  const blockNewSlot = atDraftCap && filledCount === 0 && !loadedCombos
 
   // ── Build rows to insert ───────────────────────────────
   function buildRows(uiCat, ref, ts) {
@@ -1122,6 +1139,30 @@ export default function DataEntry() {
     if (isFinish) {
       clearDraft()
       setLastDraftSavedAt(null)
+      // Limpiar la rebanada EN MEMORIA de la ciudad recién terminada. Sin esto,
+      // el flush/autosave/beforeunload vuelven a escribir el borrador que
+      // clearDraft() acaba de borrar (la grilla seguía en memoria) → una sesión
+      // terminada reaparecía como "borrador activo". Al vaciar la ciudad, el
+      // autosave la ve vacía y no reescribe nada. Los datos ya están en la BD
+      // (y en "sesiones pasadas"): reabrir desde el historial los recarga.
+      const finishedCity = dbCity
+      const dropCity = (setter) =>
+        setter((prev) => {
+          if (!(finishedCity in prev)) return prev
+          const n = { ...prev }
+          delete n[finishedCity]
+          return n
+        })
+      dropCity(setEntriesByCity)
+      dropCity(setIndriveByCity)
+      dropCity(setEtaByCity)
+      dropCity(setDiscByCity)
+      dropCity(setNaByCity)
+      dropCity(setSurgeByCity)
+      dropCity(setErrorKeysByCity)
+      dropCity(setLoadedCombosByCity)
+      // Re-escanear la lista de borradores (el terminado ya no está).
+      setDraftScanTick((tk) => tk + 1)
     }
     setSaving(false)
     return true
@@ -1493,24 +1534,32 @@ export default function DataEntry() {
         </div>
       )}
 
-      {/* ── Borrador sin terminar en otra ciudad/fecha ── */}
-      {otherDraft && (
-        <div className="de-msg de-msg--ok de-other-draft">
-          <span>
-            {t('dataentry.other_draft_note', {
-              city: otherDraft.city,
-              date: otherDraft.date,
-              n: otherDraft.count,
-            })}
-          </span>
-          <span className="de-other-draft-actions">
-            <Button size="sm" onClick={jumpToOtherDraft}>
-              {t('dataentry.other_draft_jump')}
-            </Button>
-            <Button size="sm" variant="outline" onClick={discardOtherDraft}>
-              {t('dataentry.other_draft_discard')}
-            </Button>
-          </span>
+      {/* ── Borradores sin terminar (otras ciudades/fechas) + tope ── */}
+      {otherDrafts.length > 0 && (
+        <div className={`de-drafts-bar${atDraftCap ? ' de-drafts-bar--cap' : ''}`}>
+          <div className="de-drafts-bar-head">
+            {atDraftCap
+              ? `⚠ ${t('dataentry.draft_cap_title', { max: MAX_DRAFTS })}`
+              : t('dataentry.drafts_pending', { n: otherDrafts.length })}
+          </div>
+          <div className="de-draft-list">
+            {otherDrafts.map((d) => (
+              <div key={d.key} className="de-draft-item">
+                <span className="de-draft-item-label">
+                  📝 {d.city} · {d.date} · {t('dataentry.draft_cells', { n: d.count })}
+                </span>
+                <span className="de-draft-item-actions">
+                  <Button size="sm" onClick={() => resumeDraft(d)}>
+                    {t('dataentry.other_draft_jump')}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => discardDraft(d)}>
+                    {t('dataentry.other_draft_discard')}
+                  </Button>
+                </span>
+              </div>
+            ))}
+          </div>
+          {atDraftCap && <div className="de-drafts-bar-msg">{t('dataentry.draft_cap_msg')}</div>}
         </div>
       )}
 
@@ -1526,7 +1575,11 @@ export default function DataEntry() {
       )}
 
       {/* ── Grilla ── */}
-      {refsLoading ? (
+      {blockNewSlot ? (
+        <div className="de-draft-cap-block">
+          {t('dataentry.draft_cap_block', { max: MAX_DRAFTS })}
+        </div>
+      ) : refsLoading ? (
         <div className="de-loading">{t('dataentry.loading_routes')}</div>
       ) : refsByBracket.length === 0 ? (
         <div className="de-loading">{t('dataentry.no_routes_at_all')}</div>
@@ -1602,7 +1655,7 @@ export default function DataEntry() {
         </>
       )}
       {/* Footer repeat buttons */}
-      {!refsLoading && refs.length > 0 && (
+      {!blockNewSlot && !refsLoading && refs.length > 0 && (
         <div className="de-footer">
           {sessionActive ? (
             <>

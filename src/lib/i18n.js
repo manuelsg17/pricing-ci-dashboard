@@ -559,6 +559,16 @@ export const TRANSLATIONS = {
     'dataentry.other_draft_note': 'Tenés un borrador sin terminar en {city}, {date} ({n} celdas).',
     'dataentry.other_draft_jump': 'Ir ahí',
     'dataentry.other_draft_discard': 'Descartar',
+    'dataentry.drafts_pending': {
+      one: 'Tenés {n} borrador sin terminar en otra ciudad/fecha:',
+      other: 'Tenés {n} borradores sin terminar en otras ciudades/fechas:',
+    },
+    'dataentry.draft_cells': { one: '{n} celda', other: '{n} celdas' },
+    'dataentry.draft_cap_title': 'Máximo de {max} borradores sin terminar a la vez',
+    'dataentry.draft_cap_msg':
+      'Para empezar a cargar otra ciudad/fecha, primero terminá o descartá uno de estos borradores.',
+    'dataentry.draft_cap_block':
+      'Llegaste al máximo de {max} borradores sin terminar. Terminá o descartá uno de los de arriba para poder cargar esta ciudad/fecha.',
     'dataentry.legend_title': 'Cómo llenar esta pantalla',
     'dataentry.legend_step1': '1. Elegí tu ciudad y la fecha arriba.',
     'dataentry.legend_step2':
@@ -2619,6 +2629,16 @@ export const TRANSLATIONS = {
     'dataentry.other_draft_note': 'You have an unfinished draft in {city}, {date} ({n} cells).',
     'dataentry.other_draft_jump': 'Go there',
     'dataentry.other_draft_discard': 'Discard',
+    'dataentry.drafts_pending': {
+      one: 'You have {n} unfinished draft in another city/date:',
+      other: 'You have {n} unfinished drafts in other cities/dates:',
+    },
+    'dataentry.draft_cells': { one: '{n} cell', other: '{n} cells' },
+    'dataentry.draft_cap_title': 'Maximum of {max} unfinished drafts at a time',
+    'dataentry.draft_cap_msg':
+      'To start entering another city/date, first finish or discard one of these drafts.',
+    'dataentry.draft_cap_block':
+      'You reached the maximum of {max} unfinished drafts. Finish or discard one of the drafts above to enter this city/date.',
     'dataentry.legend_title': 'How to fill this screen',
     'dataentry.legend_step1': '1. Pick your city and date above.',
     'dataentry.legend_step2':
@@ -4661,6 +4681,23 @@ export const TRANSLATIONS = {
     'dataentry.other_draft_note': 'У вас есть незавершённый черновик в {city}, {date} ({n} ячеек).',
     'dataentry.other_draft_jump': 'Перейти туда',
     'dataentry.other_draft_discard': 'Отменить',
+    'dataentry.drafts_pending': {
+      one: 'У вас {n} незавершённый черновик в другом городе/дате:',
+      few: 'У вас {n} незавершённых черновика в других городах/датах:',
+      many: 'У вас {n} незавершённых черновиков в других городах/датах:',
+      other: 'У вас {n} незавершённых черновиков в других городах/датах:',
+    },
+    'dataentry.draft_cells': {
+      one: '{n} ячейка',
+      few: '{n} ячейки',
+      many: '{n} ячеек',
+      other: '{n} ячеек',
+    },
+    'dataentry.draft_cap_title': 'Максимум {max} незавершённых черновиков одновременно',
+    'dataentry.draft_cap_msg':
+      'Чтобы начать вводить другой город/дату, сначала завершите или отмените один из этих черновиков.',
+    'dataentry.draft_cap_block':
+      'Вы достигли максимума {max} незавершённых черновиков. Завершите или отмените один из черновиков выше, чтобы ввести этот город/дату.',
     'dataentry.legend_title': 'Как заполнять этот экран',
     'dataentry.legend_step1': '1. Выберите город и дату вверху.',
     'dataentry.legend_step2':
