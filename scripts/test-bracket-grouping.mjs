@@ -104,8 +104,33 @@ const CATEGORIES = ['Economy/Comfort', 'XL', 'TukTuk']
 }
 
 {
-  console.log('\n[5] Sin categoría fuente (ciudad sin categorías utilizables) → lista vacía, no crashea')
-  assert(JSON.stringify(buildRefsByBracket({}, [], null)) === '[]', 'sourceCategory null → []')
+  console.log('\n[5] Sin categoría fuente pero SIN rutas (ciudad vacía) → lista vacía, no crashea')
+  assert(JSON.stringify(buildRefsByBracket({}, [], null)) === '[]', 'sourceCategory null + sin refs → []')
+}
+
+{
+  console.log('\n[6] Sin categoría fuente pero CON rutas (ciudad Corp, o solo-TukTuk) → cada ruta como extra')
+  // La ciudad "Corp" tiene una única categoría (Corp), excluida de la
+  // replicación → getSourceCategory devuelve null. Antes buildRefsByBracket
+  // devolvía [] y la grilla decía "no hay rutas" pese a existir en la BD.
+  const refsByUICat = {
+    Corp: [
+      { id: 1, bracket: 'very_short', point_a: 'Lima Golf Club', point_b: 'Hospital FAP' },
+      { id: 2, bracket: 'short', point_a: 'Maria Mezcal', point_b: 'ATV' },
+      { id: 3, bracket: 'long', point_a: 'IBM del Perú', point_b: 'RENIEC San Borja' },
+    ],
+  }
+  const result = buildRefsByBracket(refsByUICat, ['Corp'], null)
+  assert(result.length === 3, 'aparecen los 3 brackets con ruta (very_short, short, long)')
+  const vs = result.find((b) => b.bracket === 'very_short')
+  assert(vs.groups.length === 0, 'sin groups (no hay categoría ancla)')
+  assert(vs.extras.length === 1 && vs.extras[0].ref.id === 1, 'la ruta Corp aparece como extra')
+  assert(
+    result.every((b) => b.groups.length === 0 && b.extras.length === 1),
+    'cada bracket con ruta rinde exactamente 1 extra, 0 groups'
+  )
+  const ids = result.flatMap((b) => b.extras.map((e) => e.ref.id)).sort()
+  assert(JSON.stringify(ids) === JSON.stringify([1, 2, 3]), 'ninguna ruta de Corp se pierde')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

@@ -1700,7 +1700,15 @@ export default function DataEntry() {
               ))}
               {extras.length > 0 && (
                 <div className="de-bracket-extras">
-                  <div className="de-bracket-extras-title">{t('dataentry.extra_routes_title')}</div>
+                  {/* El título "Rutas adicionales" solo tiene sentido cuando hay
+                      además rutas principales (groups). Si TODO el bracket son
+                      extras (ej. ciudad Corp, o solo-TukTuk), no hay "adicionales"
+                      respecto de nada → se omite el título. */}
+                  {groups.length > 0 && (
+                    <div className="de-bracket-extras-title">
+                      {t('dataentry.extra_routes_title')}
+                    </div>
+                  )}
                   {extras.map(({ uiCat, ref }) => (
                     <BracketRouteGroup
                       key={`${bracket}-extra-${ref.id}`}

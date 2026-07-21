@@ -12,7 +12,23 @@ import { BRACKETS } from './constants.js'
 // bracket) — esas quedan en `extras`, cada una con su propia cabecera de
 // ruta, en vez de arriesgar un emparejamiento incorrecto y silencioso.
 export function buildRefsByBracket(refsByUICat, categories, sourceCategory) {
-  if (!sourceCategory) return []
+  // Sin categoría "ancla" (getSourceCategory devolvió null): la ciudad solo tiene
+  // categorías excluidas de la replicación — ej. la ciudad-tab "Corp" (única
+  // categoría Corp) o una ciudad solo-TukTuk. NO hay rutas hermanas que emparejar,
+  // pero SÍ hay rutas para cargar: se muestra cada ruta como "extra" con su propia
+  // cabecera. Antes se devolvía [] y la grilla decía "no hay rutas configuradas"
+  // aunque distance_references sí tuviera rutas para esa ciudad (bug de Corp).
+  if (!sourceCategory) {
+    return BRACKETS.map((bracket) => {
+      const extras = []
+      for (const uiCat of categories) {
+        for (const ref of (refsByUICat[uiCat] || []).filter((r) => r.bracket === bracket)) {
+          extras.push({ uiCat, ref })
+        }
+      }
+      return { bracket, groups: [], extras }
+    }).filter((b) => b.extras.length > 0)
+  }
   const anchorRefs = refsByUICat[sourceCategory] || []
   return BRACKETS.map((bracket) => {
     const bracketAnchors = anchorRefs.filter((r) => r.bracket === bracket)
