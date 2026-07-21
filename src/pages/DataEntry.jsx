@@ -1076,61 +1076,79 @@ export default function DataEntry() {
     // hermana de OTRO bracket que estuviera a medias (o que no se re-guardara en
     // este checkpoint) y solo re-insertaba las completas → esa ruta parcial ya
     // guardada se perdía. Acotando por bracket, cada ruta solo toca sus filas.
-    const combosByCatTime = new Map() // "dbCat|HH:MM" → Set<bracket>
+    // Descriptores de RUTA a limpiar: (dbCat, franja, bracket, point_a, point_b).
+    // El DELETE se acota a la RUTA EXACTA (incluidos point_a/point_b), no solo a
+    // (categoría, bracket): varias rutas pueden compartir categoría+bracket y
+    // diferir solo en los puntos (TukTuk por distrito). Si se acotara por bracket,
+    // borrar se llevaría puesta una ruta hermana del mismo bracket que estuviera a
+    // medias (o que no se re-guardara en este checkpoint) → esa ruta ya guardada
+    // se perdía. Acotando por ruta, cada una solo toca sus propias filas.
+    const SEP = '\u0001' // separador que no aparece en direcciones/coords
+    const routeDels = new Map()
+    const addRoute = (uiCat, dbCat, time, bracket, pa, pb) => {
+      const k = [dbCat, time, bracket, pa ?? '', pb ?? ''].join(SEP)
+      if (!routeDels.has(k))
+        routeDels.set(k, { uiCat, dbCat, time, bracket, pa: pa ?? null, pb: pb ?? null })
+    }
     for (const r of rowsToInsert) {
       const dbCat = resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory
-      const key = `${dbCat}|${r.ts.start_time?.slice(0, 5)}`
-      if (!combosByCatTime.has(key)) combosByCatTime.set(key, new Set())
-      combosByCatTime.get(key).add(r.ref.bracket)
+      addRoute(
+        r.uiCat,
+        dbCat,
+        r.ts.start_time?.slice(0, 5),
+        r.ref.bracket,
+        r.ref.point_a,
+        r.ref.point_b
+      )
     }
-    // Solo al TERMINAR se suman los combos cargados del historial (para borrar
-    // rutas/brackets que el hub vació tras reabrir). En "Guardar progreso" NO:
-    // un checkpoint nunca borra una ruta que no se está re-guardando — si un
-    // bracket cargado quedó a medias, se conserva en BD hasta Terminar (donde ya
-    // no se permiten filas parciales). loadedCombos es un Map catTime→Set<bracket>.
+    // Solo al TERMINAR se suman las rutas cargadas del historial (para borrar las
+    // que el hub vació tras reabrir). En "Guardar progreso" NO: un checkpoint nunca
+    // borra una ruta que no se está re-guardando — si una ruta cargada quedó a
+    // medias, se conserva en BD hasta Terminar (donde ya no se permiten parciales).
+    // loadedCombos = Map de descriptores de ruta {uiCat,dbCat,time,bracket,pa,pb}.
     if (isFinish && loadedCombos) {
-      for (const [key, brackets] of loadedCombos) {
-        if (!combosByCatTime.has(key)) combosByCatTime.set(key, new Set())
-        for (const b of brackets) combosByCatTime.get(key).add(b)
-      }
+      for (const c of loadedCombos.values())
+        addRoute(c.uiCat, c.dbCat, c.time, c.bracket, c.pa, c.pb)
     }
-    for (const [combo, brackets] of combosByCatTime) {
-      const [cat, time] = combo.split('|')
-      // Acotar el DELETE a los competidores VISIBLES (getCiCompetitors) de esa
-      // categoría — así las filas de un competidor marcado "no ofrece" (ciHidden)
-      // que ya tenían histórico NO se borran al re-guardar (siguen en el
-      // dashboard). Los nombres se normalizan igual que buildInsertPayload, así
-      // que matchean exactamente las filas que este guardado re-inserta.
-      const uiCatForCombo = dbCatToUICat[cat]
-      const visibleNames = (
-        uiCatForCombo ? getCiCompetitors(uiCity, uiCatForCombo, null, country, dbConfigs) : []
-      ).map((c) => normalizeCompetitorName(c, { city: dbCity }))
-      if (visibleNames.length === 0 || brackets.size === 0) continue
-      let delQuery = sb
-        .from('pricing_observations')
-        .delete()
-        .eq('country', country)
-        .eq('city', dbCity)
-        .eq('category', cat)
-        .eq('observed_date', date)
-        .eq('observed_time', time)
-        .in('distance_bracket', Array.from(brackets))
-        .eq('data_source', 'manual')
-        .in('competition_name', visibleNames)
-      // Acotar el DELETE al dueño (este hub) + filas legacy sin dueño (NULL,
-      // que este guardado reclama). Sin esto, guardar borraba las filas de OTRO
-      // hub para la misma ciudad+fecha+categoría+franja (mig 139). SIEMPRE se
-      // acota por dueño: sin email (no debería pasar — auth es email/password)
-      // se cae a solo-NULL, nunca a un DELETE sin predicado de dueño.
-      delQuery = userEmail
-        ? delQuery.or(`uploaded_by.eq.${userEmail},uploaded_by.is.null`)
-        : delQuery.is('uploaded_by', null)
-      const { error: delErr } = await delQuery
-      if (delErr) {
-        setMsg({ type: 'err', text: `Error al limpiar: ${delErr.message}` })
-        setSaving(false)
-        return false
-      }
+
+    // Los DELETE por ruta se disparan en PARALELO (Promise.all) para no encadenar
+    // un round-trip por ruta — clave para que guardar/terminar no se vuelva lento
+    // en ciudades con muchas rutas (ej. TukTuk, 7 distritos × bracket).
+    const delResults = await Promise.all(
+      Array.from(routeDels.values()).map((rt) => {
+        // Acotar el DELETE a los competidores VISIBLES (getCiCompetitors) de esa
+        // categoría — así un competidor "no ofrece" (ciHidden) con histórico NO se
+        // borra al re-guardar. Nombres normalizados igual que buildInsertPayload.
+        const visibleNames = (
+          rt.uiCat ? getCiCompetitors(uiCity, rt.uiCat, null, country, dbConfigs) : []
+        ).map((c) => normalizeCompetitorName(c, { city: dbCity }))
+        if (visibleNames.length === 0) return Promise.resolve({ error: null })
+        let q = sb
+          .from('pricing_observations')
+          .delete()
+          .eq('country', country)
+          .eq('city', dbCity)
+          .eq('category', rt.dbCat)
+          .eq('observed_date', date)
+          .eq('observed_time', rt.time)
+          .eq('distance_bracket', rt.bracket)
+          .eq('data_source', 'manual')
+          .in('competition_name', visibleNames)
+        q = rt.pa != null ? q.eq('point_a', rt.pa) : q.is('point_a', null)
+        q = rt.pb != null ? q.eq('point_b', rt.pb) : q.is('point_b', null)
+        // Acotar al dueño (este hub) + legacy sin dueño (NULL). SIEMPRE por dueño:
+        // sin email se cae a solo-NULL, nunca a un DELETE sin predicado de dueño.
+        q = userEmail
+          ? q.or(`uploaded_by.eq.${userEmail},uploaded_by.is.null`)
+          : q.is('uploaded_by', null)
+        return q
+      })
+    )
+    const delErr = delResults.find((r) => r && r.error)?.error
+    if (delErr) {
+      setMsg({ type: 'err', text: `Error al limpiar: ${delErr.message}` })
+      setSaving(false)
+      return false
     }
 
     const payloads = rowsToInsert.map(buildInsertPayload)
@@ -1355,8 +1373,10 @@ export default function DataEntry() {
     const newDisc = {}
     const newIndrive = {}
     const newNa = new Set()
-    // (dbCategory|HH:MM) → Set<bracket> de lo que se cargó, para acotar el DELETE
-    // al re-guardar (por bracket, no por categoría/franja entera).
+    // Descriptores de RUTA de lo que se cargó → para acotar el DELETE al
+    // re-guardar/terminar a la ruta exacta (incluidos point_a/point_b). Keyed por
+    // (cat, franja, bracket, A, B) para deduplicar; el valor lleva los campos
+    // crudos de la BD (así el DELETE matchea exactamente lo que está guardado).
     const combos = new Map()
     let mapped = 0
 
@@ -1387,9 +1407,17 @@ export default function DataEntry() {
       const comp = compMapByCat[uiCat][row.competition_name]
       if (!comp) continue
 
-      const comboKey = `${row.category}|${(row.observed_time || '').slice(0, 5)}`
-      if (!combos.has(comboKey)) combos.set(comboKey, new Set())
-      combos.get(comboKey).add(row.distance_bracket)
+      const rTime = (row.observed_time || '').slice(0, 5)
+      const comboKey = `${row.category}${rTime}${row.distance_bracket}${row.point_a ?? ''}${row.point_b ?? ''}`
+      if (!combos.has(comboKey))
+        combos.set(comboKey, {
+          uiCat,
+          dbCat: row.category,
+          time: rTime,
+          bracket: row.distance_bracket,
+          pa: row.point_a ?? null,
+          pb: row.point_b ?? null,
+        })
       const k = priceKey(uiCat, ref.id, tsLabel, comp)
       // Fila "sin data" (S/D): restaurar la marca, sin volcar precio/eta/desc.
       if (row.no_data) {
