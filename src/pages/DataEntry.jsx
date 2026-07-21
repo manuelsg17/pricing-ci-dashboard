@@ -997,6 +997,10 @@ export default function DataEntry() {
       eta_min: r.eta ?? null,
       point_a: r.ref.point_a ?? null,
       point_b: r.ref.point_b ?? null,
+      // Distrito (solo TukTuk lo usa en distance_references.zone) → así la CI
+      // manual de TukTuk lleva el distrito igual que el bot y se agrega por zona
+      // en el dashboard. Para el resto de categorías la ruta no tiene zone (null).
+      zone: r.ref.zone ?? null,
       price_without_discount: r.price,
       price_with_discount: r.disc ?? null,
       year: r.year,

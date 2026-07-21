@@ -1,0 +1,50 @@
+-- ════════════════════════════════════════════════════════════════════════
+-- Migración 143 — Rutas TukTuk de Lima por distrito y bracket (28 rutas)
+--
+-- CONTEXTO 2026-07-21: los hubs cargan CI de TukTuk pero distance_references no
+-- tenía NINGUNA ruta TukTuk → la grilla de Ingresar CI no mostraba nada para esa
+-- categoría. Se cargan 7 distritos × 4 brackets (very_short/short/median/long)
+-- desde el Excel "Nuevos puntos TukTuk.xlsx" del equipo de pricing.
+--   · city='Lima', category='TukTuk' (igual que el bot en pricing_observations)
+--   · zone=distrito canonico (Comas/SJM/Chorrillos/VES/SJL/Ventanilla/Carabayllo)
+--   · point_a/coordinate_a = origen; point_b/coordinate_b = destino
+--   · waze_distance = valor NOMINAL por bracket del screenshot (1.1/1.8/2.5/3.4):
+--     la columna KM del Excel llego corrupta (46023...), se usa el nominal.
+-- Como varias rutas comparten (categoria, bracket), Ingresar CI las muestra como
+-- "rutas adicionales" (cada una con su cabecera). Idempotente: borra primero.
+-- ════════════════════════════════════════════════════════════════════════
+
+DELETE FROM public.distance_references
+ WHERE country='Peru' AND city='Lima' AND category='TukTuk';
+
+INSERT INTO public.distance_references
+  (country, city, category, bracket, zone, point_a, coordinate_a, point_b, coordinate_b, waze_distance, updated_by)
+VALUES
+  ('Peru','Lima','TukTuk','very_short','Comas','PlazaVea, Av. Túpac Amaru 3860, Comas 15326, Перу','-11.932938667217268, -77.04578267680594','Mercado Sangarara, La Union 171, Comas 15313, Перу','-11.927176360339237, -77.04443654210668',1.1,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','very_short','Chorrillos','Mercado San José, Chorrillos 15066, Peru','-12.194896641089638, -77.02139221026064','Mercado Los Pinos, Av. Sta. Anita 491, Lima 15067, Peru','-12.189544702703948, -77.01445940146633',1.1,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','very_short','VES','Hipolito Unanue College, Av. Jorge Chavez 42, Lima 15834, Peru','-12.215353675786613, -76.945067515638','Parque DOÑA MARINA , Q3H3+829, Unnamed Road, Lima 15837, Peru','-12.221779718470422, -76.9474812019245',1.1,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','very_short','SJL','Comisaría PNP La Huayrona, 2X4V+965, Jirón las Gemas, San Juan de Lurigancho 15434 CEL, 958866638, Peru','-11.994217099245125, -77.00687356312223','Cevicheria La Carreta del Chavo, Amelos 2201, San Juan de Lurigancho 15404, Peru','-11.995290143305049, -77.01436722490061',1.1,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','very_short','SJM','Estación San Juan, San Juan de Miraflores 15803, Peru','-12.1567777376362, -76.96558288303336','Municipalidad de San Juan de Miraflores, Av. Belisario Suarez 1075, San Juan de Miraflores 15801, Peru','-12.162392494803292, -76.96327095404044',1.1,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','very_short','Ventanilla','Plaza de Armas de Ventanilla, C. 11 120, Ventanilla 15000, Peru','-11.87187229590331, -77.12173432310229','MAC Ventanilla, Av. La Playa s/n, Ventanilla 07061, Peru','-11.876317771521059, -77.12692802899971',1.1,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','very_short','Carabayllo','Qatuna Mercados Sede San Juan, ex, Av. José Saco Rojas 1730, Carabayllo 15121, Peru','-11.860958721907577, -77.0519415811271','Shalom - Av Jose Saco Rojas, 4XR4+PF7, Av. José Saco Rojas, Carabayllo 15121, Peru','-11.858137436455916, -77.04383720240195',1.1,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','short','Comas','Doña Nelly Restobar, C. K 173, Comas 15314, Peru','-11.935876320913094, -77.06676726158888','Academia ADUNI y César Vallejo, sede Comas, Z, Comas 15314, Peru','-11.93427533721474, -77.05756886770112',1.8,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','short','Chorrillos','Estadio La Laguna, RX6M+WGV, Chorrillos 15066, Peru','-12.187650144598335, -77.01632771142401','Comisaria san genaro, RX4H+9QQ, Av.Principal, Chorrillos 15067, Peru','-12.194140059990058, -77.0204469894424',1.8,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','short','VES','Sodimac - Villa El Salvador, Av. Pachacútec 5295, Lima 15842, Peru','-12.195180723144313, -76.93568510436123','Institución Educativa 6152 Stella Maris, P.º Atahualpa 150, Villa María del Triunfo 15816, Peru','-12.202936803733252, -76.9266380481285',1.8,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','short','SJL','Estación - Los Jardines, XXVV+5VW, Av. Próceres de la Independencia, San Juan de Lurigancho 15419, Peru','-12.006931279802867, -77.00520746445984','CLINICA SAN MARCOS, Av. Sta. Rosa de Lima 1719, San Juan de Lurigancho 15431, Peru','-12.002033813859724, -76.9994053069877',1.8,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','short','SJM','Makro San Juan de Miraflores, Av. Belisario Suarez 181, San Juan de Miraflores 15801, Peru','-12.160676649435114, -76.97779294361712','Academia Pitagoras - SJM, C. Maximiliano Carranza 615, San Juan de Miraflores 15801, Peru','-12.156989530992062, -76.97008504505507',1.8,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','short','Ventanilla','Metro Ventanilla, Mz. C Lt. 30, Av. Nestor Gambetta s/n, Ventanilla 07036, Peru','-11.877142239695758, -77.12632692652727','Iglesia San Pedro Nolasco, 4VHH+2W4, C. 13, Ventanilla 07036, Peru','-11.872699475394619, -77.1203881364852',1.8,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','short','Carabayllo','Oasis de Carabayllo, Av. San Juan de Dios 27, Carabayllo 15121, Peru','-11.852895683819408, -77.03560389859481','Hacienda "El Fortin", 4XQ5+J36, Carabayllo 15121, Peru','-11.86127779347655, -77.0430675140537',1.8,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','median','Comas','Complejo Comercial Unicachi, Av. Gerardo Unger 2450, Comas 15314, Peru','-11.937818371190165, -77.06553893386837','Eye Clinic Ñahui, Av. Universitaria 7861, Comas 15312, Peru','-11.931380908743689, -77.05462437678986',2.5,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','median','Chorrillos','Universidad Privada San Juan Bautista, Hacienda Villa Chorrillos, Av José Antonio Lavalle N° 302, Chorrillos 15067, Peru','-12.196431845587423, -77.00535807806212','La carpita del sabor, Av. Guardia Civil Sur 356, Chorrillos 15057, Peru','-12.183898298524456, -77.00199700854594',2.5,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','median','VES','Centro Comercial 24 de Junio, Arriba Perú, Villa EL Salvador 15831, Peru','-12.205836620475726, -76.94164086757192','CMI JUAN PABLO II, Q3J3+8H8, Av. César Vallejo, Villa EL Salvador 15837, Peru','-12.21877358660826, -76.94549409307956',2.5,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','median','SJL','Universidad Privada del Norte, Av. El Sol 461, San Juan de Lurigancho 15434, Peru','-11.985244878764961, -77.0047984915035','Estación Los Postes, San Juan de Lurigancho 15419, Peru','-11.996224576968887, -77.01006028776538',2.5,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','median','SJM','Reniec San Juan de Miraflores, Av. Guillermo Billinghurst 767, San Juan de Miraflores 15801, Peru','-12.160224310304205, -76.9683639515927','Mercado Valle de Saron, Av. César Canevaro, San Juan de Miraflores 15801, Peru','-12.171232967585972, -76.96787986545036',2.5,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','median','Ventanilla','Estadio Municipal Facundo Ramírez Aguilar, 4VGH+CQ9, C. 10, Ventanilla 07036, Peru','-11.874320096362952, -77.12113164423644','Agencia Shalom Ventanilla, Referencia: Al Costado De Lubricentro Pablito Romero, Calle 19, Mz. J Lt. 26 Zn - Urb, Peru','-11.879897997972373, -77.12690804017035',2.5,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','median','Carabayllo','Innova Schools Carabayllo San Antonio, Jirón Alipio Ponce con, Calle Comandante Juan Benitez y, Carabayllo, Peru','-11.862434709269108, -77.04955270032016','CHICHARRONERIA LA SAZON DE DON PEDRITO, pasaje los nogales mz D, Carabayllo 15191, Peru','-11.860104152663435, -77.03162679176833',2.5,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','long','Comas','Maki Lovers Comas, Av. Micaela Bastidas 822, Comas 15314, Peru','-11.929286044190356, -77.05484732576689','Complejo Deportivo "El Golazo", San Juan Bosco, Comas 15313, Peru','-11.912999624892914, -77.0459998130938',3.4,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','long','Chorrillos','PUESTO DE SALUD NUEVA CALEDONIA, RX3F+6G9, Chorrillos 15066, Peru','-12.197045435621071, -77.0260997554585','Las tinajas chorrillos, Av. Alameda Los Cedros 649, 551 15067, Peru','-12.205415581275492, -77.01217452089963',3.4,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','long','VES','Tupac Amaru market, Av. Talara con, Villa EL Salvador 15836, Peru','-12.226984732755142, -76.93097140894538','SUNARP V.E.S, Av. Mariano Pastor Sevilla 26, Villa EL Salvador 15831, Peru','-12.215234875683699, -76.94777269058751',3.4,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','long','SJL','Hiraoka, San Juan de Lurigancho, San Juan de Lurigancho 15434, Peru','-11.980055168079332, -77.00497428369304','plazaVea Hypermarket, Fernando De Aragon 18, Lima 15408, Peru','-11.990487862281729, -77.01538413849495',3.4,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','long','SJM','SAT, Av. los Héroes 638-A, San Juan de Miraflores 15801, Peru','-12.155515966072235, -76.96880423479644','Mercado Miguel Iglesias, R2GQ+845, Av. Miguel Iglesias, San Juan de Miraflores 15824, Peru','-12.174208808065186, -76.96241775175363',3.4,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','long','Ventanilla','SENATI, Av. Pedro Beltran 672, Ventanilla 07051, Peru','-11.86872685813986, -77.11730102690582','Cevicheria "Jhony"., 4V97+PVM, Av. José de San Martín, Ventanilla 07061, Peru','-11.880461849874887, -77.13552669092763',3.4,'tuktuk-bulk-2026-07-21'),
+  ('Peru','Lima','TukTuk','long','Carabayllo','Plaza de Armas San Pedro de Carabayllo, Av. José Saco Rojas 24, Carabayllo 15121, Peru','-11.853989320463668, -77.03677375299701','Parque Sol De Carabayllo , 4XJ3+C7V, Carabayllo 15121, Peru','-11.869014505312615, -77.04674008108054',3.4,'tuktuk-bulk-2026-07-21');
