@@ -1588,6 +1588,9 @@ export default function DataEntry() {
                       priceKey={priceKey}
                       errorKeys={errorKeys}
                       rowState={rowState}
+                      getNa={getNa}
+                      toggleNa={toggleNa}
+                      markRowNa={markRowNa}
                       t={t}
                     />
                   ))}
