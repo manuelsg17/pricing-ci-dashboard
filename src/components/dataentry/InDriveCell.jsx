@@ -5,11 +5,17 @@ import { calcIndriveAvg } from '../../lib/indriveAvg'
 
 // Mig 136: bid_4/bid_5 re-agregados a pricing_observations — cap en 5 bids
 // (ver Upload.jsx / algorithms/indrive.js / lib/indriveAvg.js, mismo criterio).
-// El promedio se calcula SOLO con los bids; el "mínimo" es referencia y nunca
-// entra al promedio. El "recomendado" (rec → recommended_price) es el precio
-// que sugiere la app de InDrive: NO entra al promedio de bids (eso sesgaría la
-// media), pero si no hay ningún bid, el servidor usa el recomendado como precio
-// efectivo de la celda (v_effective_price cae a recommended_price).
+// El promedio se calcula SOLO con los bids. El "recomendado" (rec →
+// recommended_price) es el precio que sugiere la app de InDrive: NO entra al
+// promedio de bids (eso sesgaría la media), pero si no hay ningún bid, el
+// servidor usa el recomendado como precio efectivo de la celda
+// (v_effective_price cae a recommended_price).
+//
+// El "mínimo" (minimal_bid) YA NO se carga a mano: los hubs solo usan el
+// recomendado + los bids. La columna minimal_bid sigue viva en la BD porque la
+// llenan el bot y el import de Excel — acá solo se saca el input. Si se reabre
+// una sesión vieja que traía minimal_bid, ese valor se conserva (se pasa por
+// onChange) pero no hay UI para editarlo.
 const MAX_BIDS = 5
 
 export default function InDriveCell({ avg, extra, onChange, hasError }) {
@@ -23,11 +29,6 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
     const newBids = [...bids]
     newBids[i] = val
     onChange({ bids: newBids, minBid, rec }, calcIndriveAvg(newBids))
-  }
-
-  function updateMin(val) {
-    // El mínimo no afecta el promedio — solo se actualiza su propio valor.
-    onChange({ bids, minBid: val, rec }, avg)
   }
 
   function updateRec(val) {
@@ -55,7 +56,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
           type="text"
           value={avg || rec}
           readOnly
-          placeholder="Promedio"
+          placeholder="Prom."
           title={
             avg
               ? 'Promedio calculado automáticamente'
@@ -85,7 +86,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
               type="button"
               className="indrive-help-btn"
               onClick={() => setShowHelp((h) => !h)}
-              title="¿Qué es el mínimo y qué son los bids?"
+              title="¿Qué son los bids y el recomendado?"
             >
               {showHelp ? '✕' : '?'}
             </button>
@@ -99,20 +100,16 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
                 se calcula solo con los bids y es el precio SIN descuento de la celda.
               </p>
               <p>
-                <strong>Recom.</strong> = el precio que <u>recomienda</u> la app de InDrive. No
+                <strong>Recomendado</strong> = el precio que <u>recomienda</u> la app de InDrive. No
                 entra al promedio. Si en ese momento <u>no hay ningún bid</u>, anotá solo el
                 recomendado: se usa como precio de la celda.
               </p>
-              <p>
-                <strong>Mín</strong> = el precio mínimo que sugiere InDrive para el viaje. Es solo
-                referencia: <u>no</u> entra al promedio.
-              </p>
               <div className="indrive-help-example">
                 <div className="indrive-help-example-title">Ejemplo</div>
-                <div>Recom. 14.00 · Mín 8.00 · Bid 1 = 15 · Bid 2 = 13 · Bid 3 = 17</div>
+                <div>Recomendado 14.00 · Bid 1 = 15 · Bid 2 = 13 · Bid 3 = 17</div>
                 <div>
-                  Promedio = (15 + 13 + 17) ÷ 3 = <strong>15.00</strong> &nbsp;(ni el recomendado ni
-                  el mínimo cuentan)
+                  Promedio = (15 + 13 + 17) ÷ 3 = <strong>15.00</strong> &nbsp;(el recomendado no
+                  cuenta)
                 </div>
               </div>
             </div>
@@ -123,7 +120,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
               className="indrive-bid-label"
               title="Precio que recomienda la app de InDrive — no entra al promedio; si no hay bids, se usa como precio de la celda"
             >
-              Recom.
+              RECOMENDADO
             </span>
             <input
               type="text"
@@ -132,22 +129,6 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
               placeholder="0.00"
               value={rec}
               onChange={(e) => updateRec(sanitizeDecimalInput(e.target.value))}
-            />
-          </div>
-          <div className="indrive-bid-row">
-            <span
-              className="indrive-bid-label"
-              title="Precio mínimo sugerido por InDrive — solo referencia, no entra al promedio"
-            >
-              Mín
-            </span>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="indrive-bid-input"
-              placeholder="0.00"
-              value={minBid}
-              onChange={(e) => updateMin(sanitizeDecimalInput(e.target.value))}
             />
           </div>
           {bids.map((b, i) => (
