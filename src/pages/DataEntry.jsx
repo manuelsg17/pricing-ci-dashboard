@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { getCompetitors, resolveDbParams } from '../lib/constants'
+import { getCiCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
@@ -739,7 +739,11 @@ export default function DataEntry() {
   // ── Row validation ─────────────────────────────────────
   // Returns 'empty' | 'full' | 'partial' for a (uiCat, ref, ts) row
   function rowState(uiCat, ref, ts) {
-    const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+    const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
+    // Categoría con TODOS los competidores marcados "no ofrece" (comps=[]) →
+    // no hay nada que cargar: se considera completa para no bloquear "Terminar
+    // sesión" (si no, full nunca igualaría a total y ningún turno cerraría).
+    if (comps.length === 0) return 'full'
     const vals = comps.map((c) => effectiveCellValue(uiCat, ref.id, ts.label, c))
     const filled = vals.filter((v) => v !== '' && !isNaN(parseFloat(v)))
     if (filled.length === 0) return 'empty'
@@ -752,7 +756,7 @@ export default function DataEntry() {
 
   // ── Build rows to insert ───────────────────────────────
   function buildRows(uiCat, ref, ts) {
-    const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+    const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
     const { year, week } = getISOYearWeek(date)
     const rush = isRushHour(ts.start_time?.slice(0, 5), dbCity) ?? false
     return (
@@ -846,7 +850,7 @@ export default function DataEntry() {
 
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+      const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
       for (const ref of catRefs) {
         for (const ts of timeslots) {
           const state = rowState(uiCat, ref, ts)
@@ -894,6 +898,15 @@ export default function DataEntry() {
     if (loadedCombos) for (const c of loadedCombos) combos.add(c)
     for (const combo of combos) {
       const [cat, time] = combo.split('|')
+      // Acotar el DELETE a los competidores VISIBLES (getCiCompetitors) de esa
+      // categoría — así las filas de un competidor marcado "no ofrece" (ciHidden)
+      // que ya tenían histórico NO se borran al re-guardar (siguen en el
+      // dashboard). Los nombres se normalizan igual que buildInsertPayload, así
+      // que matchean exactamente las filas que este guardado re-inserta.
+      const uiCatForCombo = dbCatToUICat[cat]
+      const visibleNames = (
+        uiCatForCombo ? getCiCompetitors(uiCity, uiCatForCombo, null, country, dbConfigs) : []
+      ).map((c) => normalizeCompetitorName(c, { city: dbCity }))
       let delQuery = sb
         .from('pricing_observations')
         .delete()
@@ -903,6 +916,7 @@ export default function DataEntry() {
         .eq('observed_date', date)
         .eq('observed_time', time)
         .eq('data_source', 'manual')
+        .in('competition_name', visibleNames)
       // Acotar el DELETE al dueño (este hub) + filas legacy sin dueño (NULL,
       // que este guardado reclama). Sin esto, guardar borraba las filas de OTRO
       // hub para la misma ciudad+fecha+categoría+franja (mig 139). SIEMPRE se
@@ -1131,12 +1145,19 @@ export default function DataEntry() {
 
       if (!compMapByCat[uiCat]) {
         const map = {}
-        for (const c of getCompetitors(uiCity, uiCat, null, country, dbConfigs)) {
+        for (const c of getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)) {
           map[normalizeCompetitorName(c, { city: loadDbCity })] = c
         }
         compMapByCat[uiCat] = map
       }
-      const comp = compMapByCat[uiCat][row.competition_name] || row.competition_name
+      // Solo cargar competidores VISIBLES en CI. Una fila de un competidor
+      // marcado "no ofrece" (ciHidden) — o removido de la config — no se vuelca
+      // al formulario (no se muestra, no cuenta, no entra a loadedCombos); su
+      // fila histórica queda intacta en BD (el DELETE al re-guardar está acotado
+      // a los competidores visibles). Antes se cargaba como celda fantasma
+      // invisible que inflaba el contador de progreso.
+      const comp = compMapByCat[uiCat][row.competition_name]
+      if (!comp) continue
 
       combos.add(`${row.category}|${(row.observed_time || '').slice(0, 5)}`)
       const k = priceKey(uiCat, ref.id, tsLabel, comp)
@@ -1171,7 +1192,7 @@ export default function DataEntry() {
     let n = 0
     for (const uiCat of categories) {
       const catRefs = refsByUICat[uiCat] || []
-      const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+      const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
       n += catRefs.length * timeslots.length * comps.length
     }
     return n

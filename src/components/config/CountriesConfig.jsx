@@ -6,6 +6,7 @@ import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
 import CountryWizard from './CountryWizard'
 import { Button } from '../ui/shadcn/button'
+import { Eye, EyeOff } from 'lucide-react'
 import { useI18n } from '../../context/LanguageContext'
 
 const CONST_KEYS = Object.keys(COUNTRY_CONFIG)
@@ -352,14 +353,34 @@ export default function CountriesConfig() {
 
   function removeCompetitor(key, cityIdx, catIdx, competitor) {
     const row = getOrInitDraft(key)
-    const existing = row.cities[cityIdx].categories[catIdx].competitors
-    setCategoryField(
-      key,
-      cityIdx,
-      catIdx,
-      'competitors',
-      existing.filter((c) => c !== competitor)
-    )
+    // Quitar el competidor de `competitors` Y de `ciHidden` en UNA sola
+    // actualización (dos setCategoryField seguidos se pisaban: ambos leen el
+    // mismo `row` del closure y el 2º reemplaza al 1º).
+    const cities = row.cities.map((c, i) => {
+      if (i !== cityIdx) return c
+      const categories = c.categories.map((cat, ci) =>
+        ci !== catIdx
+          ? cat
+          : {
+              ...cat,
+              competitors: (cat.competitors || []).filter((x) => x !== competitor),
+              ciHidden: (cat.ciHidden || []).filter((x) => x !== competitor),
+            }
+      )
+      return { ...c, categories }
+    })
+    setDraft((prev) => ({ ...prev, [key]: { ...row, cities } }))
+  }
+
+  // Marca/desmarca un competidor como "no ofrece esta categoría": se oculta SOLO
+  // en Ingresar CI (lista paralela ciHidden), sigue en el dashboard/histórico.
+  function toggleCiHidden(key, cityIdx, catIdx, competitor) {
+    const row = getOrInitDraft(key)
+    const existing = row.cities[cityIdx].categories[catIdx].ciHidden || []
+    const next = existing.includes(competitor)
+      ? existing.filter((c) => c !== competitor)
+      : [...existing, competitor]
+    setCategoryField(key, cityIdx, catIdx, 'ciHidden', next)
   }
 
   // ── Save / Delete ─────────────────────────────────────────────────
@@ -1307,27 +1328,65 @@ export default function CountriesConfig() {
                     {t('config.countries_config.competitors_label')}
                   </label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
-                    {cat.competitors.map((comp) => (
-                      <span key={comp} style={competitorTagStyle}>
-                        {comp}
-                        {!readonly && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="ml-1 h-auto w-auto p-0.5 text-xs font-bold leading-none text-red-600 hover:bg-transparent"
-                            onClick={() =>
-                              removeCompetitor(selectedKey, selectedCityIdx, catIdx, comp)
-                            }
-                            title={t('config.countries_config.remove_competitor_title', {
-                              comp,
-                            })}
-                          >
-                            ×
-                          </Button>
-                        )}
-                      </span>
-                    ))}
+                    {cat.competitors.map((comp) => {
+                      const hidden = (cat.ciHidden || []).includes(comp)
+                      return (
+                        <span
+                          key={comp}
+                          style={{
+                            ...competitorTagStyle,
+                            ...(hidden
+                              ? {
+                                  opacity: 0.55,
+                                  textDecoration: 'line-through',
+                                  textDecorationColor: 'rgba(183,28,28,0.5)',
+                                }
+                              : {}),
+                          }}
+                          title={
+                            hidden
+                              ? t('config.countries_config.ci_hidden_tag_title', { comp })
+                              : undefined
+                          }
+                        >
+                          {comp}
+                          {!readonly && (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="ml-1 h-auto w-auto p-0.5 leading-none text-slate-500 hover:bg-transparent hover:text-yango"
+                                onClick={() =>
+                                  toggleCiHidden(selectedKey, selectedCityIdx, catIdx, comp)
+                                }
+                                title={
+                                  hidden
+                                    ? t('config.countries_config.ci_offer_title', { comp })
+                                    : t('config.countries_config.ci_hide_title', { comp })
+                                }
+                              >
+                                {hidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="ml-0.5 h-auto w-auto p-0.5 text-xs font-bold leading-none text-red-600 hover:bg-transparent"
+                                onClick={() =>
+                                  removeCompetitor(selectedKey, selectedCityIdx, catIdx, comp)
+                                }
+                                title={t('config.countries_config.remove_competitor_title', {
+                                  comp,
+                                })}
+                              >
+                                ×
+                              </Button>
+                            </>
+                          )}
+                        </span>
+                      )
+                    })}
                     {!readonly && (
                       <CompetitorAdder
                         existing={cat.competitors}
@@ -1336,6 +1395,15 @@ export default function CountriesConfig() {
                       />
                     )}
                   </div>
+                  {(cat.ciHidden || []).length > 0 && (
+                    <div
+                      style={{ fontSize: 10, color: '#94a3b8', marginTop: 4, fontStyle: 'italic' }}
+                    >
+                      {t('config.countries_config.ci_hidden_note', {
+                        list: (cat.ciHidden || []).join(', '),
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -2048,6 +2048,12 @@ export const TRANSLATIONS = {
       'Datalist con el catálogo canónico para evitar typos. Podés escribir uno custom si necesitás.',
     'config.countries_config.competitors_label': 'Competidores',
     'config.countries_config.remove_competitor_title': 'Quitar {comp}',
+    'config.countries_config.ci_hide_title':
+      'No ofrece esta categoría — ocultar {comp} en Ingresar CI',
+    'config.countries_config.ci_offer_title': 'Volver a mostrar {comp} en Ingresar CI',
+    'config.countries_config.ci_hidden_tag_title':
+      '{comp} no ofrece esta categoría (oculto en Ingresar CI, sigue en el dashboard)',
+    'config.countries_config.ci_hidden_note': 'No ofrecen esta categoría en Ingresar CI: {list}',
 
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -4056,6 +4062,12 @@ export const TRANSLATIONS = {
       'Datalist with the canonical catalog to avoid typos. You can type a custom one if needed.',
     'config.countries_config.competitors_label': 'Competitors',
     'config.countries_config.remove_competitor_title': 'Remove {comp}',
+    'config.countries_config.ci_hide_title':
+      "Doesn't offer this category — hide {comp} in Data Entry",
+    'config.countries_config.ci_offer_title': 'Show {comp} again in Data Entry',
+    'config.countries_config.ci_hidden_tag_title':
+      "{comp} doesn't offer this category (hidden in Data Entry, still on the dashboard)",
+    'config.countries_config.ci_hidden_note': "Don't offer this category in Data Entry: {list}",
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -6116,6 +6128,12 @@ export const TRANSLATIONS = {
       'Datalist с каноническим каталогом, чтобы избежать опечаток. Можно ввести свой вариант при необходимости.',
     'config.countries_config.competitors_label': 'Конкуренты',
     'config.countries_config.remove_competitor_title': 'Убрать {comp}',
+    'config.countries_config.ci_hide_title':
+      'Не предлагает эту категорию — скрыть {comp} во «Вводе CI»',
+    'config.countries_config.ci_offer_title': 'Снова показать {comp} во «Вводе CI»',
+    'config.countries_config.ci_hidden_tag_title':
+      '{comp} не предлагает эту категорию (скрыт во «Вводе CI», остаётся на дашборде)',
+    'config.countries_config.ci_hidden_note': 'Не предлагают эту категорию во «Вводе CI»: {list}',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',

@@ -727,10 +727,19 @@ export function dbConfigToInternal(row) {
     })
 
   const competitorsByDbCityCategory = {}
+  // Competidores que NO ofrecen esa categoría (típico aeropuerto) → se ocultan
+  // SOLO en "Ingresar CI" (getCiCompetitors), pero siguen en `competitors` para
+  // el dashboard/leyendas/histórico. Lista paralela para no cambiar el shape de
+  // `competitors`. Default [] = todos ofrecen (retrocompatible).
+  const ciHiddenByDbCityCategory = {}
   cities.forEach((city) => {
     competitorsByDbCityCategory[city.dbName] = {}
+    ciHiddenByDbCityCategory[city.dbName] = {}
     ;(city.categories || []).forEach((cat) => {
       competitorsByDbCityCategory[city.dbName][cat.dbName] = cat.competitors || []
+      ciHiddenByDbCityCategory[city.dbName][cat.dbName] = Array.isArray(cat.ciHidden)
+        ? cat.ciHidden
+        : []
     })
   })
 
@@ -764,6 +773,7 @@ export function dbConfigToInternal(row) {
     categoriesByCity,
     categoryDbMap,
     competitorsByDbCityCategory,
+    ciHiddenByDbCityCategory,
     yangoDisplayName,
     weightCities: ['all', ...dbCities],
     outlierThreshold: Number(row.outlier_threshold ?? 100),
@@ -794,6 +804,27 @@ export function getCompetitors(uiCity, uiCategory, subCategory, country, dbConfi
     dbConfigs
   )
   return config.competitorsByDbCityCategory[dbCity]?.[dbCategory] || []
+}
+
+// Competidores a MOSTRAR en "Ingresar CI": igual que getCompetitors pero sin los
+// marcados "no ofrece" (ciHidden) para esa ciudad×categoría. Se usa SOLO en la
+// grilla de carga (y su validación/conteo/guardado); el dashboard/histórico
+// siguen usando getCompetitors (lista completa). Si no hay ciHidden configurado
+// devuelve la lista completa (retrocompatible).
+export function getCiCompetitors(uiCity, uiCategory, subCategory, country, dbConfigs = null) {
+  const config = getCountryConfig(country, dbConfigs)
+  const { dbCity, dbCategory } = resolveDbParams(
+    uiCity,
+    uiCategory,
+    subCategory,
+    country,
+    dbConfigs
+  )
+  const all = config.competitorsByDbCityCategory[dbCity]?.[dbCategory] || []
+  const hidden = config.ciHiddenByDbCityCategory?.[dbCity]?.[dbCategory]
+  if (!hidden || hidden.length === 0) return all
+  const hiddenSet = new Set(hidden)
+  return all.filter((c) => !hiddenSet.has(c))
 }
 
 // Devuelve el label específico que Yango usa para una ciudad/categoría dada.

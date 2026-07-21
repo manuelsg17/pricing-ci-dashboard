@@ -34,7 +34,13 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 // Keys top-level que dbConfigToInternal SIEMPRE debe producir. Si el cache
 // no las tiene, fue escrito por una versión antigua y se descarta.
-const REQUIRED_KEYS = ['uiCities', 'categoriesByCity', 'competitorsByDbCityCategory', 'currency']
+const REQUIRED_KEYS = [
+  'uiCities',
+  'categoriesByCity',
+  'competitorsByDbCityCategory',
+  'ciHiddenByDbCityCategory',
+  'currency',
+]
 
 function isCacheShapeValid(data) {
   if (!data || typeof data !== 'object') return false

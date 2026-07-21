@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BRACKET_LABELS, getCompetitors } from '../../lib/constants'
+import { BRACKET_LABELS, getCiCompetitors } from '../../lib/constants'
 import { sanitizeDecimalInput } from '../../lib/format'
 import CompBadge from './CompBadge'
 import InDriveCell from './InDriveCell'
@@ -14,7 +14,7 @@ const CHIP_COL_WIDTH = 150
 function unionCompetitorOrder(presentCats, uiCity, country, dbConfigs) {
   const order = []
   for (const uiCat of presentCats) {
-    for (const comp of getCompetitors(uiCity, uiCat, null, country, dbConfigs)) {
+    for (const comp of getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)) {
       if (!order.includes(comp)) order.push(comp)
     }
   }
@@ -57,7 +57,11 @@ export default function BracketRouteGroup({
 }) {
   const [open, setOpen] = useState(true)
   const { anchorRef, byCategory } = group
-  const presentCats = categories.filter((c) => byCategory[c])
+  // Una categoría con TODOS los competidores marcados "no ofrece"
+  // (getCiCompetitors vacío) no se muestra: no hay nada que cargar en ella.
+  const presentCats = categories.filter(
+    (c) => byCategory[c] && getCiCompetitors(uiCity, c, null, country, dbConfigs).length > 0
+  )
   const missingCats = categories.filter((c) => !byCategory[c])
   const allComps = unionCompetitorOrder(presentCats, uiCity, country, dbConfigs)
   // Ancho fijo (no `1fr`) — con `1fr` las columnas se estiraban para llenar
@@ -106,7 +110,7 @@ export default function BracketRouteGroup({
                 {presentCats.map((uiCat) => {
                   const ref = byCategory[uiCat]
                   const colors = catColors[uiCat] || catColors.Corp
-                  const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
+                  const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
                   const state = rowState(uiCat, ref, ts)
                   const ownRoute =
                     ref.id !== anchorRef.id &&
