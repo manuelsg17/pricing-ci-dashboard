@@ -71,7 +71,7 @@ export default function BracketRouteGroup({
   // todo el ancho de pantallas anchas, dejando mucho espacio vacío entre
   // competidores. Fijo mantiene las columnas juntas sin importar el ancho
   // del contenedor.
-  const rowTemplate = `${CHIP_COL_WIDTH}px repeat(${allComps.length}, 92px)`
+  const rowTemplate = `${CHIP_COL_WIDTH}px repeat(${allComps.length}, 108px)`
 
   return (
     <div className="de-bracket-group">

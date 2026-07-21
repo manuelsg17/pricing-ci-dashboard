@@ -323,7 +323,7 @@
 
 /* Price input */
 .de-price-input {
-  width: 72px;
+  width: 88px;
   padding: 4px 6px;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -361,7 +361,7 @@
 /* Input de ETA (min) — arriba del precio, más chico y con un tinte distinto
    para que se distinga a simple vista del precio. */
 .de-eta-input {
-  width: 72px;
+  width: 88px;
   padding: 2px 6px;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-sm);
@@ -386,7 +386,7 @@
    suave (descuento = ahorro) y más chico, para que quede claro que es
    secundario frente al precio SIN descuento. */
 .de-disc-input {
-  width: 72px;
+  width: 88px;
   padding: 2px 6px;
   border: 1px dashed var(--color-success-border);
   border-radius: var(--radius-sm);
@@ -428,7 +428,7 @@
 }
 
 .indrive-avg {
-  width: 58px;
+  width: 64px;
   cursor: default !important;
   background: var(--color-success-bg-subtle) !important;
   border-color: var(--color-success-border) !important;
@@ -831,7 +831,9 @@
 .de-cat-row {
   display: grid;
   align-items: center;
-  gap: 4px;
+  /* Más separación HORIZONTAL entre competidores (column-gap 14) para que se
+     lean bien y no se amontonen; el row-gap se mantiene chico. */
+  gap: 4px 14px;
   padding: 6px 8px;
   border-radius: var(--radius-sm);
   background: var(--color-bg-subtle);
