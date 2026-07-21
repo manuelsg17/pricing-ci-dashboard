@@ -134,11 +134,13 @@ export default function DataEntry() {
   //   etaByCity[dbCity][priceKey]      → ETA en minutos (opcional → eta_min)
   //   discByCity[dbCity][priceKey]     → precio CON descuento (opcional)
   //   errorKeysByCity[dbCity]          → Set de priceKey con error
+  //   naByCity[dbCity]                 → Set de priceKey marcados "sin data" (S/D)
   const [entriesByCity, setEntriesByCity] = useState({})
   const [indriveByCity, setIndriveByCity] = useState({})
   const [etaByCity, setEtaByCity] = useState({})
   const [discByCity, setDiscByCity] = useState({})
   const [errorKeysByCity, setErrorKeysByCity] = useState({})
+  const [naByCity, setNaByCity] = useState({})
 
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -195,6 +197,7 @@ export default function DataEntry() {
   const etaEntries = etaByCity[dbCity] || EMPTY_OBJ
   const discEntries = discByCity[dbCity] || EMPTY_OBJ
   const errorKeys = errorKeysByCity[dbCity] || EMPTY_SET
+  const naKeys = naByCity[dbCity] || EMPTY_SET
   const loadedCombos = loadedCombosByCity[dbCity] || null
   const surge = surgeByCity[dbCity] ?? false
 
@@ -204,7 +207,14 @@ export default function DataEntry() {
   const dbCityRef = useRef(dbCity)
   dbCityRef.current = dbCity
   const perCityRef = useRef(null)
-  perCityRef.current = { entriesByCity, indriveByCity, etaByCity, discByCity, surgeByCity }
+  perCityRef.current = {
+    entriesByCity,
+    indriveByCity,
+    etaByCity,
+    discByCity,
+    surgeByCity,
+    naByCity,
+  }
   // Cache de rutas por ciudad — cambiar de ciudad no vuelve a pegarle a la BD ni
   // muestra spinner (clave para intercalar A/B sin parpadeo).
   const refsCacheRef = useRef({})
@@ -418,6 +428,7 @@ export default function DataEntry() {
       setErrorKeysByCity({})
       setLoadedCombosByCity({})
       setSurgeByCity({})
+      setNaByCity({})
     }
     // Hidratar esta ciudad UNA vez por contexto. Al intercalar A↔B, la 2da vez
     // ya está en el set → no se re-hidrata (la memoria, más nueva, manda).
@@ -436,17 +447,19 @@ export default function DataEntry() {
           // borrador rec-only daría count 0 y NO se restauraría: el recomendado
           // se perdía en silencio pese a que el autosave sí lo persistió.
           const restored = countAllFilled(mergedEntries, capped)
-          if (restored > 0 || etaFilled > 0 || discFilled > 0) {
+          const naArr = Array.isArray(parsed.naKeys) ? parsed.naKeys : []
+          if (restored > 0 || etaFilled > 0 || discFilled > 0 || naArr.length > 0) {
             setEntriesByCity((prev) => ({ ...prev, [targetCity]: mergedEntries }))
             setIndriveByCity((prev) => ({ ...prev, [targetCity]: capped }))
             setEtaByCity((prev) => ({ ...prev, [targetCity]: parsed.etaEntries || {} }))
             setDiscByCity((prev) => ({ ...prev, [targetCity]: parsed.discEntries || {} }))
+            if (naArr.length) setNaByCity((prev) => ({ ...prev, [targetCity]: new Set(naArr) }))
             if (typeof parsed.surge === 'boolean')
               setSurgeByCity((prev) => ({ ...prev, [targetCity]: parsed.surge }))
             setLastDraftSavedAt(parsed.savedAt || null)
             setMsg({
               type: 'ok',
-              text: `📝 Borrador restaurado (${restored} celdas).`,
+              text: `📝 Borrador restaurado (${restored + naArr.length} celdas).`,
             })
           }
         }
@@ -471,12 +484,21 @@ export default function DataEntry() {
           countFilledEntries(entries) > 0 ||
           countFilledEntries(etaEntries) > 0 ||
           countFilledEntries(discEntries) > 0 ||
-          hasMeaningfulIndriveExtra(indriveExtra)
+          hasMeaningfulIndriveExtra(indriveExtra) ||
+          naKeys.size > 0
         if (hasData) {
           const savedAt = Date.now()
           localStorage.setItem(
             draftKey,
-            JSON.stringify({ entries, indriveExtra, etaEntries, discEntries, surge, savedAt })
+            JSON.stringify({
+              entries,
+              indriveExtra,
+              etaEntries,
+              discEntries,
+              surge,
+              naKeys: Array.from(naKeys),
+              savedAt,
+            })
           )
           setLastDraftSavedAt(savedAt)
         } else {
@@ -488,7 +510,7 @@ export default function DataEntry() {
       }
     }, 1500)
     return () => clearTimeout(id)
-  }, [entries, indriveExtra, etaEntries, discEntries, surge, draftKey])
+  }, [entries, indriveExtra, etaEntries, discEntries, surge, naKeys, draftKey])
 
   // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
   // página (desmontar / navegar). El autosave con debounce podría no haber
@@ -507,11 +529,13 @@ export default function DataEntry() {
         const ind = m.indriveByCity[flushCity] || EMPTY_OBJ
         const eta = m.etaByCity[flushCity] || EMPTY_OBJ
         const disc = m.discByCity[flushCity] || EMPTY_OBJ
+        const na = m.naByCity[flushCity] || EMPTY_SET
         const hasData =
           countFilledEntries(ent) > 0 ||
           countFilledEntries(eta) > 0 ||
           countFilledEntries(disc) > 0 ||
-          hasMeaningfulIndriveExtra(ind)
+          hasMeaningfulIndriveExtra(ind) ||
+          na.size > 0
         if (hasData) {
           localStorage.setItem(
             flushKey,
@@ -521,6 +545,7 @@ export default function DataEntry() {
               etaEntries: eta,
               discEntries: disc,
               surge: m.surgeByCity[flushCity] ?? false,
+              naKeys: Array.from(na),
               savedAt: Date.now(),
             })
           )
@@ -548,7 +573,8 @@ export default function DataEntry() {
       anyFilled(entriesByCity) ||
       anyFilled(etaByCity) ||
       anyFilled(discByCity) ||
-      Object.values(indriveByCity).some((m) => hasMeaningfulIndriveExtra(m))
+      Object.values(indriveByCity).some((m) => hasMeaningfulIndriveExtra(m)) ||
+      Object.values(naByCity).some((s) => s && s.size > 0)
     if (!hasUnsaved) return
     const handler = (e) => {
       e.preventDefault()
@@ -556,7 +582,7 @@ export default function DataEntry() {
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [entriesByCity, etaByCity, discByCity, indriveByCity])
+  }, [entriesByCity, etaByCity, discByCity, indriveByCity, naByCity])
 
   // ── Indicador "guardado hace Xs" — ticker ──────────────
   useEffect(() => {
@@ -569,7 +595,7 @@ export default function DataEntry() {
   const [otherDraft, setOtherDraft] = useState(null)
 
   useEffect(() => {
-    if (countFilledEntries(entries) > 0) {
+    if (countAllFilled(entries, indriveExtra) + naKeys.size > 0) {
       setOtherDraft(null)
       return
     }
@@ -585,7 +611,13 @@ export default function DataEntry() {
         const raw = localStorage.getItem(k)
         if (!raw) continue
         const parsed = JSON.parse(raw)
-        const count = countFilledEntries(parsed?.entries)
+        // Contar TODO lo cargable del borrador: precios + InDrive solo-recomendado
+        // + celdas marcadas "sin data" (naKeys) — si acá se contaran solo los
+        // números de `entries`, un borrador 100% S/D o solo-recomendado no se
+        // ofrecería para reanudar aunque el autosave sí lo persistió.
+        const count =
+          countAllFilled(parsed?.entries, parsed?.indriveExtra) +
+          (Array.isArray(parsed?.naKeys) ? parsed.naKeys.length : 0)
         if (count === 0) continue
         const rest = k.slice(prefix.length) // "{city}:{date}"
         const sep = rest.lastIndexOf(':')
@@ -736,6 +768,79 @@ export default function DataEntry() {
     clearErrorKeyFor(c, pk)
   }, [])
 
+  // ── "Sin data" (S/D) por celda / por fila ──────────────
+  // Una celda marcada S/D = el hub revisó y no había oferta. Cuenta como
+  // "resuelta" (no bloquea), se guarda como no_data=true SIN precio, y no ensucia
+  // promedios. Marcarla limpia cualquier dato previo de esa celda (precio/eta/
+  // desc/bids) — una celda "sin data" no lleva números.
+  const getNa = (uiCat, refId, tsLabel, comp) => naKeys.has(priceKey(uiCat, refId, tsLabel, comp))
+
+  // Limpia los datos numéricos de un conjunto de claves en la rebanada de la
+  // ciudad activa (para cuando una celda pasa a "sin data").
+  const clearCellsData = (c, keys, indIks) => {
+    const stripStrings = (prev) => {
+      const cur = prev[c]
+      if (!cur) return prev
+      let changed = false
+      const m = { ...cur }
+      for (const k of keys) if (k in m && m[k] !== '') ((m[k] = ''), (changed = true))
+      return changed ? { ...prev, [c]: m } : prev
+    }
+    setEntriesByCity(stripStrings)
+    setEtaByCity(stripStrings)
+    setDiscByCity(stripStrings)
+    if (indIks && indIks.length) {
+      setIndriveByCity((prev) => {
+        const cur = prev[c]
+        if (!cur) return prev
+        let changed = false
+        const m = { ...cur }
+        for (const ik of indIks) if (ik in m) (delete m[ik], (changed = true))
+        return changed ? { ...prev, [c]: m } : prev
+      })
+    }
+    setErrorKeysByCity((prev) => {
+      const cur = prev[c]
+      if (!cur) return prev
+      const n = new Set(cur)
+      for (const k of keys) n.delete(k)
+      return { ...prev, [c]: n }
+    })
+  }
+
+  const toggleNa = useCallback((uiCat, refId, tsLabel, comp) => {
+    const c = dbCityRef.current
+    const k = priceKey(uiCat, refId, tsLabel, comp)
+    setNaByCity((prev) => {
+      const cur = prev[c] || EMPTY_SET
+      const n = new Set(cur)
+      if (n.has(k)) n.delete(k)
+      else n.add(k)
+      return { ...prev, [c]: n }
+    })
+    clearCellsData(c, [k], comp === 'InDrive' ? [indKey(uiCat, refId, tsLabel)] : [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Bloque: marca/desmarca S/D TODA una fila (todos los competidores visibles de
+  // una categoría×ruta×franja). Toggle: si todas están S/D → las desmarca.
+  const markRowNa = useCallback((uiCat, refId, tsLabel, comps) => {
+    const c = dbCityRef.current
+    const keys = comps.map((comp) => priceKey(uiCat, refId, tsLabel, comp))
+    setNaByCity((prev) => {
+      const cur = prev[c] || EMPTY_SET
+      const allNa = keys.length > 0 && keys.every((k) => cur.has(k))
+      const n = new Set(cur)
+      for (const k of keys) {
+        if (allNa) n.delete(k)
+        else n.add(k)
+      }
+      return { ...prev, [c]: n }
+    })
+    clearCellsData(c, keys, comps.includes('InDrive') ? [indKey(uiCat, refId, tsLabel)] : [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── Row validation ─────────────────────────────────────
   // Returns 'empty' | 'full' | 'partial' for a (uiCat, ref, ts) row
   function rowState(uiCat, ref, ts) {
@@ -744,15 +849,25 @@ export default function DataEntry() {
     // no hay nada que cargar: se considera completa para no bloquear "Terminar
     // sesión" (si no, full nunca igualaría a total y ningún turno cerraría).
     if (comps.length === 0) return 'full'
-    const vals = comps.map((c) => effectiveCellValue(uiCat, ref.id, ts.label, c))
-    const filled = vals.filter((v) => v !== '' && !isNaN(parseFloat(v)))
-    if (filled.length === 0) return 'empty'
-    if (filled.length === comps.length) return 'full'
+    // Una celda está "resuelta" si tiene número real O está marcada "sin data"
+    // (S/D): en ambos casos el hub ya la atendió, así que no bloquea la fila.
+    const resolved = comps.filter((c) => {
+      if (naKeys.has(priceKey(uiCat, ref.id, ts.label, c))) return true
+      const v = effectiveCellValue(uiCat, ref.id, ts.label, c)
+      return v !== '' && !isNaN(parseFloat(v))
+    })
+    if (resolved.length === 0) return 'empty'
+    if (resolved.length === comps.length) return 'full'
     return 'partial'
   }
 
   // ── Count filled ───────────────────────────────────────
-  const filledCount = useMemo(() => countAllFilled(entries, indriveExtra), [entries, indriveExtra])
+  // Celdas con dato + celdas marcadas "sin data" (S/D) — ambas cuentan como
+  // atendidas para el contador de progreso.
+  const filledCount = useMemo(
+    () => countAllFilled(entries, indriveExtra) + naKeys.size,
+    [entries, indriveExtra, naKeys]
+  )
 
   // ── Build rows to insert ───────────────────────────────
   function buildRows(uiCat, ref, ts) {
@@ -762,6 +877,25 @@ export default function DataEntry() {
     return (
       comps
         .map((comp) => {
+          // Celda "sin data" (S/D): fila no_data=true, sin precio ni nada más.
+          if (naKeys.has(priceKey(uiCat, ref.id, ts.label, comp))) {
+            return {
+              price: null,
+              comp,
+              ref,
+              ts,
+              uiCat,
+              rush,
+              year,
+              week,
+              bids: [],
+              minBid: null,
+              rec: null,
+              eta: null,
+              disc: null,
+              na: true,
+            }
+          }
           const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
           const price = parseFloat(raw)
           const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
@@ -790,12 +924,13 @@ export default function DataEntry() {
             rec: isNaN(recNum) ? null : recNum,
             eta: isNaN(etaNum) ? null : etaNum,
             disc: isNaN(discNum) ? null : discNum,
+            na: false,
           }
         })
-        // Se descartan las celdas sin dato. Excepción: InDrive con solo el
-        // recomendado (sin bids ni promedio) SÍ se guarda — su precio efectivo
-        // será el recomendado.
-        .filter((r) => r.price !== null || r.rec !== null)
+        // Se descartan las celdas sin dato. Excepciones que SÍ se guardan:
+        // InDrive con solo el recomendado (su precio efectivo es el recomendado)
+        // y las celdas marcadas "sin data" (fila no_data=true).
+        .filter((r) => r.na || r.price !== null || r.rec !== null)
     )
   }
 
@@ -826,6 +961,9 @@ export default function DataEntry() {
       // misma ciudad+fecha sin pisarse (el DELETE se acota al dueño) y atribuye
       // cada celda para el monitoreo. Legacy = null (se reclama al re-guardar).
       uploaded_by: userEmail || null,
+      // "Sin data" (S/D): el hub atendió la celda, no había oferta. Sin precio →
+      // no ensucia promedios; el panel de representatividad lo cuenta aparte.
+      no_data: r.na || false,
       country,
     }
     if (r.comp === 'InDrive') {
@@ -856,13 +994,15 @@ export default function DataEntry() {
           const state = rowState(uiCat, ref, ts)
           if (state === 'partial') {
             hasPartial = true
-            // mark missing cells (mismo criterio de "llena" que rowState: para
-            // InDrive considera el recomendado, si no la celda rec-only se
-            // pintaba en rojo como faltante aunque rowState la cuenta llena)
+            // mark missing cells (mismo criterio de "resuelta" que rowState: una
+            // celda con número, InDrive con recomendado, o marcada S/D NO es
+            // faltante — si no se pintaba en rojo una celda ya atendida)
             comps.forEach((comp) => {
+              const key = priceKey(uiCat, ref.id, ts.label, comp)
+              if (naKeys.has(key)) return
               const v = effectiveCellValue(uiCat, ref.id, ts.label, comp)
               if (v === '' || isNaN(parseFloat(v))) {
-                newErrors.add(priceKey(uiCat, ref.id, ts.label, comp))
+                newErrors.add(key)
               }
             })
           }
@@ -1092,7 +1232,7 @@ export default function DataEntry() {
     let obsQuery = sb
       .from('pricing_observations')
       .select(
-        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5'
+        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data'
       )
       .eq('country', country)
       .eq('city', loadDbCity)
@@ -1129,6 +1269,7 @@ export default function DataEntry() {
     const newEta = {}
     const newDisc = {}
     const newIndrive = {}
+    const newNa = new Set()
     const combos = new Set() // (dbCategory|HH:MM) de lo que se cargó, para el DELETE al re-guardar
     let mapped = 0
 
@@ -1161,6 +1302,12 @@ export default function DataEntry() {
 
       combos.add(`${row.category}|${(row.observed_time || '').slice(0, 5)}`)
       const k = priceKey(uiCat, ref.id, tsLabel, comp)
+      // Fila "sin data" (S/D): restaurar la marca, sin volcar precio/eta/desc.
+      if (row.no_data) {
+        newNa.add(k)
+        mapped++
+        continue
+      }
       if (row.price_without_discount != null) newEntries[k] = String(row.price_without_discount)
       if (row.price_with_discount != null) newDisc[k] = String(row.price_with_discount)
       if (row.eta_min != null) newEta[k] = String(row.eta_min)
@@ -1182,6 +1329,7 @@ export default function DataEntry() {
     setEtaByCity((prev) => ({ ...prev, [loadDbCity]: newEta }))
     setDiscByCity((prev) => ({ ...prev, [loadDbCity]: newDisc }))
     setIndriveByCity((prev) => ({ ...prev, [loadDbCity]: newIndrive }))
+    setNaByCity((prev) => ({ ...prev, [loadDbCity]: newNa }))
     setLoadedCombosByCity((prev) => ({ ...prev, [loadDbCity]: combos.size ? combos : null }))
     setErrorKeysByCity((prev) => ({ ...prev, [loadDbCity]: new Set() }))
     setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
@@ -1408,6 +1556,9 @@ export default function DataEntry() {
                   priceKey={priceKey}
                   errorKeys={errorKeys}
                   rowState={rowState}
+                  getNa={getNa}
+                  toggleNa={toggleNa}
+                  markRowNa={markRowNa}
                   t={t}
                 />
               ))}

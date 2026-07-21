@@ -822,6 +822,65 @@
 
 .de-cell-label {
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Toggle "S/D" (sin data) por celda */
+.de-sd-toggle {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.de-sd-toggle:hover {
+  border-color: #b45309;
+  color: #b45309;
+}
+.de-sd-toggle.active {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+/* Celda marcada "sin data" — se ve atenuada, sin inputs */
+.de-cell--nodata {
+  background: repeating-linear-gradient(45deg, #fffbeb, #fffbeb 5px, #fef3c7 5px, #fef3c7 10px);
+  border: 1px solid #fcd34d;
+}
+.de-nodata-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: #b45309;
+  padding: 6px 2px;
+  text-align: center;
+}
+
+/* Botón "S/D fila" en la cabecera de la fila de categoría */
+.de-sd-row-btn {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  margin-left: 4px;
+  border-radius: 5px;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.de-sd-row-btn:hover {
+  border-color: #f59e0b;
+  color: #b45309;
+  background: #fffbeb;
 }
 
 .de-bracket-extras {

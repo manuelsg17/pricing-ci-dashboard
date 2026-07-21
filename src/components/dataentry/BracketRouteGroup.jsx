@@ -53,6 +53,9 @@ export default function BracketRouteGroup({
   priceKey,
   errorKeys,
   rowState,
+  getNa,
+  toggleNa,
+  markRowNa,
   t,
 }) {
   const [open, setOpen] = useState(true)
@@ -141,6 +144,14 @@ export default function BracketRouteGroup({
                             {t('dataentry.own_route_note')}
                           </span>
                         )}
+                        <button
+                          type="button"
+                          className="de-sd-row-btn"
+                          onClick={() => markRowNa(uiCat, ref.id, ts.label, comps)}
+                          title={t('dataentry.sd_row_title')}
+                        >
+                          {t('dataentry.sd_row_btn')}
+                        </button>
                       </div>
                       {allComps.map((comp) => {
                         if (!comps.includes(comp)) {
@@ -192,40 +203,62 @@ export default function BracketRouteGroup({
                             }
                           />
                         )
+                        const isNa = getNa(uiCat, ref.id, ts.label, comp)
                         return (
-                          <div key={comp} className={`de-cell${hasErr ? ' de-td-error' : ''}`}>
+                          <div
+                            key={comp}
+                            className={`de-cell${hasErr ? ' de-td-error' : ''}${isNa ? ' de-cell--nodata' : ''}`}
+                          >
                             <span className="de-cell-label">
                               <CompBadge comp={comp} />
+                              <button
+                                type="button"
+                                className={`de-sd-toggle${isNa ? ' active' : ''}`}
+                                onClick={() => toggleNa(uiCat, ref.id, ts.label, comp)}
+                                title={
+                                  isNa
+                                    ? t('dataentry.sd_unmark_title')
+                                    : t('dataentry.sd_mark_title')
+                                }
+                              >
+                                S/D
+                              </button>
                             </span>
-                            {etaInput}
-                            {comp === 'InDrive' ? (
-                              <InDriveCell
-                                avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
-                                extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
-                                onChange={(extra, avg) =>
-                                  setIndrive(uiCat, ref.id, ts.label, extra, avg)
-                                }
-                                hasError={hasErr}
-                              />
+                            {isNa ? (
+                              <div className="de-nodata-badge">{t('dataentry.sd_no_offer')}</div>
                             ) : (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
-                                placeholder={t('dataentry.price_placeholder')}
-                                value={getEntry(uiCat, ref.id, ts.label, comp)}
-                                onChange={(e) =>
-                                  setEntry(
-                                    uiCat,
-                                    ref.id,
-                                    ts.label,
-                                    comp,
-                                    sanitizeDecimalInput(e.target.value)
-                                  )
-                                }
-                              />
+                              <>
+                                {etaInput}
+                                {comp === 'InDrive' ? (
+                                  <InDriveCell
+                                    avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
+                                    extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
+                                    onChange={(extra, avg) =>
+                                      setIndrive(uiCat, ref.id, ts.label, extra, avg)
+                                    }
+                                    hasError={hasErr}
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
+                                    placeholder={t('dataentry.price_placeholder')}
+                                    value={getEntry(uiCat, ref.id, ts.label, comp)}
+                                    onChange={(e) =>
+                                      setEntry(
+                                        uiCat,
+                                        ref.id,
+                                        ts.label,
+                                        comp,
+                                        sanitizeDecimalInput(e.target.value)
+                                      )
+                                    }
+                                  />
+                                )}
+                                {discInput}
+                              </>
                             )}
-                            {discInput}
                           </div>
                         )
                       })}
