@@ -655,6 +655,34 @@ export default function DataEntry() {
     }
     setActiveDrafts((prev) => prev.filter((x) => x.key !== d.key))
     setDraftScanTick((tk) => tk + 1)
+    // Si el borrador descartado es de la FECHA/contexto actual, su rebanada
+    // puede seguir viva en memoria (y la ciudad marcada como hidratada). Sin
+    // limpiarla, volver a esa pestaña mostraría los datos "descartados" y el
+    // autosave/flush los reescribiría → el borrador resucita (mismo problema que
+    // el fix de Terminar Sesión). Si es de OTRA fecha, no hay rebanada en memoria
+    // (se limpian al cambiar de fecha): alcanza con borrar la clave.
+    if (d.date !== date) return
+    const cats = countryConfig.categoriesByCity[d.city] || []
+    const { dbCity: dc } = resolveDbParams(d.city, cats[0] || '', null, country, dbConfigs)
+    if (!dc) return
+    const dropCity = (setter) =>
+      setter((prev) => {
+        if (!(dc in prev)) return prev
+        const n = { ...prev }
+        delete n[dc]
+        return n
+      })
+    dropCity(setEntriesByCity)
+    dropCity(setIndriveByCity)
+    dropCity(setEtaByCity)
+    dropCity(setDiscByCity)
+    dropCity(setNaByCity)
+    dropCity(setSurgeByCity)
+    dropCity(setErrorKeysByCity)
+    dropCity(setLoadedCombosByCity)
+    // Re-permitir hidratar esa ciudad: al volver, re-lee localStorage (ya vacío)
+    // y muestra la grilla limpia en vez de la rebanada en memoria vieja.
+    hydratedCitiesRef.current.delete(dc)
   }
 
   // ── Group refs by UI category + bracket ───────────────
@@ -1041,19 +1069,32 @@ export default function DataEntry() {
     setSaving(true)
     setMsg(null)
 
-    // Group by (dbCat, ts) for targeted delete
-    const combos = new Set(
-      rowsToInsert.map(
-        (r) =>
-          `${resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory}|${r.ts.start_time?.slice(0, 5)}`
-      )
-    )
-    // Si la sesión se abrió del historial para editar, incluir también los
-    // combos (categoría|franja) que se cargaron aunque ahora queden vacíos —
-    // así, si el HP borra una franja/categoría entera, se elimina en BD en vez
-    // de quedar huérfana (el DELETE base solo cubre lo que se re-inserta).
-    if (loadedCombos) for (const c of loadedCombos) combos.add(c)
-    for (const combo of combos) {
+    // Agrupar por (dbCat, franja) → set de BRACKETS que se re-insertan. El
+    // DELETE se acota a ESOS brackets (.in), no a toda la categoría/franja.
+    // Antes borraba categoría+franja entera: como varias rutas (brackets)
+    // comparten categoría+franja, borrar por combo se llevaba puesta una ruta
+    // hermana de OTRO bracket que estuviera a medias (o que no se re-guardara en
+    // este checkpoint) y solo re-insertaba las completas → esa ruta parcial ya
+    // guardada se perdía. Acotando por bracket, cada ruta solo toca sus filas.
+    const combosByCatTime = new Map() // "dbCat|HH:MM" → Set<bracket>
+    for (const r of rowsToInsert) {
+      const dbCat = resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory
+      const key = `${dbCat}|${r.ts.start_time?.slice(0, 5)}`
+      if (!combosByCatTime.has(key)) combosByCatTime.set(key, new Set())
+      combosByCatTime.get(key).add(r.ref.bracket)
+    }
+    // Solo al TERMINAR se suman los combos cargados del historial (para borrar
+    // rutas/brackets que el hub vació tras reabrir). En "Guardar progreso" NO:
+    // un checkpoint nunca borra una ruta que no se está re-guardando — si un
+    // bracket cargado quedó a medias, se conserva en BD hasta Terminar (donde ya
+    // no se permiten filas parciales). loadedCombos es un Map catTime→Set<bracket>.
+    if (isFinish && loadedCombos) {
+      for (const [key, brackets] of loadedCombos) {
+        if (!combosByCatTime.has(key)) combosByCatTime.set(key, new Set())
+        for (const b of brackets) combosByCatTime.get(key).add(b)
+      }
+    }
+    for (const [combo, brackets] of combosByCatTime) {
       const [cat, time] = combo.split('|')
       // Acotar el DELETE a los competidores VISIBLES (getCiCompetitors) de esa
       // categoría — así las filas de un competidor marcado "no ofrece" (ciHidden)
@@ -1064,6 +1105,7 @@ export default function DataEntry() {
       const visibleNames = (
         uiCatForCombo ? getCiCompetitors(uiCity, uiCatForCombo, null, country, dbConfigs) : []
       ).map((c) => normalizeCompetitorName(c, { city: dbCity }))
+      if (visibleNames.length === 0 || brackets.size === 0) continue
       let delQuery = sb
         .from('pricing_observations')
         .delete()
@@ -1072,6 +1114,7 @@ export default function DataEntry() {
         .eq('category', cat)
         .eq('observed_date', date)
         .eq('observed_time', time)
+        .in('distance_bracket', Array.from(brackets))
         .eq('data_source', 'manual')
         .in('competition_name', visibleNames)
       // Acotar el DELETE al dueño (este hub) + filas legacy sin dueño (NULL,
@@ -1274,7 +1317,7 @@ export default function DataEntry() {
     let obsQuery = sb
       .from('pricing_observations')
       .select(
-        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data'
+        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data, surge'
       )
       .eq('country', country)
       .eq('city', loadDbCity)
@@ -1312,7 +1355,9 @@ export default function DataEntry() {
     const newDisc = {}
     const newIndrive = {}
     const newNa = new Set()
-    const combos = new Set() // (dbCategory|HH:MM) de lo que se cargó, para el DELETE al re-guardar
+    // (dbCategory|HH:MM) → Set<bracket> de lo que se cargó, para acotar el DELETE
+    // al re-guardar (por bracket, no por categoría/franja entera).
+    const combos = new Map()
     let mapped = 0
 
     for (const row of data || []) {
@@ -1342,7 +1387,9 @@ export default function DataEntry() {
       const comp = compMapByCat[uiCat][row.competition_name]
       if (!comp) continue
 
-      combos.add(`${row.category}|${(row.observed_time || '').slice(0, 5)}`)
+      const comboKey = `${row.category}|${(row.observed_time || '').slice(0, 5)}`
+      if (!combos.has(comboKey)) combos.set(comboKey, new Set())
+      combos.get(comboKey).add(row.distance_bracket)
       const k = priceKey(uiCat, ref.id, tsLabel, comp)
       // Fila "sin data" (S/D): restaurar la marca, sin volcar precio/eta/desc.
       if (row.no_data) {
@@ -1366,12 +1413,19 @@ export default function DataEntry() {
       mapped++
     }
 
+    // Surge: es un flag de la sesión estampado en cada fila. Restaurarlo del
+    // valor guardado — si no, reabrir una sesión con surge y re-guardar volvía a
+    // estampar surge=false en TODAS las filas (incluidos turnos que el hub no
+    // tocó), corrompiendo en silencio el filtro SURGE del dashboard.
+    const newSurge = (data || []).some((r) => r.surge === true)
+
     // Vuelca lo cargado en la rebanada de la ciudad objetivo (loadDbCity).
     setEntriesByCity((prev) => ({ ...prev, [loadDbCity]: newEntries }))
     setEtaByCity((prev) => ({ ...prev, [loadDbCity]: newEta }))
     setDiscByCity((prev) => ({ ...prev, [loadDbCity]: newDisc }))
     setIndriveByCity((prev) => ({ ...prev, [loadDbCity]: newIndrive }))
     setNaByCity((prev) => ({ ...prev, [loadDbCity]: newNa }))
+    setSurgeByCity((prev) => ({ ...prev, [loadDbCity]: newSurge }))
     setLoadedCombosByCity((prev) => ({ ...prev, [loadDbCity]: combos.size ? combos : null }))
     setErrorKeysByCity((prev) => ({ ...prev, [loadDbCity]: new Set() }))
     setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
