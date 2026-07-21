@@ -94,6 +94,62 @@
   font-weight: 600;
 }
 
+/* Tab de aeropuerto (agrupa Punto A/B) */
+.de-city-tab--airport {
+  border-style: dashed;
+}
+.de-city-tab--airport.active {
+  border-style: solid;
+}
+
+/* Sub-pestañas Punto A | Punto B del aeropuerto activo */
+.de-airport-subtabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: var(--color-bg-subtle, #f8fafc);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  width: fit-content;
+}
+.de-airport-subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.de-airport-subtab:hover {
+  color: var(--color-yango);
+}
+.de-airport-subtab.active {
+  background: #fff;
+  color: var(--color-yango);
+  border-color: var(--color-yango);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.de-airport-subtab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-yango-mid, #fde8e8);
+  color: var(--color-yango);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 /* Controls row */
 .de-session-controls {
   display: flex;

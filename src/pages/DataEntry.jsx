@@ -90,6 +90,12 @@ function countAllFilled(entries, indriveExtra) {
   return n
 }
 
+// Rebanadas vacías compartidas (identidad estable) para el estado por-ciudad:
+// evitan crear un objeto nuevo por render cuando la ciudad activa no tiene datos
+// (si no, las deps de los effects "cambiarían" en cada render).
+const EMPTY_OBJ = {}
+const EMPTY_SET = new Set()
+
 import { useCountry } from '../context/CountryContext'
 
 // ── Componente principal ───────────────────────────────────────────────────
@@ -103,7 +109,10 @@ export default function DataEntry() {
 
   const [uiCity, setUiCity] = useState(uiCities[0] || 'Lima')
   const [date, setDate] = useState(todayStr())
-  const [surge, setSurge] = useState(false)
+  // surge también es POR-CIUDAD: es un flag de la sesión (ciudad+fecha) que se
+  // estampa en pricing_observations.surge. Si fuera global, intercalar A↔B con
+  // distinto surge guardaría el flag equivocado (lo cazó la revisión).
+  const [surgeByCity, setSurgeByCity] = useState({})
   const [refs, setRefs] = useState([])
   const [refsLoading, setRefsLoading] = useState(false)
   // Ciudad a la que pertenecen las `refs` actualmente en estado. Clave para
@@ -113,21 +122,23 @@ export default function DataEntry() {
   // objetivo llegaron.
   const [refsDbCity, setRefsDbCity] = useState(null)
 
-  // entries: key = `${uiCat}|${refId}|${tsLabel}|${comp}` → price string
-  const [entries, setEntries] = useState({})
-  // indriveExtra: key = `${uiCat}|${refId}|${tsLabel}` → { bids, minBid }
-  const [indriveExtra, setIndriveExtra] = useState({})
-  // etaEntries: key = `${uiCat}|${refId}|${tsLabel}|${comp}` → ETA en minutos
-  // (string). Opcional: se captura antes del precio pero no bloquea el
-  // "completado" de la fila (el guardado usa los precios). Va a eta_min.
-  const [etaEntries, setEtaEntries] = useState({})
-  // discEntries: key = `${uiCat}|${refId}|${tsLabel}|${comp}` → precio CON
-  // descuento (string). El precio principal es el SIN descuento (entries);
-  // este es un extra opcional que no bloquea el "completado". Va a
-  // price_with_discount.
-  const [discEntries, setDiscEntries] = useState({})
-  // errorKeys: Set of price keys with error
-  const [errorKeys, setErrorKeys] = useState(new Set())
+  // Estado del formulario POR CIUDAD (dbCity). Intercalar entre ciudades (ej.
+  // Aeropuerto Punto A ↔ Punto B) mantiene AMBAS en memoria: cambiar de ciudad
+  // no resetea ni recarga — la ciudad activa es solo una "rebanada" de estos
+  // mapas (ver `entries`/`indriveExtra`/... derivados abajo, tras `dbCity`). Las
+  // claves priceKey/indKey ya son únicas por ciudad (refId = PK global), así que
+  // no colisionan entre ciudades; el borrador de localStorage sigue siendo el
+  // respaldo cross-refresh, uno por (país, ciudad, fecha).
+  //   entriesByCity[dbCity][priceKey]  → precio SIN descuento (string)
+  //   indriveByCity[dbCity][indKey]    → { bids, minBid, rec }
+  //   etaByCity[dbCity][priceKey]      → ETA en minutos (opcional → eta_min)
+  //   discByCity[dbCity][priceKey]     → precio CON descuento (opcional)
+  //   errorKeysByCity[dbCity]          → Set de priceKey con error
+  const [entriesByCity, setEntriesByCity] = useState({})
+  const [indriveByCity, setIndriveByCity] = useState({})
+  const [etaByCity, setEtaByCity] = useState({})
+  const [discByCity, setDiscByCity] = useState({})
+  const [errorKeysByCity, setErrorKeysByCity] = useState({})
 
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -146,8 +157,8 @@ export default function DataEntry() {
   // Al re-guardar, el DELETE tiene que cubrir también estos combos aunque el
   // HP los haya vaciado — si no, borrar una franja entera dejaría filas
   // huérfanas en BD (el DELETE base solo cubre lo que se re-inserta). Null en
-  // el flujo normal (carga desde cero), así que no cambia ese caso.
-  const [loadedCombos, setLoadedCombos] = useState(null)
+  // el flujo normal (carga desde cero). Por-ciudad como el resto del estado.
+  const [loadedCombosByCity, setLoadedCombosByCity] = useState({})
 
   // Session history
   const [showHistory, setShowHistory] = useState(false)
@@ -174,6 +185,68 @@ export default function DataEntry() {
   const { dbCity } = useMemo(
     () => resolveDbParams(uiCity, categories[0] || '', null, country, dbConfigs),
     [uiCity, categories, country, dbConfigs]
+  )
+
+  // Rebanadas de la ciudad activa — todo el resto del componente sigue leyendo
+  // `entries`/`indriveExtra`/`etaEntries`/`discEntries`/`errorKeys`/`loadedCombos`
+  // como antes; solo cambian su fuente (mapa por-ciudad) y los setters.
+  const entries = entriesByCity[dbCity] || EMPTY_OBJ
+  const indriveExtra = indriveByCity[dbCity] || EMPTY_OBJ
+  const etaEntries = etaByCity[dbCity] || EMPTY_OBJ
+  const discEntries = discByCity[dbCity] || EMPTY_OBJ
+  const errorKeys = errorKeysByCity[dbCity] || EMPTY_SET
+  const loadedCombos = loadedCombosByCity[dbCity] || null
+  const surge = surgeByCity[dbCity] ?? false
+
+  // dbCity actual accesible desde setters memoizados sin recrearlos; snapshot de
+  // los mapas por-ciudad para el flush del borrador (lee la rebanada correcta
+  // aunque ya se haya cambiado de ciudad).
+  const dbCityRef = useRef(dbCity)
+  dbCityRef.current = dbCity
+  const perCityRef = useRef(null)
+  perCityRef.current = { entriesByCity, indriveByCity, etaByCity, discByCity, surgeByCity }
+  // Cache de rutas por ciudad — cambiar de ciudad no vuelve a pegarle a la BD ni
+  // muestra spinner (clave para intercalar A/B sin parpadeo).
+  const refsCacheRef = useRef({})
+  // "Contexto" del formulario = país + fecha. Al cambiar, TODAS las ciudades
+  // quedan obsoletas (eran de la fecha vieja) → se limpian y se re-permite
+  // hidratar cada ciudad una vez. `hydratedCitiesRef` recuerda qué ciudades ya
+  // se hidrataron en el contexto actual, para no re-hidratar al intercalar A↔B
+  // (la memoria manda) — se rastrea por ref, no por el estado en memoria, para
+  // no depender del timing de los setState de limpieza.
+  const loadedContextRef = useRef(null)
+  const hydratedCitiesRef = useRef(new Set())
+
+  // Agrupar las pestañas de ciudad: los aeropuertos `{Base}_Airport_{A|B}` se
+  // juntan bajo un tab "{Base} Aeropuerto" con sub-pestañas Punto A | Punto B.
+  // El resto de las ciudades quedan como pestañas normales. Con el estado
+  // por-ciudad, saltar entre A y B es instantáneo y no pierde progreso.
+  const cityGroups = useMemo(() => {
+    const groups = []
+    const byBase = {}
+    for (const c of uiCities) {
+      const m = /^(.+)_Airport_([AB])$/.exec(c)
+      if (m) {
+        const base = m[1]
+        if (!byBase[base]) {
+          byBase[base] = { type: 'airport', base, members: [] }
+          groups.push(byBase[base])
+        }
+        byBase[base].members.push({ uiCity: c, side: m[2] })
+      } else {
+        groups.push({ type: 'city', uiCity: c })
+      }
+    }
+    for (const g of groups)
+      if (g.type === 'airport') g.members.sort((a, b) => a.side.localeCompare(b.side))
+    return groups
+  }, [uiCities])
+
+  const activeAirportGroup = useMemo(
+    () =>
+      cityGroups.find((g) => g.type === 'airport' && g.members.some((m) => m.uiCity === uiCity)) ||
+      null,
+    [cityGroups, uiCity]
   )
 
   // Mapa inverso dbCity → uiCity, para "Abrir" una sesión del historial (que
@@ -251,30 +324,34 @@ export default function DataEntry() {
   }, [showHistory])
 
   // ── Reset city when country changes ───────────────────
+  // El cambio de país resetea la ciudad y el cache de rutas; los datos del
+  // formulario los limpia el effect de restauración al detectar el cambio de
+  // contexto (país cambió → nueva draftKey → limpia todas las ciudades).
   useEffect(() => {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
+    refsCacheRef.current = {} // otro país → otras ciudades/rutas
     setRefs([]) // Limpiar rutas antiguas inmediatamente
-    setEntries({})
-    setIndriveExtra({})
-    setEtaEntries({})
-    setDiscEntries({})
-    setLoadedCombos(null)
+    setRefsDbCity(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, countryConfig])
 
-  // ── Load refs ──────────────────────────────────────────
+  // ── Load refs (cacheadas por ciudad) ───────────────────
+  // Cambiar de ciudad NO resetea el formulario: el estado por-ciudad se mantiene
+  // en memoria y las rutas salen del cache si ya se cargaron (intercalar A/B es
+  // instantáneo, sin spinner ni parpadeo). Solo la primera visita a una ciudad
+  // pega a la BD.
   useEffect(() => {
     if (!dbCity) return
+    const cached = refsCacheRef.current[dbCity]
+    if (cached) {
+      setRefs(cached)
+      setRefsDbCity(dbCity)
+      setRefsLoading(false)
+      return
+    }
     setRefsLoading(true)
     setRefsDbCity(null) // las refs en estado ya no corresponden a `dbCity`
-    setEntries({})
-    setIndriveExtra({})
-    setEtaEntries({})
-    setDiscEntries({})
-    setLoadedCombos(null)
-    setErrorKeys(new Set())
-    setMsg(null)
     sb.from('distance_references')
       .select('*')
       .eq('country', country)
@@ -283,22 +360,16 @@ export default function DataEntry() {
       .order('bracket')
       .order('point_a')
       .then(({ data }) => {
+        refsCacheRef.current[dbCity] = data || []
         setRefs(data || [])
         setRefsDbCity(dbCity)
         setRefsLoading(false)
       })
   }, [dbCity, country])
 
-  // ── Reset on date change ───────────────────────────────
-  useEffect(() => {
-    setEntries({})
-    setIndriveExtra({})
-    setEtaEntries({})
-    setDiscEntries({})
-    setLoadedCombos(null)
-    setErrorKeys(new Set())
-    setMsg(null)
-  }, [date])
+  // El reseteo por cambio de fecha (limpiar todas las ciudades) lo maneja el
+  // effect de restauración al detectar el cambio de contexto país+fecha — así se
+  // limpia e hidrata la fecha nueva en el orden correcto (ver más abajo).
 
   // ── "Abrir" sesión del historial → cargar observaciones guardadas ──────
   // Espera a que las rutas de la ciudad objetivo estén cargadas (refsLoading
@@ -330,34 +401,58 @@ export default function DataEntry() {
   useEffect(() => {
     draftHydratedRef.current = false
     setLastDraftSavedAt(null)
-    try {
-      const raw = localStorage.getItem(draftKey)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        const etaFilled = countFilledEntries(parsed.etaEntries)
-        const discFilled = countFilledEntries(parsed.discEntries)
-        const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
-        const mergedEntries = { ...parsed.entries, ...avgUpdates }
-        // Contar incluyendo celdas InDrive solo-recomendado (viven en
-        // indriveExtra) — si acá se usara solo countFilledEntries(entries), un
-        // borrador rec-only daría count 0 y NO se restauraría: el recomendado
-        // se perdía en silencio pese a que el autosave sí lo persistió.
-        const restored = countAllFilled(mergedEntries, capped)
-        if (restored > 0 || etaFilled > 0 || discFilled > 0) {
-          setEntries(mergedEntries)
-          setIndriveExtra(capped)
-          setEtaEntries(parsed.etaEntries || {})
-          setDiscEntries(parsed.discEntries || {})
-          if (typeof parsed.surge === 'boolean') setSurge(parsed.surge)
-          setLastDraftSavedAt(parsed.savedAt || null)
-          setMsg({
-            type: 'ok',
-            text: `📝 Borrador restaurado (${restored} celdas).`,
-          })
+    const targetCity = dbCity
+    const ctx = `${country}::${date}`
+    // ¿Cambió el contexto (país/fecha)? Entonces todas las ciudades cargadas son
+    // de la fecha vieja → limpiar TODO y re-permitir hidratar cada ciudad. Se
+    // hace acá (no en un effect aparte) para que el orden limpiar→hidratar sea
+    // correcto: si estuviera en otro effect, este leería datos "por limpiar" y
+    // saltaría la hidratación de la fecha nueva.
+    if (loadedContextRef.current !== ctx) {
+      loadedContextRef.current = ctx
+      hydratedCitiesRef.current = new Set()
+      setEntriesByCity({})
+      setIndriveByCity({})
+      setEtaByCity({})
+      setDiscByCity({})
+      setErrorKeysByCity({})
+      setLoadedCombosByCity({})
+      setSurgeByCity({})
+    }
+    // Hidratar esta ciudad UNA vez por contexto. Al intercalar A↔B, la 2da vez
+    // ya está en el set → no se re-hidrata (la memoria, más nueva, manda).
+    if (!hydratedCitiesRef.current.has(targetCity)) {
+      hydratedCitiesRef.current.add(targetCity)
+      try {
+        const raw = localStorage.getItem(draftKey)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          const etaFilled = countFilledEntries(parsed.etaEntries)
+          const discFilled = countFilledEntries(parsed.discEntries)
+          const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
+          const mergedEntries = { ...parsed.entries, ...avgUpdates }
+          // Contar incluyendo celdas InDrive solo-recomendado (viven en
+          // indriveExtra) — si acá se usara solo countFilledEntries(entries), un
+          // borrador rec-only daría count 0 y NO se restauraría: el recomendado
+          // se perdía en silencio pese a que el autosave sí lo persistió.
+          const restored = countAllFilled(mergedEntries, capped)
+          if (restored > 0 || etaFilled > 0 || discFilled > 0) {
+            setEntriesByCity((prev) => ({ ...prev, [targetCity]: mergedEntries }))
+            setIndriveByCity((prev) => ({ ...prev, [targetCity]: capped }))
+            setEtaByCity((prev) => ({ ...prev, [targetCity]: parsed.etaEntries || {} }))
+            setDiscByCity((prev) => ({ ...prev, [targetCity]: parsed.discEntries || {} }))
+            if (typeof parsed.surge === 'boolean')
+              setSurgeByCity((prev) => ({ ...prev, [targetCity]: parsed.surge }))
+            setLastDraftSavedAt(parsed.savedAt || null)
+            setMsg({
+              type: 'ok',
+              text: `📝 Borrador restaurado (${restored} celdas).`,
+            })
+          }
         }
+      } catch {
+        /* ignore corrupt draft */
       }
-    } catch {
-      /* ignore corrupt draft */
     }
     // Marcar hidratado en el siguiente tick para evitar que el effect de save
     // dispare con el estado vacío inicial antes de que cargue el draft.
@@ -365,6 +460,7 @@ export default function DataEntry() {
       draftHydratedRef.current = true
     }, 0)
     return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey])
 
   useEffect(() => {
@@ -394,34 +490,37 @@ export default function DataEntry() {
     return () => clearTimeout(id)
   }, [entries, indriveExtra, etaEntries, discEntries, surge, draftKey])
 
-  // Ref siempre al día con el último estado — para el flush síncrono de abajo.
-  const draftSnapshotRef = useRef({ entries, indriveExtra, etaEntries, discEntries, surge })
-  draftSnapshotRef.current = { entries, indriveExtra, etaEntries, discEntries, surge }
-
   // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
-  // página (desmontar / navegar a otra sección). El autosave con debounce
-  // podría no haber disparado sus últimos ~1.5s; sin este flush, cambiar de
-  // pestaña o de ciudad "por casualidad" perdía las últimas celdas cargadas.
-  // El cleanup corre con la clave VIEJA (closure de draftKey) y el último
-  // estado (ref) ANTES de que los resets de ciudad/fecha limpien `entries`.
+  // página (desmontar / navegar). El autosave con debounce podría no haber
+  // disparado sus últimos ~1.5s; sin este flush, cambiar de ciudad y luego
+  // refrescar perdía las últimas celdas de la ciudad vieja. Se capturan la
+  // ciudad y la clave de ESTA corrida; el cleanup lee la rebanada de ESA ciudad
+  // desde perCityRef (que retiene todas las ciudades), así flushea la ciudad
+  // vieja bajo su clave vieja aunque ya se haya cambiado de ciudad.
   useEffect(() => {
+    const flushCity = dbCity
+    const flushKey = draftKey
     return () => {
       try {
-        const s = draftSnapshotRef.current
+        const m = perCityRef.current
+        const ent = m.entriesByCity[flushCity] || EMPTY_OBJ
+        const ind = m.indriveByCity[flushCity] || EMPTY_OBJ
+        const eta = m.etaByCity[flushCity] || EMPTY_OBJ
+        const disc = m.discByCity[flushCity] || EMPTY_OBJ
         const hasData =
-          countFilledEntries(s.entries) > 0 ||
-          countFilledEntries(s.etaEntries) > 0 ||
-          countFilledEntries(s.discEntries) > 0 ||
-          hasMeaningfulIndriveExtra(s.indriveExtra)
+          countFilledEntries(ent) > 0 ||
+          countFilledEntries(eta) > 0 ||
+          countFilledEntries(disc) > 0 ||
+          hasMeaningfulIndriveExtra(ind)
         if (hasData) {
           localStorage.setItem(
-            draftKey,
+            flushKey,
             JSON.stringify({
-              entries: s.entries,
-              indriveExtra: s.indriveExtra,
-              etaEntries: s.etaEntries,
-              discEntries: s.discEntries,
-              surge: s.surge,
+              entries: ent,
+              indriveExtra: ind,
+              etaEntries: eta,
+              discEntries: disc,
+              surge: m.surgeByCity[flushCity] ?? false,
               savedAt: Date.now(),
             })
           )
@@ -430,6 +529,7 @@ export default function DataEntry() {
         /* quota / disabled */
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey])
 
   const clearDraft = useCallback(() => {
@@ -439,12 +539,16 @@ export default function DataEntry() {
   }, [draftKey])
 
   // ── Aviso del navegador si hay cambios sin guardar ─────
+  // Considera TODAS las ciudades en memoria (no solo la activa): con el estado
+  // por-ciudad puede haber datos cargados en el Aeropuerto A aunque estés viendo
+  // el B.
   useEffect(() => {
+    const anyFilled = (byCity) => Object.values(byCity).some((m) => countFilledEntries(m) > 0)
     const hasUnsaved =
-      countFilledEntries(entries) > 0 ||
-      countFilledEntries(etaEntries) > 0 ||
-      countFilledEntries(discEntries) > 0 ||
-      hasMeaningfulIndriveExtra(indriveExtra)
+      anyFilled(entriesByCity) ||
+      anyFilled(etaByCity) ||
+      anyFilled(discByCity) ||
+      Object.values(indriveByCity).some((m) => hasMeaningfulIndriveExtra(m))
     if (!hasUnsaved) return
     const handler = (e) => {
       e.preventDefault()
@@ -452,7 +556,7 @@ export default function DataEntry() {
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [entries, etaEntries, discEntries, indriveExtra])
+  }, [entriesByCity, etaByCity, discByCity, indriveByCity])
 
   // ── Indicador "guardado hace Xs" — ticker ──────────────
   useEffect(() => {
@@ -574,14 +678,23 @@ export default function DataEntry() {
     return v
   }
 
-  const setEntry = useCallback((uiCat, refId, tsLabel, comp, val) => {
-    setEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
-    // clear error on edit
-    setErrorKeys((prev) => {
-      const n = new Set(prev)
-      n.delete(priceKey(uiCat, refId, tsLabel, comp))
-      return n
+  // Los setters escriben en la rebanada de la ciudad ACTIVA (dbCityRef, para no
+  // recrear el callback en cada cambio de ciudad). clearErrorKeyFor limpia el
+  // error de esa celda en la ciudad activa.
+  const clearErrorKeyFor = (city, key) =>
+    setErrorKeysByCity((prev) => {
+      const cur = prev[city]
+      if (!cur || !cur.has(key)) return prev
+      const n = new Set(cur)
+      n.delete(key)
+      return { ...prev, [city]: n }
     })
+
+  const setEntry = useCallback((uiCat, refId, tsLabel, comp, val) => {
+    const c = dbCityRef.current
+    const k = priceKey(uiCat, refId, tsLabel, comp)
+    setEntriesByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
+    clearErrorKeyFor(c, k) // clear error on edit
   }, [])
 
   const getEntry = (uiCat, refId, tsLabel, comp) =>
@@ -592,7 +705,9 @@ export default function DataEntry() {
   const getEta = (uiCat, refId, tsLabel, comp) =>
     etaEntries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
   const setEta = useCallback((uiCat, refId, tsLabel, comp, val) => {
-    setEtaEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
+    const c = dbCityRef.current
+    const k = priceKey(uiCat, refId, tsLabel, comp)
+    setEtaByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
   }, [])
 
   // Precio CON descuento por competidor (misma clave que el precio principal,
@@ -601,17 +716,24 @@ export default function DataEntry() {
   const getDisc = (uiCat, refId, tsLabel, comp) =>
     discEntries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
   const setDisc = useCallback((uiCat, refId, tsLabel, comp, val) => {
-    setDiscEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
+    const c = dbCityRef.current
+    const k = priceKey(uiCat, refId, tsLabel, comp)
+    setDiscByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
+  }, [])
+
+  // Surge de la ciudad activa (checkbox). Va a la rebanada de dbCityRef.current.
+  const setSurge = useCallback((val) => {
+    const c = dbCityRef.current
+    setSurgeByCity((prev) => ({ ...prev, [c]: val }))
   }, [])
 
   const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
-    setIndriveExtra((prev) => ({ ...prev, [indKey(uiCat, refId, tsLabel)]: extra }))
-    setEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, 'InDrive')]: avg }))
-    setErrorKeys((prev) => {
-      const n = new Set(prev)
-      n.delete(priceKey(uiCat, refId, tsLabel, 'InDrive'))
-      return n
-    })
+    const c = dbCityRef.current
+    const ik = indKey(uiCat, refId, tsLabel)
+    const pk = priceKey(uiCat, refId, tsLabel, 'InDrive')
+    setIndriveByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [ik]: extra } }))
+    setEntriesByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [pk]: avg } }))
+    clearErrorKeyFor(c, pk)
   }, [])
 
   // ── Row validation ─────────────────────────────────────
@@ -749,7 +871,7 @@ export default function DataEntry() {
         }
       }
     }
-    setErrorKeys(newErrors)
+    setErrorKeysByCity((prev) => ({ ...prev, [dbCity]: newErrors }))
     return { hasPartial, hasEmpty, errorCount: newErrors.size }
   }
 
@@ -1034,12 +1156,13 @@ export default function DataEntry() {
       mapped++
     }
 
-    setEntries(newEntries)
-    setEtaEntries(newEta)
-    setDiscEntries(newDisc)
-    setIndriveExtra(newIndrive)
-    setLoadedCombos(combos.size ? combos : null)
-    setErrorKeys(new Set())
+    // Vuelca lo cargado en la rebanada de la ciudad objetivo (loadDbCity).
+    setEntriesByCity((prev) => ({ ...prev, [loadDbCity]: newEntries }))
+    setEtaByCity((prev) => ({ ...prev, [loadDbCity]: newEta }))
+    setDiscByCity((prev) => ({ ...prev, [loadDbCity]: newDisc }))
+    setIndriveByCity((prev) => ({ ...prev, [loadDbCity]: newIndrive }))
+    setLoadedCombosByCity((prev) => ({ ...prev, [loadDbCity]: combos.size ? combos : null }))
+    setErrorKeysByCity((prev) => ({ ...prev, [loadDbCity]: new Set() }))
     setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
   }
 
@@ -1099,21 +1222,63 @@ export default function DataEntry() {
 
       {/* ── Session bar ── */}
       <div className="de-session-bar">
-        {/* City tabs */}
+        {/* City tabs — aeropuertos agrupados (A/B como sub-pestañas) */}
         <div className="de-city-tabs">
-          {uiCities.map((c) => (
-            <button
-              key={c}
-              className={`de-city-tab${uiCity === c ? ' active' : ''}`}
-              onClick={() => {
-                setUiCity(c)
-                setMsg(null)
-              }}
-            >
-              {c}
-            </button>
-          ))}
+          {cityGroups.map((g) => {
+            if (g.type === 'city') {
+              return (
+                <button
+                  key={g.uiCity}
+                  className={`de-city-tab${uiCity === g.uiCity ? ' active' : ''}`}
+                  onClick={() => {
+                    setUiCity(g.uiCity)
+                    setMsg(null)
+                  }}
+                >
+                  {g.uiCity}
+                </button>
+              )
+            }
+            const active = g.members.some((m) => m.uiCity === uiCity)
+            return (
+              <button
+                key={g.base}
+                className={`de-city-tab de-city-tab--airport${active ? ' active' : ''}`}
+                onClick={() => {
+                  if (!active) {
+                    setUiCity(g.members[0].uiCity)
+                    setMsg(null)
+                  }
+                }}
+                title={`${g.base} — Aeropuerto (Punto A y Punto B)`}
+              >
+                ✈ {g.base} Aeropuerto
+              </button>
+            )
+          })}
         </div>
+
+        {/* Sub-pestañas Punto A | Punto B cuando hay un aeropuerto activo */}
+        {activeAirportGroup && (
+          <div className="de-airport-subtabs">
+            {activeAirportGroup.members.map((m) => {
+              const n = countAllFilled(entriesByCity[m.uiCity], indriveByCity[m.uiCity])
+              return (
+                <button
+                  key={m.uiCity}
+                  className={`de-airport-subtab${uiCity === m.uiCity ? ' active' : ''}`}
+                  onClick={() => {
+                    setUiCity(m.uiCity)
+                    setMsg(null)
+                  }}
+                >
+                  Punto {m.side}
+                  {n > 0 && <span className="de-airport-subtab-badge">{n}</span>}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         <div className="de-session-controls">
           <label className="de-ctrl">
