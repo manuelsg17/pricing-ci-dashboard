@@ -696,6 +696,10 @@ export default function DataEntry() {
       year: r.year,
       week: r.week,
       data_source: 'manual',
+      // Dueño de la fila: el hub que la cargó. Permite que dos hubs guarden la
+      // misma ciudad+fecha sin pisarse (el DELETE se acota al dueño) y atribuye
+      // cada celda para el monitoreo. Legacy = null (se reclama al re-guardar).
+      uploaded_by: userEmail || null,
       country,
     }
     if (r.comp === 'InDrive') {
@@ -768,7 +772,7 @@ export default function DataEntry() {
     if (loadedCombos) for (const c of loadedCombos) combos.add(c)
     for (const combo of combos) {
       const [cat, time] = combo.split('|')
-      const { error: delErr } = await sb
+      let delQuery = sb
         .from('pricing_observations')
         .delete()
         .eq('country', country)
@@ -777,6 +781,15 @@ export default function DataEntry() {
         .eq('observed_date', date)
         .eq('observed_time', time)
         .eq('data_source', 'manual')
+      // Acotar el DELETE al dueño (este hub) + filas legacy sin dueño (NULL,
+      // que este guardado reclama). Sin esto, guardar borraba las filas de OTRO
+      // hub para la misma ciudad+fecha+categoría+franja (mig 139). SIEMPRE se
+      // acota por dueño: sin email (no debería pasar — auth es email/password)
+      // se cae a solo-NULL, nunca a un DELETE sin predicado de dueño.
+      delQuery = userEmail
+        ? delQuery.or(`uploaded_by.eq.${userEmail},uploaded_by.is.null`)
+        : delQuery.is('uploaded_by', null)
+      const { error: delErr } = await delQuery
       if (delErr) {
         setMsg({ type: 'err', text: `Error al limpiar: ${delErr.message}` })
         setSaving(false)
@@ -940,7 +953,7 @@ export default function DataEntry() {
   // Las filas que no se puedan mapear (ruta borrada, franja fuera del set,
   // etc.) se saltan en silencio — nunca rompen la carga del resto.
   async function loadObservationsIntoForm(loadDbCity, loadDate) {
-    const { data, error } = await sb
+    let obsQuery = sb
       .from('pricing_observations')
       .select(
         'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5'
@@ -949,6 +962,14 @@ export default function DataEntry() {
       .eq('city', loadDbCity)
       .eq('observed_date', loadDate)
       .eq('data_source', 'manual')
+    // Cargar solo las filas propias (+ legacy sin dueño) para editar. Si se
+    // cargaran también las de otro hub, al re-guardar se insertarían como
+    // propias (el DELETE no borra las del otro dueño) → duplicados (mig 139).
+    // Mismo criterio simétrico que el DELETE del guardado (siempre por dueño).
+    obsQuery = userEmail
+      ? obsQuery.or(`uploaded_by.eq.${userEmail},uploaded_by.is.null`)
+      : obsQuery.is('uploaded_by', null)
+    const { data, error } = await obsQuery
     if (error) {
       setMsg({ type: 'err', text: `${t('dataentry.err_load_session')} ${error.message}` })
       return
