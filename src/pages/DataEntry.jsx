@@ -1128,12 +1128,13 @@ export default function DataEntry() {
   }
 
   // ── Guardar progreso ───────────────────────────────────
+  // Checkpoint: se puede guardar EN CUALQUIER MOMENTO. Guarda todas las filas
+  // completas que haya (categoría×ruta×franja con todos sus competidores
+  // resueltos) sin bloquear por filas a medias — esas quedan en el borrador
+  // para terminarlas después. El re-guardado es idempotente (DELETE+INSERT por
+  // categoría/franja), así que guardar seguido es seguro. Solo "Terminar
+  // Sesión" exige la grilla completa/S-D.
   async function handleSaveProgress() {
-    const { hasPartial } = validateAndCollectErrors(false)
-    if (hasPartial) {
-      setMsg({ type: 'err', text: t('dataentry.err_partial') })
-      return
-    }
     // Collect all full rows
     const rowsToInsert = []
     for (const uiCat of categories) {
@@ -1370,7 +1371,7 @@ export default function DataEntry() {
             </Button>
           ) : (
             <>
-              <Button onClick={handleSaveProgress} disabled={saving || filledCount === 0}>
+              <Button onClick={handleSaveProgress} disabled={saving}>
                 {saving
                   ? t('dataentry.saving')
                   : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
@@ -1605,7 +1606,7 @@ export default function DataEntry() {
         <div className="de-footer">
           {sessionActive ? (
             <>
-              <Button onClick={handleSaveProgress} disabled={saving || filledCount === 0}>
+              <Button onClick={handleSaveProgress} disabled={saving}>
                 {saving
                   ? t('dataentry.saving')
                   : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
