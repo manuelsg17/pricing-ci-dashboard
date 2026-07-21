@@ -15,6 +15,7 @@ const EMPTY_ARR = Object.freeze([])
 import DashboardLegend from '../components/dashboard/DashboardLegend'
 import WowCallouts from '../components/dashboard/WowCallouts'
 import BotCoverageCard from '../components/dashboard/BotCoverageCard'
+import RepresentativityCard from '../components/dashboard/RepresentativityCard'
 import WhatIfSimulator from '../components/dashboard/WhatIfSimulator'
 import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
 import { prettyCompetitor } from '../lib/normalize'
@@ -524,6 +525,9 @@ function DashboardContent() {
 
       {/* ── Frescura de la data del bot (semáforo + matriz ciudad×bracket) ── */}
       <BotCoverageCard />
+
+      {/* ── Representatividad de la data (muestras suficientes: bot vs apps) ── */}
+      <RepresentativityCard />
 
       {/* ── Barra de herramientas (acciones) + KPI Bar ── */}
       {!loading && kpis && (
