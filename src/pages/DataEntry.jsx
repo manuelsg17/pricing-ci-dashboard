@@ -65,8 +65,29 @@ function countFilledEntries(entries) {
 
 function hasMeaningfulIndriveExtra(indriveExtra) {
   return Object.values(indriveExtra || {}).some(
-    (extra) => (extra?.bids || []).some((b) => b !== '') || (extra?.minBid || '') !== ''
+    (extra) =>
+      (extra?.bids || []).some((b) => b !== '') ||
+      (extra?.minBid || '') !== '' ||
+      (extra?.rec || '') !== ''
   )
+}
+
+// Cuenta TODAS las celdas "llenas": las que tienen número en `entries` + las
+// celdas InDrive que solo tienen precio recomendado (viven en indriveExtra, no
+// en entries, porque sin bids el promedio queda vacío). Fuente ÚNICA de verdad
+// para el pill de progreso y para el conteo del borrador restaurado — así no
+// vuelven a divergir (la divergencia causó una pérdida silenciosa del
+// recomendado al restaurar un borrador rec-only).
+function countAllFilled(entries, indriveExtra) {
+  let n = countFilledEntries(entries)
+  for (const [k, ex] of Object.entries(indriveExtra || {})) {
+    const recOk = ex?.rec != null && ex.rec !== '' && !isNaN(parseFloat(ex.rec))
+    if (!recOk) continue
+    const avg = (entries || {})[`${k}|InDrive`]
+    const avgOk = avg != null && avg !== '' && !isNaN(parseFloat(avg))
+    if (!avgOk) n++ // recomendado sin promedio de bids → no contado por entries
+  }
+  return n
 }
 
 import { useCountry } from '../context/CountryContext'
@@ -313,12 +334,17 @@ export default function DataEntry() {
       const raw = localStorage.getItem(draftKey)
       if (raw) {
         const parsed = JSON.parse(raw)
-        const filled = countFilledEntries(parsed.entries)
         const etaFilled = countFilledEntries(parsed.etaEntries)
         const discFilled = countFilledEntries(parsed.discEntries)
-        if (filled > 0 || etaFilled > 0 || discFilled > 0) {
-          const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
-          setEntries({ ...parsed.entries, ...avgUpdates })
+        const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
+        const mergedEntries = { ...parsed.entries, ...avgUpdates }
+        // Contar incluyendo celdas InDrive solo-recomendado (viven en
+        // indriveExtra) — si acá se usara solo countFilledEntries(entries), un
+        // borrador rec-only daría count 0 y NO se restauraría: el recomendado
+        // se perdía en silencio pese a que el autosave sí lo persistió.
+        const restored = countAllFilled(mergedEntries, capped)
+        if (restored > 0 || etaFilled > 0 || discFilled > 0) {
+          setEntries(mergedEntries)
           setIndriveExtra(capped)
           setEtaEntries(parsed.etaEntries || {})
           setDiscEntries(parsed.discEntries || {})
@@ -326,7 +352,7 @@ export default function DataEntry() {
           setLastDraftSavedAt(parsed.savedAt || null)
           setMsg({
             type: 'ok',
-            text: `📝 Borrador restaurado (${filled} celdas).`,
+            text: `📝 Borrador restaurado (${restored} celdas).`,
           })
         }
       }
@@ -536,6 +562,18 @@ export default function DataEntry() {
   const priceKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
   const indKey = (uiCat, refId, tsLabel) => `${uiCat}|${refId}|${tsLabel}`
 
+  // Valor "efectivo" de una celda para decidir si está llena: el número de
+  // `entries` y, para InDrive sin promedio de bids, el precio recomendado (que
+  // vive en indriveExtra, no en entries). Fuente ÚNICA para rowState y para el
+  // marcado de errores — que diverjan pintaba en rojo una celda ya cargada.
+  const effectiveCellValue = (uiCat, refId, tsLabel, comp) => {
+    const v = entries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
+    if (comp === 'InDrive' && (v === '' || isNaN(parseFloat(v)))) {
+      return indriveExtra[indKey(uiCat, refId, tsLabel)]?.rec ?? ''
+    }
+    return v
+  }
+
   const setEntry = useCallback((uiCat, refId, tsLabel, comp, val) => {
     setEntries((prev) => ({ ...prev, [priceKey(uiCat, refId, tsLabel, comp)]: val }))
     // clear error on edit
@@ -580,7 +618,7 @@ export default function DataEntry() {
   // Returns 'empty' | 'full' | 'partial' for a (uiCat, ref, ts) row
   function rowState(uiCat, ref, ts) {
     const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
-    const vals = comps.map((c) => entries[priceKey(uiCat, ref.id, ts.label, c)] ?? '')
+    const vals = comps.map((c) => effectiveCellValue(uiCat, ref.id, ts.label, c))
     const filled = vals.filter((v) => v !== '' && !isNaN(parseFloat(v)))
     if (filled.length === 0) return 'empty'
     if (filled.length === comps.length) return 'full'
@@ -588,40 +626,51 @@ export default function DataEntry() {
   }
 
   // ── Count filled ───────────────────────────────────────
-  const filledCount = useMemo(() => countFilledEntries(entries), [entries])
+  const filledCount = useMemo(() => countAllFilled(entries, indriveExtra), [entries, indriveExtra])
 
   // ── Build rows to insert ───────────────────────────────
   function buildRows(uiCat, ref, ts) {
     const comps = getCompetitors(uiCity, uiCat, null, country, dbConfigs)
     const { year, week } = getISOYearWeek(date)
     const rush = isRushHour(ts.start_time?.slice(0, 5), dbCity) ?? false
-    return comps
-      .map((comp) => {
-        const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
-        const price = parseFloat(raw)
-        const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
-        // Mig 136: pricing_observations vuelve a tener bid_1..bid_5 → hasta 5
-        // bids. Guarda por si un borrador trajera más (nunca debería).
-        const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 5) : []
-        const minBid = comp === 'InDrive' ? extra?.minBid || null : null
-        const etaNum = parseFloat(etaEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
-        const discNum = parseFloat(discEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
-        return {
-          price: isNaN(price) ? null : price,
-          comp,
-          ref,
-          ts,
-          uiCat,
-          rush,
-          year,
-          week,
-          bids,
-          minBid,
-          eta: isNaN(etaNum) ? null : etaNum,
-          disc: isNaN(discNum) ? null : discNum,
-        }
-      })
-      .filter((r) => r.price !== null)
+    return (
+      comps
+        .map((comp) => {
+          const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
+          const price = parseFloat(raw)
+          const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
+          // Mig 136: pricing_observations vuelve a tener bid_1..bid_5 → hasta 5
+          // bids. Guarda por si un borrador trajera más (nunca debería).
+          const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 5) : []
+          const minBid = comp === 'InDrive' ? extra?.minBid || null : null
+          // Precio recomendado por la app de InDrive → recommended_price. NO entra
+          // al promedio de bids. Si no hay bids, el precio efectivo cae al
+          // recomendado (v_effective_price), por eso una celda solo-recomendado
+          // igual debe guardarse (ver filtro de abajo).
+          const recNum = comp === 'InDrive' ? parseFloat(extra?.rec ?? '') : NaN
+          const etaNum = parseFloat(etaEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
+          const discNum = parseFloat(discEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
+          return {
+            price: isNaN(price) ? null : price,
+            comp,
+            ref,
+            ts,
+            uiCat,
+            rush,
+            year,
+            week,
+            bids,
+            minBid,
+            rec: isNaN(recNum) ? null : recNum,
+            eta: isNaN(etaNum) ? null : etaNum,
+            disc: isNaN(discNum) ? null : discNum,
+          }
+        })
+        // Se descartan las celdas sin dato. Excepción: InDrive con solo el
+        // recomendado (sin bids ni promedio) SÍ se guarda — su precio efectivo
+        // será el recomendado.
+        .filter((r) => r.price !== null || r.rec !== null)
+    )
   }
 
   function buildInsertPayload(r) {
@@ -656,6 +705,9 @@ export default function DataEntry() {
       })
       const mn = parseFloat(r.minBid)
       if (!isNaN(mn)) base.minimal_bid = mn
+      // Recomendado en su columna propia (NO en un bid, para no sesgar el
+      // promedio). Si no hay bids, v_effective_price cae a recommended_price.
+      if (r.rec != null) base.recommended_price = r.rec
     }
     return base
   }
@@ -674,9 +726,11 @@ export default function DataEntry() {
           const state = rowState(uiCat, ref, ts)
           if (state === 'partial') {
             hasPartial = true
-            // mark missing cells
+            // mark missing cells (mismo criterio de "llena" que rowState: para
+            // InDrive considera el recomendado, si no la celda rec-only se
+            // pintaba en rojo como faltante aunque rowState la cuenta llena)
             comps.forEach((comp) => {
-              const v = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
+              const v = effectiveCellValue(uiCat, ref.id, ts.label, comp)
               if (v === '' || isNaN(parseFloat(v))) {
                 newErrors.add(priceKey(uiCat, ref.id, ts.label, comp))
               }
@@ -889,7 +943,7 @@ export default function DataEntry() {
     const { data, error } = await sb
       .from('pricing_observations')
       .select(
-        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5'
+        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5'
       )
       .eq('country', country)
       .eq('city', loadDbCity)
@@ -953,6 +1007,7 @@ export default function DataEntry() {
         newIndrive[indKey(uiCat, ref.id, tsLabel)] = {
           bids: bids.length ? bids : [''],
           minBid: row.minimal_bid != null ? String(row.minimal_bid) : '',
+          rec: row.recommended_price != null ? String(row.recommended_price) : '',
         }
       }
       mapped++
