@@ -261,6 +261,44 @@ export default function DataEntry() {
   const loadedContextRef = useRef(null)
   const hydratedCitiesRef = useRef(new Set())
 
+  // ── Guardia anti-resurrección de borrador (Terminar / Descartar) ──────
+  // Un hub reportó en producción (2026-07-22): terminó una sesión de Corp
+  // (confirmado en BD: 60 filas guardadas correctamente), pero minutos
+  // después el borrador de esa MISMA ciudad/fecha reapareció como "borrador
+  // sin terminar" — pese a que clearDraft()+dropCity ya limpian la clave y la
+  // rebanada en memoria en el mismo tick. No se pudo reproducir el mecanismo
+  // exacto (una escritura tardía de algún efecto de autosave/flush), así que
+  // en vez de perseguir la carrera exacta, se blinda el SÍNTOMA: por unos
+  // segundos después de Terminar/Descartar, NINGÚN efecto puede volver a
+  // escribir esa clave, Y el escáner de "borradores sin terminar" la ignora
+  // aunque algo se le escape. Al cierre de la ventana se re-borra una vez
+  // más por las dudas (limpia cualquier escritura tardía que haya igual
+  // logrado colarse) y se levanta la guardia.
+  const RESURRECTION_GUARD_MS = 10_000
+  const justFinishedRef = useRef(new Map()) // draftKey → timestamp de "no reescribir"
+
+  const markJustFinished = useCallback((key) => {
+    justFinishedRef.current.set(key, Date.now())
+    setTimeout(() => {
+      try {
+        localStorage.removeItem(key)
+      } catch {
+        /* ignore */
+      }
+      justFinishedRef.current.delete(key)
+    }, RESURRECTION_GUARD_MS)
+  }, [])
+
+  const isJustFinished = useCallback((key) => {
+    const t = justFinishedRef.current.get(key)
+    if (t == null) return false
+    if (Date.now() - t > RESURRECTION_GUARD_MS) {
+      justFinishedRef.current.delete(key)
+      return false
+    }
+    return true
+  }, [])
+
   // Agrupar las pestañas de ciudad: los aeropuertos `{Base}_Airport_{A|B}` se
   // juntan bajo un tab "{Base} Aeropuerto" con sub-pestañas Punto A | Punto B.
   // El resto de las ciudades quedan como pestañas normales. Con el estado
@@ -606,6 +644,9 @@ export default function DataEntry() {
   useEffect(() => {
     if (!draftHydratedRef.current) return
     const id = setTimeout(() => {
+      // Recién Terminada/Descartada: no reescribir por unos segundos, sin
+      // importar qué diga `entries` en este momento (ver guardia arriba).
+      if (isJustFinished(draftKey)) return
       try {
         const hasData =
           countFilledEntries(entries) > 0 ||
@@ -637,7 +678,7 @@ export default function DataEntry() {
       }
     }, 1500)
     return () => clearTimeout(id)
-  }, [entries, indriveExtra, etaEntries, discEntries, surge, naKeys, draftKey])
+  }, [entries, indriveExtra, etaEntries, discEntries, surge, naKeys, draftKey, isJustFinished])
 
   // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
   // página (desmontar / navegar). El autosave con debounce podría no haber
@@ -650,6 +691,8 @@ export default function DataEntry() {
     const flushCity = bucketKey
     const flushKey = draftKey
     return () => {
+      // Recién Terminada/Descartada: no reescribir (ver guardia arriba).
+      if (isJustFinished(flushKey)) return
       try {
         const m = perCityRef.current
         const ent = m.entriesByCity[flushCity] || EMPTY_OBJ
@@ -724,7 +767,10 @@ export default function DataEntry() {
   // TODAS las claves de este país para: (1) listarle al hub sus borradores con
   // Reanudar/Descartar y (2) aplicar el tope de MAX_DRAFTS borradores a la vez.
   // draftScanTick fuerza un re-escaneo tras terminar/descartar una sesión.
-  const MAX_DRAFTS = 2
+  // Tope subido de 2 a 7 (2026-07-22, pedido del user durante el arranque de
+  // pruebas): con TukTuk por distrito + varias ciudades en paralelo entre
+  // varios hub experts, 2 era demasiado poco margen operativo.
+  const MAX_DRAFTS = 7
   const [activeDrafts, setActiveDrafts] = useState([])
   const [draftScanTick, setDraftScanTick] = useState(0)
 
@@ -737,6 +783,10 @@ export default function DataEntry() {
       try {
         const k = localStorage.key(i)
         if (!k || !k.startsWith(prefix)) continue
+        // Recién Terminada/Descartada: ignorarla en la lista aunque algo haya
+        // logrado reescribirla (ver guardia anti-resurrección arriba) — nunca
+        // debe aparecer como "borrador sin terminar" en esta ventana.
+        if (isJustFinished(k)) continue
         const raw = localStorage.getItem(k)
         if (!raw) continue
         const parsed = JSON.parse(raw)
@@ -808,6 +858,7 @@ export default function DataEntry() {
     } catch {
       /* ignore */
     }
+    markJustFinished(d.key)
     setActiveDrafts((prev) => prev.filter((x) => x.key !== d.key))
     setDraftScanTick((tk) => tk + 1)
     // Si el borrador descartado es de la FECHA/contexto actual, su rebanada
@@ -1397,6 +1448,7 @@ export default function DataEntry() {
     // por categoría/franja), así que conservar el borrador es seguro.
     if (isFinish) {
       clearDraft()
+      markJustFinished(draftKey)
       setLastDraftSavedAt(null)
       // Limpiar la rebanada EN MEMORIA de la ciudad recién terminada. Sin esto,
       // el flush/autosave/beforeunload vuelven a escribir el borrador que
