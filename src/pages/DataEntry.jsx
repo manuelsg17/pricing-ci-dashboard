@@ -297,7 +297,12 @@ export default function DataEntry() {
         continue
       }
       if (c === 'Corp') {
-        ensure(CORP_UNDER[c] || c).tabs.push({ type: 'corp', uiCity: c })
+        // Solo redirige bajo la ciudad mapeada si esa ciudad REALMENTE existe
+        // en este país — si no (país hipotético con 'Corp' pero sin 'Lima'),
+        // Corp queda como su propio cluster en vez de crear un cluster
+        // "Lima" fantasma con un único tab Corp adentro.
+        const target = CORP_UNDER[c] && uiCities.includes(CORP_UNDER[c]) ? CORP_UNDER[c] : c
+        ensure(target).tabs.push({ type: 'corp', uiCity: c })
         continue
       }
       ensure(c).tabs.push({ type: 'normal', uiCity: c })
@@ -1735,57 +1740,65 @@ export default function DataEntry() {
         <div className="de-city-tabs">
           {cityClusters.map((cluster) => {
             const soloNormal = cluster.tabs.length === 1 && cluster.tabs[0].type === 'normal'
+            const tabButtons = cluster.tabs.map((tb) => {
+              const label =
+                tb.type === 'normal'
+                  ? soloNormal
+                    ? cluster.base
+                    : t('dataentry.tab_normal')
+                  : tb.type === 'corp'
+                    ? 'Corp'
+                    : tb.type === 'airport'
+                      ? `✈ ${t('dataentry.tab_airport')}`
+                      : 'TukTuk'
+              const active =
+                tb.type === 'tuktuk'
+                  ? isTukTuk && uiCity === tb.baseUiCity
+                  : tb.type === 'airport'
+                    ? !isTukTuk && tb.members.some((m) => m.uiCity === uiCity)
+                    : tb.type === 'corp'
+                      ? !isTukTuk && uiCity === 'Corp'
+                      : !isTukTuk && uiCity === tb.uiCity
+              return (
+                <button
+                  key={`${cluster.base}-${tb.type}`}
+                  className={`de-city-tab${tb.type === 'airport' ? ' de-city-tab--airport' : ''}${active ? ' active' : ''}`}
+                  onClick={() => {
+                    setMsg(null)
+                    if (tb.type === 'tuktuk') {
+                      // Re-click estando ya en TukTuk (en cualquier distrito, o
+                      // en el estado "sin resolver") no debe resetear el
+                      // distrito activo — mismo criterio que Aeropuerto.
+                      if (!active) {
+                        setUiCity(tb.baseUiCity)
+                        setActiveTukTuk(tukTukDistricts[0] ?? '')
+                      }
+                    } else if (tb.type === 'airport') {
+                      if (!active) {
+                        setUiCity(tb.members[0].uiCity)
+                        setActiveTukTuk(null)
+                      }
+                    } else {
+                      setUiCity(tb.uiCity)
+                      setActiveTukTuk(null)
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })
+            // Ciudad simple sin ninguna variante (Corp/Aeropuerto/TukTuk) — ej.
+            // países de una sola ciudad (Nepal, Bolivia) o cada ciudad de
+            // Colombia: se muestra como una pestaña suelta, SIN el pill de
+            // cluster alrededor, para no envolver un botón único en un
+            // contenedor doble (antes de agrupar por ciudad no existía ese
+            // envoltorio extra en estos casos).
+            if (soloNormal) return tabButtons[0]
             return (
               <div key={cluster.base} className="de-city-cluster">
-                {!soloNormal && <span className="de-cluster-name">{cluster.base}</span>}
-                {cluster.tabs.map((tb) => {
-                  const label =
-                    tb.type === 'normal'
-                      ? soloNormal
-                        ? cluster.base
-                        : t('dataentry.tab_normal')
-                      : tb.type === 'corp'
-                        ? 'Corp'
-                        : tb.type === 'airport'
-                          ? `✈ ${t('dataentry.tab_airport')}`
-                          : 'TukTuk'
-                  const active =
-                    tb.type === 'tuktuk'
-                      ? isTukTuk && uiCity === tb.baseUiCity
-                      : tb.type === 'airport'
-                        ? !isTukTuk && tb.members.some((m) => m.uiCity === uiCity)
-                        : tb.type === 'corp'
-                          ? !isTukTuk && uiCity === 'Corp'
-                          : !isTukTuk && uiCity === tb.uiCity
-                  return (
-                    <button
-                      key={`${cluster.base}-${tb.type}`}
-                      className={`de-city-tab${tb.type === 'airport' ? ' de-city-tab--airport' : ''}${active ? ' active' : ''}`}
-                      onClick={() => {
-                        setMsg(null)
-                        if (tb.type === 'tuktuk') {
-                          // Re-click estando ya en TukTuk (en cualquier distrito, o
-                          // en el estado "sin resolver") no debe resetear el
-                          // distrito activo — mismo criterio que Aeropuerto.
-                          if (!active) {
-                            setUiCity(tb.baseUiCity)
-                            setActiveTukTuk(tukTukDistricts[0] ?? '')
-                          }
-                        } else if (tb.type === 'airport') {
-                          if (!active) {
-                            setUiCity(tb.members[0].uiCity)
-                            setActiveTukTuk(null)
-                          }
-                        } else {
-                          setUiCity(tb.uiCity)
-                          setActiveTukTuk(null)
-                        }
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
+                <span className="de-cluster-name">{cluster.base}</span>
+                {tabButtons}
               </div>
             )
           })}
