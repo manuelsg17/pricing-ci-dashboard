@@ -570,7 +570,8 @@ export const TRANSLATIONS = {
     'dataentry.draft_cap_block':
       'Llegaste al máximo de {max} borradores sin terminar. Terminá o descartá uno de los de arriba para poder cargar esta ciudad/fecha.',
     'dataentry.legend_title': 'Cómo llenar esta pantalla',
-    'dataentry.legend_step1': '1. Elegí tu ciudad y la fecha arriba.',
+    'dataentry.legend_step1':
+      '1. Elegí arriba tu ciudad y la pestaña: Normal, Corp, ✈ Aeropuerto o TukTuk. En Aeropuerto elegí Punto A/B; en TukTuk elegí el distrito — cada distrito se guarda y se termina por separado. Después elegí la fecha.',
     'dataentry.legend_step2':
       '2. Elegí el bracket (Very Short → Very Long) — la ruta (Punto A → Punto B) aparece una sola vez.',
     'dataentry.legend_step3':
@@ -580,6 +581,10 @@ export const TRANSLATIONS = {
     'dataentry.legend_step5':
       '5. Guardá seguido con "💾 Guardar progreso" (podés guardar filas parciales cuantas veces quieras). Además tu progreso se autoguarda solo en este navegador: NO se pierde si actualizás la página, cambiás de ciudad o cerrás por error — al volver, sigue todo cargado.',
     'dataentry.legend_step6': '6. Cuando toda la grilla esté completa, tocá "⏹ Terminar Sesión".',
+    'dataentry.tab_normal': 'Normal',
+    'dataentry.tab_airport': 'Aeropuerto',
+    'dataentry.tuktuk_no_districts':
+      'No hay distritos de TukTuk cargados. Agregalos en Distancias de Referencia.',
 
     // ── Earnings ──────────────────────────────────────
     'earnings.title': 'Ganancias del Conductor',
@@ -2640,7 +2645,8 @@ export const TRANSLATIONS = {
     'dataentry.draft_cap_block':
       'You reached the maximum of {max} unfinished drafts. Finish or discard one of the drafts above to enter this city/date.',
     'dataentry.legend_title': 'How to fill this screen',
-    'dataentry.legend_step1': '1. Pick your city and date above.',
+    'dataentry.legend_step1':
+      '1. Up top, pick your city and the tab: Normal, Corp, ✈ Airport or TukTuk. For Airport choose Point A/B; for TukTuk choose the district — each district is saved and finished separately. Then pick the date.',
     'dataentry.legend_step2':
       '2. Pick a bracket (Very Short → Very Long) — the route (Point A → Point B) shows up once.',
     'dataentry.legend_step3':
@@ -2650,6 +2656,10 @@ export const TRANSLATIONS = {
     'dataentry.legend_step5':
       '5. Save often with "💾 Save progress" (you can save partial rows as many times as you want). Your progress is also autosaved in this browser: it is NOT lost if you refresh, switch city, or close by mistake — when you come back, everything is still there.',
     'dataentry.legend_step6': '6. Once the whole grid is complete, tap "⏹ End Session".',
+    'dataentry.tab_normal': 'Normal',
+    'dataentry.tab_airport': 'Airport',
+    'dataentry.tuktuk_no_districts':
+      'No TukTuk districts loaded yet. Add them in Reference Distances.',
 
     'earnings.title': 'Driver Earnings',
     'rentabilidad.title': 'Driver Profitability',
@@ -4699,7 +4709,8 @@ export const TRANSLATIONS = {
     'dataentry.draft_cap_block':
       'Вы достигли максимума {max} незавершённых черновиков. Завершите или отмените один из черновиков выше, чтобы ввести этот город/дату.',
     'dataentry.legend_title': 'Как заполнять этот экран',
-    'dataentry.legend_step1': '1. Выберите город и дату вверху.',
+    'dataentry.legend_step1':
+      '1. Вверху выберите город и вкладку: Обычный, Corp, ✈ Аэропорт или TukTuk. Для Аэропорта выберите Пункт A/B; для TukTuk — район (каждый район сохраняется и завершается отдельно). Затем выберите дату.',
     'dataentry.legend_step2':
       '2. Выберите брекет (Very Short → Very Long) — маршрут (Точка А → Точка Б) показывается один раз.',
     'dataentry.legend_step3':
@@ -4709,6 +4720,10 @@ export const TRANSLATIONS = {
     'dataentry.legend_step5':
       '5. Сохраняйте прогресс почаще кнопкой "💾 Сохранить прогресс" (можно сохранять неполные строки сколько угодно раз). Прогресс также автосохраняется в этом браузере: он НЕ теряется при обновлении страницы, смене города или случайном закрытии — когда вернётесь, всё на месте.',
     'dataentry.legend_step6': '6. Когда вся таблица заполнена, нажмите "⏹ Завершить сессию".',
+    'dataentry.tab_normal': 'Обычный',
+    'dataentry.tab_airport': 'Аэропорт',
+    'dataentry.tuktuk_no_districts':
+      'Районы TukTuk ещё не загружены. Добавьте их в «Справочные расстояния».',
 
     'earnings.title': 'Доходы водителей',
     'rentabilidad.title': 'Рентабельность водителя',

@@ -108,6 +108,13 @@ export default function DataEntry() {
   const uiCities = countryConfig.cities
 
   const [uiCity, setUiCity] = useState(uiCities[0] || 'Lima')
+  // TukTuk se carga POR DISTRITO: cuando esto tiene un distrito (zone), la vista
+  // activa es "Lima TukTuk · <distrito>" (uiCity queda en la ciudad base que
+  // tiene la categoría TukTuk, p.ej. 'Lima'). null = vista normal (ciudad /
+  // aeropuerto / corp). Cada distrito es su propia rebanada de estado, borrador y
+  // sesión — igual que Punto A/B del aeropuerto son ciudades independientes.
+  const [activeTukTuk, setActiveTukTuk] = useState(null)
+  const [tukTukDistricts, setTukTukDistricts] = useState([])
   const [date, setDate] = useState(todayStr())
   // surge también es POR-CIUDAD: es un flag de la sesión (ciudad+fecha) que se
   // estampa en pricing_observations.surge. Si fuera global, intercalar A↔B con
@@ -178,10 +185,14 @@ export default function DataEntry() {
   const { isRushHour } = useRushHourConfig(country)
   const { timeslots } = useCITimeslots()
 
-  const categories = useMemo(
-    () => countryConfig.categoriesByCity[uiCity] || [],
-    [countryConfig, uiCity]
-  )
+  // Categorías de la vista activa. En TukTuk-por-distrito la única categoría es
+  // 'TukTuk'. En la vista NORMAL de una ciudad que además tiene TukTuk (Lima), se
+  // saca 'TukTuk' de la grilla — ahora vive en su propia pestaña, no mezclado con
+  // las categorías de auto.
+  const categories = useMemo(() => {
+    if (activeTukTuk != null) return ['TukTuk']
+    return (countryConfig.categoriesByCity[uiCity] || []).filter((c) => c !== 'TukTuk')
+  }, [countryConfig, uiCity, activeTukTuk])
 
   // dbCity: the DB city for the current UI city (use first non-special category)
   const { dbCity } = useMemo(
@@ -189,23 +200,46 @@ export default function DataEntry() {
     [uiCity, categories, country, dbConfigs]
   )
 
+  // Vista TukTuk-por-distrito. `dbCity` sigue siendo la ciudad REAL de BD
+  // ('Lima') — TukTuk no es una ciudad aparte en BD, se distingue por `zone`.
+  // `bucketKey` = clave de la rebanada de estado en memoria: para vistas normales
+  // es la ciudad de BD (idéntico a antes); para un distrito de TukTuk es una
+  // clave sintética única por distrito, para que su borrador/progreso/sesión no
+  // se mezclen con la Lima normal ni entre distritos. `viewId` = la parte
+  // "ciudad" de la clave del borrador (localStorage): para vistas normales sigue
+  // siendo `uiCity` (sin cambios); para TukTuk lleva el distrito. El separador
+  // '~' no aparece en ninguna ciudad ni distrito.
+  // activeTukTuk: null = vista normal; '' = pestaña TukTuk recién elegida pero
+  // el distrito todavía no se resolvió (mientras carga la lista de distritos, o
+  // si la ciudad no tiene ninguno cargado en Distancias de Referencia);
+  // "<distrito>" = distrito activo. isTukTuk cubre '' Y el distrito real — así
+  // la pestaña TukTuk se resalta y el aviso de "sin distritos" puede mostrarse
+  // apenas se hace click, sin esperar a la carga async.
+  const isTukTuk = activeTukTuk != null
+  const zone = isTukTuk ? activeTukTuk || null : null
+  const bucketKey = isTukTuk ? `TT~${dbCity}~${zone}` : dbCity
+  const viewId = isTukTuk ? `TT~${dbCity}~${zone}` : uiCity
+
   // Rebanadas de la ciudad activa — todo el resto del componente sigue leyendo
   // `entries`/`indriveExtra`/`etaEntries`/`discEntries`/`errorKeys`/`loadedCombos`
   // como antes; solo cambian su fuente (mapa por-ciudad) y los setters.
-  const entries = entriesByCity[dbCity] || EMPTY_OBJ
-  const indriveExtra = indriveByCity[dbCity] || EMPTY_OBJ
-  const etaEntries = etaByCity[dbCity] || EMPTY_OBJ
-  const discEntries = discByCity[dbCity] || EMPTY_OBJ
-  const errorKeys = errorKeysByCity[dbCity] || EMPTY_SET
-  const naKeys = naByCity[dbCity] || EMPTY_SET
-  const loadedCombos = loadedCombosByCity[dbCity] || null
-  const surge = surgeByCity[dbCity] ?? false
+  const entries = entriesByCity[bucketKey] || EMPTY_OBJ
+  const indriveExtra = indriveByCity[bucketKey] || EMPTY_OBJ
+  const etaEntries = etaByCity[bucketKey] || EMPTY_OBJ
+  const discEntries = discByCity[bucketKey] || EMPTY_OBJ
+  const errorKeys = errorKeysByCity[bucketKey] || EMPTY_SET
+  const naKeys = naByCity[bucketKey] || EMPTY_SET
+  const loadedCombos = loadedCombosByCity[bucketKey] || null
+  const surge = surgeByCity[bucketKey] ?? false
 
   // dbCity actual accesible desde setters memoizados sin recrearlos; snapshot de
   // los mapas por-ciudad para el flush del borrador (lee la rebanada correcta
   // aunque ya se haya cambiado de ciudad).
-  const dbCityRef = useRef(dbCity)
-  dbCityRef.current = dbCity
+  // Clave de la rebanada activa accesible desde los setters memoizados sin
+  // recrearlos. Es `bucketKey` (por-distrito en TukTuk, ciudad de BD en el resto)
+  // — antes era `dbCity`; para vistas normales es exactamente lo mismo.
+  const bucketRef = useRef(bucketKey)
+  bucketRef.current = bucketKey
   const perCityRef = useRef(null)
   perCityRef.current = {
     entriesByCity,
@@ -231,33 +265,61 @@ export default function DataEntry() {
   // juntan bajo un tab "{Base} Aeropuerto" con sub-pestañas Punto A | Punto B.
   // El resto de las ciudades quedan como pestañas normales. Con el estado
   // por-ciudad, saltar entre A y B es instantáneo y no pierde progreso.
-  const cityGroups = useMemo(() => {
-    const groups = []
+  // Pestañas agrupadas POR CIUDAD. Cada "cluster" es una ciudad base (Lima,
+  // Trujillo, Arequipa) con sus variantes como pestañas: Normal, Corp,
+  // ✈ Aeropuerto (Punto A/B) y TukTuk (por distrito). Los aeropuertos
+  // `{Base}_Airport_{A|B}` caen bajo su base; Corp (ciudad propia en BD) se
+  // muestra bajo Lima porque es el corporativo de Lima; una ciudad con la
+  // categoría 'TukTuk' gana una pestaña TukTuk. Países simples (una sola ciudad)
+  // quedan como una pestaña suelta con el nombre de la ciudad.
+  const cityClusters = useMemo(() => {
+    const CORP_UNDER = { Corp: 'Lima' } // Perú: Corp = corporativo de Lima
+    const clusters = []
     const byBase = {}
+    const ensure = (base) => {
+      if (!byBase[base]) {
+        byBase[base] = { base, tabs: [] }
+        clusters.push(byBase[base])
+      }
+      return byBase[base]
+    }
     for (const c of uiCities) {
-      const m = /^(.+)_Airport_([AB])$/.exec(c)
-      if (m) {
-        const base = m[1]
-        if (!byBase[base]) {
-          byBase[base] = { type: 'airport', base, members: [] }
-          groups.push(byBase[base])
+      const am = /^(.+)_Airport_([AB])$/.exec(c)
+      if (am) {
+        const base = am[1]
+        const cl = ensure(base)
+        let ap = cl.tabs.find((tb) => tb.type === 'airport')
+        if (!ap) {
+          ap = { type: 'airport', base, members: [] }
+          cl.tabs.push(ap)
         }
-        byBase[base].members.push({ uiCity: c, side: m[2] })
-      } else {
-        groups.push({ type: 'city', uiCity: c })
+        ap.members.push({ uiCity: c, side: am[2] })
+        continue
+      }
+      if (c === 'Corp') {
+        ensure(CORP_UNDER[c] || c).tabs.push({ type: 'corp', uiCity: c })
+        continue
+      }
+      ensure(c).tabs.push({ type: 'normal', uiCity: c })
+      if ((countryConfig.categoriesByCity[c] || []).includes('TukTuk')) {
+        ensure(c).tabs.push({ type: 'tuktuk', baseUiCity: c })
       }
     }
-    for (const g of groups)
-      if (g.type === 'airport') g.members.sort((a, b) => a.side.localeCompare(b.side))
-    return groups
-  }, [uiCities])
+    for (const cl of clusters)
+      for (const tb of cl.tabs)
+        if (tb.type === 'airport') tb.members.sort((a, b) => a.side.localeCompare(b.side))
+    const order = { normal: 0, corp: 1, airport: 2, tuktuk: 3 }
+    for (const cl of clusters) cl.tabs.sort((a, b) => (order[a.type] ?? 9) - (order[b.type] ?? 9))
+    return clusters
+  }, [uiCities, countryConfig])
 
-  const activeAirportGroup = useMemo(
-    () =>
-      cityGroups.find((g) => g.type === 'airport' && g.members.some((m) => m.uiCity === uiCity)) ||
-      null,
-    [cityGroups, uiCity]
-  )
+  const activeAirportMembers = useMemo(() => {
+    if (isTukTuk) return null
+    for (const cl of cityClusters)
+      for (const tb of cl.tabs)
+        if (tb.type === 'airport' && tb.members.some((m) => m.uiCity === uiCity)) return tb.members
+    return null
+  }, [cityClusters, uiCity, isTukTuk])
 
   // Mapa inverso dbCity → uiCity, para "Abrir" una sesión del historial (que
   // guarda la ciudad en formato BD) y saber a qué pestaña de ciudad saltar.
@@ -290,6 +352,7 @@ export default function DataEntry() {
   useEffect(() => {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
+    setActiveTukTuk(null)
     // dbCity es reactivo a uiCity y categories, así no hay problema
   }, [country, countryConfig])
 
@@ -340,6 +403,7 @@ export default function DataEntry() {
   useEffect(() => {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
+    setActiveTukTuk(null)
     refsCacheRef.current = {} // otro país → otras ciudades/rutas
     setRefs([]) // Limpiar rutas antiguas inmediatamente
     setRefsDbCity(null)
@@ -377,6 +441,54 @@ export default function DataEntry() {
       })
   }, [dbCity, country])
 
+  // ── Distritos de TukTuk (para las sub-pestañas) ────────
+  // Ciudad base que tiene una categoría 'TukTuk' (Lima en Perú). Los distritos
+  // salen de las zonas cargadas en Distancias de Referencia — si agregás un
+  // distrito nuevo ahí, aparece solo como sub-pestaña, sin tocar código.
+  const tukTukInfo = useMemo(() => {
+    for (const c of uiCities) {
+      const cats = countryConfig.categoriesByCity[c] || []
+      if (cats.includes('TukTuk')) {
+        const { dbCity: dc } = resolveDbParams(c, 'TukTuk', null, country, dbConfigs)
+        return { baseUiCity: c, dbCity: dc }
+      }
+    }
+    return null
+  }, [uiCities, countryConfig, country, dbConfigs])
+
+  useEffect(() => {
+    if (!tukTukInfo) {
+      setTukTukDistricts([])
+      return
+    }
+    let cancelled = false
+    sb.from('distance_references')
+      .select('zone')
+      .eq('country', country)
+      .eq('city', tukTukInfo.dbCity)
+      .eq('category', 'TukTuk')
+      .not('zone', 'is', null)
+      .then(({ data }) => {
+        if (cancelled) return
+        const zones = [...new Set((data || []).map((r) => r.zone).filter(Boolean))].sort((a, b) =>
+          a.localeCompare(b)
+        )
+        setTukTukDistricts(zones)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tukTukInfo, country])
+
+  // Distrito "pendiente de resolver" (activeTukTuk === '', ver comentario en
+  // isTukTuk/zone): apenas la lista de distritos esté disponible, entrar
+  // automáticamente al primero — mismo criterio que Aeropuerto entra a Punto A.
+  useEffect(() => {
+    if (activeTukTuk === '' && tukTukDistricts.length > 0) {
+      setActiveTukTuk(tukTukDistricts[0])
+    }
+  }, [activeTukTuk, tukTukDistricts])
+
   // El reseteo por cambio de fecha (limpiar todas las ciudades) lo maneja el
   // effect de restauración al detectar el cambio de contexto país+fecha — así se
   // limpia e hidrata la fecha nueva en el orden correcto (ver más abajo).
@@ -393,16 +505,26 @@ export default function DataEntry() {
     // contra rutas equivocadas y limpiar pendingLoad antes de tiempo.
     if (refsDbCity !== pendingLoad.dbCity) return
     if (pendingLoad.dbCity !== dbCity || pendingLoad.date !== date) return
-    loadObservationsIntoForm(pendingLoad.dbCity, pendingLoad.date)
+    // TukTuk: además la vista tiene que estar en el distrito correcto (mismo
+    // dbCity 'Lima' para todos, pero distinto zone/bucket).
+    if ((pendingLoad.zone ?? null) !== (zone ?? null)) return
+    loadObservationsIntoForm(
+      pendingLoad.dbCity,
+      pendingLoad.date,
+      pendingLoad.zone ?? null,
+      bucketKey
+    )
     setPendingLoad(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingLoad, refsLoading, refsDbCity, dbCity, date, refs])
+  }, [pendingLoad, refsLoading, refsDbCity, dbCity, date, refs, zone, bucketKey])
 
   // ── Autosave a localStorage (draft) ────────────────────
   // Clave por (country, uiCity, date). Restaura al cambiar a una clave con
   // borrador existente; persiste cada cambio con debounce 2s; limpia tras
   // guardado exitoso a Supabase (ver handleSave / handleSaveProgress).
-  const draftKey = `de:draft:${country}:${uiCity}:${date}`
+  // viewId = uiCity en vistas normales (sin cambios) o `TT~<dbCity>~<distrito>`
+  // en TukTuk, para que cada distrito tenga su propio borrador.
+  const draftKey = `de:draft:${country}:${viewId}:${date}`
   const draftHydratedRef = useRef(false)
   // Indicador "guardado hace Xs" — se lee en el header (progress pill).
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState(null)
@@ -411,7 +533,7 @@ export default function DataEntry() {
   useEffect(() => {
     draftHydratedRef.current = false
     setLastDraftSavedAt(null)
-    const targetCity = dbCity
+    const targetCity = bucketKey
     const ctx = `${country}::${date}`
     // ¿Cambió el contexto (país/fecha)? Entonces todas las ciudades cargadas son
     // de la fecha vieja → limpiar TODO y re-permitir hidratar cada ciudad. Se
@@ -520,7 +642,7 @@ export default function DataEntry() {
   // desde perCityRef (que retiene todas las ciudades), así flushea la ciudad
   // vieja bajo su clave vieja aunque ya se haya cambiado de ciudad.
   useEffect(() => {
-    const flushCity = dbCity
+    const flushCity = bucketKey
     const flushKey = draftKey
     return () => {
       try {
@@ -620,15 +742,37 @@ export default function DataEntry() {
           countAllFilled(parsed?.entries, parsed?.indriveExtra) +
           (Array.isArray(parsed?.naKeys) ? parsed.naKeys.length : 0)
         if (count === 0) continue
-        const rest = k.slice(prefix.length) // "{city}:{date}"
+        const rest = k.slice(prefix.length) // "{viewId}:{date}"
         const sep = rest.lastIndexOf(':')
         if (sep === -1) continue
+        const viewIdTok = rest.slice(0, sep)
+        const dateTok = rest.slice(sep + 1)
+        // TukTuk: viewId = `TT~<dbCity>~<distrito>`. El bucket en memoria es el
+        // mismo viewId. Para resumir: volver a la ciudad base con TukTuk + el
+        // distrito. Vistas normales: viewId = uiCity, bucket = su dbCity.
+        let cityLabel, bucketKeyD, resume
+        if (viewIdTok.startsWith('TT~')) {
+          const partsTT = viewIdTok.split('~')
+          const dc = partsTT[1] || ''
+          const zn = partsTT.slice(2).join('~')
+          bucketKeyD = viewIdTok
+          cityLabel = `${dc} TukTuk · ${zn}`
+          resume = { tukTuk: true, uiCity: tukTukInfo?.baseUiCity || dc, zone: zn }
+        } else {
+          const cats = countryConfig.categoriesByCity[viewIdTok] || []
+          const { dbCity: dc } = resolveDbParams(viewIdTok, cats[0] || '', null, country, dbConfigs)
+          bucketKeyD = dc || viewIdTok
+          cityLabel = viewIdTok
+          resume = { tukTuk: false, uiCity: viewIdTok }
+        }
         list.push({
           key: k,
-          city: rest.slice(0, sep),
-          date: rest.slice(sep + 1),
+          city: cityLabel,
+          date: dateTok,
           count,
           savedAt: parsed.savedAt || 0,
+          bucketKey: bucketKeyD,
+          resume,
         })
       } catch {
         /* borrador corrupto en esta clave puntual — seguir con las demás */
@@ -642,7 +786,13 @@ export default function DataEntry() {
   }, [country, draftKey, draftScanTick])
 
   function resumeDraft(d) {
-    setUiCity(d.city)
+    if (d.resume?.tukTuk) {
+      setUiCity(d.resume.uiCity)
+      setActiveTukTuk(d.resume.zone)
+    } else {
+      setUiCity(d.resume?.uiCity ?? d.city)
+      setActiveTukTuk(null)
+    }
     setDate(d.date)
     setMsg(null)
   }
@@ -662,8 +812,7 @@ export default function DataEntry() {
     // el fix de Terminar Sesión). Si es de OTRA fecha, no hay rebanada en memoria
     // (se limpian al cambiar de fecha): alcanza con borrar la clave.
     if (d.date !== date) return
-    const cats = countryConfig.categoriesByCity[d.city] || []
-    const { dbCity: dc } = resolveDbParams(d.city, cats[0] || '', null, country, dbConfigs)
+    const dc = d.bucketKey // rebanada en memoria = bucketKey (por-distrito en TukTuk)
     if (!dc) return
     const dropCity = (setter) =>
       setter((prev) => {
@@ -685,16 +834,24 @@ export default function DataEntry() {
     hydratedCitiesRef.current.delete(dc)
   }
 
+  // Rutas de la vista activa. En TukTuk, solo las de ESE distrito (zone). En el
+  // resto, todas las de la ciudad — la Lima normal ya excluye 'TukTuk' de
+  // `categories`, así que sus rutas no entran a la grilla de auto.
+  const viewRefs = useMemo(() => {
+    if (!isTukTuk) return refs
+    return refs.filter((r) => r.category === 'TukTuk' && (r.zone ?? null) === zone)
+  }, [refs, isTukTuk, zone])
+
   // ── Group refs by UI category + bracket ───────────────
   const refsByUICat = useMemo(() => {
     const result = {}
     for (const cat of categories) result[cat] = []
-    for (const ref of refs) {
+    for (const ref of viewRefs) {
       const uiCat = dbCatToUICat[ref.category]
       if (uiCat && result[uiCat]) result[uiCat].push(ref)
     }
     return result
-  }, [refs, dbCatToUICat, categories])
+  }, [viewRefs, dbCatToUICat, categories])
 
   // ── Categoría "ancla" — la primera categoría configurada por ciudad que
   // no esté excluida de la replicación (countryConfig.categoriesByCity);
@@ -742,9 +899,9 @@ export default function DataEntry() {
     return v
   }
 
-  // Los setters escriben en la rebanada de la ciudad ACTIVA (dbCityRef, para no
-  // recrear el callback en cada cambio de ciudad). clearErrorKeyFor limpia el
-  // error de esa celda en la ciudad activa.
+  // Los setters escriben en la rebanada de la vista ACTIVA (bucketRef, para no
+  // recrear el callback en cada cambio de vista). clearErrorKeyFor limpia el
+  // error de esa celda en la vista activa.
   const clearErrorKeyFor = (city, key) =>
     setErrorKeysByCity((prev) => {
       const cur = prev[city]
@@ -755,7 +912,7 @@ export default function DataEntry() {
     })
 
   const setEntry = useCallback((uiCat, refId, tsLabel, comp, val) => {
-    const c = dbCityRef.current
+    const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
     setEntriesByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
     clearErrorKeyFor(c, k) // clear error on edit
@@ -769,7 +926,7 @@ export default function DataEntry() {
   const getEta = (uiCat, refId, tsLabel, comp) =>
     etaEntries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
   const setEta = useCallback((uiCat, refId, tsLabel, comp, val) => {
-    const c = dbCityRef.current
+    const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
     setEtaByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
   }, [])
@@ -780,19 +937,13 @@ export default function DataEntry() {
   const getDisc = (uiCat, refId, tsLabel, comp) =>
     discEntries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
   const setDisc = useCallback((uiCat, refId, tsLabel, comp, val) => {
-    const c = dbCityRef.current
+    const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
     setDiscByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
   }, [])
 
-  // Surge de la ciudad activa (checkbox). Va a la rebanada de dbCityRef.current.
-  const setSurge = useCallback((val) => {
-    const c = dbCityRef.current
-    setSurgeByCity((prev) => ({ ...prev, [c]: val }))
-  }, [])
-
   const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
-    const c = dbCityRef.current
+    const c = bucketRef.current
     const ik = indKey(uiCat, refId, tsLabel)
     const pk = priceKey(uiCat, refId, tsLabel, 'InDrive')
     setIndriveByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [ik]: extra } }))
@@ -841,7 +992,7 @@ export default function DataEntry() {
   }
 
   const toggleNa = useCallback((uiCat, refId, tsLabel, comp) => {
-    const c = dbCityRef.current
+    const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
     setNaByCity((prev) => {
       const cur = prev[c] || EMPTY_SET
@@ -857,7 +1008,7 @@ export default function DataEntry() {
   // Bloque: marca/desmarca S/D TODA una fila (todos los competidores visibles de
   // una categoría×ruta×franja). Toggle: si todas están S/D → las desmarca.
   const markRowNa = useCallback((uiCat, refId, tsLabel, comps) => {
-    const c = dbCityRef.current
+    const c = bucketRef.current
     const keys = comps.map((comp) => priceKey(uiCat, refId, tsLabel, comp))
     setNaByCity((prev) => {
       const cur = prev[c] || EMPTY_SET
@@ -901,17 +1052,29 @@ export default function DataEntry() {
     [entries, indriveExtra, naKeys]
   )
 
-  // Borradores DISTINTOS al de la vista actual (para el banner de la lista) y si
-  // llegamos al tope. blockNewSlot: la vista actual está vacía Y ya hay
-  // MAX_DRAFTS borradores en OTRAS ciudades/fechas → hay que terminar/descartar
-  // uno antes de empezar este (evita acumular borradores a medias). No bloquea
-  // si estás editando un borrador existente ni una sesión reabierta del
-  // historial (loadedCombos seteado).
+  // Borradores DISTINTOS al de la vista actual (para el banner de la lista,
+  // TODOS los tipos) y si llegamos al tope. blockNewSlot: la vista actual está
+  // vacía Y ya hay MAX_DRAFTS borradores en OTRAS ciudades/fechas → hay que
+  // terminar/descartar uno antes de empezar este (evita acumular borradores a
+  // medias). No bloquea si estás editando un borrador existente ni una sesión
+  // reabierta del historial (loadedCombos seteado).
+  //
+  // TukTuk por distrito queda FUERA del tope: es un solo trabajo (Lima TukTuk)
+  // repartido a propósito entre varios hub experts en paralelo — 7 distritos,
+  // cada uno su propio borrador. Si contaran contra el tope de 2, el 3er
+  // distrito quedaría bloqueado apenas dos estuvieran a medias. Tampoco cuentan
+  // COMO "otro borrador" hacia el tope de una ciudad normal (mismo criterio que
+  // antes: antes de este cambio TukTuk vivía adentro del borrador de Lima, no
+  // sumaba aparte).
   const otherDrafts = useMemo(
     () => activeDrafts.filter((d) => d.key !== draftKey),
     [activeDrafts, draftKey]
   )
-  const atDraftCap = otherDrafts.length >= MAX_DRAFTS
+  const otherDraftsForCap = useMemo(
+    () => otherDrafts.filter((d) => !d.resume?.tukTuk),
+    [otherDrafts]
+  )
+  const atDraftCap = !isTukTuk && otherDraftsForCap.length >= MAX_DRAFTS
   const blockNewSlot = atDraftCap && filledCount === 0 && !loadedCombos
 
   // ── Build rows to insert ───────────────────────────────
@@ -1000,7 +1163,9 @@ export default function DataEntry() {
       // Distrito (solo TukTuk lo usa en distance_references.zone) → así la CI
       // manual de TukTuk lleva el distrito igual que el bot y se agrega por zona
       // en el dashboard. Para el resto de categorías la ruta no tiene zone (null).
-      zone: r.ref.zone ?? null,
+      // '' → null (ver comentario en el addRoute de performSave) — así las filas
+      // nuevas de Corp quedan zone=NULL, igual que las ~17k filas históricas.
+      zone: r.ref.zone || null,
       price_without_discount: r.price,
       price_with_discount: r.disc ?? null,
       year: r.year,
@@ -1064,7 +1229,7 @@ export default function DataEntry() {
         }
       }
     }
-    setErrorKeysByCity((prev) => ({ ...prev, [dbCity]: newErrors }))
+    setErrorKeysByCity((prev) => ({ ...prev, [bucketKey]: newErrors }))
     return { hasPartial, hasEmpty, errorCount: newErrors.size }
   }
 
@@ -1089,10 +1254,18 @@ export default function DataEntry() {
     // se perdía. Acotando por ruta, cada una solo toca sus propias filas.
     const SEP = '\u0001' // separador que no aparece en direcciones/coords
     const routeDels = new Map()
-    const addRoute = (uiCat, dbCat, time, bracket, pa, pb) => {
-      const k = [dbCat, time, bracket, pa ?? '', pb ?? ''].join(SEP)
+    const addRoute = (uiCat, dbCat, time, bracket, pa, pb, rz) => {
+      const k = [dbCat, time, bracket, pa ?? '', pb ?? '', rz ?? ''].join(SEP)
       if (!routeDels.has(k))
-        routeDels.set(k, { uiCat, dbCat, time, bracket, pa: pa ?? null, pb: pb ?? null })
+        routeDels.set(k, {
+          uiCat,
+          dbCat,
+          time,
+          bracket,
+          pa: pa ?? null,
+          pb: pb ?? null,
+          zone: rz ?? null,
+        })
     }
     for (const r of rowsToInsert) {
       const dbCat = resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory
@@ -1102,7 +1275,11 @@ export default function DataEntry() {
         r.ts.start_time?.slice(0, 5),
         r.ref.bracket,
         r.ref.point_a,
-        r.ref.point_b
+        r.ref.point_b,
+        // '' → null: algunas rutas (Corp) tienen zone='' en distance_references
+        // en vez de NULL — sin normalizar, esa cadena vacía se colaba como un
+        // valor de zona "real" en el DELETE de abajo.
+        r.ref.zone || null
       )
     }
     // Solo al TERMINAR se suman las rutas cargadas del historial (para borrar las
@@ -1112,7 +1289,7 @@ export default function DataEntry() {
     // loadedCombos = Map de descriptores de ruta {uiCat,dbCat,time,bracket,pa,pb}.
     if (isFinish && loadedCombos) {
       for (const c of loadedCombos.values())
-        addRoute(c.uiCat, c.dbCat, c.time, c.bracket, c.pa, c.pb)
+        addRoute(c.uiCat, c.dbCat, c.time, c.bracket, c.pa, c.pb, c.zone ?? null)
     }
 
     // Los DELETE por ruta se disparan en PARALELO (Promise.all) para no encadenar
@@ -1140,6 +1317,15 @@ export default function DataEntry() {
           .in('competition_name', visibleNames)
         q = rt.pa != null ? q.eq('point_a', rt.pa) : q.is('point_a', null)
         q = rt.pb != null ? q.eq('point_b', rt.pb) : q.is('point_b', null)
+        // Zona (distrito): SOLO en la vista TukTuk se acota el DELETE a SU
+        // distrito (nunca pisa otro distrito). El guard es `isTukTuk` (de la
+        // vista activa), NO solo "rt.zone != null": hay ~76k filas manuales de
+        // auto con zona no-null en el histórico (y Corp guarda zone='' en
+        // distance_references) — sin este guard explícito, una ruta cargada del
+        // historial (loadedCombos) podía colar esa zona vieja al DELETE y dejar
+        // filas huérfanas sin borrar. Fuera de TukTuk, el comportamiento es
+        // idéntico al de antes de este cambio (sin predicado de zona).
+        if (isTukTuk && rt.zone != null) q = q.eq('zone', rt.zone)
         // Acotar al dueño (este hub) + legacy sin dueño (NULL). SIEMPRE por dueño:
         // sin email se cae a solo-NULL, nunca a un DELETE sin predicado de dueño.
         q = userEmail
@@ -1175,6 +1361,9 @@ export default function DataEntry() {
       await sb.from('ci_sessions').insert({
         country,
         city: dbCity,
+        // Distrito TukTuk (null en el resto) → el historial distingue "Lima
+        // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
+        zone,
         observed_date: date,
         user_email: userEmail,
         started_at: new Date(start).toISOString(),
@@ -1210,7 +1399,7 @@ export default function DataEntry() {
       // terminada reaparecía como "borrador activo". Al vaciar la ciudad, el
       // autosave la ve vacía y no reescribe nada. Los datos ya están en la BD
       // (y en "sesiones pasadas"): reabrir desde el historial los recarga.
-      const finishedCity = dbCity
+      const finishedCity = bucketKey
       const dropCity = (setter) =>
         setter((prev) => {
           if (!(finishedCity in prev)) return prev
@@ -1325,9 +1514,17 @@ export default function DataEntry() {
       setSessionActive(true)
     }
     setShowHistory(false)
-    setUiCity(targetUi)
+    if (s.zone) {
+      // Sesión de TukTuk por distrito: volver a la ciudad base con TukTuk + el
+      // distrito guardado en la sesión.
+      setUiCity(tukTukInfo?.baseUiCity || targetUi)
+      setActiveTukTuk(s.zone)
+    } else {
+      setUiCity(targetUi)
+      setActiveTukTuk(null)
+    }
     setDate(s.observed_date)
-    setPendingLoad({ dbCity: s.city, date: s.observed_date })
+    setPendingLoad({ dbCity: s.city, zone: s.zone ?? null, date: s.observed_date })
     setMsg({ type: 'ok', text: t('dataentry.loading_session') })
   }
 
@@ -1335,16 +1532,25 @@ export default function DataEntry() {
   // mapeando cada fila de BD de vuelta a (uiCat, refId, franja, competidor).
   // Las filas que no se puedan mapear (ruta borrada, franja fuera del set,
   // etc.) se saltan en silencio — nunca rompen la carga del resto.
-  async function loadObservationsIntoForm(loadDbCity, loadDate) {
+  async function loadObservationsIntoForm(
+    loadDbCity,
+    loadDate,
+    loadZone = null,
+    targetBucket = null
+  ) {
+    const bucket = targetBucket ?? loadDbCity
     let obsQuery = sb
       .from('pricing_observations')
       .select(
-        'category, competition_name, observed_time, distance_bracket, point_a, point_b, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data, surge'
+        'category, competition_name, observed_time, distance_bracket, point_a, point_b, zone, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data, surge'
       )
       .eq('country', country)
       .eq('city', loadDbCity)
       .eq('observed_date', loadDate)
       .eq('data_source', 'manual')
+    // TukTuk: acotar al distrito (zone). Vistas normales: sin filtro de zona (y
+    // el guard de categorías de abajo descarta cualquier fila de TukTuk).
+    if (loadZone != null) obsQuery = obsQuery.eq('zone', loadZone)
     // Cargar solo las filas propias (+ legacy sin dueño) para editar. Si se
     // cargaran también las de otro hub, al re-guardar se insertarían como
     // propias (el DELETE no borra las del otro dueño) → duplicados (mig 139).
@@ -1387,6 +1593,11 @@ export default function DataEntry() {
     for (const row of data || []) {
       const uiCat = dbCatToUICat[row.category]
       if (!uiCat) continue
+      // Solo categorías de la vista activa: en la Lima normal esto descarta las
+      // filas de TukTuk (ahora viven en su pestaña por distrito); en TukTuk solo
+      // entra 'TukTuk'. Y en TukTuk, además, solo el distrito cargado.
+      if (!categories.includes(uiCat)) continue
+      if (loadZone != null && (row.zone ?? null) !== loadZone) continue
       const ref =
         refByFull[
           `${row.category}|${row.distance_bracket}|${row.point_a ?? ''}|${row.point_b ?? ''}`
@@ -1421,6 +1632,7 @@ export default function DataEntry() {
           bracket: row.distance_bracket,
           pa: row.point_a ?? null,
           pb: row.point_b ?? null,
+          zone: row.zone ?? null,
         })
       const k = priceKey(uiCat, ref.id, tsLabel, comp)
       // Fila "sin data" (S/D): restaurar la marca, sin volcar precio/eta/desc.
@@ -1452,14 +1664,14 @@ export default function DataEntry() {
     const newSurge = (data || []).some((r) => r.surge === true)
 
     // Vuelca lo cargado en la rebanada de la ciudad objetivo (loadDbCity).
-    setEntriesByCity((prev) => ({ ...prev, [loadDbCity]: newEntries }))
-    setEtaByCity((prev) => ({ ...prev, [loadDbCity]: newEta }))
-    setDiscByCity((prev) => ({ ...prev, [loadDbCity]: newDisc }))
-    setIndriveByCity((prev) => ({ ...prev, [loadDbCity]: newIndrive }))
-    setNaByCity((prev) => ({ ...prev, [loadDbCity]: newNa }))
-    setSurgeByCity((prev) => ({ ...prev, [loadDbCity]: newSurge }))
-    setLoadedCombosByCity((prev) => ({ ...prev, [loadDbCity]: combos.size ? combos : null }))
-    setErrorKeysByCity((prev) => ({ ...prev, [loadDbCity]: new Set() }))
+    setEntriesByCity((prev) => ({ ...prev, [bucket]: newEntries }))
+    setEtaByCity((prev) => ({ ...prev, [bucket]: newEta }))
+    setDiscByCity((prev) => ({ ...prev, [bucket]: newDisc }))
+    setIndriveByCity((prev) => ({ ...prev, [bucket]: newIndrive }))
+    setNaByCity((prev) => ({ ...prev, [bucket]: newNa }))
+    setSurgeByCity((prev) => ({ ...prev, [bucket]: newSurge }))
+    setLoadedCombosByCity((prev) => ({ ...prev, [bucket]: combos.size ? combos : null }))
+    setErrorKeysByCity((prev) => ({ ...prev, [bucket]: new Set() }))
     setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
   }
 
@@ -1519,46 +1731,70 @@ export default function DataEntry() {
 
       {/* ── Session bar ── */}
       <div className="de-session-bar">
-        {/* City tabs — aeropuertos agrupados (A/B como sub-pestañas) */}
+        {/* Pestañas agrupadas por ciudad (Lima: Normal · Corp · ✈ · TukTuk) */}
         <div className="de-city-tabs">
-          {cityGroups.map((g) => {
-            if (g.type === 'city') {
-              return (
-                <button
-                  key={g.uiCity}
-                  className={`de-city-tab${uiCity === g.uiCity ? ' active' : ''}`}
-                  onClick={() => {
-                    setUiCity(g.uiCity)
-                    setMsg(null)
-                  }}
-                >
-                  {g.uiCity}
-                </button>
-              )
-            }
-            const active = g.members.some((m) => m.uiCity === uiCity)
+          {cityClusters.map((cluster) => {
+            const soloNormal = cluster.tabs.length === 1 && cluster.tabs[0].type === 'normal'
             return (
-              <button
-                key={g.base}
-                className={`de-city-tab de-city-tab--airport${active ? ' active' : ''}`}
-                onClick={() => {
-                  if (!active) {
-                    setUiCity(g.members[0].uiCity)
-                    setMsg(null)
-                  }
-                }}
-                title={`${g.base} — Aeropuerto (Punto A y Punto B)`}
-              >
-                ✈ {g.base} Aeropuerto
-              </button>
+              <div key={cluster.base} className="de-city-cluster">
+                {!soloNormal && <span className="de-cluster-name">{cluster.base}</span>}
+                {cluster.tabs.map((tb) => {
+                  const label =
+                    tb.type === 'normal'
+                      ? soloNormal
+                        ? cluster.base
+                        : t('dataentry.tab_normal')
+                      : tb.type === 'corp'
+                        ? 'Corp'
+                        : tb.type === 'airport'
+                          ? `✈ ${t('dataentry.tab_airport')}`
+                          : 'TukTuk'
+                  const active =
+                    tb.type === 'tuktuk'
+                      ? isTukTuk && uiCity === tb.baseUiCity
+                      : tb.type === 'airport'
+                        ? !isTukTuk && tb.members.some((m) => m.uiCity === uiCity)
+                        : tb.type === 'corp'
+                          ? !isTukTuk && uiCity === 'Corp'
+                          : !isTukTuk && uiCity === tb.uiCity
+                  return (
+                    <button
+                      key={`${cluster.base}-${tb.type}`}
+                      className={`de-city-tab${tb.type === 'airport' ? ' de-city-tab--airport' : ''}${active ? ' active' : ''}`}
+                      onClick={() => {
+                        setMsg(null)
+                        if (tb.type === 'tuktuk') {
+                          // Re-click estando ya en TukTuk (en cualquier distrito, o
+                          // en el estado "sin resolver") no debe resetear el
+                          // distrito activo — mismo criterio que Aeropuerto.
+                          if (!active) {
+                            setUiCity(tb.baseUiCity)
+                            setActiveTukTuk(tukTukDistricts[0] ?? '')
+                          }
+                        } else if (tb.type === 'airport') {
+                          if (!active) {
+                            setUiCity(tb.members[0].uiCity)
+                            setActiveTukTuk(null)
+                          }
+                        } else {
+                          setUiCity(tb.uiCity)
+                          setActiveTukTuk(null)
+                        }
+                      }}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
             )
           })}
         </div>
 
         {/* Sub-pestañas Punto A | Punto B cuando hay un aeropuerto activo */}
-        {activeAirportGroup && (
+        {activeAirportMembers && (
           <div className="de-airport-subtabs">
-            {activeAirportGroup.members.map((m) => {
+            {activeAirportMembers.map((m) => {
               const n = countAllFilled(entriesByCity[m.uiCity], indriveByCity[m.uiCity])
               return (
                 <button
@@ -1566,6 +1802,7 @@ export default function DataEntry() {
                   className={`de-airport-subtab${uiCity === m.uiCity ? ' active' : ''}`}
                   onClick={() => {
                     setUiCity(m.uiCity)
+                    setActiveTukTuk(null)
                     setMsg(null)
                   }}
                 >
@@ -1577,15 +1814,37 @@ export default function DataEntry() {
           </div>
         )}
 
+        {/* Sub-pestañas por distrito cuando TukTuk está activo */}
+        {isTukTuk && (
+          <div className="de-airport-subtabs de-tuktuk-subtabs">
+            {tukTukDistricts.length === 0 ? (
+              <span className="de-tuktuk-empty">{t('dataentry.tuktuk_no_districts')}</span>
+            ) : (
+              tukTukDistricts.map((d) => {
+                const bk = `TT~${dbCity}~${d}`
+                const n = countAllFilled(entriesByCity[bk], indriveByCity[bk])
+                return (
+                  <button
+                    key={d}
+                    className={`de-airport-subtab${activeTukTuk === d ? ' active' : ''}`}
+                    onClick={() => {
+                      setActiveTukTuk(d)
+                      setMsg(null)
+                    }}
+                  >
+                    {d}
+                    {n > 0 && <span className="de-airport-subtab-badge">{n}</span>}
+                  </button>
+                )
+              })
+            )}
+          </div>
+        )}
+
         <div className="de-session-controls">
           <label className="de-ctrl">
             <span>{t('dataentry.date')}</span>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
-
-          <label className="de-ctrl de-ctrl--surge">
-            <input type="checkbox" checked={surge} onChange={(e) => setSurge(e.target.checked)} />
-            <span>Surge</span>
           </label>
 
           <div className="de-session-info">
@@ -1856,7 +2115,10 @@ export default function DataEntry() {
                       return (
                         <tr key={s.id}>
                           <td>{start.toLocaleDateString(locale)}</td>
-                          <td>{s.city}</td>
+                          <td>
+                            {s.city}
+                            {s.zone ? ` · ${s.zone}` : ''}
+                          </td>
                           <td style={{ color: 'var(--color-muted)', fontSize: 11 }}>
                             {s.user_email || '—'}
                           </td>
