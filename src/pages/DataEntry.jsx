@@ -555,7 +555,8 @@ export default function DataEntry() {
       pendingLoad.dbCity,
       pendingLoad.date,
       pendingLoad.zone ?? null,
-      bucketKey
+      bucketKey,
+      { silent: !!pendingLoad.auto }
     )
     setPendingLoad(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -599,6 +600,7 @@ export default function DataEntry() {
     // ya está en el set → no se re-hidrata (la memoria, más nueva, manda).
     if (!hydratedCitiesRef.current.has(targetCity)) {
       hydratedCitiesRef.current.add(targetCity)
+      let draftApplied = false
       try {
         const raw = localStorage.getItem(draftKey)
         if (raw) {
@@ -626,10 +628,20 @@ export default function DataEntry() {
               type: 'ok',
               text: `📝 Borrador restaurado (${restored + naArr.length} celdas).`,
             })
+            draftApplied = true
           }
         }
       } catch {
         /* ignore corrupt draft */
+      }
+      // Sin borrador local (nunca hubo, o ya se borró al Terminar/Descartar):
+      // buscar en BD si esta ciudad+fecha ya tiene datos guardados de una
+      // sesión anterior y traerlos solo, para que reabrir normal (sin pasar
+      // por "Historial de sesiones" → Abrir) nunca muestre una grilla vacía
+      // cuando en realidad ya hay datos guardados — confundía al hub, que
+      // creía que se habían perdido (incidente 2026-07-22, Arequipa Aeropuerto).
+      if (!draftApplied) {
+        setPendingLoad({ dbCity, zone, date, auto: true })
       }
     }
     // Marcar hidratado en el siguiente tick para evitar que el effect de save
@@ -1614,7 +1626,8 @@ export default function DataEntry() {
     loadDbCity,
     loadDate,
     loadZone = null,
-    targetBucket = null
+    targetBucket = null,
+    { silent = false } = {}
   ) {
     const bucket = targetBucket ?? loadDbCity
     let obsQuery = sb
@@ -1750,7 +1763,12 @@ export default function DataEntry() {
     setSurgeByCity((prev) => ({ ...prev, [bucket]: newSurge }))
     setLoadedCombosByCity((prev) => ({ ...prev, [bucket]: combos.size ? combos : null }))
     setErrorKeysByCity((prev) => ({ ...prev, [bucket]: new Set() }))
-    setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
+    // En el auto-cargado silencioso (ver hidratación arriba) no hay nada que
+    // avisar si esta ciudad+fecha está genuinamente vacía — solo mostrar el
+    // mensaje si de verdad se trajo algo, o si fue un "Abrir" explícito.
+    if (!silent || mapped > 0) {
+      setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
+    }
   }
 
   // ── Total expected rows ────────────────────────────────
