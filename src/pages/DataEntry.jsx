@@ -1427,6 +1427,27 @@ export default function DataEntry() {
         duration_minutes: dur,
         rows_saved: payloads.length,
       })
+      // Limpiar el latido de sesión-activa (mig 146) — la sesión ya no está
+      // "en vivo" para Monitoreo. Best-effort + una re-limpieza tardía (mismo
+      // criterio que justFinishedRef/markJustFinished de arriba): un latido
+      // en vuelo podría escribir después de este DELETE, así que se repite a
+      // los ~10s por si acaso.
+      if (userEmail) {
+        try {
+          await sb.from('ci_active_sessions').delete().eq('user_email', userEmail)
+        } catch {
+          /* best-effort */
+        }
+        setTimeout(() => {
+          sb.from('ci_active_sessions')
+            .delete()
+            .eq('user_email', userEmail)
+            .then(
+              () => {},
+              () => {}
+            )
+        }, 10_000)
+      }
       setSessionActive(false)
       setElapsed('00:00')
       setMsg({
@@ -1742,6 +1763,70 @@ export default function DataEntry() {
     }
     return n
   }, [refsByUICat, categories, timeslots, uiCity, country, dbConfigs])
+
+  // ── Latido de sesión activa (para Monitoreo) ───────────
+  // Mientras sessionActive, avisa periódicamente "sigo acá, en tal ciudad/
+  // distrito, con tanto progreso" — ver mig 146 (tabla ci_active_sessions +
+  // RPC upsert_ci_active_session). Nunca debe afectar el flujo real del hub:
+  // todo en try/catch silencioso, jamás toca setMsg ni bloquea el guardado.
+  const heartbeatRef = useRef(null)
+  heartbeatRef.current = { country, city: dbCity, zone, date, filledCount, totalExpected }
+
+  const sendHeartbeat = useCallback(async () => {
+    const p = heartbeatRef.current
+    if (!p || !p.city) return
+    try {
+      await sb.rpc('upsert_ci_active_session', {
+        p_country: p.country,
+        p_city: p.city,
+        p_zone: p.zone,
+        p_observed_date: p.date,
+        p_filled_count: p.filledCount,
+        p_total_expected: p.totalExpected,
+      })
+    } catch {
+      /* best-effort: un fallo acá nunca debe interrumpir al hub */
+    }
+  }, [])
+
+  // Piso de confiabilidad: late cada ~25s mientras la sesión esté activa,
+  // sin importar si el hub está tipeando (evita que last_seen_at se vea
+  // "viejo" solo porque está mirando distancias/fotos sin escribir).
+  useEffect(() => {
+    if (!sessionActive || !userEmail) return
+    sendHeartbeat()
+    const id = setInterval(sendHeartbeat, 25_000)
+    return () => clearInterval(id)
+  }, [sessionActive, userEmail, sendHeartbeat])
+
+  // Ping extra con el mismo debounce que el autosave del borrador — refleja
+  // un cambio de distrito/progreso más rápido que el intervalo de 25s.
+  useEffect(() => {
+    if (!sessionActive || !userEmail) return
+    const id = setTimeout(sendHeartbeat, 1500)
+    return () => clearTimeout(id)
+  }, [sessionActive, userEmail, bucketKey, date, filledCount, sendHeartbeat])
+
+  // Limpieza al desmontar/navegar fuera de la página (best-effort — un
+  // refresh duro no garantiza que esto corra, igual que el flush del
+  // borrador; por eso Monitoreo trata un latido viejo como "no vivo" por
+  // antigüedad en vez de depender de este cleanup).
+  const sessionActiveRef = useRef(sessionActive)
+  sessionActiveRef.current = sessionActive
+  const userEmailRef = useRef(userEmail)
+  userEmailRef.current = userEmail
+  useEffect(() => {
+    return () => {
+      if (!sessionActiveRef.current || !userEmailRef.current) return
+      sb.from('ci_active_sessions')
+        .delete()
+        .eq('user_email', userEmailRef.current)
+        .then(
+          () => {},
+          () => {}
+        )
+    }
+  }, [])
 
   // ── Render ─────────────────────────────────────────────
   return (
