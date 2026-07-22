@@ -12,6 +12,7 @@ import { useCITimeslots } from '../hooks/useCITimeslots'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
 import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
+import TurnoSection from '../components/dataentry/TurnoSection'
 import InstructionsBanner from '../components/dataentry/InstructionsBanner'
 import '../styles/data-entry.css'
 
@@ -1120,6 +1121,35 @@ export default function DataEntry() {
     [entries, indriveExtra, naKeys]
   )
 
+  // Progreso POR TURNO (Mañana/Tarde/Noche) — para el header colapsable de
+  // cada TurnoSection. Mismo criterio que filledCount/countAllFilled de
+  // arriba, pero separado por el 3er segmento de la key (tsLabel) en vez de
+  // sumar las 3 franjas juntas. priceKey/indKey son `uiCat|refId|tsLabel|comp`
+  // y `uiCat|refId|tsLabel` respectivamente (ver definición más abajo).
+  const filledByTimeslot = useMemo(() => {
+    const m = {}
+    for (const ts of timeslots) m[ts.label] = 0
+    for (const [k, v] of Object.entries(entries)) {
+      if (v === '' || isNaN(parseFloat(v))) continue
+      const tsLabel = k.split('|')[2]
+      if (tsLabel in m) m[tsLabel]++
+    }
+    for (const [k, ex] of Object.entries(indriveExtra)) {
+      const recOk = ex?.rec != null && ex.rec !== '' && !isNaN(parseFloat(ex.rec))
+      if (!recOk) continue
+      const avg = entries[`${k}|InDrive`]
+      const avgOk = avg != null && avg !== '' && !isNaN(parseFloat(avg))
+      if (avgOk) continue // ya contado arriba vía `entries`
+      const tsLabel = k.split('|')[2]
+      if (tsLabel in m) m[tsLabel]++
+    }
+    for (const k of naKeys) {
+      const tsLabel = k.split('|')[2]
+      if (tsLabel in m) m[tsLabel]++
+    }
+    return m
+  }, [entries, indriveExtra, naKeys, timeslots])
+
   // Borradores DISTINTOS al de la vista actual (para el banner de la lista,
   // TODOS los tipos) y si llegamos al tope. blockNewSlot: la vista actual está
   // vacía Y ya hay MAX_DRAFTS borradores en OTRAS ciudades/fechas → hay que
@@ -1782,6 +1812,18 @@ export default function DataEntry() {
     return n
   }, [refsByUICat, categories, timeslots, uiCity, country, dbConfigs])
 
+  // Total esperado de UN SOLO turno (mismo cálculo que totalExpected, sin
+  // multiplicar por timeslots.length) — para el contador de TurnoSection.
+  const totalExpectedPerTimeslot = useMemo(() => {
+    let n = 0
+    for (const uiCat of categories) {
+      const catRefs = refsByUICat[uiCat] || []
+      const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
+      n += catRefs.length * comps.length
+    }
+    return n
+  }, [refsByUICat, categories, uiCity, country, dbConfigs])
+
   // ── Latido de sesión activa (para Monitoreo) ───────────
   // Mientras sessionActive, avisa periódicamente "sigo acá, en tal ciudad/
   // distrito, con tanto progreso" — ver mig 146 (tabla ci_active_sessions +
@@ -2098,55 +2140,22 @@ export default function DataEntry() {
         <div className="de-loading">{t('dataentry.no_routes_at_all')}</div>
       ) : (
         <>
-          {refsByBracket.map(({ bracket, groups, extras }) => (
-            <div key={bracket} className="de-bracket-section">
-              {groups.map((group, gi) => (
-                <BracketRouteGroup
-                  key={`${bracket}-${gi}`}
-                  bracket={bracket}
-                  group={group}
-                  categories={categories}
-                  timeslots={timeslots}
-                  uiCity={uiCity}
-                  country={country}
-                  dbConfigs={dbConfigs}
-                  catColors={CAT_COLORS}
-                  getEntry={getEntry}
-                  setEntry={setEntry}
-                  getEta={getEta}
-                  setEta={setEta}
-                  getDisc={getDisc}
-                  setDisc={setDisc}
-                  indriveExtra={indriveExtra}
-                  setIndrive={setIndrive}
-                  indKey={indKey}
-                  priceKey={priceKey}
-                  errorKeys={errorKeys}
-                  rowState={rowState}
-                  getNa={getNa}
-                  toggleNa={toggleNa}
-                  markRowNa={markRowNa}
-                  t={t}
-                />
-              ))}
-              {extras.length > 0 && (
-                <div className="de-bracket-extras">
-                  {/* El título "Rutas adicionales" solo tiene sentido cuando hay
-                      además rutas principales (groups). Si TODO el bracket son
-                      extras (ej. ciudad Corp, o solo-TukTuk), no hay "adicionales"
-                      respecto de nada → se omite el título. */}
-                  {groups.length > 0 && (
-                    <div className="de-bracket-extras-title">
-                      {t('dataentry.extra_routes_title')}
-                    </div>
-                  )}
-                  {extras.map(({ uiCat, ref }) => (
+          {timeslots.map((ts) => (
+            <TurnoSection
+              key={ts.label}
+              timeslot={ts}
+              filled={filledByTimeslot[ts.label] || 0}
+              total={totalExpectedPerTimeslot}
+            >
+              {refsByBracket.map(({ bracket, groups, extras }) => (
+                <div key={bracket} className="de-bracket-section">
+                  {groups.map((group, gi) => (
                     <BracketRouteGroup
-                      key={`${bracket}-extra-${ref.id}`}
+                      key={`${bracket}-${gi}`}
                       bracket={bracket}
-                      group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
-                      categories={[uiCat]}
-                      timeslots={timeslots}
+                      group={group}
+                      categories={categories}
+                      timeslot={ts}
                       uiCity={uiCity}
                       country={country}
                       dbConfigs={dbConfigs}
@@ -2169,9 +2178,51 @@ export default function DataEntry() {
                       t={t}
                     />
                   ))}
+                  {extras.length > 0 && (
+                    <div className="de-bracket-extras">
+                      {/* El título "Rutas adicionales" solo tiene sentido cuando hay
+                          además rutas principales (groups). Si TODO el bracket son
+                          extras (ej. ciudad Corp, o solo-TukTuk), no hay "adicionales"
+                          respecto de nada → se omite el título. */}
+                      {groups.length > 0 && (
+                        <div className="de-bracket-extras-title">
+                          {t('dataentry.extra_routes_title')}
+                        </div>
+                      )}
+                      {extras.map(({ uiCat, ref }) => (
+                        <BracketRouteGroup
+                          key={`${bracket}-extra-${ref.id}`}
+                          bracket={bracket}
+                          group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
+                          categories={[uiCat]}
+                          timeslot={ts}
+                          uiCity={uiCity}
+                          country={country}
+                          dbConfigs={dbConfigs}
+                          catColors={CAT_COLORS}
+                          getEntry={getEntry}
+                          setEntry={setEntry}
+                          getEta={getEta}
+                          setEta={setEta}
+                          getDisc={getDisc}
+                          setDisc={setDisc}
+                          indriveExtra={indriveExtra}
+                          setIndrive={setIndrive}
+                          indKey={indKey}
+                          priceKey={priceKey}
+                          errorKeys={errorKeys}
+                          rowState={rowState}
+                          getNa={getNa}
+                          toggleNa={toggleNa}
+                          markRowNa={markRowNa}
+                          t={t}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              ))}
+            </TurnoSection>
           ))}
         </>
       )}

@@ -36,7 +36,7 @@ export default function BracketRouteGroup({
   bracket,
   group,
   categories,
-  timeslots,
+  timeslot,
   uiCity,
   country,
   dbConfigs,
@@ -59,6 +59,7 @@ export default function BracketRouteGroup({
   t,
 }) {
   const [open, setOpen] = useState(true)
+  const ts = timeslot
   const { anchorRef, byCategory } = group
   // Una categoría con TODOS los competidores marcados "no ofrece"
   // (getCiCompetitors vacío) no se muestra: no hay nada que cargar en ella.
@@ -102,172 +103,166 @@ export default function BracketRouteGroup({
             </div>
           )}
 
-          {timeslots.map((ts) => (
-            <div key={ts.label} className="de-timeslot-block">
-              <div className="de-timeslot-heading">
-                <span className="de-ts-pill">{ts.label}</span>
-                <span className="de-ts-time">{ts.start_time?.slice(0, 5)}</span>
-              </div>
-
-              <div className="de-cat-rows">
-                {presentCats.map((uiCat) => {
-                  const ref = byCategory[uiCat]
-                  const colors = catColors[uiCat] || catColors.Corp
-                  const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
-                  const state = rowState(uiCat, ref, ts)
-                  const ownRoute =
-                    ref.id !== anchorRef.id &&
-                    (ref.point_a !== anchorRef.point_a || ref.point_b !== anchorRef.point_b)
-
-                  return (
-                    <div
-                      key={uiCat}
-                      className={`de-cat-row${state === 'partial' ? ' de-cat-row--partial' : ''}`}
-                      style={{ gridTemplateColumns: rowTemplate }}
-                    >
-                      <div className="de-cat-row-head">
-                        <span
-                          className="de-cat-chip"
-                          style={{
-                            background: colors.bg,
-                            borderColor: colors.border,
-                            color: colors.text,
-                          }}
-                        >
-                          {uiCat}
-                        </span>
-                        {ownRoute && (
-                          <span
-                            className="de-route-note"
-                            title={`${ref.point_a || '—'} → ${ref.point_b || '—'}`}
-                          >
-                            {t('dataentry.own_route_note')}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className="de-sd-row-btn"
-                          onClick={() => markRowNa(uiCat, ref.id, ts.label, comps)}
-                          title={t('dataentry.sd_row_title')}
-                        >
-                          {t('dataentry.sd_row_btn')}
-                        </button>
-                      </div>
-                      {allComps.map((comp) => {
-                        if (!comps.includes(comp)) {
-                          return (
-                            <div key={comp} className="de-cell de-cell--na" aria-hidden="true" />
-                          )
-                        }
-                        const key = priceKey(uiCat, ref.id, ts.label, comp)
-                        const hasErr = errorKeys.has(key)
-                        // ETA (min) — arriba del precio, para todos los
-                        // competidores (incluido InDrive). Opcional.
-                        const etaInput = (
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            className="de-eta-input"
-                            placeholder={t('dataentry.eta_placeholder')}
-                            title={t('dataentry.eta_title')}
-                            value={getEta(uiCat, ref.id, ts.label, comp)}
-                            onChange={(e) =>
-                              setEta(
-                                uiCat,
-                                ref.id,
-                                ts.label,
-                                comp,
-                                sanitizeDecimalInput(e.target.value)
-                              )
-                            }
-                          />
-                        )
-                        // Precio CON descuento — debajo del precio principal
-                        // (sin descuento), para todos los competidores. Opcional.
-                        const discInput = (
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            className="de-disc-input"
-                            placeholder={t('dataentry.disc_placeholder')}
-                            title={t('dataentry.disc_title')}
-                            value={getDisc(uiCat, ref.id, ts.label, comp)}
-                            onChange={(e) =>
-                              setDisc(
-                                uiCat,
-                                ref.id,
-                                ts.label,
-                                comp,
-                                sanitizeDecimalInput(e.target.value)
-                              )
-                            }
-                          />
-                        )
-                        const isNa = getNa(uiCat, ref.id, ts.label, comp)
-                        return (
-                          <div
-                            key={comp}
-                            className={`de-cell${hasErr ? ' de-td-error' : ''}${isNa ? ' de-cell--nodata' : ''}`}
-                          >
-                            <span className="de-cell-label">
-                              <CompBadge comp={comp} />
-                              <button
-                                type="button"
-                                className={`de-sd-toggle${isNa ? ' active' : ''}`}
-                                onClick={() => toggleNa(uiCat, ref.id, ts.label, comp)}
-                                title={
-                                  isNa
-                                    ? t('dataentry.sd_unmark_title')
-                                    : t('dataentry.sd_mark_title')
-                                }
-                              >
-                                S/D
-                              </button>
-                            </span>
-                            {isNa ? (
-                              <div className="de-nodata-badge">{t('dataentry.sd_no_offer')}</div>
-                            ) : (
-                              <>
-                                {etaInput}
-                                {comp === 'InDrive' ? (
-                                  <InDriveCell
-                                    avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
-                                    extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
-                                    onChange={(extra, avg) =>
-                                      setIndrive(uiCat, ref.id, ts.label, extra, avg)
-                                    }
-                                    hasError={hasErr}
-                                  />
-                                ) : (
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
-                                    placeholder={t('dataentry.price_placeholder')}
-                                    value={getEntry(uiCat, ref.id, ts.label, comp)}
-                                    onChange={(e) =>
-                                      setEntry(
-                                        uiCat,
-                                        ref.id,
-                                        ts.label,
-                                        comp,
-                                        sanitizeDecimalInput(e.target.value)
-                                      )
-                                    }
-                                  />
-                                )}
-                                {discInput}
-                              </>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-              </div>
+          <div className="de-timeslot-block">
+            <div className="de-timeslot-heading">
+              <span className="de-ts-pill">{ts.label}</span>
+              <span className="de-ts-time">{ts.start_time?.slice(0, 5)}</span>
             </div>
-          ))}
+
+            <div className="de-cat-rows">
+              {presentCats.map((uiCat) => {
+                const ref = byCategory[uiCat]
+                const colors = catColors[uiCat] || catColors.Corp
+                const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
+                const state = rowState(uiCat, ref, ts)
+                const ownRoute =
+                  ref.id !== anchorRef.id &&
+                  (ref.point_a !== anchorRef.point_a || ref.point_b !== anchorRef.point_b)
+
+                return (
+                  <div
+                    key={uiCat}
+                    className={`de-cat-row${state === 'partial' ? ' de-cat-row--partial' : ''}`}
+                    style={{ gridTemplateColumns: rowTemplate }}
+                  >
+                    <div className="de-cat-row-head">
+                      <span
+                        className="de-cat-chip"
+                        style={{
+                          background: colors.bg,
+                          borderColor: colors.border,
+                          color: colors.text,
+                        }}
+                      >
+                        {uiCat}
+                      </span>
+                      {ownRoute && (
+                        <span
+                          className="de-route-note"
+                          title={`${ref.point_a || '—'} → ${ref.point_b || '—'}`}
+                        >
+                          {t('dataentry.own_route_note')}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className="de-sd-row-btn"
+                        onClick={() => markRowNa(uiCat, ref.id, ts.label, comps)}
+                        title={t('dataentry.sd_row_title')}
+                      >
+                        {t('dataentry.sd_row_btn')}
+                      </button>
+                    </div>
+                    {allComps.map((comp) => {
+                      if (!comps.includes(comp)) {
+                        return <div key={comp} className="de-cell de-cell--na" aria-hidden="true" />
+                      }
+                      const key = priceKey(uiCat, ref.id, ts.label, comp)
+                      const hasErr = errorKeys.has(key)
+                      // ETA (min) — arriba del precio, para todos los
+                      // competidores (incluido InDrive). Opcional.
+                      const etaInput = (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="de-eta-input"
+                          placeholder={t('dataentry.eta_placeholder')}
+                          title={t('dataentry.eta_title')}
+                          value={getEta(uiCat, ref.id, ts.label, comp)}
+                          onChange={(e) =>
+                            setEta(
+                              uiCat,
+                              ref.id,
+                              ts.label,
+                              comp,
+                              sanitizeDecimalInput(e.target.value)
+                            )
+                          }
+                        />
+                      )
+                      // Precio CON descuento — debajo del precio principal
+                      // (sin descuento), para todos los competidores. Opcional.
+                      const discInput = (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="de-disc-input"
+                          placeholder={t('dataentry.disc_placeholder')}
+                          title={t('dataentry.disc_title')}
+                          value={getDisc(uiCat, ref.id, ts.label, comp)}
+                          onChange={(e) =>
+                            setDisc(
+                              uiCat,
+                              ref.id,
+                              ts.label,
+                              comp,
+                              sanitizeDecimalInput(e.target.value)
+                            )
+                          }
+                        />
+                      )
+                      const isNa = getNa(uiCat, ref.id, ts.label, comp)
+                      return (
+                        <div
+                          key={comp}
+                          className={`de-cell${hasErr ? ' de-td-error' : ''}${isNa ? ' de-cell--nodata' : ''}`}
+                        >
+                          <span className="de-cell-label">
+                            <CompBadge comp={comp} />
+                            <button
+                              type="button"
+                              className={`de-sd-toggle${isNa ? ' active' : ''}`}
+                              onClick={() => toggleNa(uiCat, ref.id, ts.label, comp)}
+                              title={
+                                isNa ? t('dataentry.sd_unmark_title') : t('dataentry.sd_mark_title')
+                              }
+                            >
+                              S/D
+                            </button>
+                          </span>
+                          {isNa ? (
+                            <div className="de-nodata-badge">{t('dataentry.sd_no_offer')}</div>
+                          ) : (
+                            <>
+                              {etaInput}
+                              {comp === 'InDrive' ? (
+                                <InDriveCell
+                                  avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
+                                  extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
+                                  onChange={(extra, avg) =>
+                                    setIndrive(uiCat, ref.id, ts.label, extra, avg)
+                                  }
+                                  hasError={hasErr}
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  className={`de-price-input${hasErr ? ' de-price-input--error' : ''}`}
+                                  placeholder={t('dataentry.price_placeholder')}
+                                  value={getEntry(uiCat, ref.id, ts.label, comp)}
+                                  onChange={(e) =>
+                                    setEntry(
+                                      uiCat,
+                                      ref.id,
+                                      ts.label,
+                                      comp,
+                                      sanitizeDecimalInput(e.target.value)
+                                    )
+                                  }
+                                />
+                              )}
+                              {discInput}
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </>
       )}
     </div>
