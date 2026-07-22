@@ -28,7 +28,14 @@ const CountryContext = createContext(null)
 // El bump manual solo es necesario si el cambio es semántico SIN agregar/
 // quitar keys (ej: cambia el formato interno de competitorsByDbCityCategory
 // sin renombrar keys). En esos casos, bumpear como antes.
-const CACHE_VERSION = 'v6'
+//
+// v6→v7 (2026-07-22): exactamente ese caso — mig 145 agregó `ciHidden:
+// ['YangoComfort+']` a Corp (un VALOR dentro de una key que ya existía,
+// `ciHiddenByDbCityCategory` sigue en REQUIRED_KEYS sin cambios). El canary
+// no lo detectó: un hub con cache de antes de la mig siguió viendo
+// YangoComfort+ como competidor normal en Corp hasta 24h después. Bumpeado
+// tras reportarlo un hub en vivo el día del arranque de pruebas.
+const CACHE_VERSION = 'v7'
 const CACHE_KEY = `cc.dbConfigs.${CACHE_VERSION}`
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
