@@ -606,6 +606,8 @@ export const TRANSLATIONS = {
     'dataentry.tuktuk_no_districts':
       'No hay distritos de TukTuk cargados. Agregalos en Distancias de Referencia.',
     'dataentry.tuktuk_district_locked': 'Distrito aún no habilitado para ingresar CI',
+    'dataentry.err_tuktuk_district_locked':
+      'Este distrito está bloqueado para nuevas entradas de CI. Contactá a tu supervisor si necesitás una excepción.',
 
     // ── Earnings ──────────────────────────────────────
     'earnings.title': 'Ganancias del Conductor',
@@ -2702,6 +2704,8 @@ export const TRANSLATIONS = {
     'dataentry.tuktuk_no_districts':
       'No TukTuk districts loaded yet. Add them in Reference Distances.',
     'dataentry.tuktuk_district_locked': 'District not yet enabled for CI entry',
+    'dataentry.err_tuktuk_district_locked':
+      'This district is locked for new CI entries. Contact your supervisor if you need an exception.',
 
     'earnings.title': 'Driver Earnings',
     'rentabilidad.title': 'Driver Profitability',
@@ -4790,6 +4794,8 @@ export const TRANSLATIONS = {
     'dataentry.tuktuk_no_districts':
       'Районы TukTuk ещё не загружены. Добавьте их в «Справочные расстояния».',
     'dataentry.tuktuk_district_locked': 'Район пока не открыт для ввода CI',
+    'dataentry.err_tuktuk_district_locked':
+      'Этот район заблокирован для новых записей CI. Обратитесь к руководителю, если нужно исключение.',
 
     'earnings.title': 'Доходы водителей',
     'rentabilidad.title': 'Рентабельность водителя',

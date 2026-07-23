@@ -189,6 +189,12 @@
 .de-airport-subtab--locked:hover {
   color: var(--color-muted);
 }
+/* Un distrito bloqueado puede seguir "activo" (sesión reabierta desde
+   Historial o un borrador local previo a que se bloqueara) — en ese caso no
+   tiene sentido atenuarlo, ya está mostrando datos reales en pantalla. */
+.de-airport-subtab--locked.active {
+  opacity: 1;
+}
 .de-airport-subtab-lock {
   flex-shrink: 0;
 }

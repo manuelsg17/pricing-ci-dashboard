@@ -1375,6 +1375,16 @@ export default function DataEntry() {
 
   // ── Save shared logic ──────────────────────────────────
   async function performSave(rowsToInsert, isFinish = false) {
+    // Distrito de TukTuk bloqueado (ver pill en el render, de-airport-subtab--
+    // locked): ese guard solo cubre el click para ENTRAR al distrito — resumir
+    // un borrador local o reabrir una sesión del historial navega directo a
+    // `activeTukTuk` sin pasar por ahí, así que hace falta el mismo chequeo acá,
+    // en el único punto por el que pasa TODO guardado, para bloquear de verdad
+    // escribir data NUEVA en un distrito bloqueado sin importar cómo se llegó.
+    if (isTukTuk && zone && !isTukTukDistrictEnabled(zone)) {
+      setMsg({ type: 'err', text: t('dataentry.err_tuktuk_district_locked') })
+      return false
+    }
     setSaving(true)
     setMsg(null)
 
@@ -2126,7 +2136,7 @@ export default function DataEntry() {
                   <button
                     key={d}
                     className={`de-airport-subtab${activeTukTuk === d ? ' active' : ''}${enabled ? '' : ' de-airport-subtab--locked'}`}
-                    disabled={!enabled}
+                    aria-disabled={!enabled}
                     title={enabled ? undefined : t('dataentry.tuktuk_district_locked')}
                     onClick={() => {
                       if (!enabled) return
