@@ -1259,3 +1259,13 @@
 .de-history-table tbody tr:hover td {
   background: var(--color-bg-subtle);
 }
+
+/* Rastro de ediciones / cierre administrativo (pedidos 7 y 10) — nota chica
+   bajo la ciudad, no una columna aparte para no ensanchar la tabla. */
+.de-history-note {
+  white-space: normal;
+  font-size: 10px;
+  color: var(--color-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}

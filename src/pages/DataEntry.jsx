@@ -466,6 +466,26 @@ export default function DataEntry() {
     setHistLoading(false)
   }
 
+  // Rastro de ediciones (pedido 7): `ci_sessions` inserta una fila NUEVA en
+  // cada Finalizar — nunca sobrescribe — así que reabrir y re-finalizar YA
+  // deja rastro crudo (2+ filas para la misma ciudad/zona/fecha). Acá solo
+  // se agrega el resumen "editado N veces, último por X" sobre la fila más
+  // reciente de cada grupo — sin columnas nuevas, puro cálculo en memoria.
+  const revisionInfoByHistoryId = useMemo(() => {
+    const groups = {}
+    for (const s of sessionHistory) {
+      const key = `${s.city}|${s.zone || ''}|${s.observed_date}`
+      ;(groups[key] ||= []).push(s)
+    }
+    const m = {}
+    for (const list of Object.values(groups)) {
+      if (list.length < 2) continue
+      const latest = [...list].sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0]
+      m[latest.id] = { count: list.length, lastEditor: latest.user_email }
+    }
+    return m
+  }, [sessionHistory])
+
   useEffect(() => {
     if (showHistory) loadSessionHistory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2775,12 +2795,26 @@ export default function DataEntry() {
                     {sessionHistory.map((s) => {
                       const start = new Date(s.started_at)
                       const end = new Date(s.ended_at)
+                      const revision = revisionInfoByHistoryId[s.id]
                       return (
                         <tr key={s.id}>
                           <td>{start.toLocaleDateString(locale)}</td>
                           <td>
                             {s.city}
                             {s.zone ? ` · ${s.zone}` : ''}
+                            {revision && (
+                              <div className="de-history-note">
+                                {t('dataentry.session_revised', {
+                                  n: revision.count,
+                                  who: revision.lastEditor || '—',
+                                })}
+                              </div>
+                            )}
+                            {s.closed_by && (
+                              <div className="de-history-note">
+                                {t('dataentry.session_closed_by_admin', { who: s.closed_by })}
+                              </div>
+                            )}
                           </td>
                           <td style={{ color: 'var(--color-muted)', fontSize: 11 }}>
                             {s.user_email || '—'}
