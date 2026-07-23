@@ -199,6 +199,62 @@
   flex-shrink: 0;
 }
 
+/* Selector de alcance de sesión en Aeropuerto (Punto A / Punto B / Ambos),
+   antes de "Iniciar Sesión" — mismo look que las sub-pestañas. */
+.de-scope-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-right: 8px;
+  background: var(--color-bg-subtle, #f8fafc);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.de-scope-picker-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin-right: 2px;
+}
+.de-scope-option {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.de-scope-option:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
+.de-scope-option.active {
+  background: var(--color-yango);
+  color: #fff;
+  border-color: var(--color-yango);
+}
+
+/* "+ agregar" para ampliar el alcance ya declarado (de un punto a ambos)
+   sin perder el cronómetro de la sesión activa. */
+.de-scope-expand {
+  padding: 4px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.de-scope-expand:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
+
 /* Aviso proactivo de distrito TukTuk bloqueado — se ve ANTES de que el hub
    llene toda la grilla, no recién al tocar Guardar/Terminar. */
 .de-locked-district-banner {

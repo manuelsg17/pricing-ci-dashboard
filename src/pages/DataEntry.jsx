@@ -34,15 +34,6 @@ const CAT_COLORS = {
   Comfort: { bg: '#f0fdf4', border: '#86efac', text: '#15803d', accent: '#22c55e' },
 }
 
-// ⚠ PROVISIONAL (semana de texteo, 2026-07-20): permitir "Terminar Sesión"
-// cuando el HP completó AL MENOS UN turno entero (Mañana / Tarde / Noche) con
-// todos sus brackets, sin exigir los 3 turnos. No se permite terminar con
-// filas a medias (parciales) — esas se siguen marcando como error.
-//
-// PARA VOLVER AL MODO ESTRICTO (toda la grilla completa, los 3 turnos): poner
-// FINISH_REQUIRES_ALL = true (una línea) y listo.
-const FINISH_REQUIRES_ALL = false
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -160,6 +151,18 @@ export default function DataEntry() {
   const sessionStartRef = useRef(null)
   const [sessionActive, setSessionActive] = useState(false)
   const [elapsed, setElapsed] = useState('00:00')
+  // Alcance de sesión declarado (mig 151, solo relevante en clusters de
+  // Aeropuerto): qué uiCity(s) el hub eligió completar en esta sentada antes
+  // de "Iniciar Sesión" — Punto A, Punto B, o ambos. Para TukTuk/Normal/Corp
+  // siempre tiene un único elemento (uiCity actual), igual que antes de este
+  // cambio. Se va achicando a medida que cada miembro se Termina (ver
+  // handleFinishSession) — mientras tenga 2+ elementos, "Terminar Sesión"
+  // cierra solo ESE miembro y deja la sesión/cronómetro activos para el
+  // resto; al llegar al último, cierra la sesión de verdad.
+  const [pendingScopeMembers, setPendingScopeMembers] = useState([])
+  // Elección del selector de alcance ANTES de arrancar (mientras !sessionActive
+  // en un cluster de Aeropuerto): uiCity de un punto puntual, o 'both'.
+  const [scopeChoice, setScopeChoice] = useState(null)
 
   // "Abrir" una sesión pasada del historial: al hacer click seteamos ciudad+
   // fecha y dejamos acá {dbCity, date} pendiente; cuando las rutas de esa
@@ -368,6 +371,26 @@ export default function DataEntry() {
     return null
   }, [cityClusters, uiCity, isTukTuk])
 
+  // Alcance a declarar si se toca "Iniciar Sesión" AHORA MISMO: en un cluster
+  // de Aeropuerto, depende de `scopeChoice` (null = todavía no eligió, bloquea
+  // el botón); fuera de Aeropuerto (Normal/Corp/TukTuk) siempre es solo la
+  // vista actual, igual que antes de este cambio.
+  const resolvedStartMembers = activeAirportMembers
+    ? scopeChoice === 'both'
+      ? activeAirportMembers.map((m) => m.uiCity)
+      : scopeChoice
+        ? [scopeChoice]
+        : null
+    : [uiCity]
+
+  // El selector de alcance es por-cluster: al entrar/salir de Aeropuerto o
+  // cambiar de cluster hay que volver a elegir. Cambiar de Punto A a Punto B
+  // dentro del MISMO cluster no dispara esto (activeAirportMembers devuelve la
+  // misma referencia `tb.members`), así que no pierde la elección ya hecha.
+  useEffect(() => {
+    setScopeChoice(null)
+  }, [activeAirportMembers])
+
   // Mapa inverso dbCity → uiCity, para "Abrir" una sesión del historial (que
   // guarda la ciudad en formato BD) y saber a qué pestaña de ciudad saltar.
   const dbCityToUiCity = useMemo(() => {
@@ -413,10 +436,15 @@ export default function DataEntry() {
   }, [sessionActive])
 
   // ── Start session ──────────────────────────────────────
-  function handleStartSession() {
+  // `members` = alcance declarado (array de uiCity). En Aeropuerto puede ser
+  // 1 o 2 elementos (Punto A / Punto B / ambos); en el resto de las vistas
+  // siempre es un solo elemento (la vista actual) — comportamiento idéntico
+  // al de antes de este cambio.
+  function handleStartSession(members) {
     sessionStartRef.current = Date.now()
     setElapsed('00:00')
     setSessionActive(true)
+    setPendingScopeMembers(members && members.length ? members : [uiCity])
     setMsg(null)
   }
 
@@ -671,6 +699,18 @@ export default function DataEntry() {
               sessionStartRef.current = Date.now()
               return true
             })
+            // Restaurar el alcance declarado (Aeropuerto "Ambos") si el
+            // borrador lo traía persistido (mig 151-plan, ver autosave más
+            // abajo) — si no, cae al comportamiento de siempre (un solo
+            // miembro: esta vista). Solo si todavía no hay alcance en
+            // memoria, para no pisar el de OTRO miembro ya hidratado antes.
+            setPendingScopeMembers((prev) =>
+              prev.length
+                ? prev
+                : Array.isArray(parsed.pendingScopeMembers) && parsed.pendingScopeMembers.length
+                  ? parsed.pendingScopeMembers
+                  : [targetCity]
+            )
           }
         }
         if (migratedFromLegacy && draftApplied) {
@@ -727,6 +767,11 @@ export default function DataEntry() {
               discEntries,
               surge,
               naKeys: Array.from(naKeys),
+              // Alcance declarado (Aeropuerto "Ambos") — persistido para que
+              // un refresh a mitad del PRIMER punto no lo "olvide" y deje
+              // terminar la sesión entera con uno solo. Ver restauración en
+              // el efecto de hidratación de arriba.
+              pendingScopeMembers,
               savedAt,
             })
           )
@@ -740,7 +785,17 @@ export default function DataEntry() {
       }
     }, 1500)
     return () => clearTimeout(id)
-  }, [entries, indriveExtra, etaEntries, discEntries, surge, naKeys, draftKey, isJustFinished])
+  }, [
+    entries,
+    indriveExtra,
+    etaEntries,
+    discEntries,
+    surge,
+    naKeys,
+    draftKey,
+    isJustFinished,
+    pendingScopeMembers,
+  ])
 
   // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
   // página (desmontar / navegar). El autosave con debounce podría no haber
@@ -949,6 +1004,10 @@ export default function DataEntry() {
     }
     setDate(d.date)
     setMsg(null)
+    // Reanudar un borrador puntual es siempre de-alcance-único (no relanza un
+    // "Ambos" de Aeropuerto declarado antes) — se puede ampliar a mano con "+
+    // agregar Punto B" si hace falta.
+    setPendingScopeMembers([d.resume?.uiCity ?? d.city])
   }
 
   function discardDraft(d) {
@@ -1441,7 +1500,14 @@ export default function DataEntry() {
   }
 
   // ── Save shared logic ──────────────────────────────────
-  async function performSave(rowsToInsert, isFinish = false) {
+  // `isFinalInScope` (default true): en un "Terminar Sesión" de Aeropuerto con
+  // alcance "Ambos", el PRIMER punto se guarda con isFinish=true pero
+  // isFinalInScope=false — cierra ESE punto (fila en ci_sessions, borrador
+  // limpio) sin apagar la sesión/cronómetro todavía, porque queda el otro
+  // punto pendiente. Para todo lo demás (Guardar Progreso, o un Terminar de
+  // alcance único — el 99% de los casos) el valor por defecto reproduce el
+  // comportamiento de siempre.
+  async function performSave(rowsToInsert, isFinish = false, isFinalInScope = true) {
     // Distrito de TukTuk bloqueado (ver pill en el render, de-airport-subtab--
     // locked): ese guard solo cubre el click para ENTRAR al distrito — resumir
     // un borrador local o reabrir una sesión del historial navega directo a
@@ -1613,12 +1679,15 @@ export default function DataEntry() {
         duration_minutes: dur,
         rows_saved: payloads.length,
       })
-      // Limpiar el latido de sesión-activa (mig 146) — la sesión ya no está
-      // "en vivo" para Monitoreo. Best-effort + una re-limpieza tardía (mismo
-      // criterio que justFinishedRef/markJustFinished de arriba): un latido
-      // en vuelo podría escribir después de este DELETE, así que se repite a
-      // los ~10s por si acaso.
-      if (userEmail) {
+      // Limpiar el latido de sesión-activa (mig 146) SOLO si esto cierra la
+      // sesión de VERDAD (isFinalInScope) — en Aeropuerto "Ambos", terminar el
+      // primer punto no debe hacer desaparecer al hub de "en vivo" en
+      // Monitoreo: sigue trabajando, le queda el otro punto declarado.
+      // Best-effort + una re-limpieza tardía (mismo criterio que
+      // justFinishedRef/markJustFinished de arriba): un latido en vuelo
+      // podría escribir después de este DELETE, así que se repite a los ~10s
+      // por si acaso.
+      if (isFinalInScope && userEmail) {
         try {
           await sb.from('ci_active_sessions').delete().eq('user_email', userEmail)
         } catch {
@@ -1634,12 +1703,22 @@ export default function DataEntry() {
             )
         }, 10_000)
       }
-      setSessionActive(false)
-      setElapsed('00:00')
-      setMsg({
-        type: 'ok',
-        text: t('dataentry.session_finished', { min: dur, n: payloads.length }),
-      })
+      if (isFinalInScope) {
+        setSessionActive(false)
+        setElapsed('00:00')
+        setMsg({
+          type: 'ok',
+          text: t('dataentry.session_finished', { min: dur, n: payloads.length }),
+        })
+      } else {
+        // Alcance "Ambos" de Aeropuerto: este punto quedó cerrado, pero la
+        // sesión/cronómetro sigue viva para el punto que falta — el hub NO
+        // debe volver a ver "Iniciar Sesión" a mitad de camino.
+        setMsg({
+          type: 'ok',
+          text: t('dataentry.scope_point_done', { n: payloads.length }),
+        })
+      }
     } else {
       setMsg({
         type: 'ok',
@@ -1712,46 +1791,21 @@ export default function DataEntry() {
     await performSave(rowsToInsert, false)
   }
 
-  // ¿Está ENTERO un turno (ts)? Todas las filas (categoría × ruta) de esa
-  // franja tienen que estar full, y tiene que haber al menos una fila real
-  // (si la ciudad no tiene rutas, no cuenta como "turno completo").
-  function isTimeslotComplete(ts) {
-    let total = 0
-    let full = 0
-    for (const uiCat of categories) {
-      for (const ref of refsByUICat[uiCat] || []) {
-        total++
-        if (rowState(uiCat, ref, ts) === 'full') full++
-      }
-    }
-    return total > 0 && full === total
-  }
-
   // ── Terminar sesión ────────────────────────────────────
+  // "Terminar Sesión" exige TODA la grilla llena (los 3 turnos) de la vista
+  // actual — sin esto no debía existir un modo permisivo a medio-camino: un
+  // distrito de TukTuk, o un Punto de Aeropuerto, se dan por completos o no
+  // se dan. En Aeropuerto con alcance "Ambos" (`pendingScopeMembers` con 2
+  // elementos), este botón cierra el PUNTO ACTUAL uno a la vez: la sesión
+  // sigue activa y el hub pasa automáticamente al punto que falta, y recién
+  // al terminar el ÚLTIMO se cierra la sesión de verdad (ver
+  // `isFinalInScope` en `performSave`).
   async function handleFinishSession() {
-    if (FINISH_REQUIRES_ALL) {
-      // Modo estricto: toda la grilla (los 3 turnos) tiene que estar llena.
-      const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
-      if (hasPartial || hasEmpty) {
-        setMsg({ type: 'err', text: t('dataentry.err_finish') })
-        return
-      }
-    } else {
-      // Modo provisional: no se permiten filas a medias (parciales)…
-      const { hasPartial } = validateAndCollectErrors(false)
-      if (hasPartial) {
-        setMsg({ type: 'err', text: t('dataentry.err_partial') })
-        return
-      }
-      // …y hay que tener al menos UN turno entero (Mañana/Tarde/Noche).
-      if (!timeslots.some(isTimeslotComplete)) {
-        setMsg({ type: 'err', text: t('dataentry.err_finish_need_timeslot') })
-        return
-      }
+    const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
+    if (hasPartial || hasEmpty) {
+      setMsg({ type: 'err', text: t('dataentry.err_finish') })
+      return
     }
-    // buildRows ya filtra las celdas vacías, así que en modo provisional solo
-    // se guardan las filas que el HP realmente llenó (los turnos incompletos
-    // no generan filas).
     const rowsToInsert = []
     for (const uiCat of categories) {
       for (const ref of refsByUICat[uiCat] || []) {
@@ -1764,7 +1818,16 @@ export default function DataEntry() {
       setMsg({ type: 'err', text: t('dataentry.err_no_full') })
       return
     }
-    await performSave(rowsToInsert, true)
+    const remainingAfterThis = pendingScopeMembers.filter((m) => m !== uiCity)
+    const isFinalInScope = remainingAfterThis.length === 0
+    const ok = await performSave(rowsToInsert, true, isFinalInScope)
+    if (!ok) return
+    if (!isFinalInScope) {
+      const nextUi = remainingAfterThis[0]
+      setPendingScopeMembers(remainingAfterThis)
+      setUiCity(nextUi)
+      setActiveTukTuk(null)
+    }
   }
 
   // ── Abrir una sesión pasada para editar/agregar ───────
@@ -1788,10 +1851,17 @@ export default function DataEntry() {
     // Arrancar una sesión para que aparezcan Guardar/Terminar y el HP pueda
     // editar y re-guardar (el guardado es idempotente: DELETE+INSERT por
     // categoría/franja, así que re-guardar la misma fecha la actualiza).
-    if (!sessionActive) {
-      sessionStartRef.current = Date.now()
-      setSessionActive(true)
-    }
+    // El cronómetro SIEMPRE se reinicia acá, sin condicionarlo a
+    // `sessionActive` — reabrir una sesión ya finalizada para corregirla es su
+    // propio tramo de tiempo, nunca debe heredar minutos de otra cosa en la
+    // que el hub ya estuviera trabajando (bug real: antes, si `sessionActive`
+    // ya era true por otro motivo, el cronómetro de esta corrección arrancaba
+    // contaminado con tiempo ajeno).
+    sessionStartRef.current = Date.now()
+    setSessionActive(true)
+    // Reabrir del historial es siempre de-alcance-único (una corrección
+    // puntual, no relanza un "Ambos" de Aeropuerto).
+    setPendingScopeMembers([targetUi])
     setShowHistory(false)
     if (s.zone) {
       // Sesión de TukTuk por distrito: volver a la ciudad base con TukTuk + el
@@ -1978,6 +2048,9 @@ export default function DataEntry() {
     if (mapped > 0 && !sessionActive) {
       sessionStartRef.current = Date.now()
       setSessionActive(true)
+      setPendingScopeMembers((prev) =>
+        prev.length ? prev : [dbCityToUiCity[loadDbCity] || loadDbCity]
+      )
     }
   }
 
@@ -2010,6 +2083,17 @@ export default function DataEntry() {
   // RPC upsert_ci_active_session). Nunca debe afectar el flujo real del hub:
   // todo en try/catch silencioso, jamás toca setMsg ni bloquea el guardado.
   const heartbeatRef = useRef(null)
+  // Alcance declarado (mig 151, solo Aeropuerto) — para que Monitoreo
+  // muestre "Aeropuerto A+B" en vez de solo la pestaña momentánea, que
+  // confunde cuando el hub está alternando entre Punto A y Punto B dentro de
+  // la MISMA sesión declarada como "Ambos".
+  const scopeLabel =
+    activeAirportMembers && pendingScopeMembers.length
+      ? activeAirportMembers
+          .filter((m) => pendingScopeMembers.includes(m.uiCity))
+          .map((m) => m.side)
+          .join('+')
+      : null
   heartbeatRef.current = {
     country,
     city: dbCity,
@@ -2020,6 +2104,7 @@ export default function DataEntry() {
     // Desglose por turno (mig 150) — para que Monitoreo muestre en qué
     // turno está cada hub, no solo el total agregado.
     turnoProgress: { total_per_turno: totalExpectedPerTimeslot, filled: filledByTimeslot },
+    scopeLabel,
   }
   // Fallos de latido consecutivos (mig 149) — contador puramente local, se
   // reporta en el próximo latido exitoso para que Monitoreo (admin) pueda
@@ -2041,6 +2126,7 @@ export default function DataEntry() {
         p_total_expected: p.totalExpected,
         p_recent_failures: failures,
         p_turno_progress: p.turnoProgress,
+        p_scope_label: p.scopeLabel,
       })
       // supabase-js NO tira excepción por un error a nivel Postgres/RPC (solo
       // por fallos de red) — sin este chequeo explícito, un error del lado del
@@ -2114,13 +2200,38 @@ export default function DataEntry() {
         </div>
         <div className="de-header__actions">
           {!sessionActive ? (
-            <Button
-              className="bg-green-600 shadow-[0_2px_6px_rgba(22,163,74,0.3)] hover:bg-green-700"
-              onClick={handleStartSession}
-              disabled={saving}
-            >
-              {t('dataentry.start_session')}
-            </Button>
+            <>
+              {activeAirportMembers && (
+                <div className="de-scope-picker">
+                  <span className="de-scope-picker-label">{t('dataentry.scope_picker_label')}</span>
+                  {activeAirportMembers.map((m) => (
+                    <button
+                      key={m.uiCity}
+                      type="button"
+                      className={`de-scope-option${scopeChoice === m.uiCity ? ' active' : ''}`}
+                      onClick={() => setScopeChoice(m.uiCity)}
+                    >
+                      {t('dataentry.scope_point', { side: m.side })}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={`de-scope-option${scopeChoice === 'both' ? ' active' : ''}`}
+                    onClick={() => setScopeChoice('both')}
+                  >
+                    {t('dataentry.scope_both')}
+                  </button>
+                </div>
+              )}
+              <Button
+                className="bg-green-600 shadow-[0_2px_6px_rgba(22,163,74,0.3)] hover:bg-green-700"
+                onClick={() => resolvedStartMembers && handleStartSession(resolvedStartMembers)}
+                disabled={saving || !resolvedStartMembers}
+                title={!resolvedStartMembers ? t('dataentry.scope_pick_first') : undefined}
+              >
+                {t('dataentry.start_session')}
+              </Button>
+            </>
           ) : (
             <>
               <Button onClick={handleSaveProgress} disabled={saving}>
@@ -2133,7 +2244,9 @@ export default function DataEntry() {
                 onClick={handleFinishSession}
                 disabled={saving}
               >
-                {t('dataentry.end_session')}
+                {pendingScopeMembers.length > 1
+                  ? t('dataentry.end_session_point')
+                  : t('dataentry.end_session')}
               </Button>
             </>
           )}
@@ -2212,26 +2325,59 @@ export default function DataEntry() {
           })}
         </div>
 
-        {/* Sub-pestañas Punto A | Punto B cuando hay un aeropuerto activo */}
+        {/* Sub-pestañas Punto A | Punto B cuando hay un aeropuerto activo. Con
+            sesión activa y alcance declarado de un solo punto (`pendingScopeMembers`),
+            el punto NO declarado queda bloqueado — mismo look que el candado
+            de distrito de TukTuk — para que el hub se centre en lo que eligió
+            (pedido: "el hub debe decidir y centrarse en eso"). Ampliable sin
+            perder el cronómetro con "+ agregar" abajo. */}
         {activeAirportMembers && (
           <div className="de-airport-subtabs">
             {activeAirportMembers.map((m) => {
               const n = countAllFilled(entriesByCity[m.uiCity], indriveByCity[m.uiCity])
+              const locked =
+                sessionActive &&
+                pendingScopeMembers.length > 0 &&
+                !pendingScopeMembers.includes(m.uiCity)
               return (
                 <button
                   key={m.uiCity}
-                  className={`de-airport-subtab${uiCity === m.uiCity ? ' active' : ''}`}
+                  className={`de-airport-subtab${uiCity === m.uiCity ? ' active' : ''}${locked ? ' de-airport-subtab--locked' : ''}`}
+                  aria-disabled={locked}
+                  title={locked ? t('dataentry.scope_point_locked') : undefined}
                   onClick={() => {
+                    if (locked) return
                     setUiCity(m.uiCity)
                     setActiveTukTuk(null)
                     setMsg(null)
                   }}
                 >
+                  {locked && (
+                    <Lock size={11} className="de-airport-subtab-lock" aria-hidden="true" />
+                  )}
                   Punto {m.side}
                   {n > 0 && <span className="de-airport-subtab-badge">{n}</span>}
                 </button>
               )
             })}
+            {sessionActive &&
+              pendingScopeMembers.length === 1 &&
+              activeAirportMembers.some((m) => !pendingScopeMembers.includes(m.uiCity)) && (
+                <button
+                  type="button"
+                  className="de-scope-expand"
+                  onClick={() =>
+                    setPendingScopeMembers((prev) => {
+                      const missing = activeAirportMembers
+                        .map((m) => m.uiCity)
+                        .filter((c) => !prev.includes(c))
+                      return missing.length ? [...prev, ...missing] : prev
+                    })
+                  }
+                >
+                  {t('dataentry.scope_expand')}
+                </button>
+              )}
           </div>
         )}
 
@@ -2486,14 +2632,17 @@ export default function DataEntry() {
                 onClick={handleFinishSession}
                 disabled={saving}
               >
-                {t('dataentry.end_session')}
+                {pendingScopeMembers.length > 1
+                  ? t('dataentry.end_session_point')
+                  : t('dataentry.end_session')}
               </Button>
             </>
           ) : (
             <Button
               className="bg-green-600 shadow-[0_2px_6px_rgba(22,163,74,0.3)] hover:bg-green-700"
-              onClick={handleStartSession}
-              disabled={saving}
+              onClick={() => resolvedStartMembers && handleStartSession(resolvedStartMembers)}
+              disabled={saving || !resolvedStartMembers}
+              title={!resolvedStartMembers ? t('dataentry.scope_pick_first') : undefined}
             >
               {t('dataentry.start_session')}
             </Button>

@@ -514,8 +514,18 @@ export const TRANSLATIONS = {
     'dataentry.title': 'Ingresar CI',
     'dataentry.start_session': '▶ Iniciar Sesión',
     'dataentry.end_session': '⏹ Terminar Sesión',
+    'dataentry.end_session_point': '⏹ Terminar este punto',
     'dataentry.save_progress': '💾 Guardar progreso',
     'dataentry.saving': 'Guardando…',
+    'dataentry.scope_picker_label': '¿Qué vas a completar?',
+    'dataentry.scope_point': 'Punto {side}',
+    'dataentry.scope_both': 'Ambos puntos',
+    'dataentry.scope_pick_first': 'Elegí qué vas a completar antes de iniciar sesión',
+    'dataentry.scope_point_locked':
+      'Fuera de tu alcance declarado — usá "+ agregar" para sumarlo a esta sesión',
+    'dataentry.scope_expand': '+ agregar el otro punto',
+    'dataentry.scope_point_done':
+      'Punto guardado ({n}) — completá el otro punto declarado para terminar la sesión',
     'dataentry.date': 'Fecha',
     'dataentry.surge': 'Surge',
     'dataentry.session_history': '📋 Historial de Sesiones',
@@ -545,8 +555,6 @@ export const TRANSLATIONS = {
     'dataentry.no_routes': 'No hay rutas para',
     'dataentry.go_distances': 'Ve a 📍 Distancias Ref. para agregarlas.',
     'dataentry.all_cities': 'Todas',
-    'dataentry.err_partial':
-      'Hay filas incompletas (marcadas en rojo). Completa todas las casillas de esa fila o déjala completamente vacía.',
     'dataentry.err_no_full': 'No hay filas completamente llenas para guardar.',
     'dataentry.open_session': 'Abrir',
     'dataentry.open_session_title': 'Abrir esta sesión para editar o agregar información',
@@ -563,8 +571,6 @@ export const TRANSLATIONS = {
     'dataentry.progress_saved': '✓ {n} registros guardados. Podés seguir completando.',
     'dataentry.timer_title': 'Sesión en curso',
     'dataentry.err_finish': 'Para terminar la sesión, todas las filas deben estar llenas.',
-    'dataentry.err_finish_need_timeslot':
-      'Para terminar la sesión, completá al menos un turno entero (Mañana, Tarde o Noche) con todos sus brackets.',
     'dataentry.no_routes_at_all': 'No hay rutas configuradas para esta ciudad todavía.',
     'dataentry.extra_routes_title': 'Rutas adicionales',
     'dataentry.own_route_note': 'Ruta propia',
@@ -2645,7 +2651,17 @@ export const TRANSLATIONS = {
     'dataentry.title': 'Enter CI',
     'dataentry.start_session': '▶ Start Session',
     'dataentry.end_session': '⏹ End Session',
+    'dataentry.end_session_point': '⏹ Finish this point',
     'dataentry.save_progress': '💾 Save progress',
+    'dataentry.scope_picker_label': 'What are you going to complete?',
+    'dataentry.scope_point': 'Point {side}',
+    'dataentry.scope_both': 'Both points',
+    'dataentry.scope_pick_first': 'Pick what you will complete before starting the session',
+    'dataentry.scope_point_locked':
+      'Outside your declared scope — use "+ add" to include it in this session',
+    'dataentry.scope_expand': '+ add the other point',
+    'dataentry.scope_point_done':
+      'Point saved ({n}) — finish the other declared point to end the session',
     'dataentry.saving': 'Saving…',
     'dataentry.date': 'Date',
     'dataentry.surge': 'Surge',
@@ -2676,8 +2692,6 @@ export const TRANSLATIONS = {
     'dataentry.no_routes': 'No routes for',
     'dataentry.go_distances': 'Go to 📍 Distance Refs. to add them.',
     'dataentry.all_cities': 'All',
-    'dataentry.err_partial':
-      'There are incomplete rows (marked in red). Fill all cells in the row or leave it completely empty.',
     'dataentry.err_no_full': 'No fully completed rows to save.',
     'dataentry.open_session': 'Open',
     'dataentry.open_session_title': 'Open this session to edit or add data',
@@ -2693,8 +2707,6 @@ export const TRANSLATIONS = {
     'dataentry.progress_saved': '✓ {n} records saved. You can keep filling it in.',
     'dataentry.timer_title': 'Session in progress',
     'dataentry.err_finish': 'To end the session, all rows must be filled.',
-    'dataentry.err_finish_need_timeslot':
-      'To end the session, complete at least one full timeslot (Morning, Afternoon or Night) with all its brackets.',
     'dataentry.no_routes_at_all': 'No routes configured for this city yet.',
     'dataentry.extra_routes_title': 'Additional routes',
     'dataentry.own_route_note': 'Own route',
@@ -4760,7 +4772,17 @@ export const TRANSLATIONS = {
     'dataentry.title': 'Ввод CI',
     'dataentry.start_session': '▶ Начать сессию',
     'dataentry.end_session': '⏹ Завершить сессию',
+    'dataentry.end_session_point': '⏹ Завершить эту точку',
     'dataentry.save_progress': '💾 Сохранить прогресс',
+    'dataentry.scope_picker_label': 'Что вы будете заполнять?',
+    'dataentry.scope_point': 'Точка {side}',
+    'dataentry.scope_both': 'Обе точки',
+    'dataentry.scope_pick_first': 'Выберите, что будете заполнять, прежде чем начать сессию',
+    'dataentry.scope_point_locked':
+      'Вне заявленного вами охвата — используйте «+ добавить», чтобы включить в эту сессию',
+    'dataentry.scope_expand': '+ добавить вторую точку',
+    'dataentry.scope_point_done':
+      'Точка сохранена ({n}) — завершите вторую заявленную точку, чтобы закончить сессию',
     'dataentry.saving': 'Сохранение…',
     'dataentry.date': 'Дата',
     'dataentry.surge': 'Surge',
@@ -4791,8 +4813,6 @@ export const TRANSLATIONS = {
     'dataentry.no_routes': 'Нет маршрутов для',
     'dataentry.go_distances': 'Перейдите в 📍 Дистанции для добавления.',
     'dataentry.all_cities': 'Все',
-    'dataentry.err_partial':
-      'Есть незавершённые строки (выделены красным). Заполните все ячейки строки или оставьте её полностью пустой.',
     'dataentry.err_no_full': 'Нет полностью заполненных строк для сохранения.',
     'dataentry.open_session': 'Открыть',
     'dataentry.open_session_title': 'Открыть эту сессию для редактирования или добавления данных',
@@ -4809,8 +4829,6 @@ export const TRANSLATIONS = {
     'dataentry.progress_saved': '✓ Сохранено записей: {n}. Можно продолжать заполнять.',
     'dataentry.timer_title': 'Сессия в процессе',
     'dataentry.err_finish': 'Для завершения сессии все строки должны быть заполнены.',
-    'dataentry.err_finish_need_timeslot':
-      'Чтобы завершить сессию, заполните хотя бы один полный слот (Утро, День или Ночь) со всеми брекетами.',
     'dataentry.no_routes_at_all': 'Маршруты для этого города ещё не настроены.',
     'dataentry.extra_routes_title': 'Дополнительные маршруты',
     'dataentry.own_route_note': 'Свой маршрут',
