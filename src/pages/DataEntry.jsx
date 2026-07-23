@@ -1873,11 +1873,17 @@ export default function DataEntry() {
   // todo en try/catch silencioso, jamás toca setMsg ni bloquea el guardado.
   const heartbeatRef = useRef(null)
   heartbeatRef.current = { country, city: dbCity, zone, date, filledCount, totalExpected }
+  // Fallos de latido consecutivos (mig 149) — contador puramente local, se
+  // reporta en el próximo latido exitoso para que Monitoreo (admin) pueda
+  // distinguir "esta sesión tuvo problemas intermitentes de red" de "el hub
+  // cerró la laptop" — ambos se ven idénticos si solo se mira last_seen_at.
+  const heartbeatFailStreakRef = useRef(0)
 
   const sendHeartbeat = useCallback(async () => {
     const p = heartbeatRef.current
     if (!p || !p.city) return
     try {
+      const failures = heartbeatFailStreakRef.current
       await sb.rpc('upsert_ci_active_session', {
         p_country: p.country,
         p_city: p.city,
@@ -1885,15 +1891,19 @@ export default function DataEntry() {
         p_observed_date: p.date,
         p_filled_count: p.filledCount,
         p_total_expected: p.totalExpected,
+        p_recent_failures: failures,
       })
+      heartbeatFailStreakRef.current = 0
       // Confirmación real de servidor — ver indicador "confirmado en
       // servidor" en el header. Un latido exitoso ya prueba que el backend
       // nos escucha, no hace falta esperar a un guardado explícito.
       setLastServerOkAt(Date.now())
     } catch {
-      /* best-effort: un fallo acá nunca debe interrumpir al hub (el
-         indicador de servidor simplemente no se refresca y va envejeciendo
-         hasta mostrar el aviso — ver umbral abajo) */
+      // best-effort: un fallo acá nunca debe interrumpir al hub (el
+      // indicador de servidor simplemente no se refresca y va envejeciendo
+      // hasta mostrar el aviso — ver umbral abajo). Sí se cuenta para
+      // reportarlo en el próximo latido exitoso (ver arriba).
+      heartbeatFailStreakRef.current += 1
     }
   }, [])
 

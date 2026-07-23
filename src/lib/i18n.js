@@ -344,6 +344,10 @@ export const TRANSLATIONS = {
     'monitoring.status_live': 'En vivo',
     'monitoring.status_inactive_badge': 'Sin señal',
     'monitoring.status_recent_inactive': '{n} sin señal hace un rato',
+    'monitoring.recent_failures_badge': {
+      one: '⚠ {n} corte de conexión reciente',
+      other: '⚠ {n} cortes de conexión recientes',
+    },
     'monitoring.unfinished_title': 'Progreso guardado sin terminar',
     'monitoring.unfinished_subtitle':
       'El hub guardó progreso pero nunca tocó "Terminar Sesión" — diagnóstico orientativo, no exacto.',
@@ -2440,6 +2444,10 @@ export const TRANSLATIONS = {
     'monitoring.status_live': 'Live',
     'monitoring.status_inactive_badge': 'No signal',
     'monitoring.status_recent_inactive': '{n} with no signal for a while',
+    'monitoring.recent_failures_badge': {
+      one: '⚠ {n} recent connection drop',
+      other: '⚠ {n} recent connection drops',
+    },
     'monitoring.unfinished_title': 'Saved progress not finished',
     'monitoring.unfinished_subtitle':
       'The hub saved progress but never tapped "End Session" — best-effort diagnostic, not exact.',
@@ -4514,6 +4522,12 @@ export const TRANSLATIONS = {
     'monitoring.status_live': 'В сети',
     'monitoring.status_inactive_badge': 'Нет сигнала',
     'monitoring.status_recent_inactive': '{n} без сигнала какое-то время',
+    'monitoring.recent_failures_badge': {
+      one: '⚠ {n} недавний сбой соединения',
+      few: '⚠ {n} недавних сбоя соединения',
+      many: '⚠ {n} недавних сбоев соединения',
+      other: '⚠ {n} недавних сбоев соединения',
+    },
     'monitoring.unfinished_title': 'Сохранённый прогресс не завершён',
     'monitoring.unfinished_subtitle':
       'Хаб сохранил прогресс, но не нажал "Завершить сессию" — приблизительная диагностика.',

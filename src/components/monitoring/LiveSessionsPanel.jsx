@@ -28,6 +28,14 @@ function SessionCard({ s, t, live }) {
       </div>
       <strong className="mon-session-card__email">{s.user_email}</strong>
       <div className="mon-session-card__city">{formatCityZoneLabel(s.city, s.zone)}</div>
+      {/* Fallos de latido reportados por el propio cliente (mig 149) — la
+          sesión sigue "en vivo" pero tuvo cortes intermitentes de conexión
+          recientes, señal que antes era invisible para el admin. */}
+      {s.recent_failures > 0 && (
+        <div className="mon-session-card__warn">
+          {t('monitoring.recent_failures_badge', { n: s.recent_failures })}
+        </div>
+      )}
       <div className="mon-session-card__progress">
         <div className="de-progress-pill">
           <span className="de-progress-filled">{s.filled_count}</span>
