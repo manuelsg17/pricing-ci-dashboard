@@ -182,6 +182,16 @@
   color: var(--color-muted);
   padding: 4px 8px;
 }
+.de-airport-subtab--locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.de-airport-subtab--locked:hover {
+  color: var(--color-muted);
+}
+.de-airport-subtab-lock {
+  flex-shrink: 0;
+}
 
 /* Controls row */
 .de-session-controls {

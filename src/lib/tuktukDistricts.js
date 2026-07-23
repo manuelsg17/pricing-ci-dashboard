@@ -17,6 +17,23 @@ export const TUKTUK_DISTRICTS = [
   'Carabayllo',
 ]
 
+// Distritos habilitados para ingresar CI manual (2026-07-23, pedido de Daniel
+// Loo/PM). El resto de TUKTUK_DISTRICTS sigue existiendo (tiene rutas en
+// Distancias de Referencia) pero se muestra bloqueado en Ingresar CI para que
+// el hub no confunda qué distritos debe llenar hoy.
+export const TUKTUK_ENABLED_DISTRICTS = ['VES', 'Comas', 'SJL', 'Chorrillos', 'SJM']
+
+export function isTukTukDistrictEnabled(canonical) {
+  return TUKTUK_ENABLED_DISTRICTS.includes(canonical)
+}
+
+// Primer distrito seleccionable de una lista (habilitado si hay alguno,
+// si no el primero que exista) — usado para no auto-entrar a un distrito
+// bloqueado al abrir la pestaña TukTuk.
+export function firstEnabledTukTukDistrict(districts) {
+  return districts.find(isTukTukDistrictEnabled) ?? districts[0] ?? null
+}
+
 // Variante normalizada (lowercase, sin acentos, espacios colapsados) → canónico.
 const ALIASES = {
   comas: 'Comas',

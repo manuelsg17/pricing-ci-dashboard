@@ -10,8 +10,10 @@ import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
 import { LIVE_STALE_MS } from '../lib/monitoring'
+import { isTukTukDistrictEnabled, firstEnabledTukTukDistrict } from '../lib/tuktukDistricts'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
+import { Lock } from 'lucide-react'
 import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
 import TurnoSection from '../components/dataentry/TurnoSection'
 import InstructionsBanner from '../components/dataentry/InstructionsBanner'
@@ -527,10 +529,11 @@ export default function DataEntry() {
 
   // Distrito "pendiente de resolver" (activeTukTuk === '', ver comentario en
   // isTukTuk/zone): apenas la lista de distritos esté disponible, entrar
-  // automáticamente al primero — mismo criterio que Aeropuerto entra a Punto A.
+  // automáticamente al primero HABILITADO — mismo criterio que Aeropuerto
+  // entra a Punto A, pero sin caer en un distrito bloqueado.
   useEffect(() => {
     if (activeTukTuk === '' && tukTukDistricts.length > 0) {
-      setActiveTukTuk(tukTukDistricts[0])
+      setActiveTukTuk(firstEnabledTukTukDistrict(tukTukDistricts))
     }
   }, [activeTukTuk, tukTukDistricts])
 
@@ -2026,7 +2029,7 @@ export default function DataEntry() {
                       // distrito activo — mismo criterio que Aeropuerto.
                       if (!active) {
                         setUiCity(tb.baseUiCity)
-                        setActiveTukTuk(tukTukDistricts[0] ?? '')
+                        setActiveTukTuk(firstEnabledTukTukDistrict(tukTukDistricts) ?? '')
                       }
                     } else if (tb.type === 'airport') {
                       if (!active) {
@@ -2091,15 +2094,22 @@ export default function DataEntry() {
               tukTukDistricts.map((d) => {
                 const bk = `TT~${dbCity}~${d}`
                 const n = countAllFilled(entriesByCity[bk], indriveByCity[bk])
+                const enabled = isTukTukDistrictEnabled(d)
                 return (
                   <button
                     key={d}
-                    className={`de-airport-subtab${activeTukTuk === d ? ' active' : ''}`}
+                    className={`de-airport-subtab${activeTukTuk === d ? ' active' : ''}${enabled ? '' : ' de-airport-subtab--locked'}`}
+                    disabled={!enabled}
+                    title={enabled ? undefined : t('dataentry.tuktuk_district_locked')}
                     onClick={() => {
+                      if (!enabled) return
                       setActiveTukTuk(d)
                       setMsg(null)
                     }}
                   >
+                    {!enabled && (
+                      <Lock size={11} className="de-airport-subtab-lock" aria-hidden="true" />
+                    )}
                     {d}
                     {n > 0 && <span className="de-airport-subtab-badge">{n}</span>}
                   </button>

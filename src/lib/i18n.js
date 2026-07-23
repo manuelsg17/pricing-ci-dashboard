@@ -605,6 +605,7 @@ export const TRANSLATIONS = {
     'dataentry.tab_airport': 'Aeropuerto',
     'dataentry.tuktuk_no_districts':
       'No hay distritos de TukTuk cargados. Agregalos en Distancias de Referencia.',
+    'dataentry.tuktuk_district_locked': 'Distrito aún no habilitado para ingresar CI',
 
     // ── Earnings ──────────────────────────────────────
     'earnings.title': 'Ganancias del Conductor',
@@ -2700,6 +2701,7 @@ export const TRANSLATIONS = {
     'dataentry.tab_airport': 'Airport',
     'dataentry.tuktuk_no_districts':
       'No TukTuk districts loaded yet. Add them in Reference Distances.',
+    'dataentry.tuktuk_district_locked': 'District not yet enabled for CI entry',
 
     'earnings.title': 'Driver Earnings',
     'rentabilidad.title': 'Driver Profitability',
@@ -4787,6 +4789,7 @@ export const TRANSLATIONS = {
     'dataentry.tab_airport': 'Аэропорт',
     'dataentry.tuktuk_no_districts':
       'Районы TukTuk ещё не загружены. Добавьте их в «Справочные расстояния».',
+    'dataentry.tuktuk_district_locked': 'Район пока не открыт для ввода CI',
 
     'earnings.title': 'Доходы водителей',
     'rentabilidad.title': 'Рентабельность водителя',
