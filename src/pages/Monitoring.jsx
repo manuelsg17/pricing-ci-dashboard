@@ -3,12 +3,14 @@ import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
 import { useLiveSessions } from '../hooks/useLiveSessions'
 import { useMonitoringData } from '../hooks/useMonitoringData'
+import { useWeeklyCoverage } from '../hooks/useWeeklyCoverage'
 import RepresentativityCard from '../components/dashboard/RepresentativityCard'
 import LiveSessionsPanel from '../components/monitoring/LiveSessionsPanel'
 import UnfinishedSessionsPanel from '../components/monitoring/UnfinishedSessionsPanel'
 import HubSummaryTable from '../components/monitoring/HubSummaryTable'
 import DetailTable from '../components/monitoring/DetailTable'
 import CompletedSessionsTable from '../components/monitoring/CompletedSessionsTable'
+import WeeklyCoveragePanel from '../components/monitoring/WeeklyCoveragePanel'
 import '../styles/data-entry.css'
 import '../styles/monitoring.css'
 
@@ -37,6 +39,7 @@ export default function Monitoring() {
     sessions,
     unfinished,
   } = useMonitoringData(country)
+  const coverage = useWeeklyCoverage(country)
 
   return (
     <div className="de-page">
@@ -49,6 +52,19 @@ export default function Monitoring() {
       <RepresentativityCard />
 
       <LiveSessionsPanel live={live} recentInactive={recentInactive} failed={liveFailed} />
+
+      <WeeklyCoveragePanel
+        year={coverage.year}
+        week={coverage.week}
+        rowKeys={coverage.rowKeys}
+        cellByRowBracket={coverage.cellByRowBracket}
+        brackets={coverage.brackets}
+        loading={coverage.loading}
+        failed={coverage.failed}
+        onPrevWeek={coverage.goToPrevWeek}
+        onNextWeek={coverage.goToNextWeek}
+        onCurrentWeek={coverage.goToCurrentWeek}
+      />
 
       <div className="de-session-bar" style={{ alignItems: 'flex-end' }}>
         <div className="de-session-controls">
