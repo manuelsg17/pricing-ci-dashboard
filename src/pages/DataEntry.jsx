@@ -539,6 +539,29 @@ export default function DataEntry() {
     refsCacheRef.current = {} // otro país → otras ciudades/rutas
     setRefs([]) // Limpiar rutas antiguas inmediatamente
     setRefsDbCity(null)
+    // Bug real (revisión adversarial 2026-07-23): sin esto, cambiar de país
+    // con un alcance "Ambos" de Aeropuerto a medias dejaba `pendingScopeMembers`
+    // apuntando a un uiCity del país VIEJO — al eventualmente Terminar Sesión
+    // en cualquier ciudad del país nuevo, `remainingAfterThis` nunca vaciaba
+    // (el uiCity nuevo nunca coincide con el viejo) y la sesión no cerraba
+    // nunca de verdad (heartbeat vivo, cronómetro corrompido con tiempo
+    // ajeno). Cambiar de país es una señal inequívoca de que se abandona
+    // cualquier sesión/alcance en curso — lo ya guardado con "Guardar
+    // Progreso" queda intacto en la BD, esto solo limpia el estado en vivo.
+    if (sessionActiveRef.current) {
+      setSessionActive(false)
+      setElapsed('00:00')
+      setPendingScopeMembers([])
+      if (userEmailRef.current) {
+        sb.from('ci_active_sessions')
+          .delete()
+          .eq('user_email', userEmailRef.current)
+          .then(
+            () => {},
+            () => {}
+          )
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, countryConfig])
 
@@ -1045,6 +1068,21 @@ export default function DataEntry() {
   }, [country, draftKey, draftScanTick])
 
   function resumeDraft(d) {
+    // Bug real (revisión adversarial 2026-07-23): reanudar OTRO borrador
+    // FUERA del alcance "Ambos" declarado (2+ miembros pendientes) pisaba
+    // `pendingScopeMembers`/`uiCity` sin que el punto abandonado quedara
+    // nunca marcado como terminado — la sesión original no volvía a poder
+    // cerrarse bien. Reanudar un borrador que SÍ es parte del alcance
+    // actual (ej. el otro punto declarado) sigue permitido sin más.
+    const targetUi = d.resume?.uiCity ?? d.city
+    if (
+      sessionActive &&
+      pendingScopeMembers.length > 1 &&
+      !pendingScopeMembers.includes(targetUi)
+    ) {
+      setMsg({ type: 'err', text: t('dataentry.scope_locked_elsewhere') })
+      return
+    }
     // Reanudar es una señal explícita de "seguir trabajando" — activar la
     // sesión ya mismo (mismo criterio que "Abrir" del historial), no esperar
     // a que la hidratación async lo detecte sola.
@@ -1061,10 +1099,12 @@ export default function DataEntry() {
     }
     setDate(d.date)
     setMsg(null)
-    // Reanudar un borrador puntual es siempre de-alcance-único (no relanza un
-    // "Ambos" de Aeropuerto declarado antes) — se puede ampliar a mano con "+
-    // agregar Punto B" si hace falta.
-    setPendingScopeMembers([d.resume?.uiCity ?? d.city])
+    // Reanudar un borrador de-alcance-único (no relanza un "Ambos" — se puede
+    // ampliar a mano con "+ agregar Punto B" si hace falta). Si el borrador
+    // reanudado YA era parte del alcance "Ambos" actual (guard de arriba), no
+    // hay que achicar `pendingScopeMembers` a un solo miembro — el otro
+    // punto declarado sigue pendiente.
+    setPendingScopeMembers((prev) => (prev.includes(targetUi) ? prev : [targetUi]))
   }
 
   function discardDraft(d) {
@@ -1076,6 +1116,18 @@ export default function DataEntry() {
     markJustFinished(d.key)
     setActiveDrafts((prev) => prev.filter((x) => x.key !== d.key))
     setDraftScanTick((tk) => tk + 1)
+    // Bug real (revisión adversarial 2026-07-23): descartar el borrador de
+    // un punto declarado en un alcance "Ambos" (ej. abandonar Punto A
+    // mientras se sigue con Punto B) no lo sacaba de `pendingScopeMembers`
+    // — al terminar el punto que SÍ se completó, `remainingAfterThis` nunca
+    // vaciaba (el descartado seguía "pendiente" para siempre) y la sesión
+    // jamás cerraba, además de reenviar al hub a rellenar desde cero un
+    // punto que él mismo acababa de vaciar. Descartar equivale a decidir
+    // que ese punto ya no forma parte de esta sesión.
+    const discardedUi = d.resume?.uiCity ?? d.city
+    setPendingScopeMembers((prev) =>
+      prev.includes(discardedUi) ? prev.filter((m) => m !== discardedUi) : prev
+    )
     // Si el borrador descartado es de la FECHA/contexto actual, su rebanada
     // puede seguir viva en memoria (y la ciudad marcada como hidratada). Sin
     // limpiarla, volver a esa pestaña mostraría los datos "descartados" y el
@@ -1909,6 +1961,20 @@ export default function DataEntry() {
       return
     }
     const targetUi = dbCityToUiCity[s.city] || s.city
+    // Bug real (revisión adversarial 2026-07-23): abrir una sesión del
+    // historial FUERA del alcance "Ambos" declarado (2+ miembros pendientes)
+    // pisaba `pendingScopeMembers` sin que el punto abandonado quedara
+    // marcado como terminado — la sesión original no volvía a poder cerrarse
+    // bien. Abrir una sesión que SÍ es parte del alcance actual (ej. el otro
+    // punto declarado) sigue permitido sin más.
+    if (
+      sessionActive &&
+      pendingScopeMembers.length > 1 &&
+      !pendingScopeMembers.includes(targetUi)
+    ) {
+      setMsg({ type: 'err', text: t('dataentry.scope_locked_elsewhere') })
+      return
+    }
     // Arrancar una sesión para que aparezcan Guardar/Terminar y el HP pueda
     // editar y re-guardar (el guardado es idempotente: DELETE+INSERT por
     // categoría/franja, así que re-guardar la misma fecha la actualiza).
@@ -1920,9 +1986,11 @@ export default function DataEntry() {
     // contaminado con tiempo ajeno).
     sessionStartRef.current = Date.now()
     setSessionActive(true)
-    // Reabrir del historial es siempre de-alcance-único (una corrección
-    // puntual, no relanza un "Ambos" de Aeropuerto).
-    setPendingScopeMembers([targetUi])
+    // Reabrir del historial es de-alcance-único (una corrección puntual, no
+    // relanza un "Ambos" de Aeropuerto) — salvo que `targetUi` YA fuera parte
+    // del alcance "Ambos" en curso (guard de arriba), en cuyo caso no hay que
+    // achicarlo: el otro punto declarado sigue pendiente.
+    setPendingScopeMembers((prev) => (prev.includes(targetUi) ? prev : [targetUi]))
     setShowHistory(false)
     if (s.zone) {
       // Sesión de TukTuk por distrito: volver a la ciudad base con TukTuk + el
@@ -2371,11 +2439,29 @@ export default function DataEntry() {
                     : tb.type === 'corp'
                       ? !isTukTuk && uiCity === 'Corp'
                       : !isTukTuk && uiCity === tb.uiCity
+              // Bug real (revisión adversarial 2026-07-23): mientras hay un
+              // alcance "Ambos" a medias (2+ miembros pendientes), navegar a
+              // CUALQUIER otra pestaña de nivel superior dejaba
+              // `pendingScopeMembers` apuntando a un uiCity ajeno a la vista
+              // actual — el próximo "Terminar Sesión" (en la ciudad nueva)
+              // nunca lograba vaciar `remainingAfterThis`, así que la sesión
+              // jamás cerraba de verdad y encima teletransportaba al hub de
+              // vuelta al punto abandonado sin aviso. Se bloquea la
+              // navegación fuera del alcance declarado, mismo criterio que
+              // ya bloquea el punto B/A no declarado en las sub-pestañas.
+              const scopeLockedElsewhere =
+                sessionActive && pendingScopeMembers.length > 1 && !active
               return (
                 <button
                   key={`${cluster.base}-${tb.type}`}
-                  className={`de-city-tab${tb.type === 'airport' ? ' de-city-tab--airport' : ''}${active ? ' active' : ''}`}
+                  className={`de-city-tab${tb.type === 'airport' ? ' de-city-tab--airport' : ''}${active ? ' active' : ''}${scopeLockedElsewhere ? ' de-city-tab--locked' : ''}`}
+                  aria-disabled={scopeLockedElsewhere}
+                  title={scopeLockedElsewhere ? t('dataentry.scope_locked_elsewhere') : undefined}
                   onClick={() => {
+                    if (scopeLockedElsewhere) {
+                      setMsg({ type: 'err', text: t('dataentry.scope_locked_elsewhere') })
+                      return
+                    }
                     setMsg(null)
                     if (tb.type === 'tuktuk') {
                       // Re-click estando ya en TukTuk (en cualquier distrito, o

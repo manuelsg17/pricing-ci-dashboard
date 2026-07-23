@@ -10,21 +10,36 @@ import { getISOYearWeek } from '../lib/dateUtils'
 export function usePriceComplianceAlerts(country) {
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(false)
+  // Bug real (revisión adversarial 2026-07-23): antes, un error de red/RPC
+  // en cualquiera de estas consultas se trataba IGUAL que "sin observaciones
+  // esta semana" — la alerta simplemente no aparecía, indistinguible de
+  // "todo cumple la banda". `failed` deja que el panel avise que no se pudo
+  // calcular, en vez de mostrar silencio como si estuviera todo bien.
+  const [failed, setFailed] = useState(false)
 
   const load = useCallback(async () => {
     if (!country) return
     setLoading(true)
+    setFailed(false)
     const { year, week } = getISOYearWeek(new Date())
-    const { data: bands } = await sb
+    const { data: bands, error: bandsErr } = await sb
       .from('competitive_bands')
       .select('competitor_name, category, min_pct, max_pct')
       .eq('country', country)
       .eq('is_active', true)
+    if (bandsErr) {
+      console.error('[usePriceComplianceAlerts] competitive_bands error:', bandsErr)
+      setFailed(true)
+      setAlerts([])
+      setLoading(false)
+      return
+    }
     if (!bands || !bands.length) {
       setAlerts([])
       setLoading(false)
       return
     }
+    let anyErrored = false
     const results = await Promise.all(
       bands.map(async (b) => {
         const { data: rows, error } = await sb.rpc('get_competitive_band_breakdown', {
@@ -38,7 +53,12 @@ export function usePriceComplianceAlerts(country) {
           p_year_end: year,
           p_week_end: week,
         })
-        if (error || !rows?.length) return null
+        if (error) {
+          console.error('[usePriceComplianceAlerts] get_competitive_band_breakdown error:', error)
+          anyErrored = true
+          return null
+        }
+        if (!rows?.length) return null
         const totalObs = rows.reduce((s, r) => s + (Number(r.total_observations) || 0), 0)
         const totalWithin = rows.reduce((s, r) => s + (Number(r.within_count) || 0), 0)
         if (totalObs === 0) return null
@@ -51,6 +71,7 @@ export function usePriceComplianceAlerts(country) {
         }
       })
     )
+    setFailed(anyErrored)
     setAlerts(results.filter((r) => r && r.withinPct < 30))
     setLoading(false)
   }, [country])
@@ -59,5 +80,5 @@ export function usePriceComplianceAlerts(country) {
     load()
   }, [load])
 
-  return { alerts, loading }
+  return { alerts, loading, failed }
 }

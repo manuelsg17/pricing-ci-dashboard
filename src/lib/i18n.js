@@ -338,6 +338,8 @@ export const TRANSLATIONS = {
     'monitoring.price_alerts_subtitle':
       'Pares configurados en Competitividad que están por debajo del 30% dentro de banda esta semana.',
     'monitoring.price_alert_line': '{category} vs {competitor}: {pct}% dentro de banda esta semana',
+    'monitoring.price_alerts_failed':
+      'No se pudo calcular el cumplimiento de precio esta semana (error de red o de datos) — no significa que todo esté bien, reintentá más tarde.',
     'monitoring.failed': 'No se pudo cargar el monitoreo (¿tenés cuenta admin y acceso al país?).',
     'monitoring.by_hub': 'Actividad por hub',
     'monitoring.total_rows': '· {n} filas en total',
@@ -542,6 +544,8 @@ export const TRANSLATIONS = {
     'dataentry.scope_pick_first': 'Elegí qué vas a completar antes de iniciar sesión',
     'dataentry.scope_point_locked':
       'Fuera de tu alcance declarado — usá "+ agregar" para sumarlo a esta sesión',
+    'dataentry.scope_locked_elsewhere':
+      'Terminá el Punto que declaraste (o agregá el otro) antes de cambiar de pestaña',
     'dataentry.scope_expand': '+ agregar el otro punto',
     'dataentry.scope_point_done':
       'Punto guardado ({n}) — completá el otro punto declarado para terminar la sesión',
@@ -633,16 +637,17 @@ export const TRANSLATIONS = {
       'Llegaste al máximo de {max} borradores sin terminar. Terminá o descartá uno de los de arriba para poder cargar esta ciudad/fecha.',
     'dataentry.legend_title': 'Cómo llenar esta pantalla',
     'dataentry.legend_step1':
-      '1. Elegí arriba tu ciudad y la pestaña: Normal, Corp, ✈ Aeropuerto o TukTuk. En Aeropuerto elegí Punto A/B; en TukTuk elegí el distrito — cada distrito se guarda y se termina por separado. Después elegí la fecha.',
+      '1. Elegí arriba tu ciudad y la pestaña: Normal, Corp, ✈ Aeropuerto o TukTuk. En Aeropuerto, ANTES de "Iniciar Sesión" elegí qué vas a completar: Punto A, Punto B, o Ambos — si elegís Ambos, el cronómetro sigue corriendo al pasar de uno a otro, sin cortarse. En TukTuk elegí el distrito — cada distrito se guarda y se termina por separado. Después elegí la fecha.',
     'dataentry.legend_step2':
-      '2. Elegí el bracket (Very Short → Very Long) — la ruta (Punto A → Punto B) aparece una sola vez.',
+      '2. La grilla se organiza por turno (Mañana → Tarde → Noche): completá un turno entero antes de pasar al siguiente. Dentro de cada turno, elegí el bracket (Very Short → Very Long) — la ruta (Punto A → Punto B) aparece una sola vez.',
     'dataentry.legend_step3':
-      '3. Para cada competidor poné el ETA (minutos, opcional) y el precio. Completá todas las categorías y franjas de esa ruta antes de pasar a la siguiente. Podés colapsar/expandir cada bracket tocando su cabecera.',
+      '3. Para cada competidor poné el ETA (minutos, opcional) y el precio. Completá todas las categorías de esa ruta antes de pasar a la siguiente. Podés colapsar/expandir cada bracket o cada turno entero tocando su cabecera.',
     'dataentry.legend_step4':
       '4. Para InDrive, tocá ▼ para anotar el precio RECOMENDADO (el que sugiere la app) y hasta 5 bids (cada oferta de conductor). El promedio se calcula solo con los bids; el recomendado NO entra al promedio, pero si no hay ningún bid se usa como precio de la celda. Ej.: Recomendado=14, Bid 1=15, Bid 2=13, Bid 3=17 → promedio 15.00. Tocá "?" en el panel para ver el ejemplo.',
     'dataentry.legend_step5':
       '5. Guardá seguido con "💾 Guardar progreso" (podés guardar filas parciales cuantas veces quieras). Además tu progreso se autoguarda solo en este navegador: NO se pierde si actualizás la página, cambiás de ciudad o cerrás por error — al volver, sigue todo cargado.',
-    'dataentry.legend_step6': '6. Cuando toda la grilla esté completa, tocá "⏹ Terminar Sesión".',
+    'dataentry.legend_step6':
+      '6. "⏹ Terminar Sesión" exige que TODA la grilla esté completa (los 3 turnos) — no se puede terminar a medias. En Aeropuerto con alcance "Ambos": al completar el primer Punto, el botón dice "Terminar este punto" — la sesión sigue activa y saltás solo al otro punto; recién al completar el segundo se cierra de verdad.',
     'dataentry.tab_normal': 'Normal',
     'dataentry.tab_airport': 'Aeropuerto',
     'dataentry.tuktuk_no_districts':
@@ -2506,6 +2511,8 @@ export const TRANSLATIONS = {
     'monitoring.price_alerts_subtitle':
       'Pairs configured in Competitiveness that are below 30% within band this week.',
     'monitoring.price_alert_line': '{category} vs {competitor}: {pct}% within band this week',
+    'monitoring.price_alerts_failed':
+      "Couldn't calculate price compliance this week (network or data error) — this doesn't mean everything is fine, try again later.",
     'monitoring.failed':
       'Could not load monitoring (do you have an admin account and country access?).',
     'monitoring.by_hub': 'Activity by hub',
@@ -2706,6 +2713,8 @@ export const TRANSLATIONS = {
     'dataentry.scope_pick_first': 'Pick what you will complete before starting the session',
     'dataentry.scope_point_locked':
       'Outside your declared scope — use "+ add" to include it in this session',
+    'dataentry.scope_locked_elsewhere':
+      'Finish the Point you declared (or add the other one) before switching tabs',
     'dataentry.scope_expand': '+ add the other point',
     'dataentry.scope_point_done':
       'Point saved ({n}) — finish the other declared point to end the session',
@@ -2797,16 +2806,17 @@ export const TRANSLATIONS = {
       'You reached the maximum of {max} unfinished drafts. Finish or discard one of the drafts above to enter this city/date.',
     'dataentry.legend_title': 'How to fill this screen',
     'dataentry.legend_step1':
-      '1. Up top, pick your city and the tab: Normal, Corp, ✈ Airport or TukTuk. For Airport choose Point A/B; for TukTuk choose the district — each district is saved and finished separately. Then pick the date.',
+      '1. Up top, pick your city and the tab: Normal, Corp, ✈ Airport or TukTuk. For Airport, BEFORE "Start Session" choose what you\'ll complete: Point A, Point B, or Both — if you pick Both, the timer keeps running as you move between them, without cutting off. For TukTuk choose the district — each district is saved and finished separately. Then pick the date.',
     'dataentry.legend_step2':
-      '2. Pick a bracket (Very Short → Very Long) — the route (Point A → Point B) shows up once.',
+      '2. The grid is organized by timeslot (Morning → Midday → Evening): finish a whole timeslot before moving to the next. Within each timeslot, pick a bracket (Very Short → Very Long) — the route (Point A → Point B) shows up once.',
     'dataentry.legend_step3':
-      '3. For each competitor enter the ETA (minutes, optional) and the price. Fill all categories and timeslots for that route before moving to the next one. You can collapse/expand each bracket by tapping its header.',
+      '3. For each competitor enter the ETA (minutes, optional) and the price. Fill all categories for that route before moving to the next one. You can collapse/expand each bracket or a whole timeslot by tapping its header.',
     'dataentry.legend_step4':
       '4. For InDrive, tap ▼ to record the RECOMMENDED price (the one the app suggests) and up to 5 bids (each driver offer). The average is computed from the bids only; the recommended price does NOT count toward the average, but if there are no bids it is used as the cell price. E.g. Recommended=14, Bid 1=15, Bid 2=13, Bid 3=17 → average 15.00. Tap "?" in the panel for the example.',
     'dataentry.legend_step5':
       '5. Save often with "💾 Save progress" (you can save partial rows as many times as you want). Your progress is also autosaved in this browser: it is NOT lost if you refresh, switch city, or close by mistake — when you come back, everything is still there.',
-    'dataentry.legend_step6': '6. Once the whole grid is complete, tap "⏹ End Session".',
+    'dataentry.legend_step6':
+      '6. "⏹ End Session" requires the WHOLE grid to be complete (all 3 timeslots) — you can\'t end it halfway. In Airport with "Both" scope: once you finish the first Point, the button says "Finish this point" — the session stays active and you jump straight to the other point; it only really ends once you finish the second one.',
     'dataentry.tab_normal': 'Normal',
     'dataentry.tab_airport': 'Airport',
     'dataentry.tuktuk_no_districts':
@@ -4653,6 +4663,8 @@ export const TRANSLATIONS = {
     'monitoring.price_alerts_subtitle':
       'Пары, настроенные в разделе Конкурентоспособность, у которых меньше 30% попаданий в диапазон на этой неделе.',
     'monitoring.price_alert_line': '{category} vs {competitor}: {pct}% в диапазоне на этой неделе',
+    'monitoring.price_alerts_failed':
+      'Не удалось рассчитать соответствие цены на этой неделе (ошибка сети или данных) — это не значит, что всё в порядке, попробуйте позже.',
     'monitoring.failed':
       'Не удалось загрузить мониторинг (есть ли у вас админ-доступ и доступ к стране?).',
     'monitoring.by_hub': 'Активность по хабам',
@@ -4855,6 +4867,8 @@ export const TRANSLATIONS = {
     'dataentry.scope_pick_first': 'Выберите, что будете заполнять, прежде чем начать сессию',
     'dataentry.scope_point_locked':
       'Вне заявленного вами охвата — используйте «+ добавить», чтобы включить в эту сессию',
+    'dataentry.scope_locked_elsewhere':
+      'Завершите заявленную Точку (или добавьте вторую), прежде чем переключать вкладку',
     'dataentry.scope_expand': '+ добавить вторую точку',
     'dataentry.scope_point_done':
       'Точка сохранена ({n}) — завершите вторую заявленную точку, чтобы закончить сессию',
@@ -4953,16 +4967,17 @@ export const TRANSLATIONS = {
       'Вы достигли максимума {max} незавершённых черновиков. Завершите или отмените один из черновиков выше, чтобы ввести этот город/дату.',
     'dataentry.legend_title': 'Как заполнять этот экран',
     'dataentry.legend_step1':
-      '1. Вверху выберите город и вкладку: Обычный, Corp, ✈ Аэропорт или TukTuk. Для Аэропорта выберите Пункт A/B; для TukTuk — район (каждый район сохраняется и завершается отдельно). Затем выберите дату.',
+      '1. Вверху выберите город и вкладку: Обычный, Corp, ✈ Аэропорт или TukTuk. Для Аэропорта, ДО нажатия "Начать сессию" выберите, что будете заполнять: Точку А, Точку Б или Обе — если выбрали "Обе", таймер продолжает идти при переключении между ними, не прерываясь. Для TukTuk выберите район (каждый район сохраняется и завершается отдельно). Затем выберите дату.',
     'dataentry.legend_step2':
-      '2. Выберите брекет (Very Short → Very Long) — маршрут (Точка А → Точка Б) показывается один раз.',
+      '2. Таблица организована по таймслотам (Утро → День → Вечер): завершите весь таймслот, прежде чем переходить к следующему. Внутри каждого таймслота выберите брекет (Very Short → Very Long) — маршрут (Точка А → Точка Б) показывается один раз.',
     'dataentry.legend_step3':
-      '3. Для каждого конкурента укажите ETA (в минутах, необязательно) и цену. Заполните все категории и таймслоты этого маршрута, прежде чем переходить к следующему. Можно свернуть/развернуть каждый брекет, нажав на его заголовок.',
+      '3. Для каждого конкурента укажите ETA (в минутах, необязательно) и цену. Заполните все категории этого маршрута, прежде чем переходить к следующему. Можно свернуть/развернуть каждый брекет или весь таймслот, нажав на его заголовок.',
     'dataentry.legend_step4':
       '4. Для InDrive нажмите ▼, чтобы записать РЕКОМЕНДОВАННУЮ цену (которую предлагает приложение) и до 5 ставок (каждое предложение водителя). Среднее считается только по ставкам; рекомендованная цена НЕ входит в среднее, но если ставок нет, она используется как цена ячейки. Напр.: Рекомендовано=14, Ставка 1=15, Ставка 2=13, Ставка 3=17 → среднее 15.00. Нажмите «?» на панели, чтобы увидеть пример.',
     'dataentry.legend_step5':
       '5. Сохраняйте прогресс почаще кнопкой "💾 Сохранить прогресс" (можно сохранять неполные строки сколько угодно раз). Прогресс также автосохраняется в этом браузере: он НЕ теряется при обновлении страницы, смене города или случайном закрытии — когда вернётесь, всё на месте.',
-    'dataentry.legend_step6': '6. Когда вся таблица заполнена, нажмите "⏹ Завершить сессию".',
+    'dataentry.legend_step6':
+      '6. "⏹ Завершить сессию" требует, чтобы ВСЯ таблица была заполнена (все 3 таймслота) — нельзя завершить наполовину. В Аэропорту с охватом "Обе": когда завершите первую Точку, кнопка покажет "Завершить эту точку" — сессия остаётся активной, и вы переходите к другой точке; сессия закончится по-настоящему только после второй.',
     'dataentry.tab_normal': 'Обычный',
     'dataentry.tab_airport': 'Аэропорт',
     'dataentry.tuktuk_no_districts':

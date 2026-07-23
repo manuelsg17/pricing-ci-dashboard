@@ -123,6 +123,13 @@
   border-style: solid;
 }
 
+/* Bloqueada mientras hay un alcance "Ambos" de Aeropuerto a medias (bug real,
+   revisión adversarial 2026-07-23) — evita corromper el cierre de sesión. */
+.de-city-tab--locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Sub-pestañas Punto A | Punto B del aeropuerto activo */
 .de-airport-subtabs {
   display: flex;

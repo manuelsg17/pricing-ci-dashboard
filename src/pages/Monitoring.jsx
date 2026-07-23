@@ -54,7 +54,11 @@ export default function Monitoring() {
 
       <RepresentativityCard />
 
-      <PriceComplianceAlerts alerts={priceAlerts.alerts} loading={priceAlerts.loading} />
+      <PriceComplianceAlerts
+        alerts={priceAlerts.alerts}
+        loading={priceAlerts.loading}
+        failed={priceAlerts.failed}
+      />
 
       <LiveSessionsPanel live={live} recentInactive={recentInactive} failed={liveFailed} />
 
