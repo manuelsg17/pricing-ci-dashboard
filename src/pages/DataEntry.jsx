@@ -461,7 +461,7 @@ export default function DataEntry() {
   // (RLS ya permite SELECT sin restricción de ciudad, no hace falta RPC) —
   // así el hub puede comparar contra lo que ve en pantalla y avisar si algo
   // no cuadra, sin exponer el trabajo de otros hubs.
-  async function loadSavedData() {
+  async function loadSavedData(isCancelled) {
     if (!userEmail || !dbCity) return
     setSavedLoading(true)
     let q = sb
@@ -476,12 +476,22 @@ export default function DataEntry() {
       .eq('data_source', 'manual')
     q = zone != null ? q.eq('zone', zone) : q.is('zone', null)
     const { data } = await q.order('timeslot').order('category').order('competition_name')
+    // Guard: si el hub cambió de ciudad/zona/fecha (o cerró el panel) mientras
+    // la consulta viajaba, una respuesta tardía no debe pisar lo que ya se ve
+    // — sin esto, cambiar rápido de distrito TukTuk con el panel abierto
+    // podía mostrar "lo guardado" de un distrito ajeno.
+    if (isCancelled && isCancelled()) return
     setSavedRows(data || [])
     setSavedLoading(false)
   }
 
   useEffect(() => {
-    if (showSavedData) loadSavedData()
+    if (!showSavedData) return
+    let cancelled = false
+    loadSavedData(() => cancelled)
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSavedData, bucketKey, date])
 
@@ -1806,14 +1816,28 @@ export default function DataEntry() {
         } catch {
           /* best-effort */
         }
+        // Re-limpieza tardía acotada a ESTA sesión exacta (country/city/zone/
+        // fecha) — si el hub ya arrancó una sesión NUEVA dentro de esos 10s
+        // (ej. otro distrito TukTuk), este delete tardío no debe borrarle el
+        // latido recién creado (mismo bug que se corrigió del lado servidor
+        // en admin_close_ci_session, mig 156, ahora también acá).
+        const closedCountry = country
+        const closedCity = dbCity
+        const closedZone = zone
+        const closedDate = date
         setTimeout(() => {
-          sb.from('ci_active_sessions')
+          let q = sb
+            .from('ci_active_sessions')
             .delete()
             .eq('user_email', userEmail)
-            .then(
-              () => {},
-              () => {}
-            )
+            .eq('country', closedCountry)
+            .eq('city', closedCity)
+            .eq('observed_date', closedDate)
+          q = closedZone != null ? q.eq('zone', closedZone) : q.is('zone', null)
+          q.then(
+            () => {},
+            () => {}
+          )
         }, 10_000)
       }
       if (isFinalInScope) {

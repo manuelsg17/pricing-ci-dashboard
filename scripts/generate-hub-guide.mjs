@@ -236,10 +236,10 @@ p(
 table(
   ['Opción', 'Qué pasa'],
   [
-    ['Solo Punto A', 'Trabajás solo ahí. Punto B queda bloqueado (candado) durante esta sesión.'],
-    ['Solo Punto B', 'Trabajás solo ahí. Punto A queda bloqueado durante esta sesión.'],
+    ['Punto A', 'Trabajás solo ahí. Punto B queda bloqueado (candado) durante esta sesión.'],
+    ['Punto B', 'Trabajás solo ahí. Punto A queda bloqueado durante esta sesión.'],
     [
-      'Ambos',
+      'Ambos puntos',
       'El cronómetro sigue corriendo mientras alternás entre Punto A y Punto B, sin cortarse. Al completar el primero, el botón dice "Terminar este punto" y saltás automático al otro — recién al completar el segundo se cierra la sesión de verdad.',
     ],
   ]
@@ -249,7 +249,7 @@ p(
 )
 calloutBox(
   '¿Podés ampliar el alcance a mitad de camino?',
-  'Sí — si empezaste con "Solo Punto A" y después necesitás sumar Punto B a la misma sesión, tocá "+ agregar el otro punto" (aparece junto a las pestañas de Punto A/B) sin perder tu cronómetro.',
+  'Sí — si empezaste con "Punto A" y después necesitás sumar Punto B a la misma sesión, tocá "+ agregar el otro punto" (aparece junto a las pestañas de Punto A/B) sin perder tu cronómetro.',
   [219, 234, 254]
 )
 
@@ -269,7 +269,7 @@ h1('6. ¿Quién más está trabajando?')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
-  'Como cualquiera puede ayudar cargando la ciudad de un compañero sin restricción (si él está ocupado con otra cosa), vas a ver un pequeño punto verde en las sub-pestañas de Aeropuerto y en las píldoras de distrito de TukTuk cuando OTRO hub está trabajando ahí mismo en ese momento — pasá el mouse (o tocá y mantené en celular) sobre esa pestaña para ver quién es.'
+  'Como cualquiera puede ayudar cargando la ciudad de un compañero sin restricción (si él está ocupado con otra cosa), vas a ver un pequeño punto verde en las sub-pestañas de Aeropuerto y en las píldoras de distrito de TukTuk cuando OTRO hub está trabajando ahí mismo en ese momento — pasá el mouse sobre esa pestaña para ver quién es (mejor desde compu; en celular puede no mostrarse el nombre al tocar).'
 )
 calloutBox(
   'Esto es solo informativo',
@@ -325,7 +325,7 @@ table(
       'No — tu progreso se autoguarda en el navegador. Al volver a entrar, todo sigue cargado.',
     ],
     [
-      '¿Puedo cambiar de "Solo Punto A" a "Ambos" a mitad de sesión?',
+      '¿Puedo cambiar de "Punto A" a "Ambos puntos" a mitad de sesión?',
       'Sí, con el botón "+ agregar el otro punto" junto a las pestañas de Aeropuerto.',
     ],
   ]

@@ -14,7 +14,10 @@ function tipoLabel(t, tipo, baseCity) {
     case 'Corp':
       return 'Corp'
     case 'TukTuk':
-      return 'TukTuk'
+      // Incluye baseCity aunque hoy TukTuk solo esté en Lima (mig 143) — si
+      // se habilita en otra ciudad, dos filas "TukTuk" sin ciudad serían
+      // indistinguibles en la matriz.
+      return `${baseCity} TukTuk`
     case 'Airport_A':
       return `${baseCity} ${t('monitoring.coverage_airport_a')}`
     case 'Airport_B':

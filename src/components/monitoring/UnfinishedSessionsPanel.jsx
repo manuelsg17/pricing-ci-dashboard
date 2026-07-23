@@ -21,6 +21,13 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
   const { t, locale } = useI18n()
   const { country } = useCountry()
   const [closingKey, setClosingKey] = useState(null)
+  // Claves ya cerradas con éxito pero que `rows` (prop) todavía no refleja
+  // porque el `onClosed` (reload async del padre) sigue en vuelo — sin esto,
+  // el botón se reactivaba apenas volvía la RPC y un admin apurado podía
+  // volver a cerrarla antes del reload, insertando una segunda fila bogus en
+  // ci_sessions (started_at=now(), duration=0) que además gana el desempate
+  // en get_hub_monitoring por tener el id más alto.
+  const [closedKeys, setClosedKeys] = useState(() => new Set())
   const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(locale) : '—')
 
   async function handleClose(r, key) {
@@ -33,12 +40,14 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
       p_observed_date: r.observed_date,
       p_user_email: r.uploaded_by,
     })
-    setClosingKey(null)
     if (error) {
+      setClosingKey(null)
       window.alert(t('monitoring.close_session_error'))
       return
     }
-    onClosed?.()
+    setClosedKeys((prev) => new Set(prev).add(key))
+    await onClosed?.()
+    setClosingKey(null)
   }
 
   return (
@@ -83,10 +92,10 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={closingKey === key}
+                        disabled={closingKey === key || closedKeys.has(key)}
                         onClick={() => handleClose(r, key)}
                       >
-                        {closingKey === key
+                        {closingKey === key || closedKeys.has(key)
                           ? t('monitoring.closing_session')
                           : t('monitoring.close_session')}
                       </Button>
