@@ -1480,15 +1480,19 @@ export default function DataEntry() {
           .in('competition_name', visibleNames)
         q = rt.pa != null ? q.eq('point_a', rt.pa) : q.is('point_a', null)
         q = rt.pb != null ? q.eq('point_b', rt.pb) : q.is('point_b', null)
-        // Zona (distrito): SOLO en la vista TukTuk se acota el DELETE a SU
-        // distrito (nunca pisa otro distrito). El guard es `isTukTuk` (de la
-        // vista activa), NO solo "rt.zone != null": hay ~76k filas manuales de
-        // auto con zona no-null en el histórico (y Corp guarda zone='' en
-        // distance_references) — sin este guard explícito, una ruta cargada del
-        // historial (loadedCombos) podía colar esa zona vieja al DELETE y dejar
-        // filas huérfanas sin borrar. Fuera de TukTuk, el comportamiento es
-        // idéntico al de antes de este cambio (sin predicado de zona).
-        if (isTukTuk && rt.zone != null) q = q.eq('zone', rt.zone)
+        // Zona (distrito): el DELETE SIEMPRE se acota a la zona de ESTA VISTA
+        // (`zone` — el distrito activo en TukTuk, null en el resto), nunca a
+        // `rt.zone` (que puede venir de una fila cargada del historial y no ser
+        // confiable: hay ~76k filas manuales con zona no-null fuera de TukTuk,
+        // ej. observaciones importadas por Excel para Aeropuerto con
+        // zone='Airport_A' — Upload.jsx). Antes, fuera de TukTuk, el DELETE no
+        // tenía predicado de zona: guardar una ruta borraba TODAS las filas de
+        // esa ruta+franja sin importar su zona, incluida esa data ajena — se
+        // perdía en silencio. Acotar por la zona CONSTANTE de la vista (nunca
+        // por la de la fila individual) es seguro: todo lo que esta vista
+        // guarda o vuelve a cargar pertenece siempre a su propia zona (ver
+        // `viewRefs` para TukTuk) — nunca borra ni pisa una zona ajena.
+        q = zone != null ? q.eq('zone', zone) : q.is('zone', null)
         // Acotar al dueño (este hub) + legacy sin dueño (NULL). SIEMPRE por dueño:
         // sin email se cae a solo-NULL, nunca a un DELETE sin predicado de dueño.
         q = userEmail
