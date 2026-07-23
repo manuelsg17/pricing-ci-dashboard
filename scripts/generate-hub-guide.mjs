@@ -142,12 +142,12 @@ doc.setTextColor(...DARK)
 y = 68
 
 p(
-  'Esta guía resume cómo cargar la Inteligencia Competitiva (CI) manual en el dashboard, y las reglas nuevas de la pantalla "Ingresar CI" — pensadas para que trabajemos los 3 hub experts de forma coordinada, sin pisarnos entre ciudades.'
+  'Esta guía resume cómo cargar la Inteligencia Competitiva (CI) manual en el dashboard, y las reglas nuevas de la pantalla "Ingresar CI" — pensadas para que trabajemos de forma coordinada entre ciudades, sin pisarnos.'
 )
 
 calloutBox(
   '¿Por qué reglas nuevas?',
-  'Desde esta semana somos 3 hub experts (uno por ciudad) en vez de 4. La carga de Lima no bajó, así que vamos a ayudarnos entre ciudades más seguido — estas reglas existen para que eso funcione sin confusión ni trabajo duplicado.'
+  'Cada vez vamos a ayudarnos más seguido entre ciudades — estas reglas existen para que eso funcione sin confusión ni trabajo duplicado.'
 )
 
 // ════════════════════════════════════════════════════════════════════════
@@ -269,7 +269,7 @@ h1('6. ¿Quién más está trabajando?')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
-  'Ahora que somos 3 hub experts cubriendo 3 ciudades sin restricción (podés ayudar cargando la ciudad de un compañero si él está ocupado con otra cosa), vas a ver un pequeño punto verde en las sub-pestañas de Aeropuerto y en las píldoras de distrito de TukTuk cuando OTRO hub está trabajando ahí mismo en ese momento — pasá el mouse (o tocá y mantené en celular) sobre esa pestaña para ver quién es.'
+  'Como cualquiera puede ayudar cargando la ciudad de un compañero sin restricción (si él está ocupado con otra cosa), vas a ver un pequeño punto verde en las sub-pestañas de Aeropuerto y en las píldoras de distrito de TukTuk cuando OTRO hub está trabajando ahí mismo en ese momento — pasá el mouse (o tocá y mantené en celular) sobre esa pestaña para ver quién es.'
 )
 calloutBox(
   'Esto es solo informativo',
