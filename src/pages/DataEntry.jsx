@@ -176,6 +176,14 @@ export default function DataEntry() {
   // el flujo normal (carga desde cero). Por-ciudad como el resto del estado.
   const [loadedCombosByCity, setLoadedCombosByCity] = useState({})
 
+  // "Ver lo guardado" (pedido 8, versión acotada): que el hub compare lo que
+  // ve en pantalla contra lo que quedó de verdad persistido en
+  // pricing_observations para SU propia vista/fecha — no un explorador de
+  // data cruda, solo su propio progreso ya guardado.
+  const [showSavedData, setShowSavedData] = useState(false)
+  const [savedRows, setSavedRows] = useState([])
+  const [savedLoading, setSavedLoading] = useState(false)
+
   // Session history
   const [showHistory, setShowHistory] = useState(false)
   const [sessionHistory, setSessionHistory] = useState([])
@@ -447,6 +455,35 @@ export default function DataEntry() {
     setPendingScopeMembers(members && members.length ? members : [uiCity])
     setMsg(null)
   }
+
+  // ── "Ver lo guardado" — lo que YA quedó persistido para la vista/fecha
+  // actual, filtrado a lo que cargó ESTE hub (uploaded_by). Consulta directa
+  // (RLS ya permite SELECT sin restricción de ciudad, no hace falta RPC) —
+  // así el hub puede comparar contra lo que ve en pantalla y avisar si algo
+  // no cuadra, sin exponer el trabajo de otros hubs.
+  async function loadSavedData() {
+    if (!userEmail || !dbCity) return
+    setSavedLoading(true)
+    let q = sb
+      .from('pricing_observations')
+      .select(
+        'category, competition_name, price_without_discount, price_with_discount, observed_time, timeslot'
+      )
+      .eq('country', country)
+      .eq('city', dbCity)
+      .eq('observed_date', date)
+      .eq('uploaded_by', userEmail)
+      .eq('data_source', 'manual')
+    q = zone != null ? q.eq('zone', zone) : q.is('zone', null)
+    const { data } = await q.order('timeslot').order('category').order('competition_name')
+    setSavedRows(data || [])
+    setSavedLoading(false)
+  }
+
+  useEffect(() => {
+    if (showSavedData) loadSavedData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSavedData, bucketKey, date])
 
   // ── Load session history ───────────────────────────────
   async function loadSessionHistory() {
@@ -2722,6 +2759,63 @@ export default function DataEntry() {
           )}
         </div>
       )}
+
+      {/* ── Ver lo guardado (pedido 8) ── */}
+      <div className="de-session-history">
+        <button className="de-history-toggle" onClick={() => setShowSavedData((p) => !p)}>
+          {showSavedData ? '▲' : '▼'} {t('dataentry.view_saved_data')}
+        </button>
+        {showSavedData && (
+          <div className="de-history-body">
+            {savedLoading ? (
+              <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: '12px 0' }}>
+                {t('dataentry.loading_routes')}
+              </div>
+            ) : savedRows.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--color-muted)', padding: '12px 0' }}>
+                {t('dataentry.view_saved_data_empty')}
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="de-history-table">
+                  <thead>
+                    <tr>
+                      <th>{t('dataentry.col_timeslot')}</th>
+                      <th>{t('dataentry.col_category')}</th>
+                      <th>{t('dataentry.col_competitor')}</th>
+                      <th>{t('dataentry.col_price')}</th>
+                      <th>{t('dataentry.col_time')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {savedRows.map((r, i) => (
+                      <tr key={i}>
+                        <td>{r.timeslot || '—'}</td>
+                        <td>{r.category}</td>
+                        <td>{r.competition_name}</td>
+                        <td>
+                          <strong>
+                            {r.price_without_discount != null
+                              ? `S/ ${Number(r.price_without_discount).toFixed(2)}`
+                              : '—'}
+                          </strong>
+                          {r.price_with_discount != null && (
+                            <span style={{ color: 'var(--color-muted)', fontSize: 11 }}>
+                              {' '}
+                              (c/desc S/ {Number(r.price_with_discount).toFixed(2)})
+                            </span>
+                          )}
+                        </td>
+                        <td>{(r.observed_time || '').slice(0, 5) || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Session History ── */}
       <div className="de-session-history">
