@@ -4,6 +4,7 @@ import { Button } from '../components/ui/shadcn/button'
 import { useLiveSessions } from '../hooks/useLiveSessions'
 import { useMonitoringData } from '../hooks/useMonitoringData'
 import { useWeeklyCoverage } from '../hooks/useWeeklyCoverage'
+import { usePriceComplianceAlerts } from '../hooks/usePriceComplianceAlerts'
 import RepresentativityCard from '../components/dashboard/RepresentativityCard'
 import LiveSessionsPanel from '../components/monitoring/LiveSessionsPanel'
 import UnfinishedSessionsPanel from '../components/monitoring/UnfinishedSessionsPanel'
@@ -11,6 +12,7 @@ import HubSummaryTable from '../components/monitoring/HubSummaryTable'
 import DetailTable from '../components/monitoring/DetailTable'
 import CompletedSessionsTable from '../components/monitoring/CompletedSessionsTable'
 import WeeklyCoveragePanel from '../components/monitoring/WeeklyCoveragePanel'
+import PriceComplianceAlerts from '../components/monitoring/PriceComplianceAlerts'
 import '../styles/data-entry.css'
 import '../styles/monitoring.css'
 
@@ -40,6 +42,7 @@ export default function Monitoring() {
     unfinished,
   } = useMonitoringData(country)
   const coverage = useWeeklyCoverage(country)
+  const priceAlerts = usePriceComplianceAlerts(country)
 
   return (
     <div className="de-page">
@@ -50,6 +53,8 @@ export default function Monitoring() {
       </div>
 
       <RepresentativityCard />
+
+      <PriceComplianceAlerts alerts={priceAlerts.alerts} loading={priceAlerts.loading} />
 
       <LiveSessionsPanel live={live} recentInactive={recentInactive} failed={liveFailed} />
 

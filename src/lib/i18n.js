@@ -334,6 +334,10 @@ export const TRANSLATIONS = {
     'monitoring.coverage_col_type': 'Ciudad / tipo de CI',
     'monitoring.coverage_airport_a': 'Aeropuerto A',
     'monitoring.coverage_airport_b': 'Aeropuerto B',
+    'monitoring.price_alerts_title': '⚠ Cumplimiento de precio',
+    'monitoring.price_alerts_subtitle':
+      'Pares configurados en Competitividad que están por debajo del 30% dentro de banda esta semana.',
+    'monitoring.price_alert_line': '{category} vs {competitor}: {pct}% dentro de banda esta semana',
     'monitoring.failed': 'No se pudo cargar el monitoreo (¿tenés cuenta admin y acceso al país?).',
     'monitoring.by_hub': 'Actividad por hub',
     'monitoring.total_rows': '· {n} filas en total',
@@ -343,6 +347,7 @@ export const TRANSLATIONS = {
     'monitoring.no_sessions': 'Sin sesiones en este rango.',
     'monitoring.col_hub': 'Hub',
     'monitoring.col_rows': 'Filas',
+    'monitoring.col_available': 'Disponibles',
     'monitoring.col_cities': 'Ciudades',
     'monitoring.col_days': 'Días',
     'monitoring.col_categories': 'Categorías',
@@ -2497,6 +2502,10 @@ export const TRANSLATIONS = {
     'monitoring.coverage_col_type': 'City / CI type',
     'monitoring.coverage_airport_a': 'Airport A',
     'monitoring.coverage_airport_b': 'Airport B',
+    'monitoring.price_alerts_title': '⚠ Price compliance',
+    'monitoring.price_alerts_subtitle':
+      'Pairs configured in Competitiveness that are below 30% within band this week.',
+    'monitoring.price_alert_line': '{category} vs {competitor}: {pct}% within band this week',
     'monitoring.failed':
       'Could not load monitoring (do you have an admin account and country access?).',
     'monitoring.by_hub': 'Activity by hub',
@@ -2507,6 +2516,7 @@ export const TRANSLATIONS = {
     'monitoring.no_sessions': 'No sessions in this range.',
     'monitoring.col_hub': 'Hub',
     'monitoring.col_rows': 'Rows',
+    'monitoring.col_available': 'Available',
     'monitoring.col_cities': 'Cities',
     'monitoring.col_days': 'Days',
     'monitoring.col_categories': 'Categories',
@@ -4639,6 +4649,10 @@ export const TRANSLATIONS = {
     'monitoring.coverage_col_type': 'Город / тип CI',
     'monitoring.coverage_airport_a': 'Аэропорт А',
     'monitoring.coverage_airport_b': 'Аэропорт Б',
+    'monitoring.price_alerts_title': '⚠ Соответствие цены',
+    'monitoring.price_alerts_subtitle':
+      'Пары, настроенные в разделе Конкурентоспособность, у которых меньше 30% попаданий в диапазон на этой неделе.',
+    'monitoring.price_alert_line': '{category} vs {competitor}: {pct}% в диапазоне на этой неделе',
     'monitoring.failed':
       'Не удалось загрузить мониторинг (есть ли у вас админ-доступ и доступ к стране?).',
     'monitoring.by_hub': 'Активность по хабам',
@@ -4649,6 +4663,7 @@ export const TRANSLATIONS = {
     'monitoring.no_sessions': 'Нет сессий в этом диапазоне.',
     'monitoring.col_hub': 'Хаб',
     'monitoring.col_rows': 'Строки',
+    'monitoring.col_available': 'Доступно',
     'monitoring.col_cities': 'Города',
     'monitoring.col_days': 'Дни',
     'monitoring.col_categories': 'Категории',

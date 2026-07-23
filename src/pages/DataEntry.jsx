@@ -1735,6 +1735,10 @@ export default function DataEntry() {
         ended_at: now.toISOString(),
         duration_minutes: dur,
         rows_saved: payloads.length,
+        // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
+        // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
+        // (mig 155) sin tener que recalcularlo del lado del servidor.
+        total_expected: totalExpected,
       })
       // Limpiar el latido de sesión-activa (mig 146) SOLO si esto cierra la
       // sesión de VERDAD (isFinalInScope) — en Aeropuerto "Ambos", terminar el
