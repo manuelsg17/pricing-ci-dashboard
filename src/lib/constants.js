@@ -836,4 +836,20 @@ export function getYangoDisplayName(country, dbCity, dbCategory) {
   return config?.yangoDisplayName?.[dbCity]?.[dbCategory] || 'Yango'
 }
 
+// Etiqueta ESTABLE del turno (mig 148, DataEntry.jsx — Ingresar CI) a partir
+// de la hora CANÓNICA del timeslot (nunca de la hora real de captura) —
+// replica los mismos cortes que get_time_of_day() en
+// supabase/42_time_of_day_filter.sql, así que si algún día se reconfigura
+// un turno en CITimeslotsConfig, esto sigue derivando bien sin tocar
+// código. Va a la columna `pricing_observations.timeslot` (ya usada por
+// Upload.jsx con estos mismos valores en inglés).
+export function timeslotLabel(hhmm) {
+  if (!hhmm) return null
+  if (hhmm >= '18:00') return 'Evening'
+  if (hhmm >= '14:00') return 'Afternoon'
+  if (hhmm >= '12:00') return 'Midday'
+  if (hhmm >= '06:00') return 'Morning'
+  return 'Early_morning'
+}
+
 // (End of file)

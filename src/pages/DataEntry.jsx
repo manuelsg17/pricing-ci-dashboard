@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { getCiCompetitors, resolveDbParams } from '../lib/constants'
+import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
@@ -1240,7 +1240,7 @@ export default function DataEntry() {
     )
   }
 
-  function buildInsertPayload(r) {
+  function buildInsertPayload(r, capturedTime) {
     const base = {
       city: dbCity,
       category: resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory,
@@ -1250,7 +1250,17 @@ export default function DataEntry() {
       // pero pasamos por normalize por defensa-en-profundidad (idempotente).
       competition_name: normalizeCompetitorName(r.comp, { city: dbCity }),
       observed_date: date,
-      observed_time: r.ts.start_time?.slice(0, 5),
+      // Hora REAL de captura (mig 148) — antes siempre la hora fija del
+      // turno. `timeslot` (abajo) es quien identifica el turno ahora; acá
+      // va la hora real del momento del guardado (Guardar Progreso/
+      // Terminar), una sola marca por click, igual para todas las filas de
+      // ese guardado — no por celda individual.
+      observed_time: capturedTime,
+      // Turno ESTABLE (mig 148): deriva de la hora CANÓNICA del timeslot,
+      // nunca de observed_time — así el DELETE-antes-de-INSERT y el reload
+      // (loadObservationsIntoForm) siguen encontrando la fila sin importar
+      // a qué hora real se guardó.
+      timeslot: timeslotLabel(r.ts.start_time?.slice(0, 5)),
       rush_hour: r.rush,
       surge,
       distance_bracket: r.ref.bracket,
@@ -1336,6 +1346,14 @@ export default function DataEntry() {
     setSaving(true)
     setMsg(null)
 
+    // Hora REAL de captura (mig 148): una sola marca por click de Guardar
+    // Progreso/Terminar, aplicada a TODAS las filas de este guardado — no
+    // por celda individual (el hub puede tipear varios minutos antes de
+    // guardar; trackear por celda sería mucho más invasivo para un
+    // beneficio marginal). `timeslot` (buildInsertPayload) es quien sigue
+    // identificando a qué turno pertenece cada fila.
+    const capturedTime = new Date().toTimeString().slice(0, 5)
+
     // Agrupar por (dbCat, franja) → set de BRACKETS que se re-insertan. El
     // DELETE se acota a ESOS brackets (.in), no a toda la categoría/franja.
     // Antes borraba categoría+franja entera: como varias rutas (brackets)
@@ -1352,13 +1370,18 @@ export default function DataEntry() {
     // se perdía. Acotando por ruta, cada una solo toca sus propias filas.
     const SEP = '\u0001' // separador que no aparece en direcciones/coords
     const routeDels = new Map()
-    const addRoute = (uiCat, dbCat, time, bracket, pa, pb, rz) => {
-      const k = [dbCat, time, bracket, pa ?? '', pb ?? '', rz ?? ''].join(SEP)
+    // `timeslot` acá es la ETIQUETA estable del turno (mig 148: 'Morning'/
+    // 'Midday'/'Evening'), NO la hora real de captura — así el DELETE sigue
+    // encontrando la fila vieja sin importar a qué hora real se guardó cada
+    // vez (antes se acotaba por `observed_time`, que con hora real cambia
+    // en cada guardado y dejaría de matchear → filas duplicadas).
+    const addRoute = (uiCat, dbCat, timeslot, bracket, pa, pb, rz) => {
+      const k = [dbCat, timeslot, bracket, pa ?? '', pb ?? '', rz ?? ''].join(SEP)
       if (!routeDels.has(k))
         routeDels.set(k, {
           uiCat,
           dbCat,
-          time,
+          timeslot,
           bracket,
           pa: pa ?? null,
           pb: pb ?? null,
@@ -1370,7 +1393,7 @@ export default function DataEntry() {
       addRoute(
         r.uiCat,
         dbCat,
-        r.ts.start_time?.slice(0, 5),
+        timeslotLabel(r.ts.start_time?.slice(0, 5)),
         r.ref.bracket,
         r.ref.point_a,
         r.ref.point_b,
@@ -1384,10 +1407,10 @@ export default function DataEntry() {
     // que el hub vació tras reabrir). En "Guardar progreso" NO: un checkpoint nunca
     // borra una ruta que no se está re-guardando — si una ruta cargada quedó a
     // medias, se conserva en BD hasta Terminar (donde ya no se permiten parciales).
-    // loadedCombos = Map de descriptores de ruta {uiCat,dbCat,time,bracket,pa,pb}.
+    // loadedCombos = Map de descriptores de ruta {uiCat,dbCat,timeslot,bracket,pa,pb}.
     if (isFinish && loadedCombos) {
       for (const c of loadedCombos.values())
-        addRoute(c.uiCat, c.dbCat, c.time, c.bracket, c.pa, c.pb, c.zone ?? null)
+        addRoute(c.uiCat, c.dbCat, c.timeslot, c.bracket, c.pa, c.pb, c.zone ?? null)
     }
 
     // Los DELETE por ruta se disparan en PARALELO (Promise.all) para no encadenar
@@ -1409,7 +1432,7 @@ export default function DataEntry() {
           .eq('city', dbCity)
           .eq('category', rt.dbCat)
           .eq('observed_date', date)
-          .eq('observed_time', rt.time)
+          .eq('timeslot', rt.timeslot)
           .eq('distance_bracket', rt.bracket)
           .eq('data_source', 'manual')
           .in('competition_name', visibleNames)
@@ -1439,7 +1462,7 @@ export default function DataEntry() {
       return false
     }
 
-    const payloads = rowsToInsert.map(buildInsertPayload)
+    const payloads = rowsToInsert.map((r) => buildInsertPayload(r, capturedTime))
     const BATCH = 200
     for (let i = 0; i < payloads.length; i += BATCH) {
       const { error: insErr } = await sb
@@ -1663,7 +1686,7 @@ export default function DataEntry() {
     let obsQuery = sb
       .from('pricing_observations')
       .select(
-        'category, competition_name, observed_time, distance_bracket, point_a, point_b, zone, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data, surge'
+        'category, competition_name, observed_time, timeslot, distance_bracket, point_a, point_b, zone, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data, surge'
       )
       .eq('country', country)
       .eq('city', loadDbCity)
@@ -1695,8 +1718,15 @@ export default function DataEntry() {
       const cb = `${r.category}|${r.bracket}`
       refByCatBracket[cb] = cb in refByCatBracket ? null : r
     }
-    const tsByTime = {}
-    for (const ts of timeslots) tsByTime[ts.start_time?.slice(0, 5)] = ts.label
+    // dbTimeslot ('Morning'/'Midday'/'Evening', mig 148) → ts.label ('Mañana'/
+    // 'Tarde'/'Noche'). Filas viejas sin `timeslot` poblado (excepción rara —
+    // el backfill de la mig ya cubrió el histórico) caen al fallback: derivar
+    // el mismo dbTimeslot desde su observed_time canónico con la misma
+    // función que usa buildInsertPayload.
+    const tsByDbTimeslot = {}
+    for (const ts of timeslots) {
+      tsByDbTimeslot[timeslotLabel(ts.start_time?.slice(0, 5))] = ts.label
+    }
     const compMapByCat = {} // uiCat → { nombreNormalizado: nombreCatálogo }
 
     const newEntries = {}
@@ -1724,7 +1754,11 @@ export default function DataEntry() {
           `${row.category}|${row.distance_bracket}|${row.point_a ?? ''}|${row.point_b ?? ''}`
         ] || refByCatBracket[`${row.category}|${row.distance_bracket}`]
       if (!ref) continue
-      const tsLabel = tsByTime[(row.observed_time || '').slice(0, 5)]
+      // dbTimeslot: preferir la columna `timeslot` guardada (mig 148); si es
+      // NULL (fila legacy de antes de la migración), derivarlo de la hora
+      // canónica que esa fila SIEMPRE tuvo hasta ahora en observed_time.
+      const dbTimeslot = row.timeslot || timeslotLabel((row.observed_time || '').slice(0, 5))
+      const tsLabel = tsByDbTimeslot[dbTimeslot]
       if (!tsLabel) continue
 
       if (!compMapByCat[uiCat]) {
@@ -1743,13 +1777,12 @@ export default function DataEntry() {
       const comp = compMapByCat[uiCat][row.competition_name]
       if (!comp) continue
 
-      const rTime = (row.observed_time || '').slice(0, 5)
-      const comboKey = `${row.category}${rTime}${row.distance_bracket}${row.point_a ?? ''}${row.point_b ?? ''}`
+      const comboKey = `${row.category}${dbTimeslot}${row.distance_bracket}${row.point_a ?? ''}${row.point_b ?? ''}`
       if (!combos.has(comboKey))
         combos.set(comboKey, {
           uiCat,
           dbCat: row.category,
-          time: rTime,
+          timeslot: dbTimeslot,
           bracket: row.distance_bracket,
           pa: row.point_a ?? null,
           pb: row.point_b ?? null,
