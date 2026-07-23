@@ -777,11 +777,34 @@ export default function DataEntry() {
   }, [entriesByCity, etaByCity, discByCity, indriveByCity, naByCity])
 
   // ── Indicador "guardado hace Xs" — ticker ──────────────
+  // Corre también con sessionActive solo (sin ningún timestamp todavía): si el
+  // PRIMER latido nunca llega a confirmarse, igual necesitamos que el reloj
+  // avance para que el aviso de "no confirmado" escale a los 3 min (ver
+  // serverConfirmState) — si no, ese caso worst-case se queda congelado sin
+  // avisar nada, justo el escenario que este indicador existe para cubrir.
   useEffect(() => {
-    if (lastDraftSavedAt == null && lastServerOkAt == null) return
+    if (!sessionActive && lastDraftSavedAt == null && lastServerOkAt == null) return
     const id = setInterval(() => setNowTick(Date.now()), 1000)
     return () => clearInterval(id)
-  }, [lastDraftSavedAt, lastServerOkAt])
+  }, [sessionActive, lastDraftSavedAt, lastServerOkAt])
+
+  // Estado del indicador de servidor (header). Referencia de "última vez que
+  // supimos del backend": lastServerOkAt si ya hubo una confirmación real, si
+  // no el inicio de sesión — así, si el PRIMER latido nunca llega a
+  // confirmarse (ej. el hub arrancó con la red caída), el aviso igual escala
+  // a los 3 min en vez de no mostrar nunca nada (antes, sin este fallback,
+  // ese caso worst-case quedaba sin ninguna señal — justo lo que este
+  // indicador existe para prevenir).
+  const serverConfirmState = useMemo(() => {
+    if (!sessionActive) return null
+    const ref = lastServerOkAt ?? sessionStartRef.current
+    if (ref == null) return null
+    const age = nowTick - ref
+    if (age <= LIVE_STALE_MS) {
+      return lastServerOkAt != null ? { kind: 'ok', s: Math.max(0, Math.floor(age / 1000)) } : null
+    }
+    return { kind: 'warn', m: Math.max(1, Math.floor(age / 60_000)) }
+  }, [sessionActive, lastServerOkAt, nowTick])
 
   // ── Borradores sin terminar (todos, por país) ──────────
   // Un "borrador" = una (ciudad, fecha) con datos SIN TERMINAR, guardado solo
@@ -1887,7 +1910,7 @@ export default function DataEntry() {
     if (!p || !p.city) return
     try {
       const failures = heartbeatFailStreakRef.current
-      await sb.rpc('upsert_ci_active_session', {
+      const { error } = await sb.rpc('upsert_ci_active_session', {
         p_country: p.country,
         p_city: p.city,
         p_zone: p.zone,
@@ -1896,6 +1919,10 @@ export default function DataEntry() {
         p_total_expected: p.totalExpected,
         p_recent_failures: failures,
       })
+      // supabase-js NO tira excepción por un error a nivel Postgres/RPC (solo
+      // por fallos de red) — sin este chequeo explícito, un error del lado del
+      // servidor (RLS, función ambigua, etc.) se contaba como latido exitoso.
+      if (error) throw error
       heartbeatFailStreakRef.current = 0
       // Confirmación real de servidor — ver indicador "confirmado en
       // servidor" en el header. Un latido exitoso ya prueba que el backend
@@ -2153,21 +2180,16 @@ export default function DataEntry() {
               el problema de los incidentes de hoy fue que el hub no tenía
               NINGUNA señal, ni buena ni mala. Reusa el mismo umbral de 3 min
               (LIVE_STALE_MS) que ya usa Monitoreo del lado del admin. */}
-          {sessionActive &&
-            lastServerOkAt != null &&
-            (nowTick - lastServerOkAt <= LIVE_STALE_MS ? (
-              <span className="de-server-ok-indicator">
-                {t('dataentry.server_confirmed_ago', {
-                  s: Math.max(0, Math.floor((nowTick - lastServerOkAt) / 1000)),
-                })}
-              </span>
-            ) : (
-              <span className="de-server-warn-indicator">
-                {t('dataentry.server_unconfirmed_warn', {
-                  m: Math.max(1, Math.floor((nowTick - lastServerOkAt) / 60_000)),
-                })}
-              </span>
-            ))}
+          {serverConfirmState?.kind === 'ok' && (
+            <span className="de-server-ok-indicator">
+              {t('dataentry.server_confirmed_ago', { s: serverConfirmState.s })}
+            </span>
+          )}
+          {serverConfirmState?.kind === 'warn' && (
+            <span className="de-server-warn-indicator">
+              {t('dataentry.server_unconfirmed_warn', { m: serverConfirmState.m })}
+            </span>
+          )}
         </div>
       </div>
 
