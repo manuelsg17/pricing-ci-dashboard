@@ -70,7 +70,7 @@ export default function Monitoring() {
         <div className="de-msg de-msg--err">{t('monitoring.failed')}</div>
       ) : (
         <>
-          <UnfinishedSessionsPanel rows={unfinished} />
+          <UnfinishedSessionsPanel rows={unfinished} onClosed={load} />
           <HubSummaryTable byHub={byHub} totalRows={totalRows} />
           <DetailTable detail={detail} />
           <CompletedSessionsTable sessions={sessions} />

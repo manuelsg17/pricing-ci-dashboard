@@ -352,6 +352,11 @@ export const TRANSLATIONS = {
     'monitoring.unfinished_subtitle':
       'El hub guardó progreso pero nunca tocó "Terminar Sesión" — diagnóstico orientativo, no exacto.',
     'monitoring.unfinished_empty': 'No hay progreso guardado sin sesión terminada en este rango.',
+    'monitoring.close_session': 'Cerrar sesión',
+    'monitoring.closing_session': 'Cerrando…',
+    'monitoring.close_session_confirm':
+      '¿Cerrar esta sesión de {hub}? Lo ya guardado no se toca — solo se marca la sesión como cerrada por vos.',
+    'monitoring.close_session_error': 'No se pudo cerrar la sesión. Probá de nuevo.',
     'monitoring.col_zone': 'Distrito',
     'monitoring.freshness_title': 'Última sesión',
     'monitoring.freshness_never': 'Nunca terminó una en este rango',
@@ -2494,6 +2499,11 @@ export const TRANSLATIONS = {
     'monitoring.unfinished_subtitle':
       'The hub saved progress but never tapped "End Session" — best-effort diagnostic, not exact.',
     'monitoring.unfinished_empty': 'No saved progress without a finished session in this range.',
+    'monitoring.close_session': 'Close session',
+    'monitoring.closing_session': 'Closing…',
+    'monitoring.close_session_confirm':
+      "Close this session for {hub}? What's already saved is untouched — this only marks the session as closed by you.",
+    'monitoring.close_session_error': "Couldn't close the session. Try again.",
     'monitoring.col_zone': 'District',
     'monitoring.freshness_title': 'Last session',
     'monitoring.freshness_never': 'Never finished one in this range',
@@ -4617,6 +4627,11 @@ export const TRANSLATIONS = {
       'Хаб сохранил прогресс, но не нажал "Завершить сессию" — приблизительная диагностика.',
     'monitoring.unfinished_empty':
       'Нет сохранённого прогресса без завершённой сессии в этом диапазоне.',
+    'monitoring.close_session': 'Завершить сессию',
+    'monitoring.closing_session': 'Завершение…',
+    'monitoring.close_session_confirm':
+      'Завершить эту сессию для {hub}? Сохранённые данные не тронуты — это только отмечает сессию как закрытую вами.',
+    'monitoring.close_session_error': 'Не удалось завершить сессию. Попробуйте ещё раз.',
     'monitoring.col_zone': 'Район',
     'monitoring.freshness_title': 'Последняя сессия',
     'monitoring.freshness_never': 'Ни разу не завершил в этом диапазоне',
