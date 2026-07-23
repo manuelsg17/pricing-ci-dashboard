@@ -569,6 +569,9 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Marcar toda la fila como "sin data" (no había oferta)',
     'dataentry.missing_cats_note': 'Sin ruta en este bracket para: {cats}.',
     'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
+    'dataentry.server_confirmed_ago': '✓ Confirmado en servidor hace {s}s',
+    'dataentry.server_unconfirmed_warn':
+      '⚠ No pudimos confirmar con el servidor hace {m}m — tu progreso puede estar solo en este navegador',
     'dataentry.other_draft_note': 'Tenés un borrador sin terminar en {city}, {date} ({n} celdas).',
     'dataentry.other_draft_jump': 'Ir ahí',
     'dataentry.other_draft_discard': 'Descartar',
@@ -2657,6 +2660,9 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Mark the whole row as "no data" (no offer)',
     'dataentry.missing_cats_note': 'No route in this bracket for: {cats}.',
     'dataentry.autosaved_ago': 'Autosaved {s}s ago',
+    'dataentry.server_confirmed_ago': '✓ Confirmed on server {s}s ago',
+    'dataentry.server_unconfirmed_warn':
+      "⚠ We couldn't confirm with the server for {m}m — your progress may only be in this browser",
     'dataentry.other_draft_note': 'You have an unfinished draft in {city}, {date} ({n} cells).',
     'dataentry.other_draft_jump': 'Go there',
     'dataentry.other_draft_discard': 'Discard',
@@ -4728,6 +4734,9 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Отметить всю строку как «нет данных» (не было предложения)',
     'dataentry.missing_cats_note': 'Нет маршрута в этом брекете для: {cats}.',
     'dataentry.autosaved_ago': 'Автосохранено {s} с назад',
+    'dataentry.server_confirmed_ago': '✓ Подтверждено сервером {s} с назад',
+    'dataentry.server_unconfirmed_warn':
+      '⚠ Не удалось подтвердить с сервером {m} мин — прогресс может быть сохранён только в этом браузере',
     'dataentry.other_draft_note': 'У вас есть незавершённый черновик в {city}, {date} ({n} ячеек).',
     'dataentry.other_draft_jump': 'Перейти туда',
     'dataentry.other_draft_discard': 'Отменить',

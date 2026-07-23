@@ -9,6 +9,7 @@ import { capIndriveExtraBids } from '../lib/indriveAvg'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
+import { LIVE_STALE_MS } from '../lib/monitoring'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
 import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
@@ -573,6 +574,11 @@ export default function DataEntry() {
   const draftHydratedRef = useRef(false)
   // Indicador "guardado hace Xs" — se lee en el header (progress pill).
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState(null)
+  // Última confirmación REAL de servidor (latido exitoso o guardado
+  // exitoso) — a diferencia de lastDraftSavedAt (solo local), esto le dice
+  // al hub si su progreso está de verdad llegando al backend. Ver render
+  // del indicador más abajo y el motivo en el comentario del latido.
+  const [lastServerOkAt, setLastServerOkAt] = useState(null)
   const [nowTick, setNowTick] = useState(() => Date.now())
 
   useEffect(() => {
@@ -769,10 +775,10 @@ export default function DataEntry() {
 
   // ── Indicador "guardado hace Xs" — ticker ──────────────
   useEffect(() => {
-    if (lastDraftSavedAt == null) return
+    if (lastDraftSavedAt == null && lastServerOkAt == null) return
     const id = setInterval(() => setNowTick(Date.now()), 1000)
     return () => clearInterval(id)
-  }, [lastDraftSavedAt])
+  }, [lastDraftSavedAt, lastServerOkAt])
 
   // ── Borradores sin terminar (todos, por país) ──────────
   // Un "borrador" = una (ciudad, fecha) con datos SIN TERMINAR, guardado solo
@@ -1474,6 +1480,9 @@ export default function DataEntry() {
         return false
       }
     }
+    // Guardado confirmado en servidor de verdad (no solo local) — ver
+    // indicador en el header.
+    setLastServerOkAt(Date.now())
 
     if (isFinish) {
       const now = new Date()
@@ -1877,8 +1886,14 @@ export default function DataEntry() {
         p_filled_count: p.filledCount,
         p_total_expected: p.totalExpected,
       })
+      // Confirmación real de servidor — ver indicador "confirmado en
+      // servidor" en el header. Un latido exitoso ya prueba que el backend
+      // nos escucha, no hace falta esperar a un guardado explícito.
+      setLastServerOkAt(Date.now())
     } catch {
-      /* best-effort: un fallo acá nunca debe interrumpir al hub */
+      /* best-effort: un fallo acá nunca debe interrumpir al hub (el
+         indicador de servidor simplemente no se refresca y va envejeciendo
+         hasta mostrar el aviso — ver umbral abajo) */
     }
   }, [])
 
@@ -2112,6 +2127,27 @@ export default function DataEntry() {
               })}
             </span>
           )}
+
+          {/* Confirmación REAL de servidor (no solo borrador local) —
+              siempre visible mientras hay sesión activa, no solo al fallar:
+              el problema de los incidentes de hoy fue que el hub no tenía
+              NINGUNA señal, ni buena ni mala. Reusa el mismo umbral de 3 min
+              (LIVE_STALE_MS) que ya usa Monitoreo del lado del admin. */}
+          {sessionActive &&
+            lastServerOkAt != null &&
+            (nowTick - lastServerOkAt <= LIVE_STALE_MS ? (
+              <span className="de-server-ok-indicator">
+                {t('dataentry.server_confirmed_ago', {
+                  s: Math.max(0, Math.floor((nowTick - lastServerOkAt) / 1000)),
+                })}
+              </span>
+            ) : (
+              <span className="de-server-warn-indicator">
+                {t('dataentry.server_unconfirmed_warn', {
+                  m: Math.max(1, Math.floor((nowTick - lastServerOkAt) / 60_000)),
+                })}
+              </span>
+            ))}
         </div>
       </div>
 
