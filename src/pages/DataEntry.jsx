@@ -636,9 +636,19 @@ export default function DataEntry() {
             setLastDraftSavedAt(parsed.savedAt || null)
             setMsg({
               type: 'ok',
-              text: `📝 Borrador restaurado (${restored + naArr.length} celdas).`,
+              text: t('dataentry.draft_restored', { n: restored + naArr.length }),
             })
             draftApplied = true
+            // Borrador con data real restaurado — activar sesión (mismo
+            // motivo que el auto-load de servidor en loadObservationsIntoForm):
+            // sessionActive no sobrevive un refresh de página, así que sin
+            // esto el hub ve su grilla llena pero solo "Iniciar Sesión" en
+            // vez de Guardar/Terminar, como si nunca hubiera empezado nada.
+            setSessionActive((prev) => {
+              if (prev) return prev
+              sessionStartRef.current = Date.now()
+              return true
+            })
           }
         }
       } catch {
@@ -886,6 +896,13 @@ export default function DataEntry() {
   }, [country, draftKey, draftScanTick])
 
   function resumeDraft(d) {
+    // Reanudar es una señal explícita de "seguir trabajando" — activar la
+    // sesión ya mismo (mismo criterio que "Abrir" del historial), no esperar
+    // a que la hidratación async lo detecte sola.
+    if (!sessionActive) {
+      sessionStartRef.current = Date.now()
+      setSessionActive(true)
+    }
     if (d.resume?.tukTuk) {
       setUiCity(d.resume.uiCity)
       setActiveTukTuk(d.resume.zone)
@@ -1881,6 +1898,17 @@ export default function DataEntry() {
     if (!silent || mapped > 0) {
       setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
     }
+    // Si se cargó data real, la sesión pasa a activa — si no, el hub ve su
+    // grilla llena (celdas con precios, contador de progreso > 0) pero solo
+    // el botón "Iniciar Sesión" en vez de Guardar/Terminar, como si nunca
+    // hubiera arrancado nada (pasa siempre que recarga la página con datos
+    // ya guardados: sessionActive es estado de React, no sobrevive un
+    // refresh). "Abrir" desde Historial ya lo activa explícito antes de
+    // llegar acá; esto cubre el auto-load silencioso al reabrir.
+    if (mapped > 0 && !sessionActive) {
+      sessionStartRef.current = Date.now()
+      setSessionActive(true)
+    }
   }
 
   // ── Total expected rows ────────────────────────────────
@@ -1912,7 +1940,17 @@ export default function DataEntry() {
   // RPC upsert_ci_active_session). Nunca debe afectar el flujo real del hub:
   // todo en try/catch silencioso, jamás toca setMsg ni bloquea el guardado.
   const heartbeatRef = useRef(null)
-  heartbeatRef.current = { country, city: dbCity, zone, date, filledCount, totalExpected }
+  heartbeatRef.current = {
+    country,
+    city: dbCity,
+    zone,
+    date,
+    filledCount,
+    totalExpected,
+    // Desglose por turno (mig 150) — para que Monitoreo muestre en qué
+    // turno está cada hub, no solo el total agregado.
+    turnoProgress: { total_per_turno: totalExpectedPerTimeslot, filled: filledByTimeslot },
+  }
   // Fallos de latido consecutivos (mig 149) — contador puramente local, se
   // reporta en el próximo latido exitoso para que Monitoreo (admin) pueda
   // distinguir "esta sesión tuvo problemas intermitentes de red" de "el hub
@@ -1932,6 +1970,7 @@ export default function DataEntry() {
         p_filled_count: p.filledCount,
         p_total_expected: p.totalExpected,
         p_recent_failures: failures,
+        p_turno_progress: p.turnoProgress,
       })
       // supabase-js NO tira excepción por un error a nivel Postgres/RPC (solo
       // por fallos de red) — sin este chequeo explícito, un error del lado del

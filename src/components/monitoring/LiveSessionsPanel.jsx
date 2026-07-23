@@ -45,6 +45,25 @@ function SessionCard({ s, t, live }) {
         </div>
         <span className="mon-session-card__ago">{timeAgoLabel(s.last_seen_at, t)}</span>
       </div>
+
+      {/* Desglose por turno (mig 150) — la grilla de Ingresar CI se llena
+          turno por turno (Mañana→Tarde→Noche); el total agregado de arriba
+          no dice si el hub recién arrancó la mañana o quedó trabado en la
+          noche. Null en sesiones de antes de esta mig, o si el cliente
+          nunca llegó a mandar un latido con la data nueva. */}
+      {s.turno_progress?.filled && (
+        <div className="mon-session-card__turnos">
+          {Object.entries(s.turno_progress.filled).map(([label, filled]) => {
+            const total = s.turno_progress.total_per_turno || 0
+            const state = total > 0 && filled >= total ? 'done' : filled > 0 ? 'partial' : 'empty'
+            return (
+              <span key={label} className={`mon-turno-chip mon-turno-chip--${state}`}>
+                {label} {filled}/{total}
+              </span>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

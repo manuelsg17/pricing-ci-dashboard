@@ -553,6 +553,7 @@ export const TRANSLATIONS = {
     'dataentry.loading_session': 'Cargando sesión…',
     'dataentry.session_loaded':
       'Sesión cargada ({n} celdas). Podés editar o agregar y volver a guardar.',
+    'dataentry.draft_restored': '📝 Borrador restaurado ({n} celdas).',
     'dataentry.err_load_session': 'No se pudo cargar la sesión:',
     'dataentry.err_finish': 'Para terminar la sesión, todas las filas deben estar llenas.',
     'dataentry.err_finish_need_timeslot':
@@ -2651,6 +2652,7 @@ export const TRANSLATIONS = {
     'dataentry.open_session_title': 'Open this session to edit or add data',
     'dataentry.loading_session': 'Loading session…',
     'dataentry.session_loaded': 'Session loaded ({n} cells). You can edit or add and save again.',
+    'dataentry.draft_restored': '📝 Draft restored ({n} cells).',
     'dataentry.err_load_session': 'Could not load the session:',
     'dataentry.err_finish': 'To end the session, all rows must be filled.',
     'dataentry.err_finish_need_timeslot':
@@ -4735,6 +4737,7 @@ export const TRANSLATIONS = {
     'dataentry.loading_session': 'Загрузка сессии…',
     'dataentry.session_loaded':
       'Сессия загружена ({n} ячеек). Можно редактировать/добавлять и сохранить снова.',
+    'dataentry.draft_restored': '📝 Черновик восстановлен ({n} ячеек).',
     'dataentry.err_load_session': 'Не удалось загрузить сессию:',
     'dataentry.err_finish': 'Для завершения сессии все строки должны быть заполнены.',
     'dataentry.err_finish_need_timeslot':

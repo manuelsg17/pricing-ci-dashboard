@@ -116,6 +116,35 @@
   white-space: nowrap;
 }
 
+/* Desglose por turno (mig 150) — chips chicos debajo de la barra de
+   progreso agregada, uno por turno (Mañana/Tarde/Noche). */
+.mon-session-card__turnos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.mon-turno-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  background: #fff;
+  white-space: nowrap;
+}
+.mon-turno-chip--done {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+  border-color: var(--color-success-border);
+}
+.mon-turno-chip--partial {
+  background: #fef3c7;
+  color: var(--color-warning-fg);
+  border-color: var(--color-warning-border);
+}
+
 .mon-status-dot {
   width: 8px;
   height: 8px;
