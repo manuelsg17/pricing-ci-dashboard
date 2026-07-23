@@ -2077,6 +2077,36 @@ export default function DataEntry() {
     return n
   }, [refsByUICat, categories, uiCity, country, dbConfigs])
 
+  // ── Presencia: "quién más está acá ahora" (pedidos 2, 3, 4) ────────────
+  // Lectura liviana vía RPC (mig 152, SECURITY DEFINER — el RLS normal de
+  // ci_active_sessions solo deja ver la fila propia) para avisar, SIN
+  // bloquear nada, si otro hub está trabajando el mismo Punto de Aeropuerto
+  // o el mismo distrito de TukTuk ahora mismo. La flexibilidad de
+  // redistribuirse entre hubs es intencional (pedido 2) — esto es solo
+  // visibilidad para coordinarse, nunca un candado.
+  const [presence, setPresence] = useState([])
+  const relevantForPresence = !!activeAirportMembers || isTukTuk
+  useEffect(() => {
+    if (!relevantForPresence || !country) return
+    let cancelled = false
+    const fetchPresence = () => {
+      sb.rpc('get_active_sessions_presence', { p_country: country }).then(({ data, error }) => {
+        if (!cancelled && !error) setPresence(data || [])
+      })
+    }
+    fetchPresence()
+    const id = setInterval(fetchPresence, 20_000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [relevantForPresence, country])
+
+  // Hubs (≠ yo, ya excluidos por la RPC) activos ahora mismo en esa
+  // ciudad/zona EXACTA — misma identidad que usa ci_active_sessions.
+  const presenceFor = (city, zone) =>
+    presence.filter((p) => p.city === city && (p.zone ?? null) === (zone ?? null))
+
   // ── Latido de sesión activa (para Monitoreo) ───────────
   // Mientras sessionActive, avisa periódicamente "sigo acá, en tal ciudad/
   // distrito, con tanto progreso" — ver mig 146 (tabla ci_active_sessions +
@@ -2339,12 +2369,21 @@ export default function DataEntry() {
                 sessionActive &&
                 pendingScopeMembers.length > 0 &&
                 !pendingScopeMembers.includes(m.uiCity)
+              const here = presenceFor(m.uiCity, null)
               return (
                 <button
                   key={m.uiCity}
                   className={`de-airport-subtab${uiCity === m.uiCity ? ' active' : ''}${locked ? ' de-airport-subtab--locked' : ''}`}
                   aria-disabled={locked}
-                  title={locked ? t('dataentry.scope_point_locked') : undefined}
+                  title={
+                    locked
+                      ? t('dataentry.scope_point_locked')
+                      : here.length
+                        ? t('dataentry.presence_here', {
+                            who: here.map((p) => p.user_email).join(', '),
+                          })
+                        : undefined
+                  }
                   onClick={() => {
                     if (locked) return
                     setUiCity(m.uiCity)
@@ -2357,6 +2396,7 @@ export default function DataEntry() {
                   )}
                   Punto {m.side}
                   {n > 0 && <span className="de-airport-subtab-badge">{n}</span>}
+                  {here.length > 0 && <span className="de-presence-dot" aria-hidden="true" />}
                 </button>
               )
             })}
@@ -2391,12 +2431,21 @@ export default function DataEntry() {
                 const bk = `TT~${dbCity}~${d}`
                 const n = countAllFilled(entriesByCity[bk], indriveByCity[bk])
                 const enabled = isTukTukDistrictEnabled(d)
+                const here = presenceFor(dbCity, d)
                 return (
                   <button
                     key={d}
                     className={`de-airport-subtab${activeTukTuk === d ? ' active' : ''}${enabled ? '' : ' de-airport-subtab--locked'}`}
                     aria-disabled={!enabled}
-                    title={enabled ? undefined : t('dataentry.tuktuk_district_locked')}
+                    title={
+                      !enabled
+                        ? t('dataentry.tuktuk_district_locked')
+                        : here.length
+                          ? t('dataentry.presence_here', {
+                              who: here.map((p) => p.user_email).join(', '),
+                            })
+                          : undefined
+                    }
                     onClick={() => {
                       if (!enabled) return
                       setActiveTukTuk(d)
@@ -2408,6 +2457,7 @@ export default function DataEntry() {
                     )}
                     {d}
                     {n > 0 && <span className="de-airport-subtab-badge">{n}</span>}
+                    {here.length > 0 && <span className="de-presence-dot" aria-hidden="true" />}
                   </button>
                 )
               })

@@ -526,6 +526,7 @@ export const TRANSLATIONS = {
     'dataentry.scope_expand': '+ agregar el otro punto',
     'dataentry.scope_point_done':
       'Punto guardado ({n}) — completá el otro punto declarado para terminar la sesión',
+    'dataentry.presence_here': '{who} está trabajando acá ahora',
     'dataentry.date': 'Fecha',
     'dataentry.surge': 'Surge',
     'dataentry.session_history': '📋 Historial de Sesiones',
@@ -2662,6 +2663,7 @@ export const TRANSLATIONS = {
     'dataentry.scope_expand': '+ add the other point',
     'dataentry.scope_point_done':
       'Point saved ({n}) — finish the other declared point to end the session',
+    'dataentry.presence_here': '{who} is working here right now',
     'dataentry.saving': 'Saving…',
     'dataentry.date': 'Date',
     'dataentry.surge': 'Surge',
@@ -4783,6 +4785,7 @@ export const TRANSLATIONS = {
     'dataentry.scope_expand': '+ добавить вторую точку',
     'dataentry.scope_point_done':
       'Точка сохранена ({n}) — завершите вторую заявленную точку, чтобы закончить сессию',
+    'dataentry.presence_here': '{who} сейчас работает здесь',
     'dataentry.saving': 'Сохранение…',
     'dataentry.date': 'Дата',
     'dataentry.surge': 'Surge',

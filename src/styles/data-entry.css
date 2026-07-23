@@ -199,6 +199,17 @@
   flex-shrink: 0;
 }
 
+/* Presencia: otro hub activo ahora mismo en este Punto/distrito (mig 152) —
+   puramente informativo, nunca bloquea nada. */
+.de-presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px #fff;
+  flex-shrink: 0;
+}
+
 /* Selector de alcance de sesión en Aeropuerto (Punto A / Punto B / Ambos),
    antes de "Iniciar Sesión" — mismo look que las sub-pestañas. */
 .de-scope-picker {
