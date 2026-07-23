@@ -6448,7 +6448,12 @@ export function translate(lang, key, vars) {
   let entry = TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS['es']?.[key] ?? key
 
   if (entry && typeof entry === 'object') {
-    const count = vars?.count ?? 0
+    // Todos los call-sites del repo pasan {n: X} para pluralizar, nunca
+    // {count: X} — sin este fallback, `count` siempre caía a 0 y la
+    // pluralización quedaba fija en 'other' sin importar el valor real
+    // (ej. "1 borradores" en vez de "1 borrador"). Detectado en revisión
+    // adversarial 2026-07-23.
+    const count = vars?.count ?? vars?.n ?? 0
     const rule = pluralForm(lang, count)
     entry = entry[rule] ?? entry.other ?? Object.values(entry)[0] ?? key
   }
