@@ -29,6 +29,14 @@ function addPageIfNeeded(minSpace = 20) {
 }
 
 function h1(text) {
+  // Bug real: la barra roja se dibuja como un rectángulo OPACO de ancho
+  // completo empezando 8mm ARRIBA de `y` — sin este margen extra, cuando
+  // `y` quedaba a solo ~7mm de la última línea del párrafo anterior (el
+  // espaciado normal entre párrafos), el rectángulo pintaba encima de esa
+  // línea y la tapaba (visible como texto cortado justo antes de cada
+  // título de sección). Este margen garantiza separación real sin importar
+  // qué haya justo antes.
+  y += 6
   addPageIfNeeded(30)
   doc.setFillColor(...YANGO_RED)
   doc.rect(0, y - 8, PAGE_W, 12, 'F')
@@ -94,6 +102,9 @@ function table(head, body, opts = {}) {
 }
 
 function calloutBox(title, text, color = [254, 243, 199]) {
+  // Mismo margen defensivo que h1() — el recuadro también es un fondo
+  // opaco que arranca arriba de `y`.
+  y += 4
   addPageIfNeeded(24)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
