@@ -5,13 +5,14 @@ import { useState } from 'react'
 // puede colapsar como bloque completo — independiente del colapso por-ruta
 // que ya tiene BracketRouteGroup adentro (dos niveles de colapso sin
 // relación entre sí).
-export default function TurnoSection({ timeslot, filled, total, children }) {
+export default function TurnoSection({ timeslot, filled, total, hasErrors, children }) {
   const [open, setOpen] = useState(true)
+  const done = total > 0 && filled >= total
   return (
     <section className="de-turno-section">
       <button
         type="button"
-        className="de-turno-header"
+        className={`de-turno-header${done ? ' de-turno-header--done' : ''}`}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
@@ -22,7 +23,15 @@ export default function TurnoSection({ timeslot, filled, total, children }) {
         <span className="de-turno-time">
           {timeslot.start_time?.slice(0, 5)}–{timeslot.end_time?.slice(0, 5)}
         </span>
-        <span className="de-turno-progress">
+        {/* Colapsado + con celdas en error: el hub no puede verlas para
+            saber qué falta — avisar en la cabecera misma. */}
+        {!open && hasErrors && (
+          <span className="de-turno-error-badge" aria-hidden="true" title="Hay filas a medias">
+            ⚠
+          </span>
+        )}
+        <span className={`de-turno-progress${done ? ' de-turno-progress--done' : ''}`}>
+          {done ? '✓ ' : ''}
           {filled}/{total}
         </span>
       </button>

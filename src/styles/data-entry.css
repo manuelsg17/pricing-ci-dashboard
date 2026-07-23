@@ -199,6 +199,20 @@
   flex-shrink: 0;
 }
 
+/* Aviso proactivo de distrito TukTuk bloqueado — se ve ANTES de que el hub
+   llene toda la grilla, no recién al tocar Guardar/Terminar. */
+.de-locked-district-banner {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: #fef3c7;
+  color: var(--color-warning-fg);
+  border: 1px solid var(--color-warning-border);
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+}
+
 /* Controls row */
 .de-session-controls {
   display: flex;
@@ -839,6 +853,22 @@
   background: var(--color-bg-subtle);
   border-radius: 999px;
   padding: 2px 10px;
+}
+/* Turno 100% completo — para que el hub pueda "escanear" de un vistazo
+   cuál turno ya cerró sin tener que leer los números uno por uno. */
+.de-turno-progress--done {
+  color: var(--color-success-fg);
+  background: var(--color-success-bg);
+}
+.de-turno-header--done .de-turno-label {
+  color: var(--color-success-fg);
+}
+
+/* Aviso de filas a medias en un turno COLAPSADO — sin esto esas celdas en
+   rojo quedan fuera de vista y el hub no sabe que faltan. */
+.de-turno-error-badge {
+  font-size: 13px;
+  color: var(--color-danger-fg);
 }
 
 .de-turno-body {

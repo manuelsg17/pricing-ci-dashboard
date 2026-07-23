@@ -568,12 +568,20 @@ export default function DataEntry() {
   }, [pendingLoad, refsLoading, refsDbCity, dbCity, date, refs, zone, bucketKey])
 
   // ── Autosave a localStorage (draft) ────────────────────
-  // Clave por (country, uiCity, date). Restaura al cambiar a una clave con
-  // borrador existente; persiste cada cambio con debounce 2s; limpia tras
-  // guardado exitoso a Supabase (ver handleSave / handleSaveProgress).
-  // viewId = uiCity en vistas normales (sin cambios) o `TT~<dbCity>~<distrito>`
-  // en TukTuk, para que cada distrito tenga su propio borrador.
-  const draftKey = `de:draft:${country}:${viewId}:${date}`
+  // Clave por (usuario, country, uiCity, date). Restaura al cambiar a una
+  // clave con borrador existente; persiste cada cambio con debounce 2s;
+  // limpia tras guardado exitoso a Supabase (ver handleSave /
+  // handleSaveProgress). viewId = uiCity en vistas normales (sin cambios) o
+  // `TT~<dbCity>~<distrito>` en TukTuk, para que cada distrito tenga su
+  // propio borrador.
+  // El userEmail en la clave es DELIBERADO (revisión adversarial
+  // 2026-07-23): localStorage es por NAVEGADOR, no por cuenta — en una
+  // laptop compartida entre varios hub experts, sin esto el borrador de un
+  // hub se restauraba solo como si fuera del hub que abrió sesión después,
+  // sin aclarar de quién era. Ver migración de borradores viejos (sin
+  // email) más abajo, para no perder trabajo en curso al desplegar esto.
+  const draftKey = `de:draft:${userEmail}:${country}:${viewId}:${date}`
+  const legacyDraftKey = `de:draft:${country}:${viewId}:${date}`
   const draftHydratedRef = useRef(false)
   // Indicador "guardado hace Xs" — se lee en el header (progress pill).
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState(null)
@@ -612,7 +620,21 @@ export default function DataEntry() {
       hydratedCitiesRef.current.add(targetCity)
       let draftApplied = false
       try {
-        const raw = localStorage.getItem(draftKey)
+        let raw = localStorage.getItem(draftKey)
+        // Migración única de borradores del formato viejo (sin email, previo
+        // a la revisión de aislamiento por usuario) — adoptarlo para QUIEN
+        // esté mirando esta ciudad+fecha ahora mismo, igual que ya pasaba de
+        // hecho hasta hoy, pero de acá en más queda escrito bajo la clave
+        // nueva (por usuario) y la vieja se borra — no vuelve a ser visible
+        // para otro hub que entre después en la misma compu.
+        let migratedFromLegacy = false
+        if (!raw && userEmail) {
+          const legacyRaw = localStorage.getItem(legacyDraftKey)
+          if (legacyRaw) {
+            raw = legacyRaw
+            migratedFromLegacy = true
+          }
+        }
         if (raw) {
           const parsed = JSON.parse(raw)
           const etaFilled = countFilledEntries(parsed.etaEntries)
@@ -649,6 +671,14 @@ export default function DataEntry() {
               sessionStartRef.current = Date.now()
               return true
             })
+          }
+        }
+        if (migratedFromLegacy && draftApplied) {
+          try {
+            localStorage.setItem(draftKey, raw)
+            localStorage.removeItem(legacyDraftKey)
+          } catch {
+            /* si falla la migración, el borrador legacy sigue disponible la próxima vez */
           }
         }
       } catch {
@@ -830,7 +860,14 @@ export default function DataEntry() {
   const [draftScanTick, setDraftScanTick] = useState(0)
 
   useEffect(() => {
-    const prefix = `de:draft:${country}:`
+    // Acotado por usuario (ver draftKey) — así en una laptop compartida cada
+    // hub solo ve sus PROPIOS borradores pendientes, nunca los de otro hub
+    // que haya usado la misma compu antes con su propia cuenta.
+    if (!userEmail) {
+      setActiveDrafts([])
+      return
+    }
+    const prefix = `de:draft:${userEmail}:${country}:`
     const list = []
     for (let i = 0; i < localStorage.length; i++) {
       // Try/catch POR CLAVE — un borrador corrupto no debe abortar el escaneo
@@ -1199,6 +1236,19 @@ export default function DataEntry() {
     return m
   }, [entries, indriveExtra, naKeys, timeslots])
 
+  // Qué turnos tienen celdas marcadas en error (rojo) — para avisar en la
+  // cabecera del TurnoSection cuando está COLAPSADO y esas celdas quedan
+  // fuera de vista (revisión adversarial 2026-07-23: antes el hub no tenía
+  // forma de saber que un turno colapsado tenía filas a medias).
+  const errorsByTimeslot = useMemo(() => {
+    const m = {}
+    for (const k of errorKeys) {
+      const tsLabel = k.split('|')[2]
+      m[tsLabel] = true
+    }
+    return m
+  }, [errorKeys])
+
   // Borradores DISTINTOS al de la vista actual (para el banner de la lista,
   // TODOS los tipos) y si llegamos al tope. blockNewSlot: la vista actual está
   // vacía Y ya hay MAX_DRAFTS borradores en OTRAS ciudades/fechas → hay que
@@ -1520,7 +1570,11 @@ export default function DataEntry() {
     )
     const delErr = delResults.find((r) => r && r.error)?.error
     if (delErr) {
-      setMsg({ type: 'err', text: `Error al limpiar: ${delErr.message}` })
+      // Mensaje ACCIONABLE para el hub (no el .message crudo de Postgres —
+      // jerga técnica tipo "duplicate key value violates..." no le dice qué
+      // hacer). El detalle técnico va a consola para diagnóstico nuestro.
+      console.error('[performSave] delete error:', delErr)
+      setMsg({ type: 'err', text: t('dataentry.err_save_failed') })
       setSaving(false)
       return false
     }
@@ -1532,7 +1586,8 @@ export default function DataEntry() {
         .from('pricing_observations')
         .insert(payloads.slice(i, i + BATCH))
       if (insErr) {
-        setMsg({ type: 'err', text: `Error al insertar: ${insErr.message}` })
+        console.error('[performSave] insert error:', insErr)
+        setMsg({ type: 'err', text: t('dataentry.err_save_failed') })
         setSaving(false)
         return false
       }
@@ -1583,12 +1638,12 @@ export default function DataEntry() {
       setElapsed('00:00')
       setMsg({
         type: 'ok',
-        text: `✓ Sesión completada en ${dur} min. ${payloads.length} registros guardados.`,
+        text: t('dataentry.session_finished', { min: dur, n: payloads.length }),
       })
     } else {
       setMsg({
         type: 'ok',
-        text: `✓ ${payloads.length} registros guardados. Puedes seguir completando.`,
+        text: t('dataentry.progress_saved', { n: payloads.length }),
       })
     }
 
@@ -1714,6 +1769,21 @@ export default function DataEntry() {
 
   // ── Abrir una sesión pasada para editar/agregar ───────
   function openHistorySession(s) {
+    // Reabrir la MISMA sesión que ya está en pantalla (misma ciudad/fecha/
+    // zona) es un no-op peligroso: como dbCity/date/zone no cambian, el
+    // effect de pendingLoad se dispara YA (nada que esperar) y
+    // loadObservationsIntoForm SOBREESCRIBE entriesByCity con lo último
+    // guardado en servidor — sin fusionar. Cualquier cambio tipeado después
+    // del último "Guardar progreso" (aunque ya viva en el borrador local)
+    // se perdía en silencio, y el próximo autosave lo confirmaba borrado.
+    // Detectado en revisión adversarial 2026-07-23. Si es la misma sesión,
+    // no hay nada que recargar: lo que se ve en pantalla YA es lo más
+    // reciente.
+    if (s.city === dbCity && s.observed_date === date && (s.zone ?? null) === (zone ?? null)) {
+      setShowHistory(false)
+      setMsg({ type: 'ok', text: t('dataentry.already_viewing_session') })
+      return
+    }
     const targetUi = dbCityToUiCity[s.city] || s.city
     // Arrancar una sesión para que aparezcan Guardar/Terminar y el HP pueda
     // editar y re-guardar (el guardado es idempotente: DELETE+INSERT por
@@ -2037,7 +2107,7 @@ export default function DataEntry() {
         <div className="de-header__left">
           <h1>{t('dataentry.title')}</h1>
           {sessionActive && (
-            <div className="de-timer de-timer--active" title="Sesión en curso">
+            <div className="de-timer de-timer--active" title={t('dataentry.timer_title')}>
               ⏱ {elapsed}
             </div>
           )}
@@ -2199,6 +2269,16 @@ export default function DataEntry() {
           </div>
         )}
 
+        {/* Aviso proactivo si la vista activa es un distrito TukTuk
+            bloqueado (llegado por Reanudar/Abrir Historial, que no pasan
+            por el candado de la pill) — antes el hub solo se enteraba al
+            tocar Guardar/Terminar, después de llenar toda la grilla. */}
+        {isTukTuk && zone && !isTukTukDistrictEnabled(zone) && (
+          <div className="de-locked-district-banner">
+            {t('dataentry.tuktuk_district_locked_banner', { zone })}
+          </div>
+        )}
+
         <div className="de-session-controls">
           <label className="de-ctrl">
             <span>{t('dataentry.date')}</span>
@@ -2310,6 +2390,7 @@ export default function DataEntry() {
               timeslot={ts}
               filled={filledByTimeslot[ts.label] || 0}
               total={totalExpectedPerTimeslot}
+              hasErrors={!!errorsByTimeslot[ts.label]}
             >
               {refsByBracket.map(({ bracket, groups, extras }) => (
                 <div key={bracket} className="de-bracket-section">

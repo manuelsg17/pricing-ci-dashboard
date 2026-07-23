@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '../ui/shadcn/button'
 import { sanitizeDecimalInput } from '../../lib/format'
 import { calcIndriveAvg } from '../../lib/indriveAvg'
+import { useI18n } from '../../context/LanguageContext'
 
 // Mig 136: bid_4/bid_5 re-agregados a pricing_observations — cap en 5 bids
 // (ver Upload.jsx / algorithms/indrive.js / lib/indriveAvg.js, mismo criterio).
@@ -19,6 +20,7 @@ import { calcIndriveAvg } from '../../lib/indriveAvg'
 const MAX_BIDS = 5
 
 export default function InDriveCell({ avg, extra, onChange, hasError }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const bids = extra?.bids || ['']
@@ -56,13 +58,13 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
           type="text"
           value={avg || rec}
           readOnly
-          placeholder="Prom."
+          placeholder={t('indrivecell.avg_placeholder')}
           title={
             avg
-              ? 'Promedio calculado automáticamente'
+              ? t('indrivecell.avg_title_auto')
               : rec
-                ? 'Sin bids: se usa el precio recomendado'
-                : 'Promedio calculado automáticamente'
+                ? t('indrivecell.avg_title_rec_only')
+                : t('indrivecell.avg_title_auto')
           }
           style={{ background: avg ? '#f0fdf4' : rec ? '#fffbeb' : undefined, cursor: 'default' }}
         />
@@ -72,7 +74,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
           size="icon"
           className="h-[22px] w-[22px] shrink-0 rounded-sm border-border bg-[var(--color-bg-subtle)] p-0 text-[9px] text-muted hover:border-yango hover:bg-[var(--color-yango-mid)]"
           onClick={() => setOpen((o) => !o)}
-          title={open ? 'Cerrar bids' : 'Agregar bids'}
+          title={open ? t('indrivecell.toggle_close') : t('indrivecell.toggle_open')}
         >
           {open ? '▲' : '▼'}
         </Button>
@@ -81,12 +83,12 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
       {open && (
         <div className="indrive-bids-panel">
           <div className="indrive-bids-head">
-            <span className="indrive-bids-title">Bids InDrive</span>
+            <span className="indrive-bids-title">{t('indrivecell.bids_title')}</span>
             <button
               type="button"
               className="indrive-help-btn"
               onClick={() => setShowHelp((h) => !h)}
-              title="¿Qué son los bids y el recomendado?"
+              title={t('indrivecell.help_title')}
             >
               {showHelp ? '✕' : '?'}
             </button>
@@ -94,33 +96,21 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
 
           {showHelp && (
             <div className="indrive-help">
-              <p>
-                En InDrive cada conductor ofrece un precio (un <strong>bid</strong>). Anotá cada
-                oferta que veas en la app, hasta 5. El <strong>Promedio</strong> (la casilla verde)
-                se calcula solo con los bids y es el precio SIN descuento de la celda.
-              </p>
-              <p>
-                <strong>Recomendado</strong> = el precio que <u>recomienda</u> la app de InDrive. No
-                entra al promedio. Si en ese momento <u>no hay ningún bid</u>, anotá solo el
-                recomendado: se usa como precio de la celda.
-              </p>
+              <p>{t('indrivecell.help_p1')}</p>
+              <p>{t('indrivecell.help_p2')}</p>
               <div className="indrive-help-example">
-                <div className="indrive-help-example-title">Ejemplo</div>
-                <div>Recomendado 14.00 · Bid 1 = 15 · Bid 2 = 13 · Bid 3 = 17</div>
-                <div>
-                  Promedio = (15 + 13 + 17) ÷ 3 = <strong>15.00</strong> &nbsp;(el recomendado no
-                  cuenta)
+                <div className="indrive-help-example-title">
+                  {t('indrivecell.help_example_title')}
                 </div>
+                <div>{t('indrivecell.help_example_line1')}</div>
+                <div>{t('indrivecell.help_example_line2')}</div>
               </div>
             </div>
           )}
 
           <div className="indrive-bid-row">
-            <span
-              className="indrive-bid-label"
-              title="Precio que recomienda la app de InDrive — no entra al promedio; si no hay bids, se usa como precio de la celda"
-            >
-              RECOMENDADO
+            <span className="indrive-bid-label" title={t('indrivecell.recommended_title')}>
+              {t('indrivecell.recommended_label')}
             </span>
             <input
               type="text"
@@ -133,7 +123,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
           </div>
           {bids.map((b, i) => (
             <div key={i} className="indrive-bid-row">
-              <span className="indrive-bid-label">Bid {i + 1}</span>
+              <span className="indrive-bid-label">{t('indrivecell.bid_label', { n: i + 1 })}</span>
               <input
                 type="text"
                 inputMode="decimal"
@@ -163,7 +153,7 @@ export default function InDriveCell({ avg, extra, onChange, hasError }) {
               className="mt-0.5 h-auto rounded-sm border-dashed border-yango bg-transparent px-1.5 py-0.5 text-[10px] font-bold text-yango hover:bg-[var(--color-yango-mid)]"
               onClick={addBid}
             >
-              + Bid
+              {t('indrivecell.add_bid_btn')}
             </Button>
           )}
         </div>

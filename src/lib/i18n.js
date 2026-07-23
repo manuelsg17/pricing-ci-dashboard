@@ -554,7 +554,14 @@ export const TRANSLATIONS = {
     'dataentry.session_loaded':
       'Sesión cargada ({n} celdas). Podés editar o agregar y volver a guardar.',
     'dataentry.draft_restored': '📝 Borrador restaurado ({n} celdas).',
+    'dataentry.already_viewing_session':
+      'Ya estás viendo esta sesión — lo que ves en pantalla es lo más reciente.',
     'dataentry.err_load_session': 'No se pudo cargar la sesión:',
+    'dataentry.err_save_failed':
+      'No se pudo guardar en el servidor. Tu progreso sigue en este navegador — probá de nuevo en un momento, o avisá a tu supervisor si sigue fallando.',
+    'dataentry.session_finished': '✓ Sesión completada en {min} min. {n} registros guardados.',
+    'dataentry.progress_saved': '✓ {n} registros guardados. Podés seguir completando.',
+    'dataentry.timer_title': 'Sesión en curso',
     'dataentry.err_finish': 'Para terminar la sesión, todas las filas deben estar llenas.',
     'dataentry.err_finish_need_timeslot':
       'Para terminar la sesión, completá al menos un turno entero (Mañana, Tarde o Noche) con todos sus brackets.',
@@ -607,8 +614,32 @@ export const TRANSLATIONS = {
     'dataentry.tuktuk_no_districts':
       'No hay distritos de TukTuk cargados. Agregalos en Distancias de Referencia.',
     'dataentry.tuktuk_district_locked': 'Distrito aún no habilitado para ingresar CI',
+    'dataentry.tuktuk_district_locked_banner':
+      '🔒 {zone} todavía no está habilitado para ingresar CI — lo que cargues acá no se va a poder guardar.',
     'dataentry.err_tuktuk_district_locked':
       'Este distrito está bloqueado para nuevas entradas de CI. Contactá a tu supervisor si necesitás una excepción.',
+
+    // ── InDrive cell (Ingresar CI) ──────────────────────
+    'indrivecell.avg_placeholder': 'Prom.',
+    'indrivecell.avg_title_auto': 'Promedio calculado automáticamente',
+    'indrivecell.avg_title_rec_only': 'Sin bids: se usa el precio recomendado',
+    'indrivecell.toggle_close': 'Cerrar bids',
+    'indrivecell.toggle_open': 'Agregar bids',
+    'indrivecell.bids_title': 'Bids InDrive',
+    'indrivecell.help_title': '¿Qué son los bids y el recomendado?',
+    'indrivecell.help_p1':
+      'En InDrive cada conductor ofrece un precio (un bid). Anotá cada oferta que veas en la app, hasta 5. El Promedio (la casilla verde) se calcula solo con los bids y es el precio SIN descuento de la celda.',
+    'indrivecell.help_p2':
+      'Recomendado = el precio que recomienda la app de InDrive. No entra al promedio. Si en ese momento no hay ningún bid, anotá solo el recomendado: se usa como precio de la celda.',
+    'indrivecell.help_example_title': 'Ejemplo',
+    'indrivecell.help_example_line1': 'Recomendado 14.00 · Bid 1 = 15 · Bid 2 = 13 · Bid 3 = 17',
+    'indrivecell.help_example_line2':
+      'Promedio = (15 + 13 + 17) ÷ 3 = 15.00 (el recomendado no cuenta)',
+    'indrivecell.recommended_label': 'RECOMENDADO',
+    'indrivecell.recommended_title':
+      'Precio que recomienda la app de InDrive — no entra al promedio; si no hay bids, se usa como precio de la celda',
+    'indrivecell.bid_label': 'Bid {n}',
+    'indrivecell.add_bid_btn': '+ Bid',
 
     // ── Earnings ──────────────────────────────────────
     'earnings.title': 'Ganancias del Conductor',
@@ -2653,7 +2684,14 @@ export const TRANSLATIONS = {
     'dataentry.loading_session': 'Loading session…',
     'dataentry.session_loaded': 'Session loaded ({n} cells). You can edit or add and save again.',
     'dataentry.draft_restored': '📝 Draft restored ({n} cells).',
+    'dataentry.already_viewing_session':
+      "You're already viewing this session — what's on screen is the latest.",
     'dataentry.err_load_session': 'Could not load the session:',
+    'dataentry.err_save_failed':
+      "Couldn't save to the server. Your progress is still in this browser — try again in a moment, or contact your supervisor if it keeps failing.",
+    'dataentry.session_finished': '✓ Session completed in {min} min. {n} records saved.',
+    'dataentry.progress_saved': '✓ {n} records saved. You can keep filling it in.',
+    'dataentry.timer_title': 'Session in progress',
     'dataentry.err_finish': 'To end the session, all rows must be filled.',
     'dataentry.err_finish_need_timeslot':
       'To end the session, complete at least one full timeslot (Morning, Afternoon or Night) with all its brackets.',
@@ -2706,8 +2744,32 @@ export const TRANSLATIONS = {
     'dataentry.tuktuk_no_districts':
       'No TukTuk districts loaded yet. Add them in Reference Distances.',
     'dataentry.tuktuk_district_locked': 'District not yet enabled for CI entry',
+    'dataentry.tuktuk_district_locked_banner':
+      "🔒 {zone} isn't enabled for CI entry yet — anything you enter here won't be able to save.",
     'dataentry.err_tuktuk_district_locked':
       'This district is locked for new CI entries. Contact your supervisor if you need an exception.',
+
+    // ── InDrive cell (Ingresar CI) ──────────────────────
+    'indrivecell.avg_placeholder': 'Avg.',
+    'indrivecell.avg_title_auto': 'Average calculated automatically',
+    'indrivecell.avg_title_rec_only': 'No bids: the recommended price is used',
+    'indrivecell.toggle_close': 'Close bids',
+    'indrivecell.toggle_open': 'Add bids',
+    'indrivecell.bids_title': 'InDrive bids',
+    'indrivecell.help_title': 'What are bids and the recommended price?',
+    'indrivecell.help_p1':
+      'In InDrive each driver offers a price (a bid). Record every offer you see in the app, up to 5. The Average (the green box) is calculated only from the bids and is the cell price WITHOUT discount.',
+    'indrivecell.help_p2':
+      "Recommended = the price the InDrive app suggests. It doesn't count toward the average. If there are no bids at that moment, just record the recommended price: it's used as the cell price.",
+    'indrivecell.help_example_title': 'Example',
+    'indrivecell.help_example_line1': 'Recommended 14.00 · Bid 1 = 15 · Bid 2 = 13 · Bid 3 = 17',
+    'indrivecell.help_example_line2':
+      "Average = (15 + 13 + 17) ÷ 3 = 15.00 (recommended doesn't count)",
+    'indrivecell.recommended_label': 'RECOMMENDED',
+    'indrivecell.recommended_title':
+      'Price the InDrive app recommends — it does not count toward the average; if there are no bids, it is used as the cell price',
+    'indrivecell.bid_label': 'Bid {n}',
+    'indrivecell.add_bid_btn': '+ Bid',
 
     'earnings.title': 'Driver Earnings',
     'rentabilidad.title': 'Driver Profitability',
@@ -4738,7 +4800,14 @@ export const TRANSLATIONS = {
     'dataentry.session_loaded':
       'Сессия загружена ({n} ячеек). Можно редактировать/добавлять и сохранить снова.',
     'dataentry.draft_restored': '📝 Черновик восстановлен ({n} ячеек).',
+    'dataentry.already_viewing_session':
+      'Вы уже просматриваете эту сессию — то, что на экране, самое актуальное.',
     'dataentry.err_load_session': 'Не удалось загрузить сессию:',
+    'dataentry.err_save_failed':
+      'Не удалось сохранить на сервере. Ваш прогресс всё ещё в этом браузере — попробуйте ещё раз через минуту или обратитесь к руководителю, если ошибка повторяется.',
+    'dataentry.session_finished': '✓ Сессия завершена за {min} мин. Сохранено записей: {n}.',
+    'dataentry.progress_saved': '✓ Сохранено записей: {n}. Можно продолжать заполнять.',
+    'dataentry.timer_title': 'Сессия в процессе',
     'dataentry.err_finish': 'Для завершения сессии все строки должны быть заполнены.',
     'dataentry.err_finish_need_timeslot':
       'Чтобы завершить сессию, заполните хотя бы один полный слот (Утро, День или Ночь) со всеми брекетами.',
@@ -4797,8 +4866,33 @@ export const TRANSLATIONS = {
     'dataentry.tuktuk_no_districts':
       'Районы TukTuk ещё не загружены. Добавьте их в «Справочные расстояния».',
     'dataentry.tuktuk_district_locked': 'Район пока не открыт для ввода CI',
+    'dataentry.tuktuk_district_locked_banner':
+      '🔒 {zone} ещё не открыт для ввода CI — то, что вы введёте здесь, не сохранится.',
     'dataentry.err_tuktuk_district_locked':
       'Этот район заблокирован для новых записей CI. Обратитесь к руководителю, если нужно исключение.',
+
+    // ── InDrive cell (Ingresar CI) ──────────────────────
+    'indrivecell.avg_placeholder': 'Средн.',
+    'indrivecell.avg_title_auto': 'Среднее рассчитывается автоматически',
+    'indrivecell.avg_title_rec_only': 'Без ставок: используется рекомендованная цена',
+    'indrivecell.toggle_close': 'Закрыть ставки',
+    'indrivecell.toggle_open': 'Добавить ставки',
+    'indrivecell.bids_title': 'Ставки InDrive',
+    'indrivecell.help_title': 'Что такое ставки и рекомендованная цена?',
+    'indrivecell.help_p1':
+      'В InDrive каждый водитель предлагает цену (ставку). Записывайте каждое предложение, которое видите в приложении, до 5 штук. Среднее (зелёная ячейка) считается только по ставкам и является ценой ячейки БЕЗ скидки.',
+    'indrivecell.help_p2':
+      'Рекомендованная = цена, которую предлагает приложение InDrive. Она не входит в среднее. Если в этот момент нет ни одной ставки, просто запишите рекомендованную цену — она будет использована как цена ячейки.',
+    'indrivecell.help_example_title': 'Пример',
+    'indrivecell.help_example_line1':
+      'Рекомендовано 14.00 · Ставка 1 = 15 · Ставка 2 = 13 · Ставка 3 = 17',
+    'indrivecell.help_example_line2':
+      'Среднее = (15 + 13 + 17) ÷ 3 = 15.00 (рекомендованная не учитывается)',
+    'indrivecell.recommended_label': 'РЕКОМЕНДОВАНО',
+    'indrivecell.recommended_title':
+      'Цена, которую рекомендует приложение InDrive — не входит в среднее; если ставок нет, используется как цена ячейки',
+    'indrivecell.bid_label': 'Ставка {n}',
+    'indrivecell.add_bid_btn': '+ Ставка',
 
     'earnings.title': 'Доходы водителей',
     'rentabilidad.title': 'Рентабельность водителя',
