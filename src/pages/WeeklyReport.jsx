@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 // jspdf (~390 KB) carga dinámicamente solo al hacer click en "Generar PDF".
 // El visitante que solo previsualiza el reporte no descarga la lib.
-import { sb } from '../lib/supabase'
+import { fetchAllObservations } from '../lib/fetchAllObservations'
 import { useAuth } from '../lib/auth'
 import { BRACKETS, BRACKET_LABELS, getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
@@ -132,25 +132,29 @@ export default function WeeklyReport() {
   // ── Fetch single category ───────────────────────────────────────────────
   async function fetchCat(cat) {
     const { dbCategory: dbCat } = resolveDbParams(uiCity, cat, null, country, dbConfigs)
-    const [{ data: curr }, { data: prev }] = await Promise.all([
-      sb
-        .from('pricing_observations')
-        .select('competition_name, distance_bracket, price_without_discount')
-        .eq('country', country)
-        .eq('city', dbCity)
-        .eq('category', dbCat)
-        .eq('year', refYear)
-        .eq('week', refWeek)
-        .not('price_without_discount', 'is', null),
-      sb
-        .from('pricing_observations')
-        .select('competition_name, distance_bracket, price_without_discount')
-        .eq('country', country)
-        .eq('city', dbCity)
-        .eq('category', dbCat)
-        .eq('year', compareYear)
-        .eq('week', compareWeek)
-        .not('price_without_discount', 'is', null),
+    // Paginado: una ciudad+categoría en una semana puede superar 1000 obs (el
+    // bot scrapea decenas de rutas × horas × 7 días). Sin paginar, el promedio
+    // se calcularía sobre las primeras 1000 filas truncadas en silencio.
+    const cols = 'competition_name, distance_bracket, price_without_discount'
+    const [curr, prev] = await Promise.all([
+      fetchAllObservations(cols, (q) =>
+        q
+          .eq('country', country)
+          .eq('city', dbCity)
+          .eq('category', dbCat)
+          .eq('year', refYear)
+          .eq('week', refWeek)
+          .not('price_without_discount', 'is', null)
+      ),
+      fetchAllObservations(cols, (q) =>
+        q
+          .eq('country', country)
+          .eq('city', dbCity)
+          .eq('category', dbCat)
+          .eq('year', compareYear)
+          .eq('week', compareWeek)
+          .not('price_without_discount', 'is', null)
+      ),
     ])
     const currAgg = aggregate(curr)
     const prevAgg = aggregate(prev)

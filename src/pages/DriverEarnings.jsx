@@ -10,7 +10,7 @@ import {
   CartesianGrid,
 } from 'recharts'
 // jspdf (~390 KB) carga dinámicamente solo al hacer click en "Generar PDF".
-import { sb } from '../lib/supabase'
+import { fetchAllObservations } from '../lib/fetchAllObservations'
 import { useAuth } from '../lib/auth'
 import { COMPETITOR_COLORS, getCompetitors, resolveDbParams } from '../lib/constants'
 import { normalizeCompetitorName } from '../lib/normalize'
@@ -100,15 +100,18 @@ export default function DriverEarnings() {
   const loadPrices = useCallback(async () => {
     setLoadingPrices(true)
     setPriceEdits({})
-    const { data } = await sb
-      .from('pricing_observations')
-      .select('competition_name, price_without_discount')
-      .eq('country', country)
-      .eq('city', dbCity)
-      .eq('category', dbCat)
-      .eq('year', refYear)
-      .eq('week', refWeek)
-      .not('price_without_discount', 'is', null)
+    // Paginado: sin esto, el promedio de precios se calcularía sobre las
+    // primeras 1000 obs (cap silencioso de la API) y los escenarios de
+    // rentabilidad partirían de números truncados. Ver fetchAllObservations.
+    const data = await fetchAllObservations('competition_name, price_without_discount', (q) =>
+      q
+        .eq('country', country)
+        .eq('city', dbCity)
+        .eq('category', dbCat)
+        .eq('year', refYear)
+        .eq('week', refWeek)
+        .not('price_without_discount', 'is', null)
+    )
     // Defense-in-depth: normalizar al competition_name al agregar para que
     // data legacy con variantes pegadas no quede en buckets fantasma fuera
     // del catálogo (ver getCompetitors abajo).
