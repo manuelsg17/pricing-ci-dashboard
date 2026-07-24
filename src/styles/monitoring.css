@@ -145,6 +145,48 @@
   border-color: var(--color-warning-border);
 }
 
+/* Frentes abiertos del hub (mig 161) — desde que puede trabajar varias
+   pestañas en una sola sesión, la ciudad del encabezado es solo dónde está
+   parado; estos chips son todo lo que tiene a medias. El frente actual va
+   destacado (▸ + acento) para responder "¿dónde está avanzando AHORA?". */
+.mon-session-card__fronts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+}
+.mon-session-card__fronts-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+  margin-right: 2px;
+}
+.mon-front-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  background: #fff;
+  white-space: nowrap;
+}
+.mon-front-chip--current {
+  border-color: var(--color-yango);
+  color: var(--color-yango-dark);
+  background: var(--color-yango-tint);
+}
+.mon-front-chip--done {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+  border-color: var(--color-success-border);
+}
+
 .mon-status-dot {
   width: 8px;
   height: 8px;

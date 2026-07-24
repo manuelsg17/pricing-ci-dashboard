@@ -373,6 +373,8 @@ export const TRANSLATIONS = {
     'monitoring.close_session_confirm':
       '¿Cerrar esta sesión de {hub}? Lo ya guardado no se toca — solo se marca la sesión como cerrada por vos.',
     'monitoring.close_session_error': 'No se pudo cerrar la sesión. Probá de nuevo.',
+    'monitoring.open_fronts': 'Frentes abiertos ({n})',
+    'monitoring.front_here_now': 'Acá está avanzando ahora mismo',
     'monitoring.reassign_label': 'Reasignar a',
     'monitoring.reassign_placeholder': 'email del hub',
     'monitoring.reassign_button': 'Reasignar',
@@ -2557,6 +2559,8 @@ export const TRANSLATIONS = {
     'monitoring.close_session_confirm':
       "Close this session for {hub}? What's already saved is untouched — this only marks the session as closed by you.",
     'monitoring.close_session_error': "Couldn't close the session. Try again.",
+    'monitoring.open_fronts': 'Open fronts ({n})',
+    'monitoring.front_here_now': 'Working here right now',
     'monitoring.reassign_label': 'Reassign to',
     'monitoring.reassign_placeholder': "hub's email",
     'monitoring.reassign_button': 'Reassign',
@@ -4722,6 +4726,8 @@ export const TRANSLATIONS = {
     'monitoring.close_session_confirm':
       'Завершить эту сессию для {hub}? Сохранённые данные не тронуты — это только отмечает сессию как закрытую вами.',
     'monitoring.close_session_error': 'Не удалось завершить сессию. Попробуйте ещё раз.',
+    'monitoring.open_fronts': 'Открытые участки ({n})',
+    'monitoring.front_here_now': 'Сейчас работает здесь',
     'monitoring.reassign_label': 'Переназначить на',
     'monitoring.reassign_placeholder': 'email хаба',
     'monitoring.reassign_button': 'Переназначить',

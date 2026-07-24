@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatCityZoneLabel } from '../../lib/monitoring'
+import { frontLabel } from '../../lib/sessionFronts'
 import { useI18n } from '../../context/LanguageContext'
 
 // Sesiones EN VIVO ahora mismo — 1 card por hub activo (mig 146, latido cada
@@ -28,6 +29,40 @@ function SessionCard({ s, t, live }) {
       </div>
       <strong className="mon-session-card__email">{s.user_email}</strong>
       <div className="mon-session-card__city">{formatCityZoneLabel(s.city, s.zone)}</div>
+      {/* Frentes abiertos (mig 161). Desde que el hub puede trabajar varias
+          pestañas en una sola sesión, la ciudad de arriba es solo DONDE ESTÁ
+          PARADO — estos chips son todo lo que tiene a medias, para saber quién
+          está avanzando qué. `total` null = el cliente todavía no conoce el
+          total de ese frente (nunca lo visitó en esta sesión): se muestra solo
+          el llenado, nunca "N/0". Null en sesiones previas a la mig 161. */}
+      {Array.isArray(s.fronts) && s.fronts.length > 1 && (
+        <div className="mon-session-card__fronts">
+          <span className="mon-session-card__fronts-label">
+            {t('monitoring.open_fronts', { n: s.fronts.length })}
+          </span>
+          {s.fronts.map((f) => {
+            // filled null = el cliente no sabe cuánto tiene ese frente (no lo
+            // visitó en esta carga de página). Mostrar "?" en vez de 0 evita
+            // que el admin lea "nadie arrancó esto" sobre un frente que puede
+            // estar casi terminado.
+            const unknown = f.filled === null || f.filled === undefined
+            const done = !unknown && f.total > 0 && f.filled >= f.total
+            return (
+              <span
+                key={f.bucket}
+                className={`mon-front-chip${f.current ? ' mon-front-chip--current' : ''}${
+                  done ? ' mon-front-chip--done' : ''
+                }`}
+                title={f.current ? t('monitoring.front_here_now') : undefined}
+              >
+                {f.current && '▸ '}
+                {frontLabel(f.bucket)} {unknown ? '?' : f.filled}
+                {!unknown && f.total > 0 ? `/${f.total}` : ''}
+              </span>
+            )
+          })}
+        </div>
+      )}
       {/* Fallos de latido reportados por el propio cliente (mig 149) — la
           sesión sigue "en vivo" pero tuvo cortes intermitentes de conexión
           recientes, señal que antes era invisible para el admin. */}

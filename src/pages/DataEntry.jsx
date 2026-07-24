@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
-import { getCiCompetitors, getCityLabel, resolveDbParams, timeslotLabel } from '../lib/constants'
+import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
+import { buildFronts, frontLabel } from '../lib/sessionFronts'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
@@ -181,6 +182,12 @@ export default function DataEntry() {
   // falsos negativos con un frente que el hub llenaba al 100% y abandonaba.
   // Se limpia al Iniciar Sesión (queda acotado a la sesión en curso) y al
   // terminar/descartar cada frente.
+  // Último total conocido por bucket. El cliente solo calcula `totalExpected`
+  // de la vista ACTUAL (depende de las rutas/categorías de esa ciudad), así
+  // que sin memoria Monitoreo no podría mostrar "12/162" de un frente que el
+  // hub no está mirando ahora. Se llena a medida que visita cada frente; los
+  // que nunca visitó viajan con total=null (desconocido, distinto de 0).
+  const [totalByBucket, setTotalByBucket] = useState({})
   const [touchedFronts, setTouchedFronts] = useState([])
   const markTouched = useCallback((bucket) => {
     if (!bucket) return
@@ -413,21 +420,6 @@ export default function DataEntry() {
         if (tb.type === 'airport' && tb.members.some((m) => m.uiCity === uiCity)) return tb.members
     return null
   }, [cityClusters, uiCity, isTukTuk])
-
-  // Etiqueta legible para un bucketKey — usado en el aviso de frentes extra
-  // pendientes. Cubre las 4 formas que puede tomar un bucket ahora que el hub
-  // puede tocar cualquier vista (pedido 2b): TukTuk por distrito, Aeropuerto
-  // por punto, Corp, y Normal por ciudad.
-  const bucketLabelForKey = (bk) => {
-    if (bk.startsWith('TT~')) {
-      const [, city, district] = bk.split('~')
-      return `TukTuk ${getCityLabel(city)} · ${district}`
-    }
-    const air = /^(.+)_Airport_([AB])$/.exec(bk)
-    if (air) return `${getCityLabel(air[1])} Aeropuerto · Punto ${air[2]}`
-    if (bk === 'Corp') return 'Corp'
-    return getCityLabel(bk)
-  }
 
   // Alcance a declarar si se toca "Iniciar Sesión" AHORA MISMO: en un cluster
   // de Aeropuerto, depende de `scopeChoice` (null = todavía no eligió, bloquea
@@ -2496,6 +2488,59 @@ export default function DataEntry() {
           .map((m) => m.side)
           .join('+')
       : null
+  // Memoria del total de cada frente visitado (ver `totalByBucket`).
+  useEffect(() => {
+    if (!totalExpected) return
+    setTotalByBucket((prev) =>
+      prev[bucketKey] === totalExpected ? prev : { ...prev, [bucketKey]: totalExpected }
+    )
+  }, [bucketKey, totalExpected])
+
+  // Frentes abiertos (mig 161) — TODOS los que el hub tiene a medias, con
+  // `current` marcando dónde está parado ahora. Va en el latido para que
+  // Monitoreo y la presencia dejen de ver solo la última pestaña tocada.
+  const fronts = useMemo(() => {
+    const all = [...pendingScopeMembers, ...pendingExtraFronts, bucketKey]
+    const filledByBucket = {}
+    for (const bk of all) {
+      if (bk === bucketKey) {
+        filledByBucket[bk] = filledCount
+        continue
+      }
+      // La grilla se hidrata por bucket VISITADO (ver hydratedCitiesRef): un
+      // frente que el hub no volvió a abrir en esta carga de página no tiene
+      // rebanada en memoria. Reportar 0 ahí sería afirmar "no arrancó" sobre
+      // un frente que puede tener medio día de trabajo guardado — `null` dice
+      // "no sé", que es lo honesto y lo que Monitoreo sabe mostrar.
+      if (!hydratedCitiesRef.current.has(bk)) {
+        filledByBucket[bk] = null
+        continue
+      }
+      // Mismo cálculo que `filledCount` de la vista actual: las celdas
+      // marcadas "Sin data" CUENTAN como resueltas (si no, un frente cerrado a
+      // fuerza de S/D aparecía a medias y nunca llegaba a completo).
+      filledByBucket[bk] =
+        countAllFilled(entriesByCity[bk], indriveByCity[bk]) + (naByCity[bk]?.size || 0)
+    }
+    return buildFronts({
+      scopeMembers: pendingScopeMembers,
+      extraFronts: pendingExtraFronts,
+      currentBucket: bucketKey,
+      filledByBucket,
+      totalByBucket: { ...totalByBucket, [bucketKey]: totalExpected },
+    })
+  }, [
+    pendingScopeMembers,
+    pendingExtraFronts,
+    bucketKey,
+    filledCount,
+    totalExpected,
+    totalByBucket,
+    entriesByCity,
+    indriveByCity,
+    naByCity,
+  ])
+
   heartbeatRef.current = {
     country,
     city: dbCity,
@@ -2503,6 +2548,7 @@ export default function DataEntry() {
     date,
     filledCount,
     totalExpected,
+    fronts,
     // Desglose por turno (mig 150) — para que Monitoreo muestre en qué
     // turno está cada hub, no solo el total agregado.
     // `timings` viaja en el mismo jsonb que ya usa Monitoreo (turno_progress) —
@@ -2537,6 +2583,7 @@ export default function DataEntry() {
         p_recent_failures: failures,
         p_turno_progress: p.turnoProgress,
         p_scope_label: p.scopeLabel,
+        p_fronts: p.fronts && p.fronts.length ? p.fronts : null,
       })
       // supabase-js NO tira excepción por un error a nivel Postgres/RPC (solo
       // por fallos de red) — sin este chequeo explícito, un error del lado del
@@ -2668,7 +2715,7 @@ export default function DataEntry() {
       {pendingExtraFronts.length > 0 && (
         <div className="de-locked-district-banner">
           {t('dataentry.extra_fronts_pending', {
-            list: pendingExtraFronts.map(bucketLabelForKey).join(', '),
+            list: pendingExtraFronts.map(frontLabel).join(', '),
           })}
         </div>
       )}
