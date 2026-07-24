@@ -133,6 +133,14 @@ export default function DataEntry() {
   const [discByCity, setDiscByCity] = useState({})
   const [errorKeysByCity, setErrorKeysByCity] = useState({})
   const [naByCity, setNaByCity] = useState({})
+  // turnoTimingsByCity[bucketKey][tsLabel] = { startedAt, endedAt } (ISO) —
+  // pedido del user (2026-07-24): medir cuánto tarda cada hub por turno, no
+  // solo la sesión completa. Se estampa UNA sola vez por turno (primer fill →
+  // startedAt, 100% relleno → endedAt) y nunca se sobreescribe después, para
+  // que reabrir una sesión ya terminada a corregir un dato no falsifique el
+  // tiempo original con un timestamp de "ahora". Ver efecto de estampado más
+  // abajo y el seed desde ci_sessions.turno_timings en openHistorySession.
+  const [turnoTimingsByCity, setTurnoTimingsByCity] = useState({})
 
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -243,6 +251,7 @@ export default function DataEntry() {
   const etaEntries = etaByCity[bucketKey] || EMPTY_OBJ
   const discEntries = discByCity[bucketKey] || EMPTY_OBJ
   const errorKeys = errorKeysByCity[bucketKey] || EMPTY_SET
+  const turnoTimings = turnoTimingsByCity[bucketKey] || EMPTY_OBJ
   const naKeys = naByCity[bucketKey] || EMPTY_SET
   const loadedCombos = loadedCombosByCity[bucketKey] || null
   const surge = surgeByCity[bucketKey] ?? false
@@ -764,6 +773,9 @@ export default function DataEntry() {
             if (naArr.length) setNaByCity((prev) => ({ ...prev, [targetCity]: new Set(naArr) }))
             if (typeof parsed.surge === 'boolean')
               setSurgeByCity((prev) => ({ ...prev, [targetCity]: parsed.surge }))
+            if (parsed.turnoTimings && typeof parsed.turnoTimings === 'object') {
+              setTurnoTimingsByCity((prev) => ({ ...prev, [targetCity]: parsed.turnoTimings }))
+            }
             setLastDraftSavedAt(parsed.savedAt || null)
             setMsg({
               type: 'ok',
@@ -853,6 +865,7 @@ export default function DataEntry() {
               // terminar la sesión entera con uno solo. Ver restauración en
               // el efecto de hidratación de arriba.
               pendingScopeMembers,
+              turnoTimings,
               savedAt,
             })
           )
@@ -876,6 +889,7 @@ export default function DataEntry() {
     draftKey,
     isJustFinished,
     pendingScopeMembers,
+    turnoTimings,
   ])
 
   // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
@@ -1128,6 +1142,7 @@ export default function DataEntry() {
     dropCity(setSurgeByCity)
     dropCity(setErrorKeysByCity)
     dropCity(setLoadedCombosByCity)
+    dropCity(setTurnoTimingsByCity)
     // Re-permitir hidratar esa ciudad: al volver, re-lee localStorage (ya vacío)
     // y muestra la grilla limpia en vez de la rebanada en memoria vieja.
     hydratedCitiesRef.current.delete(dc)
@@ -1767,6 +1782,13 @@ export default function DataEntry() {
         // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
         // (mig 155) sin tener que recalcularlo del lado del servidor.
         total_expected: totalExpected,
+        // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
+        // criterio: persistido acá para que sobreviva al DELETE del latido de
+        // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
+        // timestamps del turno actual (isFinalInScope puede cerrar solo un
+        // punto de "Ambos"; los turnos de otro miembro del alcance viven en
+        // SU PROPIO bucketKey/sesión, no se mezclan acá).
+        turno_timings: turnoTimings,
       })
       // Limpiar el latido de sesión-activa (mig 146) SOLO si esto cierra la
       // sesión de VERDAD (isFinalInScope) — en Aeropuerto "Ambos", terminar el
@@ -1991,6 +2013,16 @@ export default function DataEntry() {
       setActiveTukTuk(null)
     }
     setDate(s.observed_date)
+    // Seedear turnoTimings desde la sesión histórica ANTES de que el efecto
+    // de estampado corra sobre la grilla recién cargada — si no, reabrir una
+    // sesión con turnos ya completos estamparía un startedAt/endedAt falso de
+    // "ahora mismo" (0 min) en vez de conservar el tiempo real original.
+    const targetBucketKey = s.zone ? `TT~${s.city}~${s.zone}` : s.city
+    setTurnoTimingsByCity((prev) => ({
+      ...prev,
+      [targetBucketKey]:
+        s.turno_timings && typeof s.turno_timings === 'object' ? s.turno_timings : {},
+    }))
     setPendingLoad({ dbCity: s.city, zone: s.zone ?? null, date: s.observed_date })
     setMsg({ type: 'ok', text: t('dataentry.loading_session') })
   }
@@ -2195,6 +2227,44 @@ export default function DataEntry() {
     return n
   }, [refsByUICat, categories, uiCity, country, dbConfigs])
 
+  // ── Estampado de tiempo por turno (pedido user 2026-07-24) ──────────────
+  // Primer fill de un turno (0→1) → startedAt. 100% relleno → endedAt. Nunca
+  // se sobreescribe una vez estampado — reabrir una sesión ya terminada para
+  // corregir un dato (o resumir un draft que ya traía turnos completos) no
+  // debe falsificar el tiempo original con "ahora". `turnoTimings` para este
+  // bucket ya viene seedeado (draft local restaurado u openHistorySession)
+  // ANTES de que este efecto corra por primera vez sobre datos existentes,
+  // así que "ya tiene startedAt/endedAt" cubre tanto lo estampado en vivo acá
+  // como lo restaurado.
+  useEffect(() => {
+    if (!totalExpectedPerTimeslot) return
+    setTurnoTimingsByCity((prev) => {
+      const cur = prev[bucketKey] || EMPTY_OBJ
+      let changed = false
+      const next = { ...cur }
+      for (const [label, filled] of Object.entries(filledByTimeslot)) {
+        const t = next[label]
+        let startedAt = t?.startedAt
+        let endedAt = t?.endedAt
+        let labelChanged = false
+        if (filled > 0 && !startedAt) {
+          startedAt = new Date().toISOString()
+          labelChanged = true
+        }
+        if (filled >= totalExpectedPerTimeslot && startedAt && !endedAt) {
+          endedAt = new Date().toISOString()
+          labelChanged = true
+        }
+        if (labelChanged) {
+          next[label] = { startedAt, endedAt }
+          changed = true
+        }
+      }
+      if (!changed) return prev
+      return { ...prev, [bucketKey]: next }
+    })
+  }, [filledByTimeslot, totalExpectedPerTimeslot, bucketKey])
+
   // ── Presencia: "quién más está acá ahora" (pedidos 2, 3, 4) ────────────
   // Lectura liviana vía RPC (mig 152, SECURITY DEFINER — el RLS normal de
   // ci_active_sessions solo deja ver la fila propia) para avisar, SIN
@@ -2251,7 +2321,15 @@ export default function DataEntry() {
     totalExpected,
     // Desglose por turno (mig 150) — para que Monitoreo muestre en qué
     // turno está cada hub, no solo el total agregado.
-    turnoProgress: { total_per_turno: totalExpectedPerTimeslot, filled: filledByTimeslot },
+    // `timings` viaja en el mismo jsonb que ya usa Monitoreo (turno_progress) —
+    // clave nueva, aditiva: LiveSessionsPanel solo lee .filled/.total_per_turno,
+    // no rompe nada. Persiste en vivo cada heartbeat (~25s) para no perder el
+    // dato si el navegador se cierra antes de Terminar Sesión.
+    turnoProgress: {
+      total_per_turno: totalExpectedPerTimeslot,
+      filled: filledByTimeslot,
+      timings: turnoTimings,
+    },
     scopeLabel,
   }
   // Fallos de latido consecutivos (mig 149) — contador puramente local, se
@@ -2994,6 +3072,21 @@ export default function DataEntry() {
                           </td>
                           <td>
                             <strong>{s.duration_minutes} min</strong>
+                            {s.turno_timings && typeof s.turno_timings === 'object' && (
+                              <div className="de-history-note">
+                                {Object.entries(s.turno_timings)
+                                  .filter(([, t]) => t?.startedAt)
+                                  .map(([label, t]) => {
+                                    const mins = t.endedAt
+                                      ? Math.round(
+                                          (new Date(t.endedAt) - new Date(t.startedAt)) / 60000
+                                        )
+                                      : null
+                                    return `${label} ${mins != null ? mins + 'min' : '—'}`
+                                  })
+                                  .join(' · ')}
+                              </div>
+                            )}
                           </td>
                           <td>{s.rows_saved}</td>
                           <td>
