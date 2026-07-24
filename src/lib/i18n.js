@@ -373,6 +373,14 @@ export const TRANSLATIONS = {
     'monitoring.close_session_confirm':
       '¿Cerrar esta sesión de {hub}? Lo ya guardado no se toca — solo se marca la sesión como cerrada por vos.',
     'monitoring.close_session_error': 'No se pudo cerrar la sesión. Probá de nuevo.',
+    'monitoring.reassign_label': 'Reasignar a',
+    'monitoring.reassign_placeholder': 'email del hub',
+    'monitoring.reassign_button': 'Reasignar',
+    'monitoring.reassigning': 'Reasignando…',
+    'monitoring.reassign_confirm':
+      '¿Reasignar el trabajo guardado de {from} a {to}? Se transfiere lo ya guardado y, si {from} seguía con la sesión activa, se cierra.',
+    'monitoring.reassign_error': 'No se pudo reasignar. Revisá el email o probá de nuevo.',
+    'monitoring.reassign_success': 'Reasignado a {to}.',
     'monitoring.col_zone': 'Distrito',
     'monitoring.freshness_title': 'Última sesión',
     'monitoring.freshness_never': 'Nunca terminó una en este rango',
@@ -549,6 +557,8 @@ export const TRANSLATIONS = {
     'dataentry.scope_expand': '+ agregar el otro punto',
     'dataentry.scope_point_done':
       'Punto guardado ({n}) — completá el otro punto declarado para terminar la sesión',
+    'dataentry.extra_fronts_pending':
+      'También tenés pendiente: {list} — completalo para poder Terminar Sesión',
     'dataentry.presence_here': '{who} está trabajando acá ahora',
     'dataentry.date': 'Fecha',
     'dataentry.surge': 'Surge',
@@ -2547,6 +2557,14 @@ export const TRANSLATIONS = {
     'monitoring.close_session_confirm':
       "Close this session for {hub}? What's already saved is untouched — this only marks the session as closed by you.",
     'monitoring.close_session_error': "Couldn't close the session. Try again.",
+    'monitoring.reassign_label': 'Reassign to',
+    'monitoring.reassign_placeholder': "hub's email",
+    'monitoring.reassign_button': 'Reassign',
+    'monitoring.reassigning': 'Reassigning…',
+    'monitoring.reassign_confirm':
+      "Reassign {from}'s saved work to {to}? What's already saved gets transferred, and if {from} still had an active session, it gets closed.",
+    'monitoring.reassign_error': "Couldn't reassign. Check the email or try again.",
+    'monitoring.reassign_success': 'Reassigned to {to}.',
     'monitoring.col_zone': 'District',
     'monitoring.freshness_title': 'Last session',
     'monitoring.freshness_never': 'Never finished one in this range',
@@ -2718,6 +2736,7 @@ export const TRANSLATIONS = {
     'dataentry.scope_expand': '+ add the other point',
     'dataentry.scope_point_done':
       'Point saved ({n}) — finish the other declared point to end the session',
+    'dataentry.extra_fronts_pending': 'Also pending: {list} — finish it to be able to End Session',
     'dataentry.presence_here': '{who} is working here right now',
     'dataentry.saving': 'Saving…',
     'dataentry.date': 'Date',
@@ -4702,6 +4721,15 @@ export const TRANSLATIONS = {
     'monitoring.close_session_confirm':
       'Завершить эту сессию для {hub}? Сохранённые данные не тронуты — это только отмечает сессию как закрытую вами.',
     'monitoring.close_session_error': 'Не удалось завершить сессию. Попробуйте ещё раз.',
+    'monitoring.reassign_label': 'Переназначить на',
+    'monitoring.reassign_placeholder': 'email хаба',
+    'monitoring.reassign_button': 'Переназначить',
+    'monitoring.reassigning': 'Переназначение…',
+    'monitoring.reassign_confirm':
+      'Переназначить сохранённую работу {from} на {to}? Уже сохранённое передаётся, и если у {from} сессия ещё активна — она закроется.',
+    'monitoring.reassign_error':
+      'Не удалось переназначить. Проверьте email или попробуйте ещё раз.',
+    'monitoring.reassign_success': 'Переназначено на {to}.',
     'monitoring.col_zone': 'Район',
     'monitoring.freshness_title': 'Последняя сессия',
     'monitoring.freshness_never': 'Ни разу не завершил в этом диапазоне',
@@ -4872,6 +4900,8 @@ export const TRANSLATIONS = {
     'dataentry.scope_expand': '+ добавить вторую точку',
     'dataentry.scope_point_done':
       'Точка сохранена ({n}) — завершите вторую заявленную точку, чтобы закончить сессию',
+    'dataentry.extra_fronts_pending':
+      'Также осталось: {list} — завершите, чтобы можно было завершить сессию',
     'dataentry.presence_here': '{who} сейчас работает здесь',
     'dataentry.saving': 'Сохранение…',
     'dataentry.date': 'Дата',

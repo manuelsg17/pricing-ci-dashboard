@@ -50,6 +50,38 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
     setClosingKey(null)
   }
 
+  // Relevo entre hubs (mig 160, pedido user 2026-07-24): reasigna lo YA
+  // GUARDADO de r.uploaded_by → el email tipeado, y cierra la sesión de
+  // origen si seguía activa. Mismo patrón defensivo de closedKeys/closingKey
+  // que "Cerrar sesión" arriba — reusa `closedKeys` porque una fila reasignada
+  // tampoco debe seguir ofreciendo ninguna de las 2 acciones (ya no es "de"
+  // ese hub).
+  const [reassignInputs, setReassignInputs] = useState({})
+  const [reassigningKey, setReassigningKey] = useState(null)
+
+  async function handleReassign(r, key) {
+    const to = (reassignInputs[key] || '').trim()
+    if (!to) return
+    if (!window.confirm(t('monitoring.reassign_confirm', { from: r.uploaded_by, to }))) return
+    setReassigningKey(key)
+    const { error } = await sb.rpc('admin_reassign_ci_session', {
+      p_country: country,
+      p_city: r.city,
+      p_zone: r.zone ?? null,
+      p_observed_date: r.observed_date,
+      p_from_email: r.uploaded_by,
+      p_to_email: to,
+    })
+    if (error) {
+      setReassigningKey(null)
+      window.alert(t('monitoring.reassign_error'))
+      return
+    }
+    setClosedKeys((prev) => new Set(prev).add(key))
+    await onClosed?.()
+    setReassigningKey(null)
+  }
+
   return (
     <div className="mon-panel">
       <div className="mon-panel__head">
@@ -72,11 +104,14 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
                 <th>{t('monitoring.col_categories')}</th>
                 <th>{t('monitoring.col_competitors')}</th>
                 <th></th>
+                <th>{t('monitoring.reassign_label')}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => {
                 const key = `${r.city}|${r.zone || ''}|${r.observed_date}|${r.uploaded_by}|${i}`
+                const rowDisabled =
+                  closingKey === key || reassigningKey === key || closedKeys.has(key)
                 return (
                   <tr key={key}>
                     <td>{fmtDate(r.observed_date)}</td>
@@ -92,13 +127,37 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={closingKey === key || closedKeys.has(key)}
+                        disabled={rowDisabled}
                         onClick={() => handleClose(r, key)}
                       >
-                        {closingKey === key || closedKeys.has(key)
+                        {closingKey === key
                           ? t('monitoring.closing_session')
                           : t('monitoring.close_session')}
                       </Button>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <input
+                          type="text"
+                          placeholder={t('monitoring.reassign_placeholder')}
+                          value={reassignInputs[key] || ''}
+                          disabled={rowDisabled}
+                          onChange={(e) =>
+                            setReassignInputs((prev) => ({ ...prev, [key]: e.target.value }))
+                          }
+                          style={{ width: 150, fontSize: 12 }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={rowDisabled || !(reassignInputs[key] || '').trim()}
+                          onClick={() => handleReassign(r, key)}
+                        >
+                          {reassigningKey === key
+                            ? t('monitoring.reassigning')
+                            : t('monitoring.reassign_button')}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 )
