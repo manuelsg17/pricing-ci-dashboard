@@ -558,7 +558,7 @@ export const TRANSLATIONS = {
     'dataentry.scope_point_done':
       'Punto guardado ({n}) — completá el otro punto declarado para terminar la sesión',
     'dataentry.extra_fronts_pending':
-      'También tenés pendiente: {list} — completalo para poder Terminar Sesión',
+      'Además de lo que declaraste, empezaste: {list}. Cerrá cada uno con "Terminar" para poder cerrar la sesión.',
     'dataentry.presence_here': '{who} está trabajando acá ahora',
     'dataentry.date': 'Fecha',
     'dataentry.surge': 'Surge',
@@ -2736,7 +2736,8 @@ export const TRANSLATIONS = {
     'dataentry.scope_expand': '+ add the other point',
     'dataentry.scope_point_done':
       'Point saved ({n}) — finish the other declared point to end the session',
-    'dataentry.extra_fronts_pending': 'Also pending: {list} — finish it to be able to End Session',
+    'dataentry.extra_fronts_pending':
+      'Besides what you declared, you started: {list}. Finish each one to be able to end the session.',
     'dataentry.presence_here': '{who} is working here right now',
     'dataentry.saving': 'Saving…',
     'dataentry.date': 'Date',
@@ -4901,7 +4902,7 @@ export const TRANSLATIONS = {
     'dataentry.scope_point_done':
       'Точка сохранена ({n}) — завершите вторую заявленную точку, чтобы закончить сессию',
     'dataentry.extra_fronts_pending':
-      'Также осталось: {list} — завершите, чтобы можно было завершить сессию',
+      'Кроме заявленного, вы начали: {list}. Завершите каждый, чтобы закрыть сессию.',
     'dataentry.presence_here': '{who} сейчас работает здесь',
     'dataentry.saving': 'Сохранение…',
     'dataentry.date': 'Дата',

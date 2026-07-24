@@ -160,16 +160,32 @@ export default function DataEntry() {
   // Elección del selector de alcance ANTES de arrancar (mientras !sessionActive
   // en un cluster de Aeropuerto): uiCity de un punto puntual, o 'both'.
   const [scopeChoice, setScopeChoice] = useState(null)
-  // Frentes EXTRA (pedido user 2026-07-24, punto 2): a diferencia de
+  // Frentes EXTRA (pedido user 2026-07-24, puntos 2 y 2b): a diferencia de
   // pendingScopeMembers (declarado de antemano, solo Aeropuerto), esto son
-  // buckets (bucketKey — típicamente `TT~ciudad~distrito` de TukTuk) que el
-  // hub tocó DURANTE una sesión activa sin haberlos declarado — el guard de
-  // navegación (ver `scopeLockedElsewhere` más abajo) deja pasar SOLO el
-  // salto Aeropuerto↔TukTuk (no a Normal/Corp/otra ciudad, para no reabrir
-  // el bug real que el bloqueo duro original vino a cerrar) y el efecto de
-  // estampado de turno agrega acá el bucket en cuanto detecta el primer
-  // fill. "Terminar Sesión" exige que esto también quede vacío.
+  // buckets (bucketKey) que el hub tocó DURANTE una sesión activa sin
+  // haberlos declarado — Corp, Normal, TukTuk, u otra ciudad entera. Desde
+  // el pedido del 2026-07-24 (2b) el guard de navegación NO bloquea ningún
+  // salto mientras haya sesión activa: lo que cierra el bug original (una
+  // sesión que nunca podía terminar porque quedaba un frente abandonado sin
+  // registrar) es JUSTAMENTE este registro, no el bloqueo.
+  // "Terminar Sesión" exige que esto quede vacío.
   const [pendingExtraFronts, setPendingExtraFronts] = useState([])
+  // Buckets donde el hub efectivamente ESCRIBIÓ algo en esta sesión (no solo
+  // "los vio"). Es el discriminador correcto para registrar un frente extra:
+  // el auto-load de datos ya guardados escribe en entriesByCity DIRECTAMENTE
+  // (no pasa por setEntry/toggleNa), así que navegar a un frente ya completo
+  // de una sesión anterior nunca lo marca como tocado — mientras que corregir
+  // una sola celda de ese frente sí lo marca, y entonces el hub debe cerrarlo
+  // para que su corrección se guarde. Reemplaza a la heurística previa
+  // (0 < filled < total), que daba falsos positivos con data auto-cargada y
+  // falsos negativos con un frente que el hub llenaba al 100% y abandonaba.
+  // Se limpia al Iniciar Sesión (queda acotado a la sesión en curso) y al
+  // terminar/descartar cada frente.
+  const [touchedFronts, setTouchedFronts] = useState([])
+  const markTouched = useCallback((bucket) => {
+    if (!bucket) return
+    setTouchedFronts((prev) => (prev.includes(bucket) ? prev : [...prev, bucket]))
+  }, [])
 
   // "Abrir" una sesión pasada del historial: al hacer click seteamos ciudad+
   // fecha y dejamos acá {dbCity, date} pendiente; cuando las rutas de esa
@@ -398,26 +414,18 @@ export default function DataEntry() {
     return null
   }, [cityClusters, uiCity, isTukTuk])
 
-  // Cluster (ciudad) del punto donde el hub está parado AHORA, sea Aeropuerto
-  // o TukTuk — usado por el guard de navegación para permitir el salto
-  // Aeropuerto↔TukTuk DENTRO de la misma ciudad (pedido user 2026-07-24,
-  // punto 2) sin abrir la puerta a saltar a otra ciudad/Normal/Corp.
-  const activeClusterBase = useMemo(() => {
-    for (const cl of cityClusters)
-      for (const tb of cl.tabs) {
-        if (tb.type === 'airport' && tb.members.some((m) => m.uiCity === uiCity)) return cl.base
-        if (tb.type === 'tuktuk' && isTukTuk && uiCity === tb.baseUiCity) return cl.base
-      }
-    return null
-  }, [cityClusters, uiCity, isTukTuk])
-
-  // Etiqueta legible para un bucketKey (`TT~dbCity~distrito` o `dbCity` a
-  // secas) — usado en el aviso de frentes extra pendientes (punto 2).
+  // Etiqueta legible para un bucketKey — usado en el aviso de frentes extra
+  // pendientes. Cubre las 4 formas que puede tomar un bucket ahora que el hub
+  // puede tocar cualquier vista (pedido 2b): TukTuk por distrito, Aeropuerto
+  // por punto, Corp, y Normal por ciudad.
   const bucketLabelForKey = (bk) => {
     if (bk.startsWith('TT~')) {
       const [, city, district] = bk.split('~')
       return `TukTuk ${getCityLabel(city)} · ${district}`
     }
+    const air = /^(.+)_Airport_([AB])$/.exec(bk)
+    if (air) return `${getCityLabel(air[1])} Aeropuerto · Punto ${air[2]}`
+    if (bk === 'Corp') return 'Corp'
     return getCityLabel(bk)
   }
 
@@ -431,7 +439,15 @@ export default function DataEntry() {
       : scopeChoice
         ? [scopeChoice]
         : null
-    : [uiCity]
+    : // Espacio bucketKey, NO uiCity (bug real hallado en revisión adversarial
+      // 2026-07-24): en TukTuk el uiCity es la ciudad BASE ('Lima'), la misma
+      // que usa la pestaña Normal y que TODOS los distritos. Declarando por
+      // uiCity, una sesión de TukTuk Comas decía "mi alcance es Lima", así que
+      // Lima Normal y SJL contaban como "ya declarados" → nunca se registraban
+      // como frente extra y la sesión cerraba dándolos por hechos, con el
+      // trabajo del hub abandonado en silencio. En Aeropuerto uiCity===bucketKey
+      // ('Lima_Airport_A'), así que esa rama queda idéntica.
+      [bucketKey]
 
   // El selector de alcance es por-cluster: al entrar/salir de Aeropuerto o
   // cambiar de cluster hay que volver a elegir. Cambiar de Punto A a Punto B
@@ -487,7 +503,11 @@ export default function DataEntry() {
   function handleStartSession(members) {
     sessionStartRef.current = Date.now()
     setSessionActive(true)
-    setPendingScopeMembers(members && members.length ? members : [uiCity])
+    setPendingScopeMembers(members && members.length ? members : [bucketKey])
+    // Lo que el hub haya tipeado ANTES de arrancar (grilla editable sin
+    // sesión) no debe contarse como frente extra de ESTA sesión.
+    setTouchedFronts([])
+    setPendingExtraFronts([])
     setMsg(null)
   }
 
@@ -596,6 +616,12 @@ export default function DataEntry() {
     if (sessionActiveRef.current) {
       setSessionActive(false)
       setPendingScopeMembers([])
+      // Mismo motivo que pendingScopeMembers (bug real mig 156): un frente
+      // extra del país VIEJO nunca coincidiría con un bucket del país nuevo,
+      // así que "Terminar Sesión" jamás lograría vaciarlo y la sesión no
+      // cerraría nunca.
+      setPendingExtraFronts([])
+      setTouchedFronts([])
       if (userEmailRef.current) {
         sb.from('ci_active_sessions')
           .delete()
@@ -764,6 +790,19 @@ export default function DataEntry() {
       setLoadedCombosByCity({})
       setSurgeByCity({})
       setNaByCity({})
+      // Bug real (hallado al generalizar, 2026-07-24): sin esto los timings
+      // por turno de la fecha VIEJA sobrevivían al cambio de fecha, y como el
+      // efecto de estampado nunca pisa un `startedAt` ya existente, la sesión
+      // de la fecha nueva heredaba la hora de inicio de la anterior — una
+      // duración por turno de horas o días, silenciosamente falsa.
+      setTurnoTimingsByCity({})
+      // Los frentes pendientes son de la fecha VIEJA (bucketKey no lleva
+      // fecha): sin limpiarlos, el aviso seguía exigiendo "completá Corp"
+      // pero en la fecha nueva, donde Corp está vacío — y completarlo ahí
+      // escribía observaciones con la fecha equivocada.
+      setTouchedFronts([])
+      setPendingExtraFronts([])
+      setPendingScopeMembers([])
     }
     // Hidratar esta ciudad UNA vez por contexto. Al intercalar A↔B, la 2da vez
     // ya está en el set → no se re-hidrata (la memoria, más nueva, manda).
@@ -1109,19 +1148,13 @@ export default function DataEntry() {
     // cerrarse bien. Reanudar un borrador que SÍ es parte del alcance
     // actual (ej. el otro punto declarado) sigue permitido sin más.
     const targetUi = d.resume?.uiCity ?? d.city
-    // Excepción (punto 2): un borrador que ya es un frente extra conocido
-    // (Aeropuerto↔TukTuk en paralelo) se puede reanudar sin más — mismo
-    // criterio de relajación que el guard de las pestañas de arriba.
-    const isKnownExtraFront = d.bucketKey && pendingExtraFronts.includes(d.bucketKey)
-    if (
-      sessionActive &&
-      pendingScopeMembers.length > 1 &&
-      !pendingScopeMembers.includes(targetUi) &&
-      !isKnownExtraFront
-    ) {
-      setMsg({ type: 'err', text: t('dataentry.scope_locked_elsewhere') })
-      return
-    }
+    // El alcance vive en espacio bucketKey (ver `resolvedStartMembers`).
+    const targetBucket = d.bucketKey || targetUi
+    // Ya NO hay guard acá: el bloqueo original existía porque reanudar
+    // PISABA el alcance y dejaba los frentes declarados huérfanos. Ahora se
+    // fusiona (ver abajo), así que reanudar es seguro — y mantenerlo era
+    // incoherente con las pestañas, que desde el pedido 2b van libres: el hub
+    // podía pararse en Corp pero no reanudar el borrador de Corp.
     // Reanudar es una señal explícita de "seguir trabajando" — activar la
     // sesión ya mismo (mismo criterio que "Abrir" del historial), no esperar
     // a que la hidratación async lo detecte sola.
@@ -1143,7 +1176,13 @@ export default function DataEntry() {
     // reanudado YA era parte del alcance "Ambos" actual (guard de arriba), no
     // hay que achicar `pendingScopeMembers` a un solo miembro — el otro
     // punto declarado sigue pendiente.
-    setPendingScopeMembers((prev) => (prev.includes(targetUi) ? prev : [targetUi]))
+    // FUSIONAR, nunca pisar (bug real, revisión adversarial 2026-07-24):
+    // reemplazar el alcance borraba los frentes declarados que seguían a medias
+    // (ej. Punto A+B) sin registrarlos en ningún lado — "Terminar Sesión"
+    // después cerraba la sesión como final y ese trabajo quedaba abandonado sin
+    // aviso. Sumar es siempre seguro: de más, obliga a cerrar algo que el hub
+    // igual tenía a medias.
+    setPendingScopeMembers((prev) => (prev.includes(targetBucket) ? prev : [...prev, targetBucket]))
   }
 
   function discardDraft(d) {
@@ -1173,6 +1212,9 @@ export default function DataEntry() {
       setPendingExtraFronts((prev) =>
         prev.includes(d.bucketKey) ? prev.filter((bk) => bk !== d.bucketKey) : prev
       )
+      // Igual que en handleFinishSession: si sigue "tocado", el efecto de
+      // registro lo vuelve a agregar y el frente descartado revive.
+      setTouchedFronts((prev) => prev.filter((bk) => bk !== d.bucketKey))
     }
     // Si el borrador descartado es de la FECHA/contexto actual, su rebanada
     // puede seguir viva en memoria (y la ciudad marcada como hidratada). Sin
@@ -1284,8 +1326,10 @@ export default function DataEntry() {
   const setEntry = useCallback((uiCat, refId, tsLabel, comp, val) => {
     const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
+    markTouched(c)
     setEntriesByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
     clearErrorKeyFor(c, k) // clear error on edit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const getEntry = (uiCat, refId, tsLabel, comp) =>
@@ -1298,7 +1342,9 @@ export default function DataEntry() {
   const setEta = useCallback((uiCat, refId, tsLabel, comp, val) => {
     const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
+    markTouched(c)
     setEtaByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Precio CON descuento por competidor (misma clave que el precio principal,
@@ -1309,16 +1355,20 @@ export default function DataEntry() {
   const setDisc = useCallback((uiCat, refId, tsLabel, comp, val) => {
     const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
+    markTouched(c)
     setDiscByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [k]: val } }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
     const c = bucketRef.current
     const ik = indKey(uiCat, refId, tsLabel)
     const pk = priceKey(uiCat, refId, tsLabel, 'InDrive')
+    markTouched(c)
     setIndriveByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [ik]: extra } }))
     setEntriesByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [pk]: avg } }))
     clearErrorKeyFor(c, pk)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── "Sin data" (S/D) por celda / por fila ──────────────
@@ -1364,6 +1414,7 @@ export default function DataEntry() {
   const toggleNa = useCallback((uiCat, refId, tsLabel, comp) => {
     const c = bucketRef.current
     const k = priceKey(uiCat, refId, tsLabel, comp)
+    markTouched(c)
     setNaByCity((prev) => {
       const cur = prev[c] || EMPTY_SET
       const n = new Set(cur)
@@ -1380,6 +1431,7 @@ export default function DataEntry() {
   const markRowNa = useCallback((uiCat, refId, tsLabel, comps) => {
     const c = bucketRef.current
     const keys = comps.map((comp) => priceKey(uiCat, refId, tsLabel, comp))
+    markTouched(c)
     setNaByCity((prev) => {
       const cur = prev[c] || EMPTY_SET
       const allNa = keys.length > 0 && keys.every((k) => cur.has(k))
@@ -1998,23 +2050,42 @@ export default function DataEntry() {
       setMsg({ type: 'err', text: t('dataentry.err_no_full') })
       return
     }
-    const remainingAfterThis = pendingScopeMembers.filter((m) => m !== uiCity)
-    // Frentes extra (pedido user 2026-07-24, punto 2): TukTuk tocado durante
-    // una sesión de Aeropuerto (o viceversa) sin haberlo declarado de
-    // antemano — ver `pendingExtraFronts` y el guard de navegación más abajo.
-    // Mismo criterio que `remainingAfterThis`: la sesión solo cierra de
-    // verdad si TAMBIÉN no queda ningún frente extra sin terminar.
+    const remainingAfterThis = pendingScopeMembers.filter((m) => m !== bucketKey)
+    // Frentes extra (pedido user 2026-07-24, puntos 2/2b): cualquier bucket
+    // que el hub haya tocado sin declararlo de antemano — Corp, Normal,
+    // TukTuk u otra ciudad. Mismo criterio que `remainingAfterThis`: la
+    // sesión solo cierra de verdad si TAMBIÉN queda vacío.
     const remainingExtraAfterThis = pendingExtraFronts.filter((bk) => bk !== bucketKey)
     const isFinalInScope = remainingAfterThis.length === 0 && remainingExtraAfterThis.length === 0
     const ok = await performSave(rowsToInsert, true, isFinalInScope)
     if (!ok) return
-    if (remainingAfterThis.length !== pendingScopeMembers.length) {
-      setPendingScopeMembers(remainingAfterThis)
-    }
-    if (remainingExtraAfterThis.length !== pendingExtraFronts.length) {
-      setPendingExtraFronts(remainingExtraAfterThis)
-    }
-    if (!isFinalInScope && remainingAfterThis.length > 0) {
+    // Updaters funcionales: `remaining*AfterThis` son snapshots de ANTES del
+    // await de performSave (que puede tardar segundos). Aplicarlos como array
+    // plano pisaba cualquier frente que el hub hubiera empezado mientras
+    // giraba el guardado.
+    setPendingScopeMembers((prev) => prev.filter((m) => m !== bucketKey))
+    setPendingExtraFronts((prev) => prev.filter((bk) => bk !== bucketKey))
+    // Reiniciar el cronómetro para el frente SIGUIENTE (bug real de datos,
+    // revisión adversarial 2026-07-24): `sessionStartRef` se seteaba una sola
+    // vez al Iniciar Sesión, así que cada frente cerrado escribía en
+    // ci_sessions `started_at` = arranque global. Un hub que cerraba 3 frentes
+    // a las 10:00/11:00/12:00 habiendo arrancado a las 09:00 generaba
+    // duraciones de 60+120+180 = 360 min para 180 min reales, y en Monitoreo
+    // cada ciudad figuraba empezando a las 09:00.
+    if (!isFinalInScope) sessionStartRef.current = Date.now()
+    // Sin esto el efecto de registro vuelve a agregar el bucket recién
+    // cerrado a `pendingExtraFronts` (sigue "tocado") y la sesión no cierra
+    // nunca — el frente reaparecería como pendiente para siempre.
+    setTouchedFronts((prev) => prev.filter((bk) => bk !== bucketKey))
+    // El salto automático es SOLO para el par Punto A↔B declarado (están
+    // acoplados por ventana horaria: conviene medirlos seguidos). Cerrar un
+    // frente extra no debe teletransportar al hub a ningún lado — el aviso
+    // de arriba de la grilla le dice qué le falta y él elige a dónde ir.
+    if (
+      !isFinalInScope &&
+      remainingAfterThis.length > 0 &&
+      pendingScopeMembers.includes(bucketKey)
+    ) {
       // Prioriza volver al Punto de Aeropuerto que falta (comportamiento de
       // siempre). Si solo queda un frente extra (TukTuk) pendiente, no hay
       // "siguiente" obvio (no es A→B) — se deja que el hub elija a qué
@@ -2044,20 +2115,9 @@ export default function DataEntry() {
       return
     }
     const targetUi = dbCityToUiCity[s.city] || s.city
-    // Bug real (revisión adversarial 2026-07-23): abrir una sesión del
-    // historial FUERA del alcance "Ambos" declarado (2+ miembros pendientes)
-    // pisaba `pendingScopeMembers` sin que el punto abandonado quedara
-    // marcado como terminado — la sesión original no volvía a poder cerrarse
-    // bien. Abrir una sesión que SÍ es parte del alcance actual (ej. el otro
-    // punto declarado) sigue permitido sin más.
-    if (
-      sessionActive &&
-      pendingScopeMembers.length > 1 &&
-      !pendingScopeMembers.includes(targetUi)
-    ) {
-      setMsg({ type: 'err', text: t('dataentry.scope_locked_elsewhere') })
-      return
-    }
+    // Sin guard, mismo motivo que en resumeDraft: el bloqueo tapaba que esta
+    // función PISARA el alcance; ahora fusiona, así que abrir una sesión
+    // pasada para corregirla nunca puede abandonar un frente declarado.
     // Arrancar una sesión para que aparezcan Guardar/Terminar y el HP pueda
     // editar y re-guardar (el guardado es idempotente: DELETE+INSERT por
     // categoría/franja, así que re-guardar la misma fecha la actualiza).
@@ -2069,11 +2129,13 @@ export default function DataEntry() {
     // contaminado con tiempo ajeno).
     sessionStartRef.current = Date.now()
     setSessionActive(true)
-    // Reabrir del historial es de-alcance-único (una corrección puntual, no
-    // relanza un "Ambos" de Aeropuerto) — salvo que `targetUi` YA fuera parte
-    // del alcance "Ambos" en curso (guard de arriba), en cuyo caso no hay que
-    // achicarlo: el otro punto declarado sigue pendiente.
-    setPendingScopeMembers((prev) => (prev.includes(targetUi) ? prev : [targetUi]))
+    const targetBucketKey = s.zone ? `TT~${s.city}~${s.zone}` : s.city
+    // Fusionar, nunca pisar: reemplazar el alcance borraba los frentes que
+    // seguían a medias (ej. Punto A+B declarados) sin dejar rastro, y la
+    // sesión después cerraba como final abandonándolos en silencio.
+    setPendingScopeMembers((prev) =>
+      prev.includes(targetBucketKey) ? prev : [...prev, targetBucketKey]
+    )
     setShowHistory(false)
     if (s.zone) {
       // Sesión de TukTuk por distrito: volver a la ciudad base con TukTuk + el
@@ -2089,7 +2151,6 @@ export default function DataEntry() {
     // de estampado corra sobre la grilla recién cargada — si no, reabrir una
     // sesión con turnos ya completos estamparía un startedAt/endedAt falso de
     // "ahora mismo" (0 min) en vez de conservar el tiempo real original.
-    const targetBucketKey = s.zone ? `TT~${s.city}~${s.zone}` : s.city
     setTurnoTimingsByCity((prev) => ({
       ...prev,
       [targetBucketKey]:
@@ -2292,9 +2353,7 @@ export default function DataEntry() {
     if (mapped > 0 && !sessionActive) {
       sessionStartRef.current = Date.now()
       setSessionActive(true)
-      setPendingScopeMembers((prev) =>
-        prev.length ? prev : [dbCityToUiCity[loadDbCity] || loadDbCity]
-      )
+      setPendingScopeMembers((prev) => (prev.length ? prev : [bucket]))
     }
   }
 
@@ -2359,26 +2418,36 @@ export default function DataEntry() {
     })
   }, [filledByTimeslot, totalExpectedPerTimeslot, bucketKey])
 
-  // ── Frentes extra (pedido user 2026-07-24, punto 2) ─────────────────────
-  // Si el hub está trabajando (sessionActive) y toca un bucket que NO
+  // ── Frentes extra (pedido user 2026-07-24, puntos 2 y 2b) ───────────────
+  // Si el hub está trabajando (sessionActive) y ESCRIBE en un bucket que NO
   // declaró de antemano (no está en pendingScopeMembers), registrarlo como
-  // frente extra en cuanto queda PARCIALMENTE lleno — así "Terminar Sesión"
-  // no cierra de verdad hasta que esto también quede completo. Solo se
-  // agrega, nunca se saca acá (sacar es responsabilidad de
-  // handleFinishSession al completarlo).
+  // frente extra — así "Terminar Sesión" no cierra de verdad hasta que ese
+  // frente también se cierre. Solo se agrega acá; sacar es responsabilidad
+  // de handleFinishSession (al completarlo) o discardDraft (al abandonarlo).
   //
-  // Ojo: exige `filledCount < totalExpected`, no solo "algo lleno" — un
-  // bucket que YA estaba 100% completo de una sesión anterior (auto-cargado
-  // al navegar a la pestaña, sin que el hub tipeara nada nuevo) NO debe
-  // registrarse como pendiente: no hay nada más que hacer ahí, y forzar un
-  // clic extra de "Terminar" en un frente que el hub ni pensaba tocar sería
-  // una trampa de UX (bug hallado en browser-test 2026-07-24).
-  const isDeclaredMember = pendingScopeMembers.includes(uiCity)
+  // El disparador es `touchedFronts` (el hub escribió acá), NO el contador de
+  // celdas llenas: la heurística previa (0 < filled < total) fallaba en las
+  // dos direcciones — falso positivo al navegar a un frente ya 100% completo
+  // de una sesión anterior (auto-cargado, el hub no tocó nada) y falso
+  // negativo si el hub llenaba un frente al 100% y lo abandonaba sin cerrarlo.
+  //
+  // El registro es REVERSIBLE: si el frente vuelve a quedar en 0 celdas, se
+  // des-registra. Sin eso (bug real, revisión adversarial 2026-07-24) tocar
+  // una celda por error y borrarla dejaba la sesión trabada PARA SIEMPRE: el
+  // frente quedaba pendiente, pero "Terminar Sesión" ahí exige la grilla
+  // COMPLETA y el borrador vacío ni siquiera aparecía en el panel de
+  // borradores para poder descartarlo. La única salida era inventar un día
+  // entero de "Sin data" o cambiar de país.
+  const isDeclaredMember = pendingScopeMembers.includes(bucketKey)
   useEffect(() => {
     if (!sessionActive || isDeclaredMember) return
-    if (filledCount === 0 || filledCount >= totalExpected) return
-    setPendingExtraFronts((prev) => (prev.includes(bucketKey) ? prev : [...prev, bucketKey]))
-  }, [sessionActive, isDeclaredMember, filledCount, totalExpected, bucketKey])
+    const shouldBePending = touchedFronts.includes(bucketKey) && filledCount > 0
+    setPendingExtraFronts((prev) => {
+      const isPending = prev.includes(bucketKey)
+      if (shouldBePending === isPending) return prev
+      return shouldBePending ? [...prev, bucketKey] : prev.filter((bk) => bk !== bucketKey)
+    })
+  }, [sessionActive, isDeclaredMember, touchedFronts, filledCount, bucketKey])
 
   // ── Presencia: "quién más está acá ahora" (pedidos 2, 3, 4) ────────────
   // Lectura liviana vía RPC (mig 152, SECURITY DEFINER — el RLS normal de
@@ -2629,43 +2698,23 @@ export default function DataEntry() {
                     : tb.type === 'corp'
                       ? !isTukTuk && uiCity === 'Corp'
                       : !isTukTuk && uiCity === tb.uiCity
-              // Bug real (revisión adversarial 2026-07-23): mientras hay un
-              // alcance "Ambos" a medias (2+ miembros pendientes), navegar a
-              // CUALQUIER otra pestaña de nivel superior dejaba
-              // `pendingScopeMembers` apuntando a un uiCity ajeno a la vista
-              // actual — el próximo "Terminar Sesión" (en la ciudad nueva)
-              // nunca lograba vaciar `remainingAfterThis`, así que la sesión
-              // jamás cerraba de verdad y encima teletransportaba al hub de
-              // vuelta al punto abandonado sin aviso. Se bloquea la
-              // navegación fuera del alcance declarado, mismo criterio que
-              // ya bloquea el punto B/A no declarado en las sub-pestañas.
+              // Historia: hasta 2026-07-24 acá había un candado
+              // (`scopeLockedElsewhere`) que, con un alcance "Ambos" a medias,
+              // bloqueaba navegar a CUALQUIER otra pestaña. Existía porque
+              // navegar afuera dejaba `pendingScopeMembers` apuntando a un
+              // frente ajeno a la vista y la sesión no cerraba nunca.
               //
-              // Excepción (pedido user 2026-07-24, punto 2): el salto
-              // Aeropuerto↔TukTuk DENTRO DE LA MISMA CIUDAD sí se permite —
-              // el hub puede avanzar los dos frentes en paralelo. El bucket
-              // tocado se registra solo como `pendingExtraFronts` (ver efecto
-              // más arriba) y "Terminar Sesión" exige que también quede
-              // vacío. Todo lo demás (Normal/Corp/otra ciudad) sigue
-              // bloqueado exactamente como antes — ahí sí aplica el bug de
-              // arriba.
-              const hasPendingScope =
-                pendingScopeMembers.length > 1 || pendingExtraFronts.length > 0
-              const airportTukTukSwap =
-                (tb.type === 'airport' || tb.type === 'tuktuk') &&
-                cluster.base === activeClusterBase
-              const scopeLockedElsewhere =
-                sessionActive && hasPendingScope && !active && !airportTukTukSwap
+              // El candado se levantó por completo (pedido 2b): el hub salta a
+              // donde necesite con la sesión abierta. Lo que cierra ese bug
+              // ahora es el REGISTRO, no el bloqueo — todo frente donde el hub
+              // escriba queda en `pendingExtraFronts` y "Terminar Sesión" no
+              // cierra hasta que todos (declarados + extra) estén cerrados,
+              // así que ninguno puede quedar abandonado en silencio.
               return (
                 <button
                   key={`${cluster.base}-${tb.type}`}
-                  className={`de-city-tab${tb.type === 'airport' ? ' de-city-tab--airport' : ''}${active ? ' active' : ''}${scopeLockedElsewhere ? ' de-city-tab--locked' : ''}`}
-                  aria-disabled={scopeLockedElsewhere}
-                  title={scopeLockedElsewhere ? t('dataentry.scope_locked_elsewhere') : undefined}
+                  className={`de-city-tab${tb.type === 'airport' ? ' de-city-tab--airport' : ''}${active ? ' active' : ''}`}
                   onClick={() => {
-                    if (scopeLockedElsewhere) {
-                      setMsg({ type: 'err', text: t('dataentry.scope_locked_elsewhere') })
-                      return
-                    }
                     setMsg(null)
                     if (tb.type === 'tuktuk') {
                       // Re-click estando ya en TukTuk (en cualquier distrito, o
@@ -2677,7 +2726,16 @@ export default function DataEntry() {
                       }
                     } else if (tb.type === 'airport') {
                       if (!active) {
-                        setUiCity(tb.members[0].uiCity)
+                        // Aterrizar en un punto DECLARADO si lo hay: volver
+                        // al Aeropuerto desde otro frente caía siempre en
+                        // members[0], que si el hub había declarado solo el
+                        // Punto B estaba bloqueado por su propio candado.
+                        setUiCity(
+                          (
+                            tb.members.find((m) => pendingScopeMembers.includes(m.uiCity)) ||
+                            tb.members[0]
+                          ).uiCity
+                        )
                         setActiveTukTuk(null)
                       }
                     } else {
@@ -2714,12 +2772,23 @@ export default function DataEntry() {
             perder el cronómetro con "+ agregar" abajo. */}
         {activeAirportMembers && (
           <div className="de-airport-subtabs">
+            {/* El candado de "punto no declarado" SOLO aplica dentro del
+                cluster de Aeropuerto al que pertenece el alcance declarado.
+                Bug real (hallado en browser-test 2026-07-24 al liberar la
+                navegación): parado en el Aeropuerto de OTRA ciudad, ningún
+                punto de ahí está en `pendingScopeMembers` (que tiene los de
+                la ciudad declarada), así que se bloqueaban LOS DOS y el hub
+                quedaba sin poder trabajar ninguno — con Punto A además
+                mostrando candado pero funcionando, lo más confuso posible.
+                Fuera del cluster declarado los puntos van libres: tocarlos
+                los registra como frente extra, igual que Corp o Normal. */}
             {activeAirportMembers.map((m) => {
               const n = countAllFilled(entriesByCity[m.uiCity], indriveByCity[m.uiCity])
+              const scopeOwnsThisCluster = activeAirportMembers.some((mm) =>
+                pendingScopeMembers.includes(mm.uiCity)
+              )
               const locked =
-                sessionActive &&
-                pendingScopeMembers.length > 0 &&
-                !pendingScopeMembers.includes(m.uiCity)
+                sessionActive && scopeOwnsThisCluster && !pendingScopeMembers.includes(m.uiCity)
               const here = presenceFor(m.uiCity, null)
               return (
                 <button
@@ -2751,8 +2820,16 @@ export default function DataEntry() {
                 </button>
               )
             })}
+            {/* "+ agregar el otro punto" amplía el alcance DECLARADO, así que
+                solo tiene sentido en el cluster dueño de ese alcance. Sin el
+                `.some(...)` de pertenencia, parado en el Aeropuerto de otra
+                ciudad este botón inyectaba los puntos de ESA ciudad dentro
+                del alcance declarado de la ciudad original — mezclando dos
+                clusters en `pendingScopeMembers` (bug hermano del candado de
+                arriba, mismo browser-test). */}
             {sessionActive &&
               pendingScopeMembers.length === 1 &&
+              activeAirportMembers.some((m) => pendingScopeMembers.includes(m.uiCity)) &&
               activeAirportMembers.some((m) => !pendingScopeMembers.includes(m.uiCity)) && (
                 <button
                   type="button"

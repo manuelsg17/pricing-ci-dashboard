@@ -254,19 +254,24 @@ calloutBox(
 )
 
 // ════════════════════════════════════════════════════════════════════════
-h1('5. Aeropuerto + TukTuk al mismo tiempo (novedad)')
+h1('5. Trabajar varias pestañas en la misma sesión (novedad)')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
-  'Si estás en medio de una sesión de Aeropuerto y también necesitás avanzar TukTuk de la MISMA ciudad (o al revés), ya no hace falta terminar una para poder tocar la otra: podés saltar libremente entre Aeropuerto y TukTuk dentro de la misma sesión.'
+  'Ya no hay pestañas bloqueadas mientras tenés una sesión abierta. Si estás con Aeropuerto y también necesitás avanzar TukTuk, Corp, Normal, o incluso otra ciudad, podés saltar libremente entre todas — sin terminar una para poder tocar la otra, y sin perder el cronómetro.'
 )
 p(
-  'El resto de las pestañas (Normal, Corp, u otra ciudad) sigue funcionando como antes: mientras tengas un alcance de Aeropuerto a medias, quedan bloqueadas hasta que lo termines.'
+  'El sistema lleva la cuenta por vos: apenas escribís algo en una pestaña, esa pestaña queda anotada como pendiente. "Terminar Sesión" no cierra de verdad hasta que cierres TODAS las que empezaste — así ninguna queda a medias sin que nadie se entere.'
 )
 calloutBox(
   '¿Cómo sé qué me falta?',
-  'Mientras tengas algo pendiente — el alcance de Aeropuerto que declaraste, o el frente de TukTuk que empezaste a tocar — el botón principal va a decir "Terminar este punto" en vez de "Terminar Sesión", y vas a ver un aviso arriba de la grilla recordándote qué falta completar.',
+  'Mientras tengas algo pendiente, el botón principal dice "Terminar este punto" en vez de "Terminar Sesión", y arriba de la grilla aparece un aviso que lista exactamente qué pestañas te falta cerrar. Cerrá cada una con su propio "Terminar" (recordá que exige la grilla completa de esa pestaña).',
   [219, 234, 254]
+)
+calloutBox(
+  '¿Y si toqué una pestaña por error?',
+  'Si escribiste algo sin querer y lo borrás, esa pestaña deja de contar como pendiente automáticamente — no te va a trabar la sesión.',
+  [220, 252, 231]
 )
 
 // ════════════════════════════════════════════════════════════════════════
@@ -350,8 +355,8 @@ table(
       'Sí, con el botón "+ agregar el otro punto" junto a las pestañas de Aeropuerto.',
     ],
     [
-      '¿Puedo avanzar Aeropuerto y TukTuk de la misma ciudad en la misma sesión?',
-      'Sí — podés saltar libremente entre las dos. "Terminar Sesión" va a exigir que ambas queden completas.',
+      '¿Puedo avanzar varias pestañas (Aeropuerto, TukTuk, Corp, otra ciudad) en la misma sesión?',
+      'Sí — saltá libremente entre todas. "Terminar Sesión" va a exigir que cierres cada una de las que empezaste.',
     ],
   ]
 )
