@@ -200,6 +200,17 @@ export default function DataEntry() {
   const { isRushHour } = useRushHourConfig(country)
   const { timeslots } = useCITimeslots()
 
+  // dbTimeslot ('Morning'/'Midday'/'Evening', mig 148) → ts.label localizado
+  // ('Mañana'/'Tarde'/'Noche' en es). Usado por "Ver lo guardado" para no
+  // mostrar la etiqueta cruda en inglés sin importar el locale activo.
+  const dbTimeslotToLabel = useMemo(() => {
+    const m = {}
+    for (const ts of timeslots) {
+      m[timeslotLabel(ts.start_time?.slice(0, 5))] = ts.label
+    }
+    return m
+  }, [timeslots])
+
   // Categorías de la vista activa. En TukTuk-por-distrito la única categoría es
   // 'TukTuk'. En la vista NORMAL de una ciudad que además tiene TukTuk (Lima), se
   // saca 'TukTuk' de la grilla — ahora vive en su propia pestaña, no mezclado con
@@ -2904,7 +2915,7 @@ export default function DataEntry() {
                   <tbody>
                     {savedRows.map((r, i) => (
                       <tr key={i}>
-                        <td>{r.timeslot || '—'}</td>
+                        <td>{dbTimeslotToLabel[r.timeslot] || r.timeslot || '—'}</td>
                         <td>{r.category}</td>
                         <td>{r.competition_name}</td>
                         <td>
