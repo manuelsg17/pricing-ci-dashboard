@@ -3024,7 +3024,10 @@ export default function DataEntry() {
                             {revision && (
                               <div className="de-history-note">
                                 {t('dataentry.session_revised', {
-                                  n: revision.count,
+                                  // revision.count es el TOTAL de filas del grupo (original +
+                                  // reaperturas) — la sesión original no es una "edición", así
+                                  // que el texto muestra solo las reaperturas posteriores.
+                                  n: revision.count - 1,
                                   who: revision.lastEditor || '—',
                                 })}
                               </div>
