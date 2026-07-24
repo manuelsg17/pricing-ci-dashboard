@@ -9,7 +9,6 @@ import { capIndriveExtraBids } from '../lib/indriveAvg'
 import { getISOYearWeek } from '../lib/dateUtils'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
-import { LIVE_STALE_MS } from '../lib/monitoring'
 import { isTukTukDistrictEnabled, firstEnabledTukTukDistrict } from '../lib/tuktukDistricts'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
@@ -17,6 +16,7 @@ import { Lock } from 'lucide-react'
 import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
 import TurnoSection from '../components/dataentry/TurnoSection'
 import InstructionsBanner from '../components/dataentry/InstructionsBanner'
+import { SessionTimer, SaveStatusIndicators } from '../components/dataentry/SessionLiveStatus'
 import '../styles/data-entry.css'
 
 // (city/category/competitor constants are derived dynamically from COUNTRY_CONFIG via props)
@@ -37,16 +37,6 @@ const CAT_COLORS = {
 // ── Helpers ────────────────────────────────────────────────────────────────
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
-}
-
-function fmtElapsed(ms) {
-  const total = Math.floor(ms / 1000)
-  const h = Math.floor(total / 3600)
-  const m = Math.floor((total % 3600) / 60)
-  const s = total % 60
-  if (h > 0)
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 // Cuenta solo celdas con un valor numérico real — una celda tipeada y
@@ -150,7 +140,6 @@ export default function DataEntry() {
   // Session management
   const sessionStartRef = useRef(null)
   const [sessionActive, setSessionActive] = useState(false)
-  const [elapsed, setElapsed] = useState('00:00')
   // Alcance de sesión declarado (mig 151, solo relevante en clusters de
   // Aeropuerto): qué uiCity(s) el hub eligió completar en esta sentada antes
   // de "Iniciar Sesión" — Punto A, Punto B, o ambos. Para TukTuk/Normal/Corp
@@ -445,14 +434,8 @@ export default function DataEntry() {
     // dbCity es reactivo a uiCity y categories, así no hay problema
   }, [country, countryConfig])
 
-  // ── Timer — only when session is active ───────────────
-  useEffect(() => {
-    if (!sessionActive) return
-    const id = setInterval(() => {
-      setElapsed(fmtElapsed(Date.now() - sessionStartRef.current))
-    }, 1000)
-    return () => clearInterval(id)
-  }, [sessionActive])
+  // El cronómetro (⏱) vive en <SessionTimer> con su propio interval, para que
+  // su tick por segundo no re-renderice toda la grilla. Ver SessionLiveStatus.
 
   // ── Start session ──────────────────────────────────────
   // `members` = alcance declarado (array de uiCity). En Aeropuerto puede ser
@@ -461,7 +444,6 @@ export default function DataEntry() {
   // al de antes de este cambio.
   function handleStartSession(members) {
     sessionStartRef.current = Date.now()
-    setElapsed('00:00')
     setSessionActive(true)
     setPendingScopeMembers(members && members.length ? members : [uiCity])
     setMsg(null)
@@ -571,7 +553,6 @@ export default function DataEntry() {
     // Progreso" queda intacto en la BD, esto solo limpia el estado en vivo.
     if (sessionActiveRef.current) {
       setSessionActive(false)
-      setElapsed('00:00')
       setPendingScopeMembers([])
       if (userEmailRef.current) {
         sb.from('ci_active_sessions')
@@ -719,7 +700,6 @@ export default function DataEntry() {
   // al hub si su progreso está de verdad llegando al backend. Ver render
   // del indicador más abajo y el motivo en el comentario del latido.
   const [lastServerOkAt, setLastServerOkAt] = useState(null)
-  const [nowTick, setNowTick] = useState(() => Date.now())
 
   useEffect(() => {
     draftHydratedRef.current = false
@@ -972,35 +952,10 @@ export default function DataEntry() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [entriesByCity, etaByCity, discByCity, indriveByCity, naByCity])
 
-  // ── Indicador "guardado hace Xs" — ticker ──────────────
-  // Corre también con sessionActive solo (sin ningún timestamp todavía): si el
-  // PRIMER latido nunca llega a confirmarse, igual necesitamos que el reloj
-  // avance para que el aviso de "no confirmado" escale a los 3 min (ver
-  // serverConfirmState) — si no, ese caso worst-case se queda congelado sin
-  // avisar nada, justo el escenario que este indicador existe para cubrir.
-  useEffect(() => {
-    if (!sessionActive && lastDraftSavedAt == null && lastServerOkAt == null) return
-    const id = setInterval(() => setNowTick(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [sessionActive, lastDraftSavedAt, lastServerOkAt])
-
-  // Estado del indicador de servidor (header). Referencia de "última vez que
-  // supimos del backend": lastServerOkAt si ya hubo una confirmación real, si
-  // no el inicio de sesión — así, si el PRIMER latido nunca llega a
-  // confirmarse (ej. el hub arrancó con la red caída), el aviso igual escala
-  // a los 3 min en vez de no mostrar nunca nada (antes, sin este fallback,
-  // ese caso worst-case quedaba sin ninguna señal — justo lo que este
-  // indicador existe para prevenir).
-  const serverConfirmState = useMemo(() => {
-    if (!sessionActive) return null
-    const ref = lastServerOkAt ?? sessionStartRef.current
-    if (ref == null) return null
-    const age = nowTick - ref
-    if (age <= LIVE_STALE_MS) {
-      return lastServerOkAt != null ? { kind: 'ok', s: Math.max(0, Math.floor(age / 1000)) } : null
-    }
-    return { kind: 'warn', m: Math.max(1, Math.floor(age / 60_000)) }
-  }, [sessionActive, lastServerOkAt, nowTick])
+  // Los indicadores "guardado/confirmado hace Xs" (incluido su ticker de 1s y
+  // el cálculo de serverConfirmState) viven en <SaveStatusIndicators> con su
+  // propio interval, para que el tick por segundo no re-renderice toda la
+  // grilla. Ver SessionLiveStatus.
 
   // ── Borradores sin terminar (todos, por país) ──────────
   // Un "borrador" = una (ciudad, fecha) con datos SIN TERMINAR, guardado solo
@@ -1853,7 +1808,6 @@ export default function DataEntry() {
       }
       if (isFinalInScope) {
         setSessionActive(false)
-        setElapsed('00:00')
         setMsg({
           type: 'ok',
           text: t('dataentry.session_finished', { min: dur, n: payloads.length }),
@@ -2387,9 +2341,10 @@ export default function DataEntry() {
         <div className="de-header__left">
           <h1>{t('dataentry.title')}</h1>
           {sessionActive && (
-            <div className="de-timer de-timer--active" title={t('dataentry.timer_title')}>
-              ⏱ {elapsed}
-            </div>
+            <SessionTimer
+              sessionStart={sessionStartRef.current}
+              title={t('dataentry.timer_title')}
+            />
           )}
         </div>
         <div className="de-header__actions">
@@ -2678,29 +2633,16 @@ export default function DataEntry() {
             <span className="de-progress-label">{t('dataentry.fields')}</span>
           </div>
 
-          {lastDraftSavedAt != null && (
-            <span className="de-autosave-indicator">
-              {t('dataentry.autosaved_ago', {
-                s: Math.max(0, Math.floor((nowTick - lastDraftSavedAt) / 1000)),
-              })}
-            </span>
-          )}
-
-          {/* Confirmación REAL de servidor (no solo borrador local) —
-              siempre visible mientras hay sesión activa, no solo al fallar:
-              el problema de los incidentes de hoy fue que el hub no tenía
-              NINGUNA señal, ni buena ni mala. Reusa el mismo umbral de 3 min
-              (LIVE_STALE_MS) que ya usa Monitoreo del lado del admin. */}
-          {serverConfirmState?.kind === 'ok' && (
-            <span className="de-server-ok-indicator">
-              {t('dataentry.server_confirmed_ago', { s: serverConfirmState.s })}
-            </span>
-          )}
-          {serverConfirmState?.kind === 'warn' && (
-            <span className="de-server-warn-indicator">
-              {t('dataentry.server_unconfirmed_warn', { m: serverConfirmState.m })}
-            </span>
-          )}
+          {/* Indicadores "guardado/confirmado hace Xs" — su ticker de 1s vive
+              adentro, aislado de la grilla. Reusa el mismo umbral de 3 min
+              (LIVE_STALE_MS) que Monitoreo del lado del admin. */}
+          <SaveStatusIndicators
+            sessionActive={sessionActive}
+            sessionStart={sessionStartRef.current}
+            lastDraftSavedAt={lastDraftSavedAt}
+            lastServerOkAt={lastServerOkAt}
+            t={t}
+          />
         </div>
       </div>
 
