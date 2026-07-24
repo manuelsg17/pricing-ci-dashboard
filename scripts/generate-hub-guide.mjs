@@ -254,7 +254,23 @@ calloutBox(
 )
 
 // ════════════════════════════════════════════════════════════════════════
-h1('5. TukTuk: un distrito por sesión')
+h1('5. Aeropuerto + TukTuk al mismo tiempo (novedad)')
+// ════════════════════════════════════════════════════════════════════════
+
+p(
+  'Si estás en medio de una sesión de Aeropuerto y también necesitás avanzar TukTuk de la MISMA ciudad (o al revés), ya no hace falta terminar una para poder tocar la otra: podés saltar libremente entre Aeropuerto y TukTuk dentro de la misma sesión.'
+)
+p(
+  'El resto de las pestañas (Normal, Corp, u otra ciudad) sigue funcionando como antes: mientras tengas un alcance de Aeropuerto a medias, quedan bloqueadas hasta que lo termines.'
+)
+calloutBox(
+  '¿Cómo sé qué me falta?',
+  'Mientras tengas algo pendiente — el alcance de Aeropuerto que declaraste, o el frente de TukTuk que empezaste a tocar — el botón principal va a decir "Terminar este punto" en vez de "Terminar Sesión", y vas a ver un aviso arriba de la grilla recordándote qué falta completar.',
+  [219, 234, 254]
+)
+
+// ════════════════════════════════════════════════════════════════════════
+h1('6. TukTuk: un distrito por sesión')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
@@ -265,7 +281,7 @@ p(
 )
 
 // ════════════════════════════════════════════════════════════════════════
-h1('6. ¿Quién más está trabajando?')
+h1('7. ¿Quién más está trabajando?')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
@@ -278,7 +294,7 @@ calloutBox(
 )
 
 // ════════════════════════════════════════════════════════════════════════
-h1('7. Corregir un error después de Terminar Sesión')
+h1('8. Corregir un error después de Terminar Sesión')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
@@ -286,7 +302,7 @@ p(
 )
 
 // ════════════════════════════════════════════════════════════════════════
-h1('8. Ver lo que ya guardaste')
+h1('9. Ver lo que ya guardaste')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
@@ -294,11 +310,16 @@ p(
 )
 
 // ════════════════════════════════════════════════════════════════════════
-h1('9. Si se corta la sesión')
+h1('10. Si se corta la sesión')
 // ════════════════════════════════════════════════════════════════════════
 
 p(
   'A veces pasa: se va la luz, se corta el internet, te llaman con algo urgente. Lo que ya guardaste con "Guardar progreso" está seguro en el servidor pase lo que pase. Si tu sesión queda "colgada" (nunca la terminaste), el admin la puede cerrar desde su panel de Monitoreo sin tocar nada de lo que ya cargaste — solo cierra la contabilidad de esa sesión. Cuando puedas, volvé a esa ciudad/fecha y segui donde quedaste.'
+)
+calloutBox(
+  'Si no vas a poder volver (novedad)',
+  'Si te pasa algo a mitad de turno y otro compañero tiene que seguir por vos, avisale a un admin — puede reasignarle lo que ya guardaste. Tu compañero va a ver ese trabajo cargado automáticamente al entrar a esa misma ciudad/fecha, sin tener que volver a cargarlo de cero.',
+  [220, 252, 231]
 )
 
 // ════════════════════════════════════════════════════════════════════════
@@ -327,6 +348,10 @@ table(
     [
       '¿Puedo cambiar de "Punto A" a "Ambos puntos" a mitad de sesión?',
       'Sí, con el botón "+ agregar el otro punto" junto a las pestañas de Aeropuerto.',
+    ],
+    [
+      '¿Puedo avanzar Aeropuerto y TukTuk de la misma ciudad en la misma sesión?',
+      'Sí — podés saltar libremente entre las dos. "Terminar Sesión" va a exigir que ambas queden completas.',
     ],
   ]
 )
