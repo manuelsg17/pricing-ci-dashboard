@@ -416,6 +416,25 @@
   color: var(--color-danger-fg);
 }
 
+/* Confirmación de "Terminar Sesión" — la grilla se vacía a propósito justo
+   después (evita que el autosave la resucite), y sin una confirmación bien
+   visible ese vaciado se siente como pérdida de datos. Más grande, ícono,
+   borde marcado — para que quede claro que SÍ se guardó. */
+.de-msg--emphasize {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  border-width: 2px;
+  box-shadow: 0 2px 10px rgba(22, 163, 74, 0.15);
+}
+.de-msg__icon {
+  flex-shrink: 0;
+  color: var(--color-success-fg);
+}
+
 /* ── Loading ─────────────────────────────────────────────── */
 .de-loading {
   padding: 32px;

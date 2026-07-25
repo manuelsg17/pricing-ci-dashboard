@@ -13,7 +13,7 @@ import { useCITimeslots } from '../hooks/useCITimeslots'
 import { isTukTukDistrictEnabled, firstEnabledTukTukDistrict } from '../lib/tuktukDistricts'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
-import { Lock } from 'lucide-react'
+import { Lock, CheckCircle2 } from 'lucide-react'
 import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
 import TurnoSection from '../components/dataentry/TurnoSection'
 import InstructionsBanner from '../components/dataentry/InstructionsBanner'
@@ -101,6 +101,10 @@ function earliestTurnoStart(timings) {
 // (si no, las deps de los effects "cambiarían" en cada render).
 const EMPTY_OBJ = {}
 const EMPTY_SET = new Set()
+
+// Ventana durante la cual un auto-load silencioso NO puede reactivar un
+// bucket que este hub acaba de Terminar a propósito. Ver `markBucketJustFinished`.
+const BUCKET_JUST_FINISHED_MS = 5 * 60_000
 
 import { useCountry } from '../context/CountryContext'
 
@@ -375,6 +379,85 @@ export default function DataEntry() {
     }
     return true
   }, [])
+
+  // Causa raíz encontrada (2026-07-24 noche, incidente real de Raisa: "2
+  // borradores sin terminar" reaparecidos + fila DUPLICADA en ci_sessions
+  // para el mismo Punto de Aeropuerto): el auto-load SILENCIOSO
+  // (`loadObservationsIntoForm(..., {silent:true})`, ver el efecto de
+  // hidratación) no distinguía "esta ciudad+fecha nunca se tocó" de "ESTE
+  // hub acaba de Terminar Sesión acá hace instantes" — en ambos casos
+  // `entriesByCity[bucket]` está vacío (recién vaciado por `dropCity` al
+  // Terminar) y el auto-load busca en el servidor si hay algo guardado. Como
+  // las filas SÍ siguen legítimamente en `pricing_observations` (Terminar
+  // Sesión las INSERTA, no las borra), el auto-load las traía de vuelta,
+  // repoblaba la grilla a 324/324 Y reactivaba la sesión (`setSessionActive
+  // (true)`, ver `mapped > 0 && !sessionActive` más abajo) — el hub veía
+  // "Terminar Sesión" disponible otra vez segundos/minutos después de
+  // haber terminado, exactamente como si nunca hubiera cerrado, y si
+  // volvía a tocarlo (razonablemente, para "confirmar" que quedó guardado)
+  // se creaba una SEGUNDA fila real en `ci_sessions` para el mismo punto.
+  // Confirmado con datos de producción: 2 filas para
+  // `Arequipa_Airport_A`/`raisalopez` a 47s de distancia, ambas con 324/324.
+  // Guard separado del de arriba (clave por bucket+fecha, no por draftKey de
+  // localStorage, y con ventana mucho más larga): un auto-load silencioso
+  // nunca debe resucitar algo que ESTE hub acaba de cerrar a propósito —
+  // solo una apertura EXPLÍCITA (Historial → Abrir, o "Reanudar" un
+  // borrador legítimo) puede volver a activarlo.
+  const justFinishedBucketRef = useRef(new Map()) // "bucket::fecha" → timestamp
+  // Espejo en localStorage (revisión adversarial 2026-07-24): un `useRef`
+  // vive SOLO en memoria del tab — no sobrevive un F5 real, que es
+  // justamente uno de los caminos más probables por los que el auto-load
+  // silencioso puede haber resucitado el bucket de Raisa (un refresh
+  // desmonta y remonta todo, vaciando el Map). El localStorage sí
+  // sobrevive, así que es la fuente de verdad; el Map en memoria es solo
+  // una lectura rápida para el caso común (sin F5 de por medio).
+  const bucketFinishedLsKey = (bk, d) => `de:finished:${userEmail}:${bk}:${d}`
+
+  const markBucketJustFinished = useCallback(
+    (bk, d) => {
+      const key = `${bk}::${d}`
+      const now = Date.now()
+      justFinishedBucketRef.current.set(key, now)
+      setTimeout(() => {
+        justFinishedBucketRef.current.delete(key)
+      }, BUCKET_JUST_FINISHED_MS)
+      try {
+        localStorage.setItem(bucketFinishedLsKey(bk, d), String(now))
+      } catch {
+        /* quota / disabled — el guard en memoria sigue protegiendo el tab actual */
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [userEmail]
+  )
+
+  const isBucketJustFinished = useCallback(
+    (bk, d) => {
+      const key = `${bk}::${d}`
+      let t = justFinishedBucketRef.current.get(key)
+      if (t == null) {
+        try {
+          const raw = localStorage.getItem(bucketFinishedLsKey(bk, d))
+          if (raw) t = parseInt(raw, 10)
+        } catch {
+          /* ignore */
+        }
+      }
+      if (t == null || !Number.isFinite(t)) return false
+      if (Date.now() - t > BUCKET_JUST_FINISHED_MS) {
+        justFinishedBucketRef.current.delete(key)
+        try {
+          localStorage.removeItem(bucketFinishedLsKey(bk, d))
+        } catch {
+          /* ignore */
+        }
+        return false
+      }
+      return true
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [userEmail]
+  )
 
   // Agrupar las pestañas de ciudad: los aeropuertos `{Base}_Airport_{A|B}` se
   // juntan bajo un tab "{Base} Aeropuerto" con sub-pestañas Punto A | Punto B.
@@ -1951,9 +2034,16 @@ export default function DataEntry() {
       }
       if (isFinalInScope) {
         setSessionActive(false)
+        // `emphasize` (pedido user 2026-07-24, incidente real de Raisa): la
+        // grilla se vacía a propósito apenas termina la sesión (ver
+        // dropCity más abajo) para que el autosave no la "resucite" — pero
+        // sin una confirmación bien visible, ese vaciado se siente como
+        // pérdida de datos aunque el guardado en servidor ya esté
+        // confirmado. Mensaje grande y persistente en vez del pill chico.
         setMsg({
           type: 'ok',
           text: t('dataentry.session_finished', { min: dur, n: payloads.length }),
+          emphasize: true,
         })
       } else {
         // Alcance "Ambos" de Aeropuerto: este punto quedó cerrado, pero la
@@ -1962,6 +2052,7 @@ export default function DataEntry() {
         setMsg({
           type: 'ok',
           text: t('dataentry.scope_point_done', { n: payloads.length }),
+          emphasize: true,
         })
       }
     } else {
@@ -1980,6 +2071,7 @@ export default function DataEntry() {
     if (isFinish) {
       clearDraft()
       markJustFinished(draftKey)
+      markBucketJustFinished(bucketKey, date)
       setLastDraftSavedAt(null)
       // Limpiar la rebanada EN MEMORIA de la ciudad recién terminada. Sin esto,
       // el flush/autosave/beforeunload vuelven a escribir el borrador que
@@ -2185,6 +2277,12 @@ export default function DataEntry() {
     { silent = false } = {}
   ) {
     const bucket = targetBucket ?? loadDbCity
+    // Un auto-load SILENCIOSO nunca debe resucitar un bucket que este hub
+    // acaba de Terminar a propósito (ver `markBucketJustFinished` — causa
+    // raíz real del bug "2 borradores reaparecidos" de Raisa, 2026-07-24).
+    // Una apertura EXPLÍCITA (Historial → Abrir, openHistorySession) nunca
+    // pasa `silent`, así que sigue funcionando sin cambios.
+    if (silent && isBucketJustFinished(bucket, loadDate)) return
     let obsQuery = sb
       .from('pricing_observations')
       .select(
@@ -3007,7 +3105,10 @@ export default function DataEntry() {
 
       {/* ── Status message ── */}
       {msg && (
-        <div className={`de-msg${msg.type === 'ok' ? ' de-msg--ok' : ' de-msg--err'}`}>
+        <div
+          className={`de-msg${msg.type === 'ok' ? ' de-msg--ok' : ' de-msg--err'}${msg.emphasize ? ' de-msg--emphasize' : ''}`}
+        >
+          {msg.emphasize && <CheckCircle2 className="de-msg__icon" size={20} />}
           {msg.text}
         </div>
       )}
