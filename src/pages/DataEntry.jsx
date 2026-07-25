@@ -76,6 +76,26 @@ function countAllFilled(entries, indriveExtra) {
   return n
 }
 
+// Timestamp (epoch ms) del `startedAt` más antiguo entre los turnos ya
+// estampados, o null si no hay ninguno. Usado para sembrar el cronómetro de
+// SESIÓN (sessionStartRef) al retomar trabajo que ya venía en curso — mismo
+// criterio que ya usa `turnoTimings` por turno, para no falsificar el tiempo
+// real con un "ahora" cada vez que se recarga la página o se reanuda un
+// borrador (bug real 2026-07-24: sesiones de horas quedaban registradas como
+// "1 minuto" al reanudar).
+function earliestTurnoStart(timings) {
+  if (!timings || typeof timings !== 'object') return null
+  let min = null
+  for (const t of Object.values(timings)) {
+    const raw = t?.startedAt
+    if (!raw) continue
+    const ms = new Date(raw).getTime()
+    if (!Number.isFinite(ms)) continue
+    if (min === null || ms < min) min = ms
+  }
+  return min
+}
+
 // Rebanadas vacías compartidas (identidad estable) para el estado por-ciudad:
 // evitan crear un objeto nuevo por render cuando la ciudad activa no tiene datos
 // (si no, las deps de los effects "cambiarían" en cada render).
@@ -853,7 +873,7 @@ export default function DataEntry() {
             // vez de Guardar/Terminar, como si nunca hubiera empezado nada.
             setSessionActive((prev) => {
               if (prev) return prev
-              sessionStartRef.current = Date.now()
+              sessionStartRef.current = earliestTurnoStart(parsed.turnoTimings) || Date.now()
               return true
             })
             // Restaurar el alcance declarado (Aeropuerto "Ambos") si el
@@ -1120,6 +1140,7 @@ export default function DataEntry() {
           savedAt: parsed.savedAt || 0,
           bucketKey: bucketKeyD,
           resume,
+          turnoTimings: parsed.turnoTimings || null,
         })
       } catch {
         /* borrador corrupto en esta clave puntual — seguir con las demás */
@@ -1151,7 +1172,7 @@ export default function DataEntry() {
     // sesión ya mismo (mismo criterio que "Abrir" del historial), no esperar
     // a que la hidratación async lo detecte sola.
     if (!sessionActive) {
-      sessionStartRef.current = Date.now()
+      sessionStartRef.current = earliestTurnoStart(d.turnoTimings) || Date.now()
       setSessionActive(true)
     }
     if (d.resume?.tukTuk) {
@@ -2343,7 +2364,7 @@ export default function DataEntry() {
     // refresh). "Abrir" desde Historial ya lo activa explícito antes de
     // llegar acá; esto cubre el auto-load silencioso al reabrir.
     if (mapped > 0 && !sessionActive) {
-      sessionStartRef.current = Date.now()
+      sessionStartRef.current = earliestTurnoStart(historicTimings) || Date.now()
       setSessionActive(true)
       setPendingScopeMembers((prev) => (prev.length ? prev : [bucket]))
     }
