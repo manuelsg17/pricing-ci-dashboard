@@ -328,6 +328,50 @@ calloutBox(
 )
 
 // ════════════════════════════════════════════════════════════════════════
+h1('11. Situaciones que se pueden dar (con ejemplos)')
+// ════════════════════════════════════════════════════════════════════════
+
+h2('¿Un competidor no tiene oferta en esa ruta?')
+p(
+  'Marcá la celda como "Sin data" (S/D). Es distinto de un error de carga: S/D significa "lo revisé y no hay oferta", no "todavía no lo revisé". Una celda vacía sin marcar SÍ cuenta como pendiente y no te va a dejar Terminar la Sesión.'
+)
+
+h2('¿La app del competidor muestra un precio con "promo" o descuento raro?')
+p(
+  'Cargá el precio que la app te muestra en ese momento para llegar de A a B — el que efectivamente pagaría un pasajero ahora mismo, promo incluida. No intentes "corregir" el precio a mano restando o calculando el valor sin descuento; nosotros analizamos con el precio real que ve el usuario, no con el de lista. Si el precio te parece un error del competidor (no una promo real, por ejemplo $0 o vacío raro), tratalo como el caso siguiente.'
+)
+
+h2('¿Dos hubs cargan la misma ruta el mismo día por error?')
+p(
+  'No pasa nada grave: cada fila que guardás queda asociada a vos y a la hora exacta en que la cargaste, así que no se sobrescriben ni se mezclan datos de forma silenciosa. Si te das cuenta de la duplicación, avisale al equipo de Pricing para que decidan cuál de las dos cargas dejar (normalmente la más reciente, si el precio cambió entre una y otra). Para evitarlo antes de que pase: revisá el punto verde de "quién más está trabajando" (sección 7) y el Historial de sesiones antes de arrancar una ruta que ya viste cargada por otro compañero.'
+)
+
+h2('¿Un precio parece un error de tipeo evidente (ej. S/2 en vez de S/20)?')
+p(
+  'No lo cargues "a ojo" corrigiéndolo vos mismo — puede que el precio raro sea real (rutas cortas, promos agresivas). Volvé a mirar la app del competidor y confirmá el precio correcto ahí mismo antes de guardar. Si ya guardaste un precio y después notás que fue un typo tuyo, corregilo: abrí "Historial de sesiones", buscá esa sesión y tocá "Abrir" para editar esa fila puntual (ver sección 8).'
+)
+
+h2('¿Se cae la conexión a mitad de un turno?')
+p(
+  'Tranquilo: mientras trabajás, tu progreso se autoguarda en tu navegador (aunque no hayas tocado "Guardar progreso" todavía), y todo lo que sí llegaste a guardar con ese botón ya está confirmado en el servidor pase lo que pase. Cuando vuelva la conexión, entrá de nuevo a esa misma ciudad/fecha/pestaña y vas a ver todo tal como lo dejaste. Si la caída te va a tener offline por un buen rato y necesitás que otro compañero siga por vos, es el caso siguiente.'
+)
+
+h2('¿Elegiste avanzar Aeropuerto Punto A y ahora querés avanzar el Punto B también?')
+p(
+  'Tocá "+ agregar el otro punto", junto a las pestañas de Punto A/B (sección 4) — sin perder tu cronómetro ni tener que reiniciar nada. A partir de ahí podés alternar libremente entre A y B dentro de la misma sesión.'
+)
+
+h2('¿Elegiste Aeropuerto Punto A y ahora querés avanzar TukTuk y Corp, sin tocar el Punto B?')
+p(
+  'Podés — no hace falta declarar nada de antemano para eso. Simplemente andá a la pestaña de TukTuk o Corp y empezá a cargar: el sistema anota automáticamente que ese frente quedó pendiente (sección 5). "Terminar Sesión" te va a pedir cerrar cada pestaña que tocaste (Punto A, TukTuk, Corp), pero el Punto B queda afuera sin problema — nunca lo tocaste, así que nunca se te va a exigir.'
+)
+
+h2('¿Perdiste la conexión a mitad de turno y necesitás que otro hub continúe tu trabajo?')
+p(
+  'Avisale a un admin (por el canal habitual del equipo) que necesitás una reasignación. El admin puede transferir tu sesión abierta a otro hub desde su panel — tu compañero, al entrar a esa misma ciudad/fecha/pestaña, va a ver automáticamente todo lo que ya guardaste (no tiene que volver a cargarlo de cero) y sigue desde ahí con su propio cronómetro para lo que falte.'
+)
+
+// ════════════════════════════════════════════════════════════════════════
 h1('Preguntas frecuentes')
 // ════════════════════════════════════════════════════════════════════════
 
