@@ -1127,6 +1127,8 @@ export const TRANSLATIONS = {
     'rawdata.export_confirm_btn': 'Exportar',
     'rawdata.export_success': '{n} filas exportadas.',
     'rawdata.export_error': 'Error al exportar: {msg}',
+    'rawdata.export_limit_exceeded':
+      'Hay {n} filas con estos filtros — supera el máximo de {limit} filas por exportación. Acotá por categoría, ciudad o rango de fechas antes de exportar.',
 
     // ── Distance Refs page ─────────────────────────────────────────────
     'distancerefs.title': 'Distancias de Referencia',
@@ -3304,6 +3306,8 @@ export const TRANSLATIONS = {
     'rawdata.export_confirm_btn': 'Export',
     'rawdata.export_success': '{n} rows exported.',
     'rawdata.export_error': 'Export error: {msg}',
+    'rawdata.export_limit_exceeded':
+      'There are {n} rows with these filters — that exceeds the {limit}-row export limit. Narrow it down by category, city, or date range before exporting.',
 
     // ── Distance Refs page ─────────────────────────────────────────────
     'distancerefs.title': 'Reference Distances',
@@ -5497,6 +5501,8 @@ export const TRANSLATIONS = {
     'rawdata.export_confirm_btn': 'Экспорт',
     'rawdata.export_success': '{n} строк экспортировано.',
     'rawdata.export_error': 'Ошибка экспорта: {msg}',
+    'rawdata.export_limit_exceeded':
+      'С этими фильтрами {n} строк — это превышает лимит экспорта в {limit} строк. Сузьте выбор по категории, городу или диапазону дат перед экспортом.',
 
     // ── Distance Refs page ─────────────────────────────────────────────
     'distancerefs.title': 'Эталонные расстояния',

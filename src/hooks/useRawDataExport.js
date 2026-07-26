@@ -13,6 +13,13 @@ import { useI18n } from '../context/LanguageContext'
 const EXPORT_CONFIRM_THRESHOLD = 5000
 const EXPORT_LARGE_WARNING_THRESHOLD = 50000
 
+// Tope DURO, no un umbral de confirmación — por encima de esto el export se
+// bloquea, no se puede aceptar igual. Mitigación de exfiltración masiva de
+// datos (auditoría de seguridad 2026-07-26): a diferencia de los thresholds
+// de arriba, sin este tope un usuario logueado podía exportar cientos de
+// miles de filas crudas de un país completo en un solo click.
+const EXPORT_HARD_LIMIT = 100000
+
 export function useRawDataExport({ filters, dbCity, dbCategory, toast, confirm }) {
   const { t } = useI18n()
   const [exporting, setExporting] = useState(false)
@@ -32,6 +39,15 @@ export function useRawDataExport({ filters, dbCity, dbCategory, toast, confirm }
       const freshTotal = await countRawData(filters, { snapshotIso })
       if (freshTotal === 0) {
         toast.err(t('rawdata.export_no_rows'))
+        return
+      }
+      if (freshTotal > EXPORT_HARD_LIMIT) {
+        toast.err(
+          t('rawdata.export_limit_exceeded', {
+            n: freshTotal.toLocaleString(),
+            limit: EXPORT_HARD_LIMIT.toLocaleString(),
+          })
+        )
         return
       }
       if (freshTotal > EXPORT_CONFIRM_THRESHOLD) {
