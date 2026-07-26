@@ -26,10 +26,14 @@ function buildVersionPlugin() {
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
-        source: JSON.stringify({
-          version:   BUILD_VERSION,
-          builtAt:   new Date().toISOString(),
-        }, null, 2),
+        source: JSON.stringify(
+          {
+            version: BUILD_VERSION,
+            builtAt: new Date().toISOString(),
+          },
+          null,
+          2
+        ),
       })
     },
   }
@@ -43,13 +47,13 @@ export default defineConfig({
   // Patrón nuevo recomendado: '@/lib/foo', '@/hooks/useFoo', etc.
   resolve: {
     alias: {
-      '@':            path.resolve(__dirname, 'src'),
+      '@': path.resolve(__dirname, 'src'),
       '@/components': path.resolve(__dirname, 'src/components'),
-      '@/hooks':      path.resolve(__dirname, 'src/hooks'),
-      '@/lib':        path.resolve(__dirname, 'src/lib'),
-      '@/context':    path.resolve(__dirname, 'src/context'),
-      '@/pages':      path.resolve(__dirname, 'src/pages'),
-      '@/styles':     path.resolve(__dirname, 'src/styles'),
+      '@/hooks': path.resolve(__dirname, 'src/hooks'),
+      '@/lib': path.resolve(__dirname, 'src/lib'),
+      '@/context': path.resolve(__dirname, 'src/context'),
+      '@/pages': path.resolve(__dirname, 'src/pages'),
+      '@/styles': path.resolve(__dirname, 'src/styles'),
     },
   },
   define: {
@@ -61,19 +65,33 @@ export default defineConfig({
     // Split heavy libs into vendor chunks. Reduces the size of the
     // initial main bundle so the dashboard renders faster, and lets the
     // browser cache vendor code across deploys.
+    //
+    // Auditoría de rendimiento 2026-07-26: la forma-objeto de manualChunks
+    // (agrupar 'recharts' por nombre de paquete) terminaba arrastrando
+    // React ADENTRO de vendor-recharts (Rollup mete ahí cualquier módulo
+    // compartido que no haya sido reclamado antes por otro chunk) — el
+    // comentario viejo de acá decía "no splitear react" para evitar
+    // "Invalid hook call", pero el resultado real era peor: TODA sesión
+    // descargaba recharts (548 KB) + jsPDF (422 KB) desde el arranque,
+    // aunque nunca visitara una página con gráficos ni exportara un PDF.
+    // Confirmado leyendo el bundle real y el modulepreload de index.html.
+    //
+    // Fix: manualChunks como FUNCIÓN — aísla React en su propio chunk de
+    // verdad (por ruta de node_modules, no por nombre de paquete listado),
+    // y saca recharts/jspdf del agrupamiento forzado. Como recharts solo
+    // lo importan páginas ya lazy() (App.jsx) y jspdf/html2canvas solo se
+    // cargan vía `await import(...)` dentro de handlers de exportar
+    // (nunca estático), Rollup los deja como chunks async normales,
+    // cargados recién cuando el hub entra a esa página o aprieta
+    // "Exportar" — no en el arranque de ninguna sesión.
     rollupOptions: {
       output: {
-        // Nota: NO splitear react/react-dom en su propio chunk.
-        // En aplicaciones con muchas pages lazy-loaded, splitearlo puede
-        // producir errores "Invalid hook call" si Rollup termina creando
-        // dos copias de React en chunks distintos. Mantener react en el
-        // chunk principal (entry) es el patrón más seguro.
-        manualChunks: {
-          'vendor-recharts': ['recharts'],
-          'vendor-pdf':      ['jspdf', 'jspdf-autotable'],
-          'vendor-xlsx':     ['xlsx'],
-          'vendor-canvas':   ['html2canvas'],
-          'vendor-supabase': ['@supabase/supabase-js'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'vendor-react'
+          if (id.includes('@supabase/supabase-js')) return 'vendor-supabase'
+          if (id.includes('/xlsx/')) return 'vendor-xlsx'
+          return undefined
         },
       },
     },
