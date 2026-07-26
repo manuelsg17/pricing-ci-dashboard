@@ -24,6 +24,7 @@ export default function RawDataTable({
   handleEditKeyDown,
   handleDelete,
   exporting,
+  canEditRow = () => true,
 }) {
   const { t } = useI18n()
   const isOutlierRow = (r) =>
@@ -47,11 +48,12 @@ export default function RawDataTable({
         />
       )
     }
+    const editable = canEditRow(r)
     return (
       <span
-        onDoubleClick={() => startEdit(r.id, field, r[field])}
-        style={{ cursor: 'pointer' }}
-        title={t('rawdata.edit_hint_title')}
+        onDoubleClick={editable ? () => startEdit(r.id, field, r[field]) : undefined}
+        style={{ cursor: editable ? 'pointer' : 'default', opacity: editable ? 1 : 0.6 }}
+        title={editable ? t('rawdata.edit_hint_title') : t('rawdata.edit_blocked_owner_title')}
       >
         {fmt(r[field], decimals)}
       </span>
@@ -232,8 +234,14 @@ export default function RawDataTable({
                   size="icon"
                   className="h-auto w-auto rounded-[3px] px-1 py-0.5 text-[13px] opacity-40 hover:bg-red-100 hover:opacity-100"
                   onClick={() => handleDelete(r.id)}
-                  disabled={exporting}
-                  title={exporting ? t('rawdata.delete_title_wait') : t('rawdata.delete_row_title')}
+                  disabled={exporting || !canEditRow(r)}
+                  title={
+                    exporting
+                      ? t('rawdata.delete_title_wait')
+                      : !canEditRow(r)
+                        ? t('rawdata.delete_blocked_owner_title')
+                        : t('rawdata.delete_row_title')
+                  }
                 >
                   🗑
                 </Button>

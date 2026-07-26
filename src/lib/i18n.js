@@ -1104,11 +1104,15 @@ export const TRANSLATIONS = {
     'rawdata.col_bid_5': 'Bid 5',
     'rawdata.col_eta_min': 'ETA (min)',
     'rawdata.edit_hint_title': 'Doble clic para editar',
+    'rawdata.edit_blocked_owner_title':
+      'Solo el hub que cargó esta fila (o un admin) puede editarla',
     'rawdata.loading_data': 'Cargando datos…',
     'rawdata.no_rows': 'No se encontraron filas con los filtros actuales.',
     'rawdata.badge_hub': 'Hub',
     'rawdata.delete_title_wait': 'Esperá a que termine la exportación',
     'rawdata.delete_row_title': 'Eliminar fila',
+    'rawdata.delete_blocked_owner_title':
+      'Solo el hub que cargó esta fila (o un admin) puede eliminarla',
     'rawdata.delete_confirm_title': 'Eliminar observación',
     'rawdata.delete_confirm_message':
       '¿Eliminar esta observación? Esta acción no se puede deshacer.',
@@ -3284,11 +3288,15 @@ export const TRANSLATIONS = {
     'rawdata.col_bid_5': 'Bid 5',
     'rawdata.col_eta_min': 'ETA (min)',
     'rawdata.edit_hint_title': 'Double-click to edit',
+    'rawdata.edit_blocked_owner_title':
+      'Only the hub that uploaded this row (or an admin) can edit it',
     'rawdata.loading_data': 'Loading data…',
     'rawdata.no_rows': 'No rows found for the current filters.',
     'rawdata.badge_hub': 'Hub',
     'rawdata.delete_title_wait': 'Wait for the export to finish',
     'rawdata.delete_row_title': 'Delete row',
+    'rawdata.delete_blocked_owner_title':
+      'Only the hub that uploaded this row (or an admin) can delete it',
     'rawdata.delete_confirm_title': 'Delete observation',
     'rawdata.delete_confirm_message': 'Delete this observation? This action cannot be undone.',
     'rawdata.deleted_toast': 'Observation deleted.',
@@ -5479,11 +5487,15 @@ export const TRANSLATIONS = {
     'rawdata.col_bid_5': 'Ставка 5',
     'rawdata.col_eta_min': 'ETA (мин)',
     'rawdata.edit_hint_title': 'Двойной клик для редактирования',
+    'rawdata.edit_blocked_owner_title':
+      'Редактировать может только хаб, загрузивший эту строку (или админ)',
     'rawdata.loading_data': 'Загрузка данных…',
     'rawdata.no_rows': 'Не найдено строк по текущим фильтрам.',
     'rawdata.badge_hub': 'Хаб',
     'rawdata.delete_title_wait': 'Дождитесь завершения экспорта',
     'rawdata.delete_row_title': 'Удалить строку',
+    'rawdata.delete_blocked_owner_title':
+      'Удалить может только хаб, загрузивший эту строку (или админ)',
     'rawdata.delete_confirm_title': 'Удалить наблюдение',
     'rawdata.delete_confirm_message': 'Удалить это наблюдение? Это действие нельзя отменить.',
     'rawdata.deleted_toast': 'Наблюдение удалено.',

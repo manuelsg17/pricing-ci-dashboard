@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { useCountry } from '../context/CountryContext'
 import { useI18n } from '../context/LanguageContext'
+import { useAuth } from '../lib/auth'
+import { useAccessControl } from '../hooks/useAccessControl'
 import { useRawData } from '../hooks/useRawData'
 import { useRawDataFilters } from '../hooks/useRawDataFilters'
 import { useRawDataMutations } from '../hooks/useRawDataMutations'
@@ -25,6 +27,17 @@ export default function RawData() {
   const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
+  const { session } = useAuth()
+  const { isAdmin } = useAccessControl()
+  const userEmail = session?.user?.email || ''
+
+  // Seguridad (auditoría 2026-07-26): la RLS de UPDATE/DELETE ya bloquea a
+  // un hub tocar filas manuales de OTRO hub — esto es solo la señal visual
+  // en la UI, para no dejar que un hub_expert intente editar/borrar y se
+  // encuentre con un error genérico de RLS sin explicación. Filas bot o
+  // manuales legacy sin dueño (uploaded_by null) siguen editables por
+  // cualquiera con acceso al país, igual que hoy.
+  const canEditRow = (r) => isAdmin || !r.uploaded_by || r.uploaded_by === userEmail
 
   const cityTabs = useMemo(
     () => config.dbCities.map((db) => ({ db, label: getCityLabel(db) })),
@@ -159,6 +172,7 @@ export default function RawData() {
         handleEditKeyDown={handleEditKeyDown}
         handleDelete={handleDelete}
         exporting={exporting}
+        canEditRow={canEditRow}
       />
     </div>
   )
