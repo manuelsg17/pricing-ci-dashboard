@@ -78,7 +78,19 @@ export function useRawData(filters) {
       setError(null)
 
       try {
-        let q = sb.from('pricing_observations').select(RAW_DATA_COLUMNS, { count: 'exact' })
+        // count: 'estimated' — Speed Insights 2026-07 marcó LCP pobre (7.5s)
+        // en esta ruta; pedir el conteo EXACTO en cada carga de página sobre
+        // pricing_observations (1.6M+ filas) es caro y no hace falta para
+        // mostrar "página X de Y" en la UI. A diferencia de 'planned' (usa
+        // SIEMPRE la estimación del query planner, que en filtros muy
+        // selectivos puede llegar a estimar 0 y deshabilitaría el botón
+        // Exportar por error), 'estimated' hace un COUNT(*) real cuando el
+        // resultado filtrado es chico y solo usa la estimación del planner
+        // cuando el propio plan indica que el resultado sería grande — el
+        // caso exacto que queremos optimizar. El conteo exacto de verdad
+        // (crítico para no truncar un export) sigue viviendo aparte, sin
+        // tocar, en countRawData().
+        let q = sb.from('pricing_observations').select(RAW_DATA_COLUMNS, { count: 'estimated' })
         q = applyRawDataFilters(q, filters)
         // Tercer criterio (id) desempata filas con mismo date+time exacto (ej.
         // una carga manual en batch) — sin esto, .range() puede repetir o

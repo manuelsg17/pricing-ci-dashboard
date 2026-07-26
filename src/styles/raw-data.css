@@ -119,6 +119,12 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
   overflow: auto;
+  /* min-height = max-height a propósito (Speed Insights 2026-07:
+     CLS 0.79 en esta ruta) — sin min-height, el contenedor arranca del
+     alto de la fila "Cargando…" y salta a su alto real cuando llegan
+     las filas, un layout shift enorme. Reservar el espacio desde el
+     principio lo elimina sin necesitar un skeleton. */
+  min-height: calc(100vh - 280px);
   max-height: calc(100vh - 280px);
 }
 
