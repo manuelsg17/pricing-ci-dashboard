@@ -13,6 +13,13 @@ import Volatility from '../components/market/Volatility'
 import RushVsValley from '../components/market/RushVsValley'
 import DiscountIntensity from '../components/market/DiscountIntensity'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
+// Bug real (auditoría 2026-07-26, encontrado post-router): Market usa
+// FilterBar (.filter-bar-wrapper, .fb-*) pero nunca importaba este CSS —
+// dependía silenciosamente de que Dashboard.jsx cargara primero e
+// inyectara el estilo. Antes del router real esto SIEMPRE pasaba
+// (Dashboard era la pestaña inicial obligatoria); con URLs reales, entrar
+// directo a /market (bookmark, link compartido, F5) lo rompía sin estilos.
+import '../styles/dashboard.css'
 import { humanizeError } from '../lib/humanizeError'
 import { Button } from '../components/ui/shadcn/button'
 

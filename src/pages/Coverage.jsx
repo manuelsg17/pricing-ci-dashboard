@@ -10,6 +10,9 @@ import BracketMix from '../components/market/BracketMix'
 import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
 import { Button } from '../components/ui/shadcn/button'
+// Mismo bug que Market.jsx (ver comentario ahí) — Coverage usa FilterBar
+// pero nunca importaba su CSS, dependía de que Dashboard cargara primero.
+import '../styles/dashboard.css'
 
 function CoverageContent() {
   const { filters } = useFilterContext()
