@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { sb } from '../lib/supabase'
 import { BRACKETS, DEFAULT_WEIGHTS, LEGACY_WEIGHTS_PE } from '../lib/constants'
 import { computePeriodAvg, buildWeightsMap } from '../algorithms/weightedAverage'
@@ -21,11 +22,6 @@ function getSemaforoClassDynamic(deltaPct, bands) {
 }
 
 export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo = []) {
-  const [rawRows, setRawRows] = useState([])
-  const [frozenRows, setFrozenRows] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
   const {
     country,
     dbCity,
@@ -55,116 +51,102 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
   // (rush_hour NULL) quedan fuera de Yes/No y se ven solo en "Ambos".
   const rushHourParam = surge // true = Sí (en ventana), false = No, null = Ambos
 
-  // Track previous viewMode shape — solo necesitamos limpiar rawRows
-  // cuando la SHAPE cambia (daily ↔ weekly/historic), no en cada filtro.
-  // Esto preserva el patrón "stale-while-revalidating" para cambios
-  // normales (city, category, surge, etc.) donde los datos viejos siguen
-  // siendo legibles mientras llegan los nuevos.
-  const prevShapeRef = useRef(viewMode === 'daily' ? 'daily' : 'weekly')
+  // ── Cargar datos desde Supabase (React Query) ────────────────────────
+  // queryKey incluye TODOS los filtros que afectan el resultado — misma
+  // key entre Dashboard/Market/Coverage/WeeklyReport con los mismos
+  // filtros comparte caché real (antes cada página pagaba la query de
+  // nuevo). `enabled` reemplaza el guard manual de "sin ciudad/categoría no
+  // fetchear". `placeholderData: keepPreviousData` reemplaza el ref de
+  // "shape anterior": mientras responde la nueva query se sigue mostrando
+  // la anterior, pero el check de "Defense-in-depth" del useMemo de abajo
+  // (que valida que rawRows matchea el viewMode actual) ya descarta esa
+  // data vieja si la shape no matchea — mismo resultado visual que el
+  // clear manual de antes, sin duplicar la lógica de detección de shape.
+  const {
+    data,
+    isFetching,
+    error: queryError,
+  } = useQuery({
+    queryKey: [
+      'pricingData',
+      viewMode,
+      country,
+      dbCity,
+      dbCategory,
+      zone,
+      dataSource,
+      timeOfDayParam,
+      rushHourParam,
+      viewMode === 'daily' ? [dailyStart, dailyEnd] : weekColumns,
+    ],
+    enabled: Boolean(dbCity && dbCategory),
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      if (viewMode === 'weekly' || viewMode === 'historic') {
+        const firstWeek = weekColumns[0]
+        const lastWeek = weekColumns[weekColumns.length - 1]
+        const { year: y1, week: w1 } = getYearWeek(firstWeek)
+        const lastDate = new Date(lastWeek)
+        lastDate.setDate(lastDate.getDate() + 6)
+        const { year: y2, week: w2 } = getYearWeek(lastDate)
 
-  // ── Cargar datos desde Supabase ──────────────────────────
-  // Cancel flag (let cancelled=false) previene race condition cuando el
-  // usuario cambia de país: el fetch viejo (Peru) puede responder DESPUÉS
-  // del nuevo (Colombia) y sobrescribir los rawRows. Sin esto, dashboard
-  // se queda con data del país viejo o vacío, y requiere F5 para arreglarse.
-  useEffect(() => {
-    if (!dbCity || !dbCategory) {
-      setLoading(false)
-      return
-    }
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-
-    // Limpiar rawRows SOLO si la shape de datos cambió (daily ↔ weekly).
-    const currentShape = viewMode === 'daily' ? 'daily' : 'weekly'
-    if (currentShape !== prevShapeRef.current) {
-      setRawRows([])
-      setFrozenRows([])
-      prevShapeRef.current = currentShape
-    }
-
-    async function fetchData() {
-      try {
-        if (viewMode === 'weekly' || viewMode === 'historic') {
-          const firstWeek = weekColumns[0]
-          const lastWeek = weekColumns[weekColumns.length - 1]
-          const { year: y1, week: w1 } = getYearWeek(firstWeek)
-          const lastDate = new Date(lastWeek)
-          lastDate.setDate(lastDate.getDate() + 6)
-          const { year: y2, week: w2 } = getYearWeek(lastDate)
-
-          const [liveRes, frozenRes] = await Promise.all([
-            sb.rpc('get_dashboard_data_weekly_fast', {
-              p_city: dbCity,
-              p_category: dbCategory,
-              p_country: country,
-              p_zone: zone === 'All' ? null : zone,
-              p_surge: null,
-              p_week_start: w1,
-              p_year_start: y1,
-              p_week_end: w2,
-              p_year_end: y2,
-              p_data_source: dataSource,
-              p_time_of_day: timeOfDayParam,
-              p_rush_hour: rushHourParam,
-            }),
-            sb
-              .from('pricing_wa_frozen')
-              .select('competition_name,distance_bracket,year,week,avg_price,observation_count')
-              .eq('country', country)
-              .eq('city', dbCity)
-              .eq('category', dbCategory)
-              .gte('year', y1)
-              .lte('year', y2),
-          ])
-          if (cancelled) return
-          if (liveRes.error) throw liveRes.error
-          setRawRows(liveRes.data || [])
-          setFrozenRows(frozenRes.data || [])
-        } else {
-          const { data, error: err } = await sb.rpc('get_dashboard_data_daily_fast', {
+        const [liveRes, frozenRes] = await Promise.all([
+          sb.rpc('get_dashboard_data_weekly_fast', {
             p_city: dbCity,
             p_category: dbCategory,
             p_country: country,
             p_zone: zone === 'All' ? null : zone,
             p_surge: null,
-            p_date_start: dailyStart,
-            p_date_end: dailyEnd,
+            p_week_start: w1,
+            p_year_start: y1,
+            p_week_end: w2,
+            p_year_end: y2,
             p_data_source: dataSource,
             p_time_of_day: timeOfDayParam,
             p_rush_hour: rushHourParam,
-          })
-          if (cancelled) return
-          if (err) throw err
-          setRawRows(data || [])
-          setFrozenRows([])
-        }
-      } catch (e) {
-        if (!cancelled) setError(e.message || 'Error al cargar datos')
-      } finally {
-        if (!cancelled) setLoading(false)
+          }),
+          sb
+            .from('pricing_wa_frozen')
+            .select('competition_name,distance_bracket,year,week,avg_price,observation_count')
+            .eq('country', country)
+            .eq('city', dbCity)
+            .eq('category', dbCategory)
+            .gte('year', y1)
+            .lte('year', y2),
+        ])
+        if (liveRes.error) throw liveRes.error
+        if (frozenRes.error) throw frozenRes.error
+        return { rawRows: liveRes.data || [], frozenRows: frozenRes.data || [] }
       }
-    }
+      const { data: dailyData, error: err } = await sb.rpc('get_dashboard_data_daily_fast', {
+        p_city: dbCity,
+        p_category: dbCategory,
+        p_country: country,
+        p_zone: zone === 'All' ? null : zone,
+        p_surge: null,
+        p_date_start: dailyStart,
+        p_date_end: dailyEnd,
+        p_data_source: dataSource,
+        p_time_of_day: timeOfDayParam,
+        p_rush_hour: rushHourParam,
+      })
+      if (err) throw err
+      return { rawRows: dailyData || [], frozenRows: [] }
+    },
+  })
 
-    fetchData()
-    return () => {
-      cancelled = true
-    }
-  }, [
-    country,
-    dbCity,
-    dbCategory,
-    zone,
-    surge,
-    dataSource,
-    viewMode,
-    weekColumns,
-    dailyStart,
-    dailyEnd,
-    rushHourParam,
-    timeOfDayParam,
-  ])
+  // useMemo con identidad estable: sin esto, `data?.rawRows || []` crea un
+  // array NUEVO en cada render (aunque `data` no cambie), lo que invalida
+  // en cascada los useMemo de abajo que dependen de rawRows/frozenRows
+  // (ver CLAUDE.md — regla de arrays/objetos con identidad estable).
+  const rawRows = useMemo(() => data?.rawRows || [], [data])
+  const frozenRows = useMemo(() => data?.frozenRows || [], [data])
+  // isFetching (no isLoading): el hook viejo ponía loading=true en CADA
+  // fetch, no solo el primero (setLoading(true) al inicio del efecto,
+  // siempre) — isFetching preserva ese comportamiento exacto para no
+  // cambiar la UX de los 4 consumidores (spinners/estados disabled).
+  const loading = isFetching
+  const error = queryError?.message || null
 
   // ── Construir set de semanas congeladas para indicador visual ──
   const frozenWeeks = useMemo(() => {

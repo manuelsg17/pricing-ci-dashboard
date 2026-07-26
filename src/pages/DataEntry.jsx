@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { sb } from '../lib/supabase'
+import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
 import { buildFronts, frontLabel } from '../lib/sessionFronts'
@@ -131,14 +133,6 @@ export default function DataEntry() {
   // estampa en pricing_observations.surge. Si fuera global, intercalar A↔B con
   // distinto surge guardaría el flag equivocado (lo cazó la revisión).
   const [surgeByCity, setSurgeByCity] = useState({})
-  const [refs, setRefs] = useState([])
-  const [refsLoading, setRefsLoading] = useState(false)
-  // Ciudad a la que pertenecen las `refs` actualmente en estado. Clave para
-  // "Abrir" una sesión de OTRA ciudad: sin esto, el effect de carga corría en
-  // el mismo commit con las refs de la ciudad anterior (refsLoading todavía
-  // false) y mapeaba mal la data. Se setea recién cuando las refs de la ciudad
-  // objetivo llegaron.
-  const [refsDbCity, setRefsDbCity] = useState(null)
 
   // Estado del formulario POR CIUDAD (dbCity). Intercalar entre ciudades (ej.
   // Aeropuerto Punto A ↔ Punto B) mantiene AMBAS en memoria: cambiar de ciudad
@@ -286,6 +280,30 @@ export default function DataEntry() {
     [uiCity, categories, country, dbConfigs]
   )
 
+  // ── Rutas de referencia (React Query, Fase 2 2026-07-26) ───────────────
+  // Antes: cache manual por-ciudad en un useRef (refsCacheRef) + useEffect.
+  // Ahora: misma queryKey/queryFn que useDistanceRefs.js (la pantalla admin
+  // de Distancias de Referencia) — cambiar de ciudad sigue sin volver a
+  // pegarle a la BD (cache de React Query, sin parpadeo al intercalar A/B),
+  // y de paso comparte el cache con la pantalla admin si el hub la visitó
+  // en esta sesión. Sin `keepPreviousData`: al cambiar de queryKey (ciudad
+  // o país) los datos de la ciudad ANTERIOR no deben verse ni un instante
+  // — mismo comportamiento que el `setRefs([])` inmediato de antes.
+  const refsQuery = useQuery({
+    queryKey: distanceRefsQueryKey(country, dbCity),
+    enabled: Boolean(dbCity),
+    queryFn: () => fetchDistanceRefs(country, dbCity),
+  })
+  // useMemo: identidad estable (ver CLAUDE.md — sin esto, `data || []` crea
+  // un array nuevo en cada render e invalida en cascada los useMemo que
+  // dependen de `refs` aunque los datos no hayan cambiado).
+  const refs = useMemo(() => refsQuery.data || [], [refsQuery.data])
+  const refsLoading = Boolean(dbCity) && refsQuery.isLoading
+  // Ciudad a la que pertenecen las `refs` actuales — null mientras la ciudad
+  // objetivo todavía no resolvió (misma señal que antes usaba `pendingLoad`
+  // para esperar a que las refs de la ciudad correcta hayan llegado).
+  const refsDbCity = dbCity && refsQuery.data !== undefined ? dbCity : null
+
   // Vista TukTuk-por-distrito. `dbCity` sigue siendo la ciudad REAL de BD
   // ('Lima') — TukTuk no es una ciudad aparte en BD, se distingue por `zone`.
   // `bucketKey` = clave de la rebanada de estado en memoria: para vistas normales
@@ -336,9 +354,6 @@ export default function DataEntry() {
     surgeByCity,
     naByCity,
   }
-  // Cache de rutas por ciudad — cambiar de ciudad no vuelve a pegarle a la BD ni
-  // muestra spinner (clave para intercalar A/B sin parpadeo).
-  const refsCacheRef = useRef({})
   // "Contexto" del formulario = país + fecha. Al cambiar, TODAS las ciudades
   // quedan obsoletas (eran de la fecha vieja) → se limpian y se re-permite
   // hidratar cada ciudad una vez. `hydratedCitiesRef` recuerda qué ciudades ya
@@ -735,9 +750,9 @@ export default function DataEntry() {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
     setActiveTukTuk(null)
-    refsCacheRef.current = {} // otro país → otras ciudades/rutas
-    setRefs([]) // Limpiar rutas antiguas inmediatamente
-    setRefsDbCity(null)
+    // El cache de rutas ya no se limpia a mano: `dbCity`/`country` son parte
+    // de la queryKey de React Query, así que un país nuevo automáticamente
+    // usa otro namespace de cache — no hace falta invalidar el viejo.
     // Bug real (revisión adversarial 2026-07-23): sin esto, cambiar de país
     // con un alcance "Ambos" de Aeropuerto a medias dejaba `pendingScopeMembers`
     // apuntando a un uiCity del país VIEJO — al eventualmente Terminar Sesión
@@ -768,37 +783,6 @@ export default function DataEntry() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, countryConfig])
-
-  // ── Load refs (cacheadas por ciudad) ───────────────────
-  // Cambiar de ciudad NO resetea el formulario: el estado por-ciudad se mantiene
-  // en memoria y las rutas salen del cache si ya se cargaron (intercalar A/B es
-  // instantáneo, sin spinner ni parpadeo). Solo la primera visita a una ciudad
-  // pega a la BD.
-  useEffect(() => {
-    if (!dbCity) return
-    const cached = refsCacheRef.current[dbCity]
-    if (cached) {
-      setRefs(cached)
-      setRefsDbCity(dbCity)
-      setRefsLoading(false)
-      return
-    }
-    setRefsLoading(true)
-    setRefsDbCity(null) // las refs en estado ya no corresponden a `dbCity`
-    sb.from('distance_references')
-      .select('*')
-      .eq('country', country)
-      .eq('city', dbCity)
-      .order('category')
-      .order('bracket')
-      .order('point_a')
-      .then(({ data }) => {
-        refsCacheRef.current[dbCity] = data || []
-        setRefs(data || [])
-        setRefsDbCity(dbCity)
-        setRefsLoading(false)
-      })
-  }, [dbCity, country])
 
   // ── Distritos de TukTuk (para las sub-pestañas) ────────
   // Ciudad base que tiene una categoría 'TukTuk' (Lima en Perú). Los distritos

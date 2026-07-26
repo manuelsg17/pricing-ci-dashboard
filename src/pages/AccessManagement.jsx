@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useCountry } from '../context/CountryContext'
+import { useRoles, useInvalidateRoles } from '../hooks/useRoles'
 import { ALL_SECTIONS, SECTION_LABELS } from '../hooks/useAccessControl'
 import { useI18n } from '../context/LanguageContext'
 import { COUNTRIES } from '../lib/constants'
@@ -280,8 +281,8 @@ function RolesTab({ availableCountries }) {
   const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
-  const [roles, setRoles] = useState([])
-  const [loading, setLoading] = useState(false)
+  const { data: roles = [], isLoading: loading } = useRoles()
+  const invalidateRoles = useInvalidateRoles()
   const [editing, setEditing] = useState(null) // role id being edited
   const [draftPerms, setDraftPerms] = useState({ sections: [], countries: [] })
   const [saving, setSaving] = useState(false)
@@ -290,17 +291,6 @@ function RolesTab({ availableCountries }) {
   const [showNew, setShowNew] = useState(false)
   const [newName, setNewName] = useState('')
   const [newLabel, setNewLabel] = useState('')
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    const { data } = await sb.from('roles').select('*').order('id')
-    setRoles(data || [])
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   function startEdit(role) {
     setEditing(role.id)
@@ -342,7 +332,7 @@ function RolesTab({ availableCountries }) {
     } else {
       toast.ok('Rol actualizado.')
       setEditing(null)
-      load()
+      invalidateRoles()
     }
   }
 
@@ -363,7 +353,7 @@ function RolesTab({ availableCountries }) {
       setShowNew(false)
       setNewName('')
       setNewLabel('')
-      load()
+      invalidateRoles()
     }
   }
 
@@ -379,7 +369,7 @@ function RolesTab({ availableCountries }) {
     if (error) toast.err(`Error al eliminar rol: ${error.message}`)
     else {
       toast.ok('Rol eliminado.')
-      load()
+      invalidateRoles()
     }
   }
 
@@ -574,16 +564,9 @@ function RolesTab({ availableCountries }) {
 // ── Main component ─────────────────────────────────────────────────────────
 export default function AccessManagement() {
   const [activeTab, setActiveTab] = useState('users')
-  const [roles, setRoles] = useState([])
+  const { data: roles = [] } = useRoles()
   const { t } = useI18n()
   const { availableCountries } = useCountry()
-
-  useEffect(() => {
-    sb.from('roles')
-      .select('*')
-      .order('id')
-      .then(({ data }) => setRoles(data || []))
-  }, [])
 
   return (
     <div className="am-page">
