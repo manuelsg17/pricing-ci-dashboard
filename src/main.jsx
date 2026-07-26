@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import App from './App'
 import { LanguageProvider } from './context/LanguageContext'
 import { CountryProvider } from './context/CountryContext'
@@ -83,15 +84,21 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <CountryProvider>
                 <ConfigProvider>
                   <RealtimeSyncProvider>
-                    {/* basename debe matchear vite.config.js `base` — sin
-                        esto, cualquier ruta calcula mal contra el deploy de
-                        GitHub Pages (sirve desde /pricing-ci-dashboard/, no
-                        desde la raíz). BrowserRouter (no HashRouter): los
-                        filtros YA usan location.hash (useFilters.js,
-                        CountryContext.jsx) — HashRouter chocaría con eso. */}
-                    <BrowserRouter basename="/pricing-ci-dashboard">
+                    {/* basename = import.meta.env.BASE_URL, que Vite ya
+                        resuelve al `base` de vite.config.js en build time
+                        ('/pricing-ci-dashboard/' en GitHub Pages, '/' en
+                        Vercel) — una sola fuente de verdad para ambos
+                        hostings en vez de hardcodear el path acá también.
+                        BrowserRouter (no HashRouter): los filtros YA usan
+                        location.hash (useFilters.js, CountryContext.jsx) —
+                        HashRouter chocaría con eso. */}
+                    <BrowserRouter basename={import.meta.env.BASE_URL}>
                       <App />
                     </BrowserRouter>
+                    {/* No-op fuera de Vercel (GitHub Pages incluido) — el
+                        paquete detecta el hosting solo y no manda nada si
+                        no está corriendo ahí. */}
+                    <SpeedInsights />
                   </RealtimeSyncProvider>
                 </ConfigProvider>
               </CountryProvider>

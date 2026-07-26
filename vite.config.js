@@ -39,9 +39,16 @@ function buildVersionPlugin() {
   }
 }
 
+// Vercel sirve el sitio desde la raíz del dominio (no un subpath como
+// GitHub Pages, que necesita /pricing-ci-dashboard/ porque es un project
+// site en username.github.io/repo-name/). Vercel setea la env var VERCEL=1
+// automáticamente en todos sus builds — la usamos para elegir el base
+// correcto sin duplicar configuración entre ambos hostings.
+const base = process.env.VERCEL ? '/' : '/pricing-ci-dashboard/'
+
 export default defineConfig({
   plugins: [react(), buildVersionPlugin()],
-  base: '/pricing-ci-dashboard/',
+  base,
   // Aliases para imports sin paths relativos largos.
   // Uso opcional: el código existente con '../../lib/foo' sigue funcionando.
   // Patrón nuevo recomendado: '@/lib/foo', '@/hooks/useFoo', etc.
