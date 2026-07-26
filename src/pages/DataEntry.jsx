@@ -8,6 +8,7 @@ import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
 import { capIndriveExtraBids } from '../lib/indriveAvg'
 import { getISOYearWeek } from '../lib/dateUtils'
+import { turnoBreakdownLabel } from '../lib/timing'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
 import { isTukTukDistrictEnabled, firstEnabledTukTukDistrict } from '../lib/tuktukDistricts'
@@ -237,6 +238,11 @@ export default function DataEntry() {
   const [showSavedData, setShowSavedData] = useState(false)
   const [savedRows, setSavedRows] = useState([])
   const [savedLoading, setSavedLoading] = useState(false)
+  // Contador visible en el botón SIN expandir el panel (pedido real de un hub,
+  // 2026-07-25: "que salga la cantidad de registros arriba" para poder
+  // contrastarlo de un vistazo contra "Guardar progreso (N)"). Query liviana
+  // (count-only, sin traer filas) — independiente de `savedRows`/`showSavedData`.
+  const [savedCount, setSavedCount] = useState(null)
 
   // Session history
   const [showHistory, setShowHistory] = useState(false)
@@ -632,6 +638,7 @@ export default function DataEntry() {
     // podía mostrar "lo guardado" de un distrito ajeno.
     if (isCancelled && isCancelled()) return
     setSavedRows(data || [])
+    setSavedCount(data ? data.length : 0)
     setSavedLoading(false)
   }
 
@@ -644,6 +651,38 @@ export default function DataEntry() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSavedData, bucketKey, date])
+
+  // Contador liviano (count-only, sin traer filas) para que "Ver lo guardado
+  // (N)" muestre el número SIN necesidad de expandir el panel primero. Si el
+  // panel ya está abierto, `loadSavedData` de arriba mantiene `savedCount`
+  // sincronizado con más detalle (no hace falta duplicar el pedido acá).
+  useEffect(() => {
+    if (!userEmail || !dbCity || showSavedData) return
+    let cancelled = false
+    ;(async () => {
+      let q = sb
+        .from('pricing_observations')
+        .select('id', { count: 'exact', head: true })
+        .eq('country', country)
+        .eq('city', dbCity)
+        .eq('observed_date', date)
+        .eq('uploaded_by', userEmail)
+        .eq('data_source', 'manual')
+      q = zone != null ? q.eq('zone', zone) : q.is('zone', null)
+      const { count } = await q
+      if (cancelled) return
+      setSavedCount(count ?? 0)
+    })()
+    return () => {
+      cancelled = true
+    }
+    // userEmail explícito en las deps (no solo bucketKey/date/showSavedData):
+    // en el primer mount, `userEmail` puede llegar vacío mientras la sesión
+    // de auth todavía está resolviendo — sin esto, el efecto bailaba una vez
+    // y nunca reintentaba, dejando el contador en null hasta que el hub
+    // cambiara de ciudad/fecha a mano. Mismo patrón de bug que ya está
+    // documentado en CLAUDE.md (efecto con una dependencia real no declarada).
+  }, [bucketKey, date, showSavedData, userEmail, country, zone, dbCity])
 
   // ── Load session history ───────────────────────────────
   async function loadSessionHistory() {
@@ -3254,6 +3293,9 @@ export default function DataEntry() {
       {/* Footer repeat buttons */}
       {!blockNewSlot && !refsLoading && refs.length > 0 && (
         <div className="de-footer">
+          {sessionActive && pendingScopeMembers.length > 1 && (
+            <div className="de-footer-hint">{t('dataentry.finish_reminder_ambos')}</div>
+          )}
           {sessionActive ? (
             <>
               <Button onClick={handleSaveProgress} disabled={saving}>
@@ -3290,7 +3332,10 @@ export default function DataEntry() {
       {/* ── Ver lo guardado (pedido 8) ── */}
       <div className="de-session-history">
         <button className="de-history-toggle" onClick={() => setShowSavedData((p) => !p)}>
-          {showSavedData ? '▲' : '▼'} {t('dataentry.view_saved_data')}
+          {showSavedData ? '▲' : '▼'}{' '}
+          {savedCount != null
+            ? t('dataentry.view_saved_data_count', { n: savedCount })
+            : t('dataentry.view_saved_data')}
         </button>
         {showSavedData && (
           <div className="de-history-body">
@@ -3456,17 +3501,7 @@ export default function DataEntry() {
                             <strong>{s.duration_minutes} min</strong>
                             {s.turno_timings && typeof s.turno_timings === 'object' && (
                               <div className="de-history-note">
-                                {Object.entries(s.turno_timings)
-                                  .filter(([, t]) => t?.startedAt)
-                                  .map(([label, t]) => {
-                                    const mins = t.endedAt
-                                      ? Math.round(
-                                          (new Date(t.endedAt) - new Date(t.startedAt)) / 60000
-                                        )
-                                      : null
-                                    return `${label} ${mins != null ? mins + 'min' : '—'}`
-                                  })
-                                  .join(' · ')}
+                                {turnoBreakdownLabel(s.turno_timings)}
                               </div>
                             )}
                           </td>

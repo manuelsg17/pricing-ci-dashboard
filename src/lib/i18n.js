@@ -347,6 +347,8 @@ export const TRANSLATIONS = {
     'monitoring.detail': 'Detalle por ciudad, fecha y hub',
     'monitoring.sessions': 'Sesiones recientes',
     'monitoring.no_sessions': 'Sin sesiones en este rango.',
+    'monitoring.duration_hint':
+      'Tiempo total transcurrido desde el primer toque hasta el cierre — incluye pausas. Para el tiempo de llenado por turno, ver el detalle debajo.',
     'monitoring.col_hub': 'Hub',
     'monitoring.col_rows': 'Filas',
     'monitoring.col_available': 'Disponibles',
@@ -546,6 +548,8 @@ export const TRANSLATIONS = {
     'dataentry.start_session': '▶ Iniciar Sesión',
     'dataentry.end_session': '⏹ Terminar Sesión',
     'dataentry.end_session_point': '⏹ Terminar este punto',
+    'dataentry.finish_reminder_ambos':
+      'Guardá seguido con "Guardar progreso". Recién cuando completes los 3 turnos de este Punto vas a poder tocar "Terminar este punto" — no hace falta terminarlo por cada turno o ruta.',
     'dataentry.save_progress': '💾 Guardar progreso',
     'dataentry.saving': 'Guardando…',
     'dataentry.scope_picker_label': '¿Qué vas a completar?',
@@ -581,6 +585,7 @@ export const TRANSLATIONS = {
     'dataentry.col_price': 'Precio',
     'dataentry.col_time': 'Hora',
     'dataentry.view_saved_data': 'Ver lo guardado',
+    'dataentry.view_saved_data_count': 'Ver lo guardado ({n})',
     'dataentry.view_saved_data_empty': 'Todavía no guardaste nada para esta vista y fecha.',
     'dataentry.col_date': 'Fecha',
     'dataentry.col_city': 'Ciudad',
@@ -2533,6 +2538,8 @@ export const TRANSLATIONS = {
     'monitoring.detail': 'Detail by city, date and hub',
     'monitoring.sessions': 'Recent sessions',
     'monitoring.no_sessions': 'No sessions in this range.',
+    'monitoring.duration_hint':
+      'Total time elapsed from the first touch to closing — includes pauses. For per-shift fill time, see the detail below.',
     'monitoring.col_hub': 'Hub',
     'monitoring.col_rows': 'Rows',
     'monitoring.col_available': 'Available',
@@ -2728,6 +2735,8 @@ export const TRANSLATIONS = {
     'dataentry.start_session': '▶ Start Session',
     'dataentry.end_session': '⏹ End Session',
     'dataentry.end_session_point': '⏹ Finish this point',
+    'dataentry.finish_reminder_ambos':
+      'Save often with "Save progress". Only once you complete all 3 shifts of this Point will "Finish this point" become available — no need to finish it per shift or route.',
     'dataentry.save_progress': '💾 Save progress',
     'dataentry.scope_picker_label': 'What are you going to complete?',
     'dataentry.scope_point': 'Point {side}',
@@ -2763,6 +2772,7 @@ export const TRANSLATIONS = {
     'dataentry.col_price': 'Price',
     'dataentry.col_time': 'Time',
     'dataentry.view_saved_data': 'View what was saved',
+    'dataentry.view_saved_data_count': 'View what was saved ({n})',
     'dataentry.view_saved_data_empty': "You haven't saved anything for this view and date yet.",
     'dataentry.col_date': 'Date',
     'dataentry.col_city': 'City',
@@ -4697,6 +4707,8 @@ export const TRANSLATIONS = {
     'monitoring.detail': 'Детализация по городу, дате и хабу',
     'monitoring.sessions': 'Недавние сессии',
     'monitoring.no_sessions': 'Нет сессий в этом диапазоне.',
+    'monitoring.duration_hint':
+      'Общее время от первого касания до закрытия — включает паузы. Время заполнения по сменам — в детализации ниже.',
     'monitoring.col_hub': 'Хаб',
     'monitoring.col_rows': 'Строки',
     'monitoring.col_available': 'Доступно',
@@ -4895,6 +4907,8 @@ export const TRANSLATIONS = {
     'dataentry.start_session': '▶ Начать сессию',
     'dataentry.end_session': '⏹ Завершить сессию',
     'dataentry.end_session_point': '⏹ Завершить эту точку',
+    'dataentry.finish_reminder_ambos':
+      'Сохраняйте прогресс почаще кнопкой "Сохранить прогресс". Кнопка "Завершить эту точку" станет доступна только после заполнения всех 3 смен этой точки — не нужно завершать её после каждой смены или маршрута.',
     'dataentry.save_progress': '💾 Сохранить прогресс',
     'dataentry.scope_picker_label': 'Что вы будете заполнять?',
     'dataentry.scope_point': 'Точка {side}',
@@ -4930,6 +4944,7 @@ export const TRANSLATIONS = {
     'dataentry.col_price': 'Цена',
     'dataentry.col_time': 'Время',
     'dataentry.view_saved_data': 'Посмотреть сохранённое',
+    'dataentry.view_saved_data_count': 'Посмотреть сохранённое ({n})',
     'dataentry.view_saved_data_empty': 'Вы пока ничего не сохранили для этого вида и даты.',
     'dataentry.col_date': 'Дата',
     'dataentry.col_city': 'Город',

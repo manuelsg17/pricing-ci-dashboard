@@ -789,6 +789,16 @@
   color: var(--color-danger-fg);
 }
 
+/* Recordatorio de "Terminar este punto" en alcance Ambos (pedido real de un
+   hub, 2026-07-25: se confundió pensando que había que terminar cada turno
+   por separado). flex-basis 100% lo manda a su propia línea dentro del
+   footer, sin romper el layout de los botones. */
+.de-footer-hint {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
 /* ── Active timer ──────────────────────────────────────────── */
 .de-timer--active {
   background: var(--color-success-bg);
