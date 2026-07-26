@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirigiendo…</title>
+    <script>
+      // GitHub Pages no soporta rewrites de SPA (sirve 404.html para
+      // cualquier ruta que no sea un archivo real) — con react-router-dom
+      // (Fase 3, auditoría 2026-07-26), un F5 en /pricing-ci-dashboard/market
+      // caería acá en vez de en index.html. Este archivo redirige a
+      // index.html codificando la ruta real en la query string; la
+      // contraparte en main.jsx la decodifica y restaura la URL ANTES de
+      // montar BrowserRouter, así el usuario no nota el salto. Patrón
+      // estándar para SPAs en GH Pages (rafgraph/spa-github-pages, código
+      // sin modificar salvo pathSegmentsToKeep). pathSegmentsToKeep=1
+      // porque el repo ('pricing-ci-dashboard') es el único segmento fijo
+      // antes de las rutas de la app (debe matchear el basename de
+      // BrowserRouter en main.jsx).
+      var pathSegmentsToKeep = 1
+
+      var l = window.location
+      l.replace(
+        l.protocol +
+          '//' +
+          l.hostname +
+          (l.port ? ':' + l.port : '') +
+          l.pathname
+            .split('/')
+            .slice(0, 1 + pathSegmentsToKeep)
+            .join('/') +
+          '/?/' +
+          l.pathname
+            .slice(1)
+            .split('/')
+            .slice(pathSegmentsToKeep)
+            .join('/')
+            .replace(/&/g, '~and~') +
+          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash
+      )
+    </script>
+  </head>
+  <body></body>
+</html>

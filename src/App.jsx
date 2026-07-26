@@ -1,4 +1,5 @@
-import { useState, useEffect, Suspense, lazy } from 'react'
+import { useEffect, Suspense, lazy } from 'react'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './lib/auth'
 import { useAccessControl } from './hooks/useAccessControl'
 import { useCountry } from './context/CountryContext'
@@ -26,6 +27,46 @@ const Coverage = lazy(() => import('./pages/Coverage'))
 const Competitividad = lazy(() => import('./pages/Competitividad'))
 const Monitoring = lazy(() => import('./pages/Monitoring'))
 
+// Tabla ruta → componente + sección de permisos requerida. Reemplaza la
+// cadena de `activeTab === 'x' && canAccess('x') && <X/>` que había antes —
+// misma lista, misma clave (los tab-keys ya eran 1:1 con canAccess/ALL_SECTIONS,
+// ver useAccessControl.js). `monitoring` no usa `section` (se gatea por
+// isAdmin directamente, como ya hacía antes).
+const ROUTES = [
+  { path: 'dashboard', Component: Dashboard, section: 'dashboard' },
+  { path: 'dataentry', Component: DataEntry, section: 'dataentry' },
+  { path: 'earnings', Component: DriverEarnings, section: 'earnings' },
+  { path: 'rentabilidad', Component: Rentabilidad, section: 'rentabilidad' },
+  { path: 'report', Component: WeeklyReport, section: 'report' },
+  { path: 'market', Component: Market, section: 'market' },
+  { path: 'coverage', Component: Coverage, section: 'coverage' },
+  { path: 'competitividad', Component: Competitividad, section: 'competitividad' },
+  { path: 'events', Component: MarketEvents, section: 'events' },
+  { path: 'rawdata', Component: RawData, section: 'rawdata' },
+  { path: 'botvshubs', Component: BotVsHubs, section: 'botvshubs' },
+  { path: 'config', Component: Config, section: 'config' },
+  { path: 'upload', Component: Upload, section: 'upload' },
+  { path: 'distances', Component: DistanceRefs, section: 'distances' },
+  { path: 'access', Component: AccessManagement, section: 'access' },
+  { path: 'monitoring', Component: Monitoring, adminOnly: true },
+]
+
+// Redirige a /dashboard si el rol no tiene acceso a esta ruta — pasa en el
+// mismo render (sin el useEffect+setState de un tab extra que había antes),
+// porque para cuando esto monta `acLoading` ya resolvió (ver el guard de
+// loading más abajo en App). Preserva window.location.hash (NO el `location`
+// de useLocation): useFilters.js escribe el hash con
+// `window.history.replaceState` directo, sin pasar por React Router — el
+// `location` de useLocation() nunca se entera de ese cambio, así que leerlo
+// de ahí siempre da un hash viejo/vacío. window.location.hash es la única
+// fuente de verdad real. Sin esto, cualquier redirect pisaba los filtros
+// persistidos del hub (city/categoría/rango de fechas).
+function ProtectedRoute({ allowed, children }) {
+  if (!allowed)
+    return <Navigate to={{ pathname: '/dashboard', hash: window.location.hash }} replace />
+  return children
+}
+
 export default function App() {
   const { t } = useI18n()
   const { loading, signIn, signOut, changePassword, session } = useAuth()
@@ -40,7 +81,18 @@ export default function App() {
     loading: acLoading,
     reload: reloadAccessControl,
   } = useAccessControl()
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const navigate = useNavigate()
+  const location = useLocation()
+  // activeTab: mismo valor que antes (string sin slash), derivado de la URL
+  // en vez de un useState — Topbar no necesita cambios, sigue recibiendo
+  // exactamente el mismo shape (activeTab + onTabChange(id)).
+  const activeTab = location.pathname.replace(/^\//, '') || 'dashboard'
+  // Preserva window.location.hash — no el `location.hash` de useLocation(),
+  // que useFilters.js nunca actualiza (escribe el hash con
+  // `history.replaceState` directo, fuera de React Router). Sin esto,
+  // cambiar de pestaña borraba los filtros persistidos del hub y un F5
+  // inmediatamente después los perdía de verdad.
+  const setActiveTab = (tab) => navigate({ pathname: `/${tab}`, hash: window.location.hash })
 
   // Sprint 2.4: dbWeights/dbSemaforo ya NO viven acá — ConfigProvider
   // los maneja globalmente (src/context/ConfigProvider.jsx). Dashboard,
@@ -61,13 +113,8 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- corre solo al cargar auth; incluir country/setCountry pelearía con la selección del usuario
   }, [acLoading])
 
-  // Si el tab activo no es accesible, redirigir a dashboard
-  // canAccess is stable (useCallback) so we can safely depend on it.
-  useEffect(() => {
-    if (!acLoading && !canAccess(activeTab)) {
-      setActiveTab('dashboard')
-    }
-  }, [acLoading, canAccess, activeTab])
+  // El redirect por falta de acceso ahora lo hace <ProtectedRoute> en el
+  // mismo render (ver abajo) — ya no hace falta este efecto aparte.
 
   // Listener para navegación entre pestañas desde componentes hijos
   // (ej: el digest compact en Dashboard linkea a Mercado).
@@ -78,7 +125,10 @@ export default function App() {
     function handler(e) {
       const tab = e.detail?.tab
       if (tab && canAccess(tab)) {
-        setActiveTab(tab)
+        // window.location.hash (no el `location` de useLocation): evita
+        // depender de un valor potencialmente stale sin tener que
+        // resuscribir este listener en cada cambio de filtro.
+        navigate({ pathname: `/${tab}`, hash: window.location.hash })
         const section = e.detail?.section
         if (section) {
           // scroll a la sección después que el tab montó
@@ -93,7 +143,7 @@ export default function App() {
       window.removeEventListener('navigate-to-tab', handler)
       if (scrollTimer) clearTimeout(scrollTimer)
     }
-  }, [canAccess])
+  }, [canAccess, navigate])
 
   if (loading || acLoading) {
     return (
@@ -206,26 +256,35 @@ export default function App() {
           Las pages que NO usan filtros tampoco re-renderean porque no
           llaman useFilterContext(). */}
       <FilterProvider>
-        <ErrorBoundary key={activeTab}>
+        <ErrorBoundary key={location.pathname}>
           <Suspense fallback={<SkeletonDashboard />}>
             {/* Sprint 2.4: Sin props dbWeights/dbSemaforo — las pages los
                 leen vía useConfigContext() de src/context/ConfigProvider. */}
-            {activeTab === 'dashboard' && canAccess('dashboard') && <Dashboard />}
-            {activeTab === 'dataentry' && canAccess('dataentry') && <DataEntry />}
-            {activeTab === 'earnings' && canAccess('earnings') && <DriverEarnings />}
-            {activeTab === 'rentabilidad' && canAccess('rentabilidad') && <Rentabilidad />}
-            {activeTab === 'report' && canAccess('report') && <WeeklyReport />}
-            {activeTab === 'market' && canAccess('market') && <Market />}
-            {activeTab === 'coverage' && canAccess('coverage') && <Coverage />}
-            {activeTab === 'competitividad' && canAccess('competitividad') && <Competitividad />}
-            {activeTab === 'events' && canAccess('events') && <MarketEvents />}
-            {activeTab === 'rawdata' && canAccess('rawdata') && <RawData />}
-            {activeTab === 'botvshubs' && canAccess('botvshubs') && <BotVsHubs />}
-            {activeTab === 'config' && canAccess('config') && <Config />}
-            {activeTab === 'upload' && canAccess('upload') && <Upload />}
-            {activeTab === 'distances' && canAccess('distances') && <DistanceRefs />}
-            {activeTab === 'access' && canAccess('access') && <AccessManagement />}
-            {activeTab === 'monitoring' && isAdmin && <Monitoring />}
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Navigate to={{ pathname: '/dashboard', hash: window.location.hash }} replace />
+                }
+              />
+              {ROUTES.map(({ path, Component, section, adminOnly }) => (
+                <Route
+                  key={path}
+                  path={`/${path}`}
+                  element={
+                    <ProtectedRoute allowed={adminOnly ? isAdmin : canAccess(section)}>
+                      <Component />
+                    </ProtectedRoute>
+                  }
+                />
+              ))}
+              <Route
+                path="*"
+                element={
+                  <Navigate to={{ pathname: '/dashboard', hash: window.location.hash }} replace />
+                }
+              />
+            </Routes>
           </Suspense>
         </ErrorBoundary>
       </FilterProvider>

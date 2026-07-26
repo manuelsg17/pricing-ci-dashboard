@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { LanguageProvider } from './context/LanguageContext'
 import { CountryProvider } from './context/CountryContext'
@@ -53,6 +54,25 @@ const queryClient = new QueryClient({
   },
 })
 
+// Contraparte de public/404.html (Fase 3, auditoría 2026-07-26): restaura
+// la ruta real ANTES de montar BrowserRouter, para que su primer render lea
+// la URL correcta en vez de quedarse en `/?/market`. Debe correr acá
+// (module script, respeta el CSP script-src 'self' de index.html) y no como
+// script inline en el HTML, que el CSP bloquearía. Código sin modificar del
+// patrón estándar (rafgraph/spa-github-pages) — el formato de query string
+// que arma 404.html (`?/ruta&~and~...`) tiene que coincidir EXACTO con cómo
+// se decodifica acá, así que no tocar uno sin el otro.
+;(function (l) {
+  if (l.search[1] === '/') {
+    const decoded = l.search
+      .slice(1)
+      .split('&')
+      .map((s) => s.replace(/~and~/g, '&'))
+      .join('?')
+    window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash)
+  }
+})(window.location)
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
@@ -63,7 +83,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <CountryProvider>
                 <ConfigProvider>
                   <RealtimeSyncProvider>
-                    <App />
+                    {/* basename debe matchear vite.config.js `base` — sin
+                        esto, cualquier ruta calcula mal contra el deploy de
+                        GitHub Pages (sirve desde /pricing-ci-dashboard/, no
+                        desde la raíz). BrowserRouter (no HashRouter): los
+                        filtros YA usan location.hash (useFilters.js,
+                        CountryContext.jsx) — HashRouter chocaría con eso. */}
+                    <BrowserRouter basename="/pricing-ci-dashboard">
+                      <App />
+                    </BrowserRouter>
                   </RealtimeSyncProvider>
                 </ConfigProvider>
               </CountryProvider>
