@@ -5,6 +5,7 @@ import { useCompetitiveBandAnalysis } from '../../hooks/useCompetitiveBandAnalys
 import { useConfigContext } from '../../context/ConfigProvider'
 import { useCountry } from '../../context/CountryContext'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
+import { getISOYearWeek } from '../../lib/dateUtils'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -36,6 +37,13 @@ function BandPreviewCell({ country, competitorName, category, minPct, maxPct }) 
     return () => clearTimeout(timer)
   }, [minPct, maxPct])
 
+  // Acotado a la semana ISO en curso (auditoría de rendimiento 2026-07-29):
+  // sin year/week, la RPC escaneaba v_yango_rival_diff_mv completa
+  // (1M+ filas) en cada edición — 337ms medidos en producción por keystroke
+  // debounced. year/week son primitivos, no objetos — no rompen la
+  // identidad estable del array de deps del efecto en el hook.
+  const { year: currentYear, week: currentWeek } = getISOYearWeek()
+
   // includeBreakdown=false: el preview solo necesita el resumen, no vale la
   // pena pedir el desglose ciudad×bracket (la RPC más cara de las dos) por
   // cada una de las N filas de la tabla en cada carga de la página.
@@ -45,6 +53,10 @@ function BandPreviewCell({ country, competitorName, category, minPct, maxPct }) 
     category,
     minPct: debounced.minPct,
     maxPct: debounced.maxPct,
+    yearStart: currentYear,
+    weekStart: currentWeek,
+    yearEnd: currentYear,
+    weekEnd: currentWeek,
     includeBreakdown: false,
   })
 
