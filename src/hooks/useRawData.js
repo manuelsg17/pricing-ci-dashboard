@@ -2,7 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../lib/supabase'
 import { getCountryConfig } from '../lib/constants'
 
-const PAGE_SIZE = 100
+// 50 (bajado de 100, Speed Insights 2026-07-29): la tabla de RawData no está
+// virtualizada — renderiza todas las filas de la página en el DOM de una
+// sola vez (100 filas × 25 columnas = 2.500 celdas). Con 50 filas se corta
+// el costo de render al medio como medida barata mientras se junta data
+// fresca post-fix de RLS para confirmar si /rawdata sigue en LCP "Poor".
+// Si no alcanza, el siguiente paso es virtualizar la tabla (cambio más
+// grande, no se hace acá).
+const PAGE_SIZE = 50
 const EXPORT_CHUNK_SIZE = 1000
 
 // Columnas compartidas por la tabla en pantalla y el export de data raw —
