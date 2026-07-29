@@ -420,6 +420,8 @@ export const TRANSLATIONS = {
     'dashboard.kpi.data_as_of': 'Datos al',
     'dashboard.table.competitor': 'Competidor',
     'dashboard.table.price': 'Precio',
+    'dashboard.table.cell_no_data':
+      'Sin datos para este competidor en este período — no es un error, probá ampliar el rango de fechas',
     'dashboard.table.diff': 'Dif.',
     'dashboard.table.delta_vs': '% Delta vs',
     'dashboard.chart.price': 'Precio',
@@ -2617,6 +2619,8 @@ export const TRANSLATIONS = {
     'dashboard.kpi.data_as_of': 'Data as of',
     'dashboard.table.competitor': 'Competitor',
     'dashboard.table.price': 'Price',
+    'dashboard.table.cell_no_data':
+      'No data for this competitor in this period — not an error, try widening the date range',
     'dashboard.table.diff': 'Diff',
     'dashboard.table.delta_vs': '% Delta vs',
     'dashboard.chart.price': 'Price',
@@ -4795,6 +4799,8 @@ export const TRANSLATIONS = {
     'dashboard.kpi.data_as_of': 'Данные на',
     'dashboard.table.competitor': 'Конкурент',
     'dashboard.table.price': 'Цена',
+    'dashboard.table.cell_no_data':
+      'Нет данных по этому конкуренту за этот период — это не ошибка, попробуйте расширить диапазон дат',
     'dashboard.table.diff': 'Разница',
     'dashboard.table.delta_vs': '% Дельта от',
     'dashboard.chart.price': 'Цена',

@@ -691,7 +691,12 @@ function BracketSection({
                               ) : loading ? (
                                 <span className="skel-cell" />
                               ) : (
-                                <span className="cell-empty">—</span>
+                                <span
+                                  className="cell-empty"
+                                  title={t('dashboard.table.cell_no_data')}
+                                >
+                                  —
+                                </span>
                               )}
                             </td>
                           )
@@ -754,7 +759,12 @@ function BracketSection({
                                 {loading ? (
                                   <span className="skel-cell" />
                                 ) : (
-                                  <span className="cell-empty">—</span>
+                                  <span
+                                    className="cell-empty"
+                                    title={t('dashboard.table.cell_no_data')}
+                                  >
+                                    —
+                                  </span>
                                 )}
                               </td>
                             )
@@ -828,7 +838,12 @@ function BracketSection({
                                 {loading ? (
                                   <span className="skel-cell" />
                                 ) : (
-                                  <span className="cell-empty">—</span>
+                                  <span
+                                    className="cell-empty"
+                                    title={t('dashboard.table.cell_no_data')}
+                                  >
+                                    —
+                                  </span>
                                 )}
                               </td>
                             )

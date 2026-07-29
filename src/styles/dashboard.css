@@ -358,10 +358,15 @@
   background: #fce4e4;
 }
 
-/* Celda sin dato */
+/* Celda sin dato — subrayado punteado sutil (no un badge/alerta) que
+   insinúa que hay un tooltip explicando POR QUÉ está vacía (auditoría
+   2026-07-29: un hub confundió "sin datos en el rango" con un bug del
+   dashboard). Deliberadamente discreto, no un ícono ni un color de alerta. */
 .cell-empty {
   color: var(--color-subtle);
   font-size: 10px;
+  border-bottom: 1px dotted var(--color-subtle);
+  cursor: help;
 }
 
 /* #2 — Column hover: header triggers JS to add .col-highlighted to all nth cells */
