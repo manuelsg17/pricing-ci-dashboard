@@ -4,7 +4,7 @@ import { sb } from '../lib/supabase'
 import { BRACKETS, DEFAULT_WEIGHTS, LEGACY_WEIGHTS_PE } from '../lib/constants'
 import { computePeriodAvg, buildWeightsMap } from '../algorithms/weightedAverage'
 import { computeDelta, getSemaforoClass } from '../algorithms/semaforo'
-import { getISOYearWeek as getYearWeek } from '../lib/dateUtils'
+import { getISOYearWeek as getYearWeek, toISODate } from '../lib/dateUtils'
 import { normalizeCompetitorName, toSnakeCase } from '../lib/normalize'
 
 const ALL_TIME_SLOTS = ['early_morning', 'morning', 'midday', 'afternoon', 'evening']
@@ -262,8 +262,23 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         }
       })
     } else {
-      const dates = [...new Set(rawRows.map((r) => r.observed_date))].sort()
-      periods = dates.map((d) => ({
+      // Rango continuo (todos los días entre dailyStart/dailyEnd), NO solo
+      // las fechas que trajeron filas (auditoría 2026-07-29): con la lógica
+      // vieja, un hueco real en el bot (ej. 3 días sin scrapear) hacía que
+      // la columna "saltara" del 16 al 20 directo, sin ningún rastro de que
+      // faltaban 3 días — indistinguible de un bug de la app. Mismo criterio
+      // que la vista Semanal (f_weekColumns), que ya arma sus columnas de
+      // forma continua en vez de derivarlas de la data.
+      const days = []
+      if (dailyStart && dailyEnd) {
+        const cur = new Date(dailyStart + 'T00:00:00')
+        const end = new Date(dailyEnd + 'T00:00:00')
+        while (cur <= end) {
+          days.push(toISODate(cur))
+          cur.setDate(cur.getDate() + 1)
+        }
+      }
+      periods = days.map((d) => ({
         key: d,
         label: formatDayLabel(d, locale),
         date: d,
@@ -485,6 +500,8 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     f_competitors,
     f_compareVs,
     f_country,
+    dailyStart,
+    dailyEnd,
   ])
 
   return {
