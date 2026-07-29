@@ -78,19 +78,19 @@ export function useRawData(filters) {
       setError(null)
 
       try {
-        // count: 'estimated' — Speed Insights 2026-07 marcó LCP pobre (7.5s)
-        // en esta ruta; pedir el conteo EXACTO en cada carga de página sobre
-        // pricing_observations (1.6M+ filas) es caro y no hace falta para
-        // mostrar "página X de Y" en la UI. A diferencia de 'planned' (usa
-        // SIEMPRE la estimación del query planner, que en filtros muy
-        // selectivos puede llegar a estimar 0 y deshabilitaría el botón
-        // Exportar por error), 'estimated' hace un COUNT(*) real cuando el
-        // resultado filtrado es chico y solo usa la estimación del planner
-        // cuando el propio plan indica que el resultado sería grande — el
-        // caso exacto que queremos optimizar. El conteo exacto de verdad
-        // (crítico para no truncar un export) sigue viviendo aparte, sin
-        // tocar, en countRawData().
-        let q = sb.from('pricing_observations').select(RAW_DATA_COLUMNS, { count: 'estimated' })
+        // count: 'exact' — revertido (2026-07-29) tras un bug real en
+        // producción: con 'estimated', el estimador de Postgres mostró 4.489
+        // filas cuando el conteo real era 50.373 (11x de error) — ni
+        // corriendo ANALYZE se corrigió del todo (13.403 vs 50.373, la
+        // combinación de filtros por ciudad+fecha confunde al planner). El
+        // hub vio un número muy por debajo del real, y al exportar
+        // (countRawData(), que SIEMPRE fue 'exact') se topó con muchísimas
+        // más filas de las que esperaba — probablemente la causa del
+        // timeout de export reportado. Con el default de 30 días agregado
+        // en el mismo incidente (useRawDataFilters.js), la query ya poda a
+        // 1-2 particiones — el conteo exacto vuelve a ser barato, así que
+        // no hace falta arriesgar un número incorrecto por rendimiento.
+        let q = sb.from('pricing_observations').select(RAW_DATA_COLUMNS, { count: 'exact' })
         q = applyRawDataFilters(q, filters)
         // Tercer criterio (id) desempata filas con mismo date+time exacto (ej.
         // una carga manual en batch) — sin esto, .range() puede repetir o
