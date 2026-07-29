@@ -20,6 +20,7 @@ import { formatPrice } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
 import DrillDownModal from './DrillDownModal'
+import FastTooltip from '../ui/FastTooltip'
 import { Button } from '../ui/shadcn/button'
 import {
   GripVertical,
@@ -691,12 +692,9 @@ function BracketSection({
                               ) : loading ? (
                                 <span className="skel-cell" />
                               ) : (
-                                <span
-                                  className="cell-empty"
-                                  title={t('dashboard.table.cell_no_data')}
-                                >
-                                  —
-                                </span>
+                                <FastTooltip content={t('dashboard.table.cell_no_data')}>
+                                  <span className="cell-empty">—</span>
+                                </FastTooltip>
                               )}
                             </td>
                           )
@@ -759,12 +757,9 @@ function BracketSection({
                                 {loading ? (
                                   <span className="skel-cell" />
                                 ) : (
-                                  <span
-                                    className="cell-empty"
-                                    title={t('dashboard.table.cell_no_data')}
-                                  >
-                                    —
-                                  </span>
+                                  <FastTooltip content={t('dashboard.table.cell_no_data')}>
+                                    <span className="cell-empty">—</span>
+                                  </FastTooltip>
                                 )}
                               </td>
                             )
@@ -838,12 +833,9 @@ function BracketSection({
                                 {loading ? (
                                   <span className="skel-cell" />
                                 ) : (
-                                  <span
-                                    className="cell-empty"
-                                    title={t('dashboard.table.cell_no_data')}
-                                  >
-                                    —
-                                  </span>
+                                  <FastTooltip content={t('dashboard.table.cell_no_data')}>
+                                    <span className="cell-empty">—</span>
+                                  </FastTooltip>
                                 )}
                               </td>
                             )

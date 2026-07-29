@@ -520,6 +520,27 @@
   vertical-align: middle;
 }
 
+/* Placeholder de los banners de arriba (atípicos / cambios WoW) mientras
+   carga — auditoría de rendimiento 2026-07-29 (Speed Insights, CLS 0.16 en
+   /dashboard): antes no había NADA en ese espacio mientras loading=true, así
+   que el banner aparecía de golpe con altura real apenas terminaba de
+   cargar, empujando todo lo de abajo — el mismo patrón de CLS que ya se
+   arregló en RawData. Reserva un alto aproximado, mismo shimmer que
+   .skel-cell. */
+.dash-banner-skel {
+  height: 40px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--color-border-strong) 25%,
+    var(--color-bg-subtle) 50%,
+    var(--color-border-strong) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s infinite linear;
+}
+
 /* ── #5 Sparkline in col-label ───────────────────────────── */
 .col-label > div {
   display: flex;

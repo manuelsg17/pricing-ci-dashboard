@@ -492,13 +492,17 @@ function DashboardContent() {
   return (
     <div className="dashboard" ref={dashRef}>
       {/* ── Anomaly digest compact (link a Mercado para detalle) ── */}
-      {!loading && periods.length > 3 && (
-        <AnomalyDigestCompact
-          priceMatrix={rawPriceMatrix}
-          periods={periods}
-          competitors={filters.competitors}
-          compareVs={filters.compareVs}
-        />
+      {loading ? (
+        <div className="dash-banner-skel" />
+      ) : (
+        periods.length > 3 && (
+          <AnomalyDigestCompact
+            priceMatrix={rawPriceMatrix}
+            periods={periods}
+            competitors={filters.competitors}
+            compareVs={filters.compareVs}
+          />
+        )
       )}
 
       {/* ── What-if simulator banner ── */}
@@ -515,12 +519,16 @@ function DashboardContent() {
       )}
 
       {/* ── WoW Callouts banner ── */}
-      {!loading && periods.length > 1 && (
-        <WowCallouts
-          priceMatrix={priceMatrix}
-          competitors={filters.competitors}
-          periods={periods}
-        />
+      {loading ? (
+        <div className="dash-banner-skel" />
+      ) : (
+        periods.length > 1 && (
+          <WowCallouts
+            priceMatrix={priceMatrix}
+            competitors={filters.competitors}
+            periods={periods}
+          />
+        )
       )}
 
       {/* ── Frescura de la data del bot (semáforo + matriz ciudad×bracket) ── */}
