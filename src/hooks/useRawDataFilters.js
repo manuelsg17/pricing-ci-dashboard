@@ -10,6 +10,19 @@ function getInitialState(key, defaultVal) {
   return saved !== null ? saved : defaultVal
 }
 
+// Rango de fechas por defecto: 30 días atrás. `pricing_observations` está
+// particionada por mes (mig 168-169) — sin un filtro de fecha, Postgres no
+// puede podar particiones y termina abriendo las ~19 particiones existentes
+// para armar la página (Merge Append), lo que ya se vio en producción como
+// "exceeds time of execution" al entrar a RawData sin fecha. Visible y
+// editable en el campo "Desde" (no es un recorte silencioso) — el hub ve
+// exactamente qué rango se está pidiendo y lo puede ampliar.
+function getDefaultDateFrom() {
+  const d = new Date()
+  d.setDate(d.getDate() - 30)
+  return d.toISOString().slice(0, 10)
+}
+
 export function useRawDataFilters({ country, config }) {
   // Si dbCity inicial no está en config.dbCities, forzar a la primera ciudad de este país
   const defaultCity = getInitialState('dbCity', config.dbCities[0])
@@ -20,7 +33,7 @@ export function useRawDataFilters({ country, config }) {
   const [competition, setCompetition] = useState(getInitialState('competition', ''))
   const [surge, setSurge] = useState(getInitialState('surge', ''))
   const [bracket, setBracket] = useState(getInitialState('bracket', ''))
-  const [dateFrom, setDateFrom] = useState(getInitialState('dateFrom', ''))
+  const [dateFrom, setDateFrom] = useState(getInitialState('dateFrom', getDefaultDateFrom()))
   const [dateTo, setDateTo] = useState(getInitialState('dateTo', ''))
   const [searchA, setSearchA] = useState(getInitialState('searchA', ''))
   const [searchB, setSearchB] = useState(getInitialState('searchB', ''))
@@ -114,7 +127,7 @@ export function useRawDataFilters({ country, config }) {
     setCompetition('')
     setSurge('')
     setBracket('')
-    setDateFrom('')
+    setDateFrom(getDefaultDateFrom())
     setDateTo('')
     setSearchA('')
     setSearchB('')
