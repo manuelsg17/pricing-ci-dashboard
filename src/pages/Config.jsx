@@ -32,6 +32,7 @@ import BotRulesTable from '../components/config/BotRulesTable'
 import AirportMarkersTable from '../components/config/AirportMarkersTable'
 import SnapshotsManager from '../components/config/SnapshotsManager'
 import AuditLogViewer from '../components/config/AuditLogViewer'
+import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { useI18n } from '../context/LanguageContext'
 import { useCountry } from '../context/CountryContext'
 import { useAccessControl } from '../hooks/useAccessControl'
@@ -273,7 +274,17 @@ export default function Config() {
                       comportamiento anterior (no carga TODOS los componentes
                       en mount). El conditional con currentCategory evita render
                       cuando este sub-tab no pertenece a la categoría activa. */}
-                  {activeCategory === id && currentItemId === item.id && item.render()}
+                  {activeCategory === id && currentItemId === item.id && (
+                    // A diferencia de Dashboard/Market/Coverage, Config no
+                    // envolvía cada sub-tab en su propio error boundary — un
+                    // crash en cualquiera de los ~19 componentes de config se
+                    // llevaba puesta toda la página (auditoría 2026-07-29).
+                    // key=item.id: al cambiar de sub-tab, el boundary olvida
+                    // cualquier error viejo en vez de seguir mostrándolo.
+                    <SectionErrorBoundary key={item.id} label={item.label}>
+                      {item.render()}
+                    </SectionErrorBoundary>
+                  )}
                 </TabsContent>
               ))}
             </Tabs>
