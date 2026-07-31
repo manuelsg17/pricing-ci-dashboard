@@ -1993,7 +1993,7 @@ export default function DataEntry() {
       const now = new Date()
       const start = sessionStartRef.current || Date.now()
       const dur = Math.round(((now - new Date(start)) / 60000) * 10) / 10
-      await sb.from('ci_sessions').insert({
+      const { error: sessErr } = await sb.from('ci_sessions').insert({
         country,
         city: dbCity,
         // Distrito TukTuk (null en el resto) → el historial distingue "Lima
@@ -2017,6 +2017,27 @@ export default function DataEntry() {
         // SU PROPIO bucketKey/sesión, no se mezclan acá).
         turno_timings: turnoTimings,
       })
+      // supabase-js NO lanza excepción cuando un insert falla: devuelve
+      // { error }. Sin este chequeo, un fallo (RLS, red, timeout) seguía de
+      // largo y el hub veía "Sesión terminada" con el borrador ya limpiado,
+      // mientras la sesión NUNCA aparecía en Monitoreo ni en el Historial.
+      // Fallo silencioso en el flujo más crítico del proyecto — justo la
+      // clase de bug que documenta CLAUDE.md §2.
+      //
+      // Importante para el mensaje: los PRECIOS ya están guardados a esta
+      // altura (el insert a pricing_observations de arriba sí chequea error y
+      // aborta). Lo que falló es el REGISTRO de la sesión. Por eso no se
+      // avisa "no se guardó nada" —sería falso y haría que el hub recargue
+      // todo al pedo— sino que no se pudo cerrar, y se lo deja reintentar:
+      // NO se limpia el borrador, NO se marca la sesión como cerrada y NO se
+      // borra el latido. Reintentar Terminar es seguro porque el re-guardado
+      // es idempotente (DELETE+INSERT por ruta exacta).
+      if (sessErr) {
+        console.error('[performSave] ci_sessions insert error:', sessErr)
+        setMsg({ type: 'err', text: t('dataentry.err_session_not_closed'), emphasize: true })
+        setSaving(false)
+        return false
+      }
       // Limpiar el latido de sesión-activa (mig 146) SOLO si esto cierra la
       // sesión de VERDAD (isFinalInScope) — en Aeropuerto "Ambos", terminar el
       // primer punto no debe hacer desaparecer al hub de "en vivo" en

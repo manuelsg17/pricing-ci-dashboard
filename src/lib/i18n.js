@@ -618,6 +618,8 @@ export const TRANSLATIONS = {
     'dataentry.err_load_session': 'No se pudo cargar la sesión:',
     'dataentry.err_save_failed':
       'No se pudo guardar en el servidor. Tu progreso sigue en este navegador — probá de nuevo en un momento, o avisá a tu supervisor si sigue fallando.',
+    'dataentry.err_session_not_closed':
+      'Tus datos SÍ se guardaron, pero no se pudo cerrar la sesión. Volvé a tocar "Terminar Sesión" en un momento — no vas a duplicar nada. Si sigue fallando, avisá a tu supervisor.',
     'dataentry.session_finished': '✓ Sesión completada en {min} min. {n} registros guardados.',
     'dataentry.progress_saved': '✓ {n} registros guardados. Podés seguir completando.',
     'dataentry.timer_title': 'Sesión en curso',
@@ -2812,6 +2814,8 @@ export const TRANSLATIONS = {
     'dataentry.err_load_session': 'Could not load the session:',
     'dataentry.err_save_failed':
       "Couldn't save to the server. Your progress is still in this browser — try again in a moment, or contact your supervisor if it keeps failing.",
+    'dataentry.err_session_not_closed':
+      'Your data WAS saved, but the session could not be closed. Tap "Finish Session" again in a moment — nothing will be duplicated. If it keeps failing, contact your supervisor.',
     'dataentry.session_finished': '✓ Session completed in {min} min. {n} records saved.',
     'dataentry.progress_saved': '✓ {n} records saved. You can keep filling it in.',
     'dataentry.timer_title': 'Session in progress',
@@ -4993,6 +4997,8 @@ export const TRANSLATIONS = {
     'dataentry.err_load_session': 'Не удалось загрузить сессию:',
     'dataentry.err_save_failed':
       'Не удалось сохранить на сервере. Ваш прогресс всё ещё в этом браузере — попробуйте ещё раз через минуту или обратитесь к руководителю, если ошибка повторяется.',
+    'dataentry.err_session_not_closed':
+      'Ваши данные СОХРАНЕНЫ, но сессию закрыть не удалось. Нажмите «Завершить сессию» ещё раз через минуту — дубликатов не будет. Если ошибка повторяется, обратитесь к руководителю.',
     'dataentry.session_finished': '✓ Сессия завершена за {min} мин. Сохранено записей: {n}.',
     'dataentry.progress_saved': '✓ Сохранено записей: {n}. Можно продолжать заполнять.',
     'dataentry.timer_title': 'Сессия в процессе',
