@@ -1,0 +1,350 @@
+# Diseño — Gestión de Proyectos y Tareas (Gantt + Kanban)
+
+Estado: **PLAN, sin implementar**. Escrito 2026-07-31.
+Ubicación propuesta: **Gestión de Datos → Proyectos** (junto a Ingresar CI).
+
+---
+
+## 1. Qué problema resuelve
+
+Dos personas distintas con dos necesidades distintas:
+
+|                     | Manuel (PM)                                       | Hub expert                                       |
+| ------------------- | ------------------------------------------------- | ------------------------------------------------ |
+| **Pregunta diaria** | ¿Quién avanzó, quién está trabado, qué se atrasa? | ¿Qué tengo que hacer hoy?                        |
+| **Frecuencia**      | 1 vez por día, en la reunión                      | Varias veces por día                             |
+| **Dolor actual**    | No hay visibilidad; hay que preguntar uno por uno | No hay claridad de prioridades ni de "qué sigue" |
+
+El sistema falla si optimiza para uno y castiga al otro. En particular: **si
+actualizar el estado le cuesta al hub más de 10 segundos, no lo va a hacer, y
+el tablero va a mentir.** Ese es el riesgo número uno de este proyecto, más que
+cualquier decisión técnica.
+
+---
+
+## 2. La decisión de diseño más importante
+
+**La pantalla principal NO es el Gantt.** Es una vista "Hoy".
+
+Un Gantt responde "¿cómo viene el proyecto contra el calendario?" — sirve para
+planificar y para que el hub vea el panorama de su proyecto. Pero en una
+reunión diaria de 15 minutos, leer barras en una línea de tiempo es lento: hay
+que buscar visualmente qué cambió.
+
+La reunión diaria necesita un **digest**: qué se movió desde ayer, qué vence
+hoy, qué está trabado, qué está por atrasarse. Eso es una lista agrupada por
+persona, no un diagrama.
+
+El Gantt y el Kanban existen, pero como vistas secundarias. La app abre en
+"Hoy" y desde ahí se navega.
+
+---
+
+## 3. Simulación del día a día
+
+Lo que sigue es el recorrido real de cada persona. Las fricciones que
+aparecieron cambiaron el diseño — quedan anotadas porque explican por qué las
+cosas son como son.
+
+### 3.1 — Manuel arma un proyecto nuevo (lunes, 20 min)
+
+1. Gestión de Datos → Proyectos → **Nuevo proyecto**.
+2. Modal corto: nombre, ciudad, fecha inicio, fecha fin objetivo. Nada más.
+3. Cae en la vista del proyecto vacía, con el cursor ya puesto en la primera
+   fila de tarea.
+4. Escribe el título, `Tab`, elige owner, `Tab`, fechas, `Enter` → se crea la
+   tarea y aparece una fila nueva lista para escribir.
+
+> **Fricción encontrada:** el primer diseño abría un modal por cada tarea.
+> Cargar 15 tareas eran 15 modales, ~60 clics. Insostenible.
+> **Cambio:** alta inline tipo planilla, con `Tab`/`Enter`. El modal queda solo
+> para el proyecto (que se crea una vez).
+
+> **Fricción encontrada:** elegir owner con un `<select>` de 30 usuarios es
+> lento.
+> **Cambio:** combobox con búsqueda (ya existe en `ui/shadcn/combobox.jsx`),
+> y los últimos 3 owners usados aparecen primero.
+
+5. Opcional: duplicar un proyecto anterior como plantilla ("Onboarding hub
+   nuevo" se repite con cada hub).
+
+### 3.2 — El hub abre la app (martes 8:00, 30 segundos)
+
+1. Entra a Proyectos. Como no es admin, cae directo en **Mis tareas**, no en
+   la lista de proyectos.
+2. Ve sus tareas ordenadas por vencimiento. Arriba, un renglón: _"3 para hoy ·
+   1 vencida · 1 trabada"_.
+3. Toca el estado de una tarea → control segmentado
+   `Por hacer | En curso | Trabada | Lista`. Un clic, sin modal, sin guardar.
+4. Escribe en el campo de comentario de esa fila: _"Terminé las rutas de VES,
+   me falta SJM"_ → `Enter`.
+
+> **Fricción encontrada:** en el primer diseño el comentario vivía dentro del
+> detalle de la tarea, a 2 clics. Un hub apurado no entra.
+> **Cambio:** campo de comentario inline en la fila, siempre visible, con
+> placeholder _"¿Qué avanzaste?"_. El detalle completo sigue existiendo para
+> quien quiera leer el historial.
+
+> **Fricción encontrada:** marcar "Trabada" sin decir por qué no le sirve a
+> nadie.
+> **Cambio:** al elegir "Trabada" se pide el motivo en el mismo campo inline
+> (obligatorio, una línea). Es el único caso donde se fuerza texto.
+
+### 3.3 — La reunión diaria (miércoles 9:00, 15 min)
+
+1. Manuel abre **Hoy**. Ve, agrupado por persona:
+   - **Movido ayer** — tareas que cambiaron de estado, con el último comentario.
+   - **Vence hoy**.
+   - **Trabadas** — con el motivo, arriba de todo y en rojo.
+   - **En riesgo** — vence en ≤2 días y no está "Lista".
+2. Recorre hub por hub. Cada bloque es una persona, en orden de urgencia
+   (trabadas primero).
+3. Si algo necesita replanificarse, cambia la fecha ahí mismo sin salir de la
+   vista.
+
+> **Fricción encontrada:** el primer diseño mostraba todas las tareas de todos.
+> Con 5 hubs × 10 tareas son 50 filas y la reunión se hace larga.
+> **Cambio:** "Hoy" muestra SOLO lo que cambió, vence, está trabado o en
+> riesgo. Lo que está tranquilo no aparece. Si un hub no tiene nada, su bloque
+> dice "sin novedades" en una línea.
+
+> **Fricción encontrada:** ¿y si un hub no actualizó nada?
+> **Cambio:** su bloque muestra _"sin actualizaciones desde el {fecha}"_ en
+> ámbar. La ausencia de datos se vuelve visible en vez de parecer "todo bien".
+
+### 3.4 — Manuel revisa el panorama (viernes, 10 min)
+
+1. Va al **Gantt**. Ve todos los proyectos en el tiempo, con línea de "hoy".
+2. Filtra por ciudad para ver cómo viene Arequipa.
+3. Detecta que dos tareas de un hub se solapan y mueve una arrastrando la barra.
+
+---
+
+## 4. Las cuatro vistas
+
+Un selector arriba, siempre visible: `Hoy · Gantt · Kanban · Mis tareas`.
+Los filtros (proyecto, owner, ciudad, estado) viven en una barra común y
+**persisten al cambiar de vista** — el mismo patrón que ya usa el Dashboard.
+
+### 4.1 Hoy (pantalla por defecto del admin)
+
+Agrupada por persona. Secciones: Trabadas → Vence hoy → En riesgo → Movido
+ayer. Cada fila: tarea, proyecto, estado, último comentario, fecha.
+
+### 4.2 Gantt
+
+- Filas agrupadas por proyecto (colapsables). Cada tarea es una barra.
+- Eje temporal con zoom: semana / mes / trimestre. Línea vertical de "hoy".
+- Color por estado (mismos tokens que el semáforo del dashboard, para no
+  inventar un lenguaje visual nuevo).
+- Hover: tooltip con título, owner, fechas, último comentario.
+- Arrastrar para mover, borde para redimensionar. **Solo admin** puede.
+- **Sin dependencias entre tareas** — decisión deliberada, ver §9.
+
+### 4.3 Kanban
+
+Columnas = los 4 estados. Tarjetas arrastrables. Agrupación conmutable por
+proyecto o por persona. Es la vista natural para el hub que trabaja "en lo que
+sigue".
+
+### 4.4 Mis tareas (pantalla por defecto del hub)
+
+Lista simple ordenada por vencimiento, con el resumen arriba y el comentario
+inline. Es donde el hub va a vivir.
+
+---
+
+## 5. Modelo de datos
+
+```sql
+projects (
+  id uuid PK, country text NOT NULL, city text NULL,   -- NULL = multi-ciudad
+  name text NOT NULL, description text,
+  start_date date, end_date date,
+  status text NOT NULL DEFAULT 'active',   -- active | done | archived
+  created_by text NOT NULL, created_at timestamptz
+)
+
+project_tasks (
+  id uuid PK, project_id uuid FK ON DELETE CASCADE,
+  title text NOT NULL, description text,
+  owner_email text NULL,                    -- NULL = sin asignar
+  start_date date, due_date date,
+  status text NOT NULL DEFAULT 'todo',      -- todo | doing | blocked | done
+  sort_order int NOT NULL DEFAULT 0,
+  created_by text, created_at, updated_at
+)
+
+task_comments (
+  id uuid PK, task_id uuid FK ON DELETE CASCADE,
+  author_email text NOT NULL, body text NOT NULL,
+  kind text NOT NULL DEFAULT 'progress',    -- progress | blocker | system
+  created_at timestamptz
+)
+
+task_status_log (                            -- alimenta "Movido ayer"
+  id bigserial PK, task_id uuid FK ON DELETE CASCADE,
+  from_status text, to_status text,
+  changed_by text NOT NULL, changed_at timestamptz
+)
+```
+
+**Por qué "en riesgo" NO es un estado**: es derivado (`due_date - today <= 2 AND
+status <> 'done'`). Si fuera un estado, alguien tendría que mantenerlo a mano y
+quedaría desactualizado. Se calcula al vuelo.
+
+**Por qué `owner_email` y no `user_id`**: todo el resto del proyecto identifica
+por email (`uploaded_by`, `user_email` en `ci_sessions`, las políticas RLS con
+`auth.email()`). Cambiar de criterio acá crearía dos identidades conviviendo.
+
+**Escala**: 5 hubs × 5 proyectos × 30 tareas ≈ 750 filas. Consultas directas,
+sin vistas materializadas ni agregados. No hace falta nada de la maquinaria del
+dashboard.
+
+---
+
+## 6. Permisos
+
+Encaja exactamente con el problema documentado en `PERMISOS_DESIGN.md`, así que
+conviene diseñarlo desde el principio con ese modelo en mente.
+
+| Acción                             | Quién                                       |
+| ---------------------------------- | ------------------------------------------- |
+| Crear/editar/borrar proyectos      | Admin                                       |
+| Crear/editar/borrar/asignar tareas | Admin                                       |
+| Cambiar estado de una tarea        | Admin, o el **owner** de esa tarea          |
+| Comentar                           | Admin, o el owner de esa tarea              |
+| Ver                                | Cualquiera con la sección, acotado por país |
+
+RLS (patrón estándar de CLAUDE.md §3):
+
+- `SELECT`: `can_access_country(country)`.
+- Escritura de `projects` / `project_tasks`: sección + país.
+- **Excepción por dueño**: el `UPDATE` de `project_tasks` limitado a
+  `status` y el `INSERT` en `task_comments` se permiten si
+  `owner_email = auth.email()`. Un hub no puede cambiar el título, las fechas
+  ni el owner de su tarea — solo reportar avance. Esto se hace con una RPC
+  acotada (`set_task_status`, `add_task_comment`), no abriendo el UPDATE
+  entero, porque una política de columna es más frágil que una función con
+  una firma chica.
+
+Sección nueva: `projects`. Se agrega a `ALL_SECTIONS` y a los roles que
+correspondan.
+
+---
+
+## 7. Alertas en Monitoreo
+
+Panel nuevo "Tareas en riesgo", con el mismo formato que los paneles que ya
+existen ahí:
+
+- **Vencidas** (rojo): `due_date < today AND status <> 'done'`.
+- **En riesgo** (ámbar): vence en ≤2 días y no está lista.
+- **Trabadas** (rojo): estado `blocked`, con el motivo y desde cuándo.
+- **Sin novedades** (ámbar): tarea `doing` sin comentarios hace >3 días.
+
+El umbral de 2 días queda configurable en Config, no hardcodeado.
+
+---
+
+## 8. Telegram — mi recomendación
+
+Planteaste que el detalle vaya por Telegram y el Gantt sea solo el mapa. **No
+lo haría así**, por una razón: partir la fuente de verdad. Si el avance se
+cuenta en Telegram y el estado vive en la app, en dos semanas no coinciden y
+vas a terminar confiando en el chat, que no se puede filtrar ni ordenar.
+
+Pero el instinto detrás es correcto y hay que atenderlo: **el hub ya vive en
+Telegram, y entrar a un dashboard para escribir dos líneas es fricción real.**
+Se agrava porque este proyecto no tiene diseño responsive (decisión deliberada,
+CLAUDE.md §1) — un hub en la calle no puede actualizar desde el celular.
+
+**La forma correcta es Telegram como canal de ENTRADA, no como canal paralelo.**
+
+Un bot que a las 18:00 le escribe a cada hub:
+
+> _Cierre del día. Tenés 2 tareas en curso:_
+> _1. Validar rutas TukTuk SJM — ¿avanzaste?_
+> _[✅ Lista] [🔄 Sigo] [🚧 Trabada]_
+
+La respuesta escribe en `task_comments` y en `project_tasks.status` igual que
+si lo hubiera hecho desde la app. Una sola fuente de verdad, cero fricción, y
+el Gantt se actualiza solo.
+
+**Pero va en fase 2**, porque necesita: bot de Telegram, endpoint público para
+el webhook, vincular chat_id ↔ email, y manejo de secretos. Es tanto trabajo
+como el resto del sistema junto. Primero validemos que el flujo en la app se
+usa; si el problema real resulta ser la fricción, el bot se justifica solo y ya
+tendrá el modelo de datos listo para escribir.
+
+---
+
+## 9. Fuera de alcance (deliberado)
+
+- **Dependencias entre tareas** ("esta no arranca hasta que termine aquella").
+  Es lo que hace complejos a los Gantt de verdad. Con equipos de este tamaño el
+  costo de mantenerlas supera el beneficio. Si hace falta, se pone en la
+  descripción.
+- **% de avance por tarea.** Invita a "estoy al 70%" que no significa nada.
+  Cuatro estados y un comentario dicen más.
+- **Adjuntos.** Que vayan por Telegram o Drive con el link en el comentario.
+- **Notificaciones por email.** Telegram cubre el caso mejor.
+- **Responsive.** Coherente con la decisión existente del proyecto. El acceso
+  móvil se resuelve con Telegram en fase 2.
+
+---
+
+## 10. Fases
+
+**Fase 1 — El núcleo (lo que hace útil el sistema)**
+Migración con las 4 tablas + RLS + las 2 RPCs acotadas. Vistas "Hoy" y "Mis
+tareas". Alta inline de proyectos y tareas. Estados y comentarios.
+→ Con esto ya podés hacer la reunión diaria. Es el corte mínimo que sirve.
+
+**Fase 2 — Las vistas visuales**
+Gantt (con arrastre) y Kanban. Filtros persistentes. Panel en Monitoreo.
+→ Acá entra lo "bonito de ver". Va después a propósito: si el núcleo no se
+usa, el Gantt no lo salva.
+
+**Fase 3 — Telegram**
+Bot, webhook, vinculación de identidad, mensaje de cierre del día.
+
+**Fase 4 — Refinamientos**
+Plantillas de proyecto, duplicar proyecto, exportar a PDF para actas.
+
+---
+
+## 11. Detalles de implementación
+
+- **El Gantt se construye con CSS grid**, sin librería nueva. Las barras son
+  divs posicionados por aritmética de fechas. El proyecto ya evita
+  dependencias pesadas y una librería de Gantt trae su propio sistema de
+  estilos que pelearía con Tailwind + shadcn.
+- **Drag & drop**: HTML5 nativo, igual que el reordenamiento de secciones que
+  ya existe en el Dashboard.
+- **Colores por estado**: reutilizar los tokens del semáforo
+  (`--sem-green-*`, `--sem-yellow-*`, `--sem-red-*`), no inventar una paleta.
+- **i18n obligatorio**: todo string por `t()` en español, inglés y ruso, en el
+  mismo commit (CLAUDE.md §6).
+- **Realtime**: `RealtimeSyncProvider` ya existe. Suscribir la vista "Hoy" para
+  que durante la reunión los cambios aparezcan solos.
+- **Tests**: la lógica pura (cálculo de "en riesgo", agrupación por persona,
+  aritmética de fechas del Gantt) va a `lib/` con su test, siguiendo lo que
+  acabamos de hacer con los parsers de Upload.
+
+---
+
+## 12. Decisiones que necesito de vos
+
+1. **¿Los hubs ven las tareas de otros hubs, o solo las suyas?**
+   Recomiendo que vean todo el proyecto (contexto de equipo) pero que solo
+   puedan tocar las suyas. Si preferís privacidad entre hubs, cambia el RLS.
+
+2. **¿Un proyecto pertenece a una ciudad o puede ser multi-ciudad?**
+   El modelo permite `city = NULL` para multi-ciudad. Confirmame si lo usarías
+   o simplificamos a una ciudad obligatoria.
+
+3. **Umbral de "en riesgo": ¿2 días está bien?** Configurable igual.
+
+4. **¿Empezamos por la Fase 1 completa, o querés ver primero un prototipo
+   visual del Gantt** para validar el aspecto antes de construir el fondo?
