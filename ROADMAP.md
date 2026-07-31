@@ -12,10 +12,11 @@ Documento de handoff entre sesiones. Última actualización: **2026-07-31**.
 
 ## Estado actual
 
-**Última migración aplicada**: `176_optimize_rls_pricing_observations_write.sql`.
-177 migraciones totales en `supabase/`. `pricing_observations` está particionada
-por mes (migs 168-169) y sus políticas RLS fueron rediseñadas para performance
-(migs 175-176: SELECT 16.5s → 39-60ms).
+**Última migración aplicada**: `177_rls_on_pricing_observations_partitions.sql`
+(2026-07-31). `pricing_observations` está particionada por mes (migs 168-169),
+sus políticas RLS fueron rediseñadas para performance (migs 175-176: SELECT
+16.5s → 39-60ms) y las particiones tienen RLS propio como defensa en
+profundidad (mig 177).
 
 **Working directory canónico**: `~/Projects/pricing-ci-dashboard` (esta carpeta).
 La copia previa en ProtonDrive quedó obsoleta — ProtonDrive no preserva exec
@@ -211,7 +212,7 @@ src/
 ├── App.jsx, main.jsx      # react-router-dom real, providers incl. ConfigProvider
 
 supabase/
-└── 001..176_*.sql         # próxima migración libre: 177
+└── 001..177_*.sql         # próxima migración libre: 178
 
 scripts/
 ├── test-*.mjs             # 24 scripts, correr vía `npm run test:*` o test:all
@@ -237,7 +238,7 @@ CLAUDE.md                  # reglas obligatorias — leer antes de codear
 
 ### Para nuevas migraciones DB
 
-- Numerar correlativamente — próxima es `177_...`.
+- Numerar correlativamente — próxima es `178_...`.
 - Header en comentario con CONTEXTO + APPROACH + VERIFICACIÓN.
 - RPCs nuevas con `require_country_access` al inicio si aplica.
 - `SET search_path = public, pg_temp` para toda función `SECURITY DEFINER`.
