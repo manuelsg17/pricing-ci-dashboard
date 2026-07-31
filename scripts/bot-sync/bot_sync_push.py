@@ -185,13 +185,20 @@ BOT_RULES = []
 # pricing_observations. Se popula en main() después de BOT_RULES.
 AIRPORT_MARKERS = []
 
+# Valores de zone que son señal de aeropuerto ('Airport_A'/'Airport_B'), sacados
+# de los markers activos. Se usa para decidir qué zone PERSISTIR (mig 178): el
+# ruteo consume la zona, pero además hay que guardarla — antes se descartaba
+# (`zone if category=='TukTuk' else None`) y toda la data de aeropuerto quedaba
+# con zone NULL, sin poder filtrarse por Punto A/B en el dashboard.
+AIRPORT_ZONE_VALUES = set()
+
 # botCityMap de respaldo. Si la tabla country_config existe en Supabase,
 # se prefiere ese; si no, este dict cubre los casos conocidos.
 #
 # NOTA aeropuerto (post mig 78-85): los nombres legacy *_Airport ya NO
 # son cities válidas. Si el scraper aún envía city='lima_airport', lo
 # mapeamos a 'Lima' (base) y dejamos que resolve_airport_route() rutee
-# por raw.zone o keywords. El trigger BEFORE INSERT (mig 83) es red de
+# por raw.zone (mig 178: SOLO zona, ya no keywords). El trigger BEFORE INSERT (mig 83) es red de
 # seguridad si algo se cuela.
 BOT_CITY_MAP = {
     # Perú
@@ -311,7 +318,7 @@ def load_airport_markers(country):
             'city_from':        r.get('city_from'),
             'city_to':          r.get('city_to'),
             'keywords':         kws,
-            # zone_from/zone_to son opcionales (mig 82). Si NULL → solo keywords.
+            # zone_from/zone_to son la ÚNICA señal de ruteo desde mig 178.
             'zone_from_value':  (r.get('zone_from_value') or '').strip() or None,
             'zone_to_value':    (r.get('zone_to_value')   or '').strip() or None,
         })
@@ -322,18 +329,26 @@ def resolve_airport_route(db_city, point_a, point_b, raw_zone=None):
     """
     Decide si una observación debe re-rutearse a city_from / city_to.
 
-    SOURCE-OF-TRUTH (en este orden):
-      1. raw.zone == marker.zone_from_value  → city_from   (NUEVO, mig 82)
-      2. raw.zone == marker.zone_to_value    → city_to     (NUEVO, mig 82)
-      3. keyword en point_a                  → city_from   (fallback)
-      4. keyword solo en point_b             → city_to     (fallback)
-      5. Sin match:
+    SOURCE-OF-TRUTH — SOLO la zona (mig 178, 2026-07-31):
+      1. raw.zone == marker.zone_from_value  → city_from
+      2. raw.zone == marker.zone_to_value    → city_to
+      3. Sin match:
            - db_city era legacy "<base>_Airport" → base_city
            - db_city ya era base_city            → sin cambios
 
-    El chequeo de zone permite que el bot etiquete explícitamente sus
-    viajes de aeropuerto en lugar de adivinar por substring del address.
-    Más confiable, menos brittle a cambios de formato del geocoder.
+    Las keywords sobre point_a/point_b se ELIMINARON como señal de ruteo.
+    Eran un match por substring y producían falsos positivos reales: una
+    calle "Av. Jorge Chavez 42" (colegio en Villa El Salvador) matcheaba la
+    keyword del Aeropuerto Jorge Chávez y mandó 320 filas —279 de TukTuk y
+    41 de categorías normales— al bucket Lima_Airport_A. Verificado antes de
+    quitarlas: de 59.661 filas que matcheaban "jorge ch", 59.341 ya
+    matcheaban además una keyword específica; solo esas 320 dependían de la
+    genérica y ninguna era un aeropuerto real.
+
+    CONSECUENCIA ACEPTADA: un viaje de aeropuerto que llegue SIN zona ya no
+    se atrapa y se queda en la ciudad base. Por eso el sync ahora cuenta las
+    filas sin zona (`airport_sin_zone` en las notas del log) — para que un
+    Excel mal etiquetado se vea, en vez de degradar en silencio.
     """
     if not AIRPORT_MARKERS or not db_city:
         return db_city
@@ -351,7 +366,7 @@ def resolve_airport_route(db_city, point_a, point_b, raw_zone=None):
     if marker is None:
         return db_city
 
-    # 1-2. Zone-based (source of truth si el bot lo emite)
+    # 1-2. Zone-based — única señal de ruteo (mig 178)
     if raw_zone:
         z = str(raw_zone).strip()
         if marker.get('zone_from_value') and z == marker['zone_from_value']:
@@ -359,19 +374,31 @@ def resolve_airport_route(db_city, point_a, point_b, raw_zone=None):
         if marker.get('zone_to_value') and z == marker['zone_to_value']:
             return marker['city_to']
 
-    # 3-4. Keyword-based fallback
-    pa = (point_a or '').lower()
-    pb = (point_b or '').lower()
-    hit_a = any(k in pa for k in marker['keywords']) if pa else False
-    hit_b = any(k in pb for k in marker['keywords']) if pb else False
-
-    if hit_a:
-        return marker['city_from']
-    if hit_b:
-        return marker['city_to']
-
-    # 5. Sin match: legacy → base; ya-base → sin cambios.
+    # 3. Sin zona de aeropuerto: legacy → base; ya-base → sin cambios.
     return marker['base_city'] if is_legacy else db_city
+
+
+def looks_like_airport_without_zone(db_city, point_a, point_b, raw_zone):
+    """
+    Red de seguridad de observabilidad (mig 178).
+
+    Desde que el ruteo es zone-only, un viaje de aeropuerto que llegue sin
+    etiquetar se queda en la ciudad base y se mezcla con el CI normal —
+    silenciosamente. Esta función NO rutea nada: solo detecta ese caso
+    (la dirección huele a aeropuerto pero no vino zona de aeropuerto) para
+    contarlo en las notas del log y que el Excel mal etiquetado se note.
+    """
+    if raw_zone and str(raw_zone).strip() in AIRPORT_ZONE_VALUES:
+        return False
+    marker = next(
+        (m for m in AIRPORT_MARKERS
+         if db_city in (m['base_city'], f"{m['base_city']}_Airport")),
+        None,
+    )
+    if marker is None:
+        return False
+    blob = f"{point_a or ''} {point_b or ''}".lower()
+    return any(k in blob for k in marker['keywords'])
 
 
 def resolve_rule(app, vc, ovc, db_city):
@@ -534,7 +561,7 @@ def main():
         time.sleep(jitter)
 
     # Cargar BOT_RULES desde Supabase (data-driven multi-país)
-    global BOT_RULES, AIRPORT_MARKERS
+    global BOT_RULES, AIRPORT_MARKERS, AIRPORT_ZONE_VALUES
     BOT_RULES = load_bot_rules(country)
     if not BOT_RULES:
         print(f"⚠ No hay bot_rules activas para country={country}. "
@@ -546,7 +573,13 @@ def main():
     # Cargar AIRPORT_MARKERS (mig 78). Si no hay, el sync sigue funcionando
     # como antes — la detección de aeropuerto queda inactiva.
     AIRPORT_MARKERS = load_airport_markers(country)
-    print(f"✓ Loaded {len(AIRPORT_MARKERS)} airport markers for country={country}",
+    AIRPORT_ZONE_VALUES = {
+        v for m in AIRPORT_MARKERS
+        for v in (m.get('zone_from_value'), m.get('zone_to_value'))
+        if v
+    }
+    print(f"✓ Loaded {len(AIRPORT_MARKERS)} airport markers for country={country} "
+          f"(zonas de aeropuerto: {sorted(AIRPORT_ZONE_VALUES) or 'ninguna'})",
           file=sys.stderr)
 
     # Identificador de la conexión en pg_stat_activity del helioho — clave
@@ -611,7 +644,7 @@ def main():
     log_id = insert_log(country, started_at, **notes)
 
     inserted = 0
-    stats = {'read': 0, 'dropped': 0, 'outliers': 0}
+    stats = {'read': 0, 'dropped': 0, 'outliers': 0, 'airport_sin_zone': 0}
     # Tracker de combos descartados: key=(reason, app, vc, ovc, db_city) → n.
     # Va a notes.dropped_combos al final para que el UI muestre QUÉ se tiró.
     # Reasons posibles:
@@ -720,6 +753,11 @@ def main():
             # el viaje no tiene rastro de aeropuerto.
             # Pasamos raw.zone para zone-based detection (mig 82) — si el
             # bot etiqueta explícitamente, tiene precedencia sobre keywords.
+            if looks_like_airport_without_zone(
+                db_city, point_a, point_b, raw.get('zone')
+            ):
+                stats['airport_sin_zone'] += 1
+
             db_city = resolve_airport_route(
                 db_city, point_a, point_b, raw.get('zone')
             )
@@ -818,13 +856,21 @@ def main():
                 'eta_min':                float(raw['eta_mins']) if raw.get('eta_mins') is not None else None,
                 'surge':                  raw.get('surge'),
                 'distance_bracket':       norm_bracket,
-                # zone = distrito, SOLO para TukTuk (igual que mig 113). Otras
-                # categorías → None para no interferir con el ruteo de
-                # aeropuerto por zone (trigger mig 83). Este valor recién
-                # PERSISTE cuando el RPC bot_upsert_observations incluya `zone`
-                # en su INSERT (mig 135); hasta entonces se manda pero el RPC
-                # lo ignora (inofensivo).
-                'zone':                   zone_val if category == 'TukTuk' else None,
+                # zone se PERSISTE en los dos casos que la necesitan (mig 178):
+                #   · TukTuk    → distrito (Comas, VES, SJM…) — desde mig 113/135
+                #   · Aeropuerto→ 'Airport_A'/'Airport_B' — NUEVO. Antes se
+                #     descartaba y el 100% de la data de aeropuerto quedaba con
+                #     zone NULL: no se podía filtrar Punto A/B en el dashboard
+                #     ni distinguir la fila de una normal. La mig 117 quiso
+                #     arreglarlo pero lo hizo sobre sync_bot_quotes, que NO
+                #     corre en producción; el camino real es este script.
+                # Resto de categorías → None (una zona suelta ahí solo
+                # ensuciaría el selector de Zona sin aportar nada).
+                'zone':                   (
+                    zone_val if (category == 'TukTuk'
+                                 or zone_val in AIRPORT_ZONE_VALUES)
+                    else None
+                ),
                 'distance_km':            distance_km,
                 'point_a':                point_a,
                 'point_b':                point_b,
@@ -880,6 +926,10 @@ def main():
             upsert_watermark(country, max_created)
 
         notes['dropped_combos'] = _build_dropped_combos(dropped_tracker)
+        # mig 178: filas con pinta de aeropuerto que llegaron sin zona.
+        # >0 significa Excel mal etiquetado — esas filas se quedaron en la
+        # ciudad base mezcladas con el CI normal.
+        notes['airport_sin_zone'] = stats['airport_sin_zone']
         update_log(log_id,
                    status='ok',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
@@ -894,6 +944,10 @@ def main():
 
     except Exception as e:
         notes['dropped_combos'] = _build_dropped_combos(dropped_tracker)
+        # mig 178: filas con pinta de aeropuerto que llegaron sin zona.
+        # >0 significa Excel mal etiquetado — esas filas se quedaron en la
+        # ciudad base mezcladas con el CI normal.
+        notes['airport_sin_zone'] = stats['airport_sin_zone']
         update_log(log_id,
                    status='error',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
