@@ -145,6 +145,26 @@ _SATELLITE_RE = _re.compile(r'_(madrid|funza|mosquera|cota|chia|soacha|cajica|te
 _ZONE_RE      = _re.compile(r'_(zona_(sur|norte|centro|este|oeste)|sur|norte|centro|este|oeste)$')
 _AB_RE        = _re.compile(r'_(a|b)$')
 
+# Qué bracket significa 'medium' según el país. NO es un typo universal: es
+# nomenclatura de cada simulador y significa cosas distintas.
+#
+#   · Perú  → 'average'. Confirmado por el dueño del simulador (2026-07-31):
+#     escribió "Medium" donde quería decir la banda `average`. Se ve en los
+#     datos: `average` tenía ~13k filas contra 22-30k de todos los demás
+#     brackets, y `median` era el más alto de todos — estaba absorbiendo lo
+#     que correspondía a `average`. El simulador se está corrigiendo para
+#     emitir "Average"; este mapeo cubre las rutas que queden sin actualizar
+#     durante la transición.
+#   · Resto → 'median' (comportamiento histórico, sin cambios).
+#     OJO: Colombia muestra la MISMA forma sospechosa (71.079 en `median`
+#     contra 1.659 en `average`), pero nadie confirmó qué significa "Medium"
+#     en ese simulador y una vez normalizado el valor crudo es
+#     irrecuperable. Cambiarlo a ciegas mandaría ~71k filas/mes al bracket
+#     equivocado, así que se deja como está hasta que alguien lo confirme.
+MEDIUM_MEANS_BY_COUNTRY = {'Peru': 'average'}
+MEDIUM_MEANS = 'median'  # se ajusta en main() según BOT_SYNC_COUNTRY
+
+
 def normalize_distance_bracket(raw):
     """Mapea variantes zone-aware del bot al canónico, o None."""
     if not raw:
@@ -154,7 +174,7 @@ def normalize_distance_bracket(raw):
     s = _SATELLITE_RE.sub('', s)
     s = _ZONE_RE.sub('', s)
     s = _AB_RE.sub('', s)
-    if s == 'medium':     s = 'median'   # typo común del bot
+    if s == 'medium':     s = MEDIUM_MEANS   # ver MEDIUM_MEANS_BY_COUNTRY
     if s == 'very short': s = 'very_short'
     if s == 'very long':  s = 'very_long'
     return s if s in _CANONICAL else None
@@ -561,7 +581,15 @@ def main():
         time.sleep(jitter)
 
     # Cargar BOT_RULES desde Supabase (data-driven multi-país)
-    global BOT_RULES, AIRPORT_MARKERS, AIRPORT_ZONE_VALUES
+    global BOT_RULES, AIRPORT_MARKERS, AIRPORT_ZONE_VALUES, MEDIUM_MEANS
+
+    # 'medium' significa cosas distintas segun el simulador de cada pais —
+    # ver MEDIUM_MEANS_BY_COUNTRY arriba. Se loguea para que quede en el
+    # output de la corrida qué interpretación se usó.
+    MEDIUM_MEANS = MEDIUM_MEANS_BY_COUNTRY.get(country, 'median')
+    print(f"✓ 'medium' se interpreta como '{MEDIUM_MEANS}' para country={country}",
+          file=sys.stderr)
+
     BOT_RULES = load_bot_rules(country)
     if not BOT_RULES:
         print(f"⚠ No hay bot_rules activas para country={country}. "
