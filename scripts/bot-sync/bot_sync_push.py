@@ -205,12 +205,26 @@ BOT_RULES = []
 # pricing_observations. Se popula en main() después de BOT_RULES.
 AIRPORT_MARKERS = []
 
-# Valores de zone que son señal de aeropuerto ('Airport_A'/'Airport_B'), sacados
-# de los markers activos. Se usa para decidir qué zone PERSISTIR (mig 178): el
-# ruteo consume la zona, pero además hay que guardarla — antes se descartaba
-# (`zone if category=='TukTuk' else None`) y toda la data de aeropuerto quedaba
-# con zone NULL, sin poder filtrarse por Punto A/B en el dashboard.
-AIRPORT_ZONE_VALUES = set()
+# Zonas de aeropuerto de los markers activos, indexadas por CLAVE NORMALIZADA
+# ({'airport_b': 'Airport_B', …}). Se usa para dos cosas: decidir el ruteo y
+# decidir qué zone PERSISTIR (mig 178).
+#
+# La clave normalizada existe porque la comparación era EXACTA y sensible a
+# mayúsculas: un simulador que mandara 'airport_b', 'AIRPORT_B' o 'Airport B'
+# no matcheaba, la zona se descartaba EN SILENCIO y el viaje caía en la ciudad
+# base mezclado con el CI normal. Pasó en producción (2026-07-31: una ruta
+# nueva de Arequipa hacia el aeropuerto entró sin zona y contaminó Arequipa).
+# Siempre se PERSISTE el valor canónico del marker, nunca lo que vino crudo —
+# si no, el dashboard tendría 'airport_b' y 'Airport_B' como zonas distintas.
+AIRPORT_ZONES_BY_KEY = {}
+
+
+def _zone_key(v):
+    """Clave tolerante para comparar zonas: minúsculas y separadores unificados."""
+    if v is None:
+        return None
+    k = _re.sub(r'[\s\-]+', '_', str(v).strip().lower())
+    return k or None
 
 # botCityMap de respaldo. Si la tabla country_config existe en Supabase,
 # se prefiere ese; si no, este dict cubre los casos conocidos.
@@ -387,11 +401,11 @@ def resolve_airport_route(db_city, point_a, point_b, raw_zone=None):
         return db_city
 
     # 1-2. Zone-based — única señal de ruteo (mig 178)
-    if raw_zone:
-        z = str(raw_zone).strip()
-        if marker.get('zone_from_value') and z == marker['zone_from_value']:
+    zk = _zone_key(raw_zone)
+    if zk:
+        if marker.get('zone_from_value') and zk == _zone_key(marker['zone_from_value']):
             return marker['city_from']
-        if marker.get('zone_to_value') and z == marker['zone_to_value']:
+        if marker.get('zone_to_value') and zk == _zone_key(marker['zone_to_value']):
             return marker['city_to']
 
     # 3. Sin zona de aeropuerto: legacy → base; ya-base → sin cambios.
@@ -408,7 +422,7 @@ def looks_like_airport_without_zone(db_city, point_a, point_b, raw_zone):
     (la dirección huele a aeropuerto pero no vino zona de aeropuerto) para
     contarlo en las notas del log y que el Excel mal etiquetado se note.
     """
-    if raw_zone and str(raw_zone).strip() in AIRPORT_ZONE_VALUES:
+    if _zone_key(raw_zone) in AIRPORT_ZONES_BY_KEY:
         return False
     marker = next(
         (m for m in AIRPORT_MARKERS
@@ -581,7 +595,7 @@ def main():
         time.sleep(jitter)
 
     # Cargar BOT_RULES desde Supabase (data-driven multi-país)
-    global BOT_RULES, AIRPORT_MARKERS, AIRPORT_ZONE_VALUES, MEDIUM_MEANS
+    global BOT_RULES, AIRPORT_MARKERS, AIRPORT_ZONES_BY_KEY, MEDIUM_MEANS
 
     # 'medium' significa cosas distintas segun el simulador de cada pais —
     # ver MEDIUM_MEANS_BY_COUNTRY arriba. Se loguea para que quede en el
@@ -601,13 +615,14 @@ def main():
     # Cargar AIRPORT_MARKERS (mig 78). Si no hay, el sync sigue funcionando
     # como antes — la detección de aeropuerto queda inactiva.
     AIRPORT_MARKERS = load_airport_markers(country)
-    AIRPORT_ZONE_VALUES = {
-        v for m in AIRPORT_MARKERS
+    AIRPORT_ZONES_BY_KEY = {
+        _zone_key(v): v
+        for m in AIRPORT_MARKERS
         for v in (m.get('zone_from_value'), m.get('zone_to_value'))
         if v
     }
     print(f"✓ Loaded {len(AIRPORT_MARKERS)} airport markers for country={country} "
-          f"(zonas de aeropuerto: {sorted(AIRPORT_ZONE_VALUES) or 'ninguna'})",
+          f"(zonas de aeropuerto: {sorted(AIRPORT_ZONES_BY_KEY.values()) or 'ninguna'})",
           file=sys.stderr)
 
     # Identificador de la conexión en pg_stat_activity del helioho — clave
@@ -673,6 +688,10 @@ def main():
 
     inserted = 0
     stats = {'read': 0, 'dropped': 0, 'outliers': 0, 'airport_sin_zone': 0}
+    # Zonas que llegan con valor pero no matchean ninguna zona de aeropuerto
+    # ni son TukTuk. Antes se anulaban en silencio y era imposible saber si
+    # el simulador no mandó nada o mandó algo mal escrito.
+    zonas_desconocidas = Counter()
     # Tracker de combos descartados: key=(reason, app, vc, ovc, db_city) → n.
     # Va a notes.dropped_combos al final para que el UI muestre QUÉ se tiró.
     # Reasons posibles:
@@ -814,6 +833,9 @@ def main():
             # → se descarta; nunca dejar pasar TukTuk sin distrito).
             main_cat_lc = (raw.get('main_category') or '').strip().replace(' ', '').lower() or None
             zone_val = (raw.get('zone') or '').strip() or None
+            if (zone_val and category != 'TukTuk'
+                    and _zone_key(zone_val) not in AIRPORT_ZONES_BY_KEY):
+                zonas_desconocidas[f'{db_city}|{zone_val}'] += 1
             if category == 'TukTuk' and not (main_cat_lc == 'tuktuk' and zone_val):
                 stats['dropped'] += 1
                 dropped_tracker[('tuktuk_no_zone', raw_app, raw_vc, raw_ovc, db_city)] += 1
@@ -894,10 +916,13 @@ def main():
                 #     corre en producción; el camino real es este script.
                 # Resto de categorías → None (una zona suelta ahí solo
                 # ensuciaría el selector de Zona sin aportar nada).
+                # Aeropuerto: se guarda el valor CANÓNICO del marker (no lo que
+                # vino crudo), así 'airport_b'/'Airport B'/'AIRPORT_B' quedan
+                # todos como 'Airport_B' y el dashboard no los ve como zonas
+                # distintas. TukTuk: el distrito tal cual.
                 'zone':                   (
-                    zone_val if (category == 'TukTuk'
-                                 or zone_val in AIRPORT_ZONE_VALUES)
-                    else None
+                    zone_val if category == 'TukTuk'
+                    else AIRPORT_ZONES_BY_KEY.get(_zone_key(zone_val))
                 ),
                 'distance_km':            distance_km,
                 'point_a':                point_a,
@@ -958,6 +983,11 @@ def main():
         # >0 significa Excel mal etiquetado — esas filas se quedaron en la
         # ciudad base mezcladas con el CI normal.
         notes['airport_sin_zone'] = stats['airport_sin_zone']
+        # Zonas con valor que no se reconocieron (top 20). Si aparece algo acá,
+        # el simulador está mandando una zona que el ruteo no entiende.
+        notes['zonas_desconocidas'] = [
+            {'zona': k, 'n': n} for k, n in zonas_desconocidas.most_common(20)
+        ]
         update_log(log_id,
                    status='ok',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
@@ -976,6 +1006,11 @@ def main():
         # >0 significa Excel mal etiquetado — esas filas se quedaron en la
         # ciudad base mezcladas con el CI normal.
         notes['airport_sin_zone'] = stats['airport_sin_zone']
+        # Zonas con valor que no se reconocieron (top 20). Si aparece algo acá,
+        # el simulador está mandando una zona que el ruteo no entiende.
+        notes['zonas_desconocidas'] = [
+            {'zona': k, 'n': n} for k, n in zonas_desconocidas.most_common(20)
+        ]
         update_log(log_id,
                    status='error',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
