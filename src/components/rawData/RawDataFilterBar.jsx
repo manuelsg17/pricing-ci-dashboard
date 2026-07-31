@@ -31,6 +31,9 @@ export default function RawDataFilterBar({
   setBracket,
   dataSource,
   setDataSource,
+  zone,
+  setZone,
+  zoneOptions = [],
   searchA,
   setSearchA,
   searchB,
@@ -93,6 +96,22 @@ export default function RawDataFilterBar({
           ))}
         </select>
       </div>
+      {/* Zona: distrito de TukTuk o lado de aeropuerto. Solo se muestra si la
+          ciudad activa tiene zonas — en una ciudad sin zonas sería un
+          desplegable vacío que no hace nada. */}
+      {zoneOptions.length > 0 && (
+        <div className="raw-data__filter-group">
+          <label>{t('filter.zone')}</label>
+          <select value={zone} onChange={(e) => setZone(e.target.value)}>
+            <option value="">{t('access.all_m')}</option>
+            {zoneOptions.map((z) => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="raw-data__filter-group">
         <label>{t('filter.source')}</label>
         <select value={dataSource} onChange={(e) => setDataSource(e.target.value)}>

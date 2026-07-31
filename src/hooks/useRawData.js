@@ -32,6 +32,7 @@ function applyRawDataFilters(query, filters) {
     searchA,
     searchB,
     dataSource,
+    zone,
     outlierOnly,
     country,
   } = filters
@@ -39,6 +40,7 @@ function applyRawDataFilters(query, filters) {
   if (country) q = q.eq('country', country)
   if (dbCity) q = q.eq('city', dbCity)
   if (dbCategory) q = q.eq('category', dbCategory)
+  if (zone) q = q.eq('zone', zone)
   if (competition) q = q.eq('competition_name', competition)
   if (surge !== '') q = q.eq('surge', surge === 'true')
   if (bracket) q = q.eq('distance_bracket', bracket)
@@ -74,6 +76,7 @@ export function useRawData(filters) {
     searchA,
     searchB,
     dataSource,
+    zone,
     outlierOnly,
     country,
   } = filters
@@ -131,6 +134,7 @@ export function useRawData(filters) {
       searchA,
       searchB,
       dataSource,
+      zone,
       outlierOnly,
       country,
     ]

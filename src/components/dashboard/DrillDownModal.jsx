@@ -32,7 +32,7 @@ export default function DrillDownModal({
   currency,
   viewMode,
 }) {
-  const { filters } = useFilterContext()
+  const { filters, ALL_TIME_SLOTS } = useFilterContext()
   const { t } = useI18n()
   const [rows, setRows] = useState([])
   const [totalCount, setTotalCount] = useState(0)
@@ -69,6 +69,32 @@ export default function DrillDownModal({
         query = query.eq('distance_bracket', bracket)
       }
 
+      // Los MISMOS filtros que el dashboard le pasa a get_dashboard_data_*_fast
+      // (usePricingData.js). Sin esto el modal contaba sobre un universo más
+      // grande que la celda que lo abrió: con Zona=Comas el resumen mostraba 28
+      // muestras y el modal 252 — las de los 7 distritos juntos. El detalle
+      // tiene que explicar EXACTAMENTE el número en el que se hizo click.
+      if (filters.zone && filters.zone !== 'All') {
+        query = query.eq('zone', filters.zone)
+      }
+      if (filters.dataSource) {
+        query = query.eq('data_source', filters.dataSource)
+      }
+      // surge = ventana de Rush Hour → columna rush_hour (mig 114), no la
+      // columna `surge` del scraper. Mismo criterio que rushHourParam.
+      if (filters.surge !== null && filters.surge !== undefined) {
+        query = query.eq('rush_hour', filters.surge)
+      }
+      // null/completo = todas las franjas (incluye las que no tienen franja),
+      // igual que timeOfDayParam — solo se filtra si es un subconjunto.
+      if (
+        Array.isArray(filters.timeOfDay) &&
+        filters.timeOfDay.length > 0 &&
+        filters.timeOfDay.length < ALL_TIME_SLOTS.length
+      ) {
+        query = query.in('time_of_day', filters.timeOfDay)
+      }
+
       if (viewMode === 'daily') {
         query = query.eq('observed_date', periodKey)
       } else {
@@ -97,6 +123,11 @@ export default function DrillDownModal({
     filters.country,
     filters.dbCity,
     filters.dbCategory,
+    filters.zone,
+    filters.dataSource,
+    filters.surge,
+    filters.timeOfDay,
+    ALL_TIME_SLOTS,
   ])
 
   if (!open) return null
@@ -195,6 +226,7 @@ export default function DrillDownModal({
                 <strong>{totalCount.toLocaleString()}</strong> {t('dataentry.rows')}
                 {totalCount > rows.length ? ` · mostrando ${rows.length}` : ''} · {filters.dbCity} ·{' '}
                 {filters.dbCategory}
+                {filters.zone && filters.zone !== 'All' ? ` · ${filters.zone}` : ''}
                 {bracket === '_wa' ? ` · ${t('samples.all_brackets_suffix')}` : ''}
               </span>
               <span>

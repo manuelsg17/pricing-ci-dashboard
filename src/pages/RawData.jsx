@@ -56,6 +56,8 @@ export default function RawData() {
     searchA,
     searchB,
     dataSource,
+    zone,
+    zoneOptions,
     outlierOnly,
     setDbCategory,
     setCompetition,
@@ -66,6 +68,7 @@ export default function RawData() {
     setSearchA,
     setSearchB,
     setDataSource,
+    setZone,
     setOutlierOnly,
     categories,
     competitors,
@@ -132,6 +135,9 @@ export default function RawData() {
         setBracket={setBracket}
         dataSource={dataSource}
         setDataSource={setDataSource}
+        zone={zone}
+        setZone={setZone}
+        zoneOptions={zoneOptions}
         searchA={searchA}
         setSearchA={setSearchA}
         searchB={searchB}

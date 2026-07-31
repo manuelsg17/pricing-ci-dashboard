@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { sb } from '../lib/supabase'
 
 // Extraído de RawData.jsx (Fase 1.2) — agrupa los filtros de la página, su
 // persistencia a sessionStorage (uno por campo, sobrevive a un refresh) y
@@ -50,9 +51,53 @@ export function useRawDataFilters({ country, config }) {
     return () => clearTimeout(t)
   }, [searchB])
   const [dataSource, setDataSource] = useState(getInitialState('dataSource', ''))
+  const [zone, setZone] = useState(getInitialState('zone', ''))
   const [outlierOnly, setOutlierOnly] = useState(
     () => sessionStorage.getItem('rawData_outlierOnly') === 'true'
   )
+
+  // Zonas disponibles para la ciudad activa. Se leen de la data en vez de una
+  // lista fija porque conviven dos familias con orígenes distintos: distritos
+  // de TukTuk (tuktukDistricts.js) y lados de aeropuerto (airport_markers).
+  // Una constante hardcodeada acá se desincronizaría de cualquiera de las dos.
+  // Acotado por ciudad + rango de fechas para que Postgres pode particiones
+  // (pricing_observations está particionada por mes, migs 168-169).
+  const [zoneOptions, setZoneOptions] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    if (!dbCity || !country) {
+      setZoneOptions([])
+      return
+    }
+    let q = sb
+      .from('pricing_observations')
+      .select('zone')
+      .eq('country', country)
+      .eq('city', dbCity)
+      .not('zone', 'is', null)
+      .limit(2000)
+    if (dateFrom) q = q.gte('observed_date', dateFrom)
+    if (dateTo) q = q.lte('observed_date', dateTo)
+    q.then(({ data, error }) => {
+      if (cancelled) return
+      if (error) {
+        setZoneOptions([])
+        return
+      }
+      setZoneOptions([...new Set((data || []).map((r) => r.zone).filter(Boolean))].sort())
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [country, dbCity, dateFrom, dateTo])
+
+  // Si la zona elegida no existe para esta ciudad/rango, soltarla — si no, la
+  // tabla queda en 0 filas sin que se vea por qué.
+  useEffect(() => {
+    if (zone && zoneOptions.length > 0 && !zoneOptions.includes(zone)) {
+      setZone('')
+    }
+  }, [zone, zoneOptions])
 
   useEffect(() => {
     sessionStorage.setItem('rawData_dbCity', dbCity)
@@ -84,6 +129,9 @@ export function useRawDataFilters({ country, config }) {
   useEffect(() => {
     sessionStorage.setItem('rawData_dataSource', dataSource)
   }, [dataSource])
+  useEffect(() => {
+    sessionStorage.setItem('rawData_zone', zone)
+  }, [zone])
   useEffect(() => {
     sessionStorage.setItem('rawData_outlierOnly', outlierOnly)
   }, [outlierOnly])
@@ -118,6 +166,7 @@ export function useRawDataFilters({ country, config }) {
     setCompetition('')
     setSurge('')
     setBracket('')
+    setZone('')
     setSearchA('')
     setSearchB('')
   }, [])
@@ -127,6 +176,7 @@ export function useRawDataFilters({ country, config }) {
     setCompetition('')
     setSurge('')
     setBracket('')
+    setZone('')
     setDateFrom(getDefaultDateFrom())
     setDateTo('')
     setSearchA('')
@@ -146,6 +196,7 @@ export function useRawDataFilters({ country, config }) {
     searchA: debouncedSearchA,
     searchB: debouncedSearchB,
     dataSource,
+    zone,
     outlierOnly,
     country,
   }
@@ -162,6 +213,8 @@ export function useRawDataFilters({ country, config }) {
     searchA,
     searchB,
     dataSource,
+    zone,
+    zoneOptions,
     outlierOnly,
     setDbCategory,
     setCompetition,
@@ -172,6 +225,7 @@ export function useRawDataFilters({ country, config }) {
     setSearchA,
     setSearchB,
     setDataSource,
+    setZone,
     setOutlierOnly,
     categories,
     competitors,
