@@ -743,10 +743,12 @@ export const TRANSLATIONS = {
       'No guardamos nada, para no borrar tu trabajo. Esta ciudad se guardó desde otro lado y esta pantalla tiene una versión más vieja.',
     'dataentry.conflict_body':
       'Elegí con cuál te quedás. Nada se perdió todavía: lo de la otra pantalla sigue guardado.',
-    'dataentry.conflict_reload': 'Traer lo último (reemplaza lo que ves acá)',
+    'dataentry.conflict_reload': 'Traer lo último (guardamos copia de lo tuyo)',
     'dataentry.conflict_force': 'Guardar lo de esta pantalla igual',
     'dataentry.conflict_force_confirm':
       'Vas a reemplazar lo que se guardó desde el otro lado. ¿Seguimos?',
+    'dataentry.storage_failed':
+      'Este navegador no puede guardar tu borrador (sin espacio o bloqueado). Tocá “Guardar progreso” AHORA para mandar tu trabajo al servidor — si cerrás la página, se pierde.',
     'dataentry.just_finished_note':
       'Ya terminaste esta ciudad y fecha — tus datos están guardados. Mirá “Ver lo guardado” para revisarlos.',
     'dataentry.draft_only_hint':
@@ -3072,10 +3074,12 @@ export const TRANSLATIONS = {
       'We saved nothing, so your work is not erased. This city was saved from somewhere else and this screen has an older version.',
     'dataentry.conflict_body':
       'Choose which one to keep. Nothing is lost yet — the other screen is still saved.',
-    'dataentry.conflict_reload': 'Get the latest (replaces what you see here)',
+    'dataentry.conflict_reload': 'Get the latest (we keep a copy of yours)',
     'dataentry.conflict_force': 'Save this screen anyway',
     'dataentry.conflict_force_confirm':
       'This will replace what was saved from the other side. Continue?',
+    'dataentry.storage_failed':
+      'This browser cannot save your draft (out of space or blocked). Hit “Save progress” NOW to send your work to the server — if you close the page, it is lost.',
     'dataentry.just_finished_note':
       'You already finished this city and date — your data is saved. Check “View saved” to review it.',
     'dataentry.draft_only_hint':
@@ -5385,10 +5389,12 @@ export const TRANSLATIONS = {
       'Мы ничего не сохранили, чтобы не стереть вашу работу. Этот город был сохранён с другого места, а здесь — более старая версия.',
     'dataentry.conflict_body':
       'Выберите, что оставить. Пока ничего не потеряно — данные с другого экрана сохранены.',
-    'dataentry.conflict_reload': 'Загрузить последнюю версию (заменит то, что здесь)',
+    'dataentry.conflict_reload': 'Загрузить последнюю версию (копия вашей сохранится)',
     'dataentry.conflict_force': 'Всё равно сохранить то, что здесь',
     'dataentry.conflict_force_confirm':
       'Это заменит то, что было сохранено с другого места. Продолжить?',
+    'dataentry.storage_failed':
+      'Этот браузер не может сохранить черновик (нет места или запрещено). Нажмите «Сохранить прогресс» СЕЙЧАС, чтобы отправить работу на сервер — при закрытии страницы она будет потеряна.',
     'dataentry.just_finished_note':
       'Вы уже завершили этот город и дату — данные сохранены. Откройте «Посмотреть сохранённое», чтобы проверить.',
     'dataentry.draft_only_hint':

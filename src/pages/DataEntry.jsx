@@ -18,7 +18,7 @@ import { useCITimeslots } from '../hooks/useCITimeslots'
 import { isTukTukDistrictEnabled, firstEnabledTukTukDistrict } from '../lib/tuktukDistricts'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
-import { Lock, CheckCircle2 } from 'lucide-react'
+import { Lock, CheckCircle2, AlertTriangle } from 'lucide-react'
 import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
 import TurnoSection from '../components/dataentry/TurnoSection'
 import InstructionsBanner from '../components/dataentry/InstructionsBanner'
@@ -1006,8 +1006,51 @@ export default function DataEntry() {
     (n) => writeSyncSeqFor(country, dbCity, zone, date, n),
     [writeSyncSeqFor, country, dbCity, zone, date]
   )
+  // Re-sincroniza la marca de agua cuando se restauró un borrador y por lo
+  // tanto no se va a consultar el servidor (durabilidad R3). Ver el porqué en
+  // el punto de llamada.
+  const sincronizarMarcaDesdeBorrador = useCallback(
+    async (city, z, d, savedAt) => {
+      if (!userEmail) return
+      const { data, error } = await sb
+        .from('ci_bucket_writes')
+        .select('write_seq, last_write_at')
+        .eq('user_email', userEmail)
+        .eq('country', country)
+        .eq('city', city)
+        .eq('zone_key', z ?? '')
+        .eq('observed_date', d)
+        .maybeSingle()
+
+      // Sin fila en el servidor no hay con qué conflictuar: nada que hacer.
+      if (error || !data) return
+
+      const escrituraServidor = new Date(data.last_write_at).getTime()
+      // Solo se adopta si ESTE cliente es estrictamente más nuevo. Si el
+      // servidor escribió después de nuestro último borrador, hubo otra
+      // pantalla de verdad y el conflicto tiene que aparecer.
+      if (savedAt != null && Number.isFinite(escrituraServidor) && escrituraServidor <= savedAt) {
+        writeSyncSeqFor(country, city, z, d, Number(data.write_seq))
+      }
+    },
+    [userEmail, country, writeSyncSeqFor]
+  )
+
   // Conflicto detectado por el servidor: { at, isFinish } o null.
   const [saveConflict, setSaveConflict] = useState(null)
+
+  // El borrador NO se está pudiendo escribir (durabilidad R5).
+  //
+  // Los tres `catch` vacíos de este archivo tapaban dos fallos MUDOS y muy
+  // caros: localStorage lleno (QuotaExceededError) y localStorage
+  // deshabilitado (Safari privado). En los dos casos el hub sigue tecleando
+  // creyendo que su borrador se guarda, y la única señal era que el contador
+  // "guardado hace Xs" se congelaba — algo que nadie mira.
+  //
+  // Con esto, el hub se entera y puede hacer lo único que lo salva: tocar
+  // Guardar progreso para mandar al SERVIDOR lo que el navegador no puede
+  // retener.
+  const [storageFailed, setStorageFailed] = useState(false)
 
   const [lastSaveOkAt, setLastSaveOkAt] = useState(null) // guardado REAL
   const [lastHeartbeatOkAt, setLastHeartbeatOkAt] = useState(null) // solo conexión
@@ -1077,6 +1120,9 @@ export default function DataEntry() {
     if (!hydratedCitiesRef.current.has(targetCity)) {
       hydratedCitiesRef.current.add(targetCity)
       let draftApplied = false
+      // Momento de la última escritura del borrador — lo necesita R3 para
+      // decidir si la marca del servidor es más vieja que lo que hay acá.
+      let borradorSavedAt = null
       try {
         let raw = localStorage.getItem(draftKey)
         // Migración única de borradores del formato viejo (sin email, previo
@@ -1117,6 +1163,7 @@ export default function DataEntry() {
               setTurnoTimingsByCity((prev) => ({ ...prev, [targetCity]: parsed.turnoTimings }))
             }
             setLastDraftSavedAt(parsed.savedAt || null)
+            borradorSavedAt = parsed.savedAt || null
             setMsg({
               type: 'ok',
               text: t('dataentry.draft_restored', { n: restored + naArr.length }),
@@ -1184,6 +1231,23 @@ export default function DataEntry() {
       // creía que se habían perdido (incidente 2026-07-22, Arequipa Aeropuerto).
       if (!draftApplied) {
         setPendingLoad({ dbCity, zone, date, auto: true })
+      } else {
+        // Se restauró un borrador, así que NO se va a llamar a
+        // loadObservationsIntoForm — y esa es la única función que lee la
+        // marca de agua del servidor. Sin esto, la marca queda vacía y el
+        // primer guardado da un CONFLICTO FALSO (durabilidad R3).
+        //
+        // A quién castigaba: al hub que MÁS guarda. Después de un apagón o
+        // de cerrar el navegador, el sessionStorage se pierde (ahí vive la
+        // marca) pero el borrador sobrevive en localStorage. Al volver, ese
+        // hub veía "otra pantalla guardó esto" sin que existiera ninguna
+        // otra pantalla.
+        //
+        // La regla es conservadora a propósito: se adopta la marca del
+        // servidor SOLO si su última escritura es MÁS VIEJA que el borrador
+        // local. Si es más nueva, alguien escribió de verdad después y el
+        // conflicto es legítimo — se deja que aparezca.
+        sincronizarMarcaDesdeBorrador(dbCity, zone, date, borradorSavedAt)
       }
     }
     // Marcar hidratado en el siguiente tick para evitar que el effect de save
@@ -1260,12 +1324,15 @@ export default function DataEntry() {
             })
           )
           setLastDraftSavedAt(savedAt)
+          setStorageFailed(false)
         } else {
           localStorage.removeItem(draftKey)
           setLastDraftSavedAt(null)
         }
       } catch {
-        /* quota / disabled */
+        // Ver `storageFailed`: dejar esto mudo es lo que convertía un
+        // navegador sin espacio en una pérdida silenciosa de trabajo.
+        setStorageFailed(true)
       }
     }, espera)
     return () => clearTimeout(id)
@@ -1362,7 +1429,7 @@ export default function DataEntry() {
           )
         }
       } catch {
-        /* quota / disabled */
+        setStorageFailed(true)
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3662,6 +3729,16 @@ export default function DataEntry() {
         </div>
       )}
 
+      {/* Fallo de almacenamiento del navegador (durabilidad R5). Persistente
+          y destacado: es la única situación donde el hub DEBE actuar ya, y
+          antes no se enteraba de nada. */}
+      {storageFailed && (
+        <div className="de-msg de-msg--err de-msg--emphasize">
+          <AlertTriangle className="de-msg__icon" size={20} />
+          {t('dataentry.storage_failed')}
+        </div>
+      )}
+
       {/* Recuperación de conflicto (mig 191). Sin estas dos salidas el hub
           queda trabado: el servidor le frena el guardado y no tiene forma de
           seguir. Las dos son EXPLÍCITAS y dicen qué descartan — ninguna
@@ -3673,6 +3750,19 @@ export default function DataEntry() {
             <button
               type="button"
               onClick={() => {
+                // ANTES de reemplazar, se respalda el borrador actual
+                // (durabilidad R4). Esta rama hace un reemplazo TOTAL —
+                // `conservarTecleado` solo aplica al auto-load silencioso —
+                // y con él se iban las celdas de filas INCOMPLETAS, que no
+                // están en el servidor por definición: eran una pérdida
+                // permanente y sin aviso. El respaldo le da al hub una
+                // segunda chance si eligió mal.
+                try {
+                  const actual = localStorage.getItem(draftKey)
+                  if (actual) localStorage.setItem(`de:respaldo:${draftKey}`, actual)
+                } catch {
+                  setStorageFailed(true)
+                }
                 setSaveConflict(null)
                 setPendingLoad({ dbCity, zone, date })
               }}
