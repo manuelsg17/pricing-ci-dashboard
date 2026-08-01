@@ -32,20 +32,27 @@ export const SWR_TTL_MS = Object.freeze({
 
 // Desglose de minutos por turno a partir de `ci_sessions.turno_timings`
 // (mig 159 — jsonb `{ [label]: { startedAt, endedAt } }`, estampado una sola
-// vez por turno, nunca sobreescrito). Es más preciso que `duration_minutes`
-// (tiempo transcurrido de sesión completa, que incluye pausas/otros frentes)
-// para saber cuánto tardó un hub en llenar CADA turno. Compartido entre el
-// Historial propio de Ingresar CI (DataEntry.jsx) y "Sesiones recientes" de
-// Monitoreo (CompletedSessionsTable.jsx) — antes vivía solo en DataEntry.jsx.
+// vez por turno, nunca sobreescrito). Compartido entre el Historial propio de
+// Ingresar CI (DataEntry.jsx) y "Sesiones recientes" de Monitoreo
+// (CompletedSessionsTable.jsx).
+//
+// Desde el rediseño de la duración, este desglose y `duration_minutes` salen
+// del MISMO módulo (sessionDuration.js): la duración total es la unión de
+// estos mismos tramos. Antes cada uno hacía su propia cuenta y podían no
+// cerrar entre sí — el hub veía "Mañana 40min · Tarde 35min" al lado de un
+// total de "0.1 min" sin ninguna explicación.
+//
+// El sufijo `*` marca un tramo RECORTADO al techo de TURNO_MAX_MS: laptop
+// cerrada o turno heredado de ayer. Se muestra en vez de ocultarse, porque
+// un número recortado que se presenta como exacto es la mentira que este
+// rediseño vino a sacar.
+import { tramosDeTurnos } from './sessionDuration.js'
+
 export function turnoBreakdownLabel(turnoTimings) {
-  if (!turnoTimings || typeof turnoTimings !== 'object') return ''
-  return Object.entries(turnoTimings)
-    .filter(([, t]) => t?.startedAt)
-    .map(([label, t]) => {
-      const mins = t.endedAt
-        ? Math.round((new Date(t.endedAt) - new Date(t.startedAt)) / 60000)
-        : null
-      return `${label} ${mins != null ? mins + 'min' : '—'}`
+  return tramosDeTurnos(turnoTimings)
+    .map((t) => {
+      if (t.minutos == null) return `${t.label} —`
+      return `${t.label} ${Math.round(t.minutos)}min${t.recortado ? '*' : ''}`
     })
     .join(' · ')
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sb, SESSION_ID } from '../lib/supabase'
 import { debeReanudarTramo } from '../lib/sessionPersistence'
+import { duracionDeSesion } from '../lib/sessionDuration'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
@@ -1126,9 +1127,22 @@ export default function DataEntry() {
             // sessionActive no sobrevive un refresh de página, así que sin
             // esto el hub ve su grilla llena pero solo "Iniciar Sesión" en
             // vez de Guardar/Terminar, como si nunca hubiera empezado nada.
+            // MISMO guard que el auto-load (debeReanudarTramo). La hidratación
+            // del borrador sembraba el cronómetro desde los turnoTimings sin
+            // mirar de qué FECHA eran: reabrir una sesión del historial de
+            // otro día dejaba un borrador con los timings históricos, y la
+            // siguiente hidratación arrancaba el reloj 4 días atrás.
+            // Reproducido en navegador: ⏱ 99:37:59.
+            const reanudaBorrador = debeReanudarTramo({
+              loadDate: date,
+              today: todayStr(),
+              timings: parsed.turnoTimings,
+            })
             setSessionActive((prev) => {
               if (prev) return prev
-              sessionStartRef.current = earliestTurnoStart(parsed.turnoTimings) || Date.now()
+              sessionStartRef.current = reanudaBorrador
+                ? earliestTurnoStart(parsed.turnoTimings) || Date.now()
+                : Date.now()
               return true
             })
             // Restaurar el alcance declarado (Aeropuerto "Ambos") si el
@@ -1455,7 +1469,15 @@ export default function DataEntry() {
     // sesión ya mismo (mismo criterio que "Abrir" del historial), no esperar
     // a que la hidratación async lo detecte sola.
     if (!sessionActive) {
-      sessionStartRef.current = earliestTurnoStart(d.turnoTimings) || Date.now()
+      // Idem: reanudar un borrador de OTRA fecha, o de una jornada ya
+      // cerrada, arranca un tramo nuevo en vez de heredar el reloj.
+      sessionStartRef.current = debeReanudarTramo({
+        loadDate: d.date,
+        today: todayStr(),
+        timings: d.turnoTimings,
+      })
+        ? earliestTurnoStart(d.turnoTimings) || Date.now()
+        : Date.now()
       setSessionActive(true)
     }
     if (d.resume?.tukTuk) {
@@ -2227,8 +2249,34 @@ export default function DataEntry() {
 
     if (isFinish) {
       const now = new Date()
-      const start = sessionStartRef.current || Date.now()
-      const dur = Math.round(((now - new Date(start)) / 60000) * 10) / 10
+      // La duración YA NO sale del cronómetro de reloj de pared.
+      //
+      // `sessionStartRef` se pisa con `Date.now()` en cinco lugares (cerrar
+      // el Punto A de "Ambos", abrir una sesión del historial, cambiar de
+      // fecha, y las dos siembras que caen al fallback), y cada uno producía
+      // una duración falsa. El caso que reportó el user: el hub llena
+      // Aeropuerto A y B en la misma sentada y cierra los dos seguidos —
+      // entre un Terminar y el otro pasan SEGUNDOS, así que B (una hora de
+      // trabajo) se guardaba como 0.1 min.
+      //
+      // Ahora se deriva de `turnoTimings`, que mide el trabajo real por turno
+      // y sobrevive al F5. Ver src/lib/sessionDuration.js para el porqué
+      // completo y scripts/test-session-duration.mjs para las simulaciones.
+      // `sessionStartRef` queda solo como último recurso (sesión sin una sola
+      // celda llena), y en ese caso la duración se marca no confiable.
+      const medicion = duracionDeSesion({
+        turnoTimings,
+        inicioReloj: sessionStartRef.current,
+        fin: now,
+      })
+      // `minutos: null` = no se pudo saber. Se persiste null a propósito en
+      // vez de un 0: un 0 entra en cualquier promedio y hace creer que el
+      // corte fue instantáneo — es exactamente el dato que rompía la métrica.
+      const dur = medicion.minutos
+      // El inicio guardado es el del PRIMER trabajo real, no el del reloj:
+      // así `started_at`/`ended_at` describen la ventana de trabajo del
+      // bucket que cierra, no la de la pestaña.
+      const start = medicion.inicio ?? sessionStartRef.current ?? now.getTime()
       const { error: sessErr } = await sb.from('ci_sessions').insert({
         country,
         city: dbCity,
@@ -3879,7 +3927,13 @@ export default function DataEntry() {
                             {end.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td>
-                            <strong>{s.duration_minutes} min</strong>
+                            {/* null = no se pudo medir (ver sessionDuration.js).
+                                Se muestra el mismo "—" que ya usan las otras
+                                columnas para un dato ausente, nunca un "0 min"
+                                que se leería como "tardó nada". */}
+                            <strong>
+                              {s.duration_minutes == null ? '—' : `${s.duration_minutes} min`}
+                            </strong>
                             {s.turno_timings && typeof s.turno_timings === 'object' && (
                               <div className="de-history-note">
                                 {turnoBreakdownLabel(s.turno_timings)}

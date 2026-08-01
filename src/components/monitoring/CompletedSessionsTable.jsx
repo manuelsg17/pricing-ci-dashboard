@@ -54,7 +54,9 @@ export default function CompletedSessionsTable({ sessions }) {
                 <td>{fmtDateTime(s.started_at)}</td>
                 <td>{fmtDateTime(s.ended_at)}</td>
                 <td>
-                  <strong>{s.duration_minutes} min</strong>
+                  {/* null = no se pudo medir (ver sessionDuration.js): mismo
+                      "—" que el resto de las columnas sin dato, nunca "0 min". */}
+                  <strong>{s.duration_minutes == null ? '—' : `${s.duration_minutes} min`}</strong>
                   {s.turno_timings && typeof s.turno_timings === 'object' && (
                     <div className="de-history-note">{turnoBreakdownLabel(s.turno_timings)}</div>
                   )}
