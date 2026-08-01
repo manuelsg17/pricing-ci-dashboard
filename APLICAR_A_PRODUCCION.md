@@ -34,19 +34,36 @@ válido. Aplicarla sola es seguro: no depende de nada más del bloque.
 
 ---
 
-## Bloque B — Duración confiable
+## 🔴 Bloque B — APLICADO, pero FALTA LA 199 (urgente)
 
-**Orden obligatorio**: la 195 necesita las funciones de la 194.
+Aplicadas y verificadas: **194** y **195**.
 
-1. `supabase/194_ci_duration_single_source.sql`
-2. `supabase/195_ci_duration_trust_and_daily.sql`
+- La duración nueva contra datos reales: promedio **49,4 min** (antes 92,7),
+  máximo **212 min** (antes 721,6 — doce horas de reloj de pared).
+- Backfill: **0 filas sin clasificar** (48 confiables, 26 `sin_timings`).
+- `ci_hub_daily_minutes`: la suma ingenua resultó **mayor en todas las filas**,
+  nunca menor. Peor caso real: 827,5 min → **48,4 reales**.
+- Aislamiento por país verificado como hub real: Colombia **DENEGADO** (42501),
+  Perú permitido.
 
-**Ojo**: la 195 trae un backfill que clasifica el histórico. Después:
+### ⚠️ Falta `supabase/199_fix_trigger_calidad_permisos.sql`
 
-```sql
-SELECT duration_confiable, duration_motivo, count(*)
-  FROM ci_sessions GROUP BY 1,2 ORDER BY 3 DESC;
-```
+La 195 crea el trigger `trg_ci_close_fill_quality` como `SECURITY INVOKER`. El
+fix que lo pasa a `DEFINER` estaba escrito… dentro de la **mig 197**, que es
+del Bloque D. Aplicar B sin D deja la ventana abierta.
+
+**Efecto mientras tanto**: el bundle desplegado inserta directo en
+`ci_sessions` con `turno_timings` y **sin** `duration_confiable`, así que el
+trigger ejecuta `ci_ts_or_null` —a la que la 194 le revocó `EXECUTE`— y muere
+con `42501`. **El hub no puede terminar la sesión.**
+
+No hay pérdida de datos: los precios ya se guardaron antes y el código no
+limpia el borrador ni borra el latido cuando este INSERT falla.
+
+Reproducido en local como rol `authenticated`: sin el fix → `42501`; con el
+fix → `INSERT` OK y `duration_confiable = true`.
+
+Aplicar la 199 (o, equivalente, adelantar el Bloque D) desbloquea el cierre.
 
 ---
 
