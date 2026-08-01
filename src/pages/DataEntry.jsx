@@ -2355,6 +2355,14 @@ export default function DataEntry() {
         started_at: new Date(start).toISOString(),
         ended_at: now.toISOString(),
         duration_minutes: dur,
+        // La marca de confianza (mig 195). `duracionDeSesion` YA la calculaba
+        // y se tiraba a la basura al escribir la fila: un número capado por el
+        // techo de 4h entraba a la base indistinguible de uno exacto, y
+        // cualquier promedio los mezclaba. Con esto, el dashboard puede
+        // promediar SOLO lo confiable y el resto queda auditable en vez de
+        // silenciosamente mal.
+        duration_confiable: medicion.confiable,
+        duration_motivo: medicion.motivo,
         rows_saved: payloads.length,
         // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
         // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
