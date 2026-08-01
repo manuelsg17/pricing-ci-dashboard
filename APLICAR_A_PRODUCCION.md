@@ -20,20 +20,17 @@ después de cada bloque, antes de pasar al siguiente.
 
 ---
 
-## Bloque A — Permisos genéricos (desbloquea a los 2 usuarios de `ms&e`)
+## Bloque A — Permisos genéricos ✅ APLICADO (falta solo la 193)
 
-**Orden obligatorio.** La 188 restringe y la 193 afloja: así nunca hay una
-ventana donde el sistema esté más abierto que al empezar.
+Aplicadas y verificadas: 187, 188, 189, 192. Drift verificado en 0.
 
-1. `supabase/187_section_write_grants.sql`
-2. `supabase/188_uniform_write_policies.sql`
-3. `supabase/189_close_cross_country_reads.sql`
-4. `supabase/192_complete_section_write_map.sql`
-5. `supabase/193_generic_rpc_gates.sql`
+**Queda pendiente `supabase/193_generic_rpc_gates.sql`**, que afloja 6 RPCs de
+`is_admin()` a `can_access_section()` y —en el mismo cambio— les agrega el
+chequeo de país que NUNCA tuvieron: son SECURITY DEFINER, bypasean RLS, y el
+aislamiento se sostenía por accidente porque el admin tiene todos los países.
 
-**Después del bloque**: correr `scripts/check-rls-policy-drift.sql` contra
-producción. Tiene que devolver **0 filas**. Si devuelve algo, hay dos políticas
-para el mismo comando y la vieja puede estar ganando en silencio.
+No aplicarla deja esas 6 funciones como estaban (solo admin), que es un estado
+válido. Aplicarla sola es seguro: no depende de nada más del bloque.
 
 ---
 
