@@ -334,17 +334,176 @@ Plantillas de proyecto, duplicar proyecto, exportar a PDF para actas.
 
 ---
 
-## 12. Decisiones que necesito de vos
+## 12. Decisiones confirmadas (2026-07-31)
 
-1. **¿Los hubs ven las tareas de otros hubs, o solo las suyas?**
-   Recomiendo que vean todo el proyecto (contexto de equipo) pero que solo
-   puedan tocar las suyas. Si preferís privacidad entre hubs, cambia el RLS.
+1. **Los hubs ven las tareas de todos**, pero solo pueden tocar las suyas.
+   → RLS de `SELECT` solo por país; el gate de dueño va en las RPCs de
+   escritura.
+2. **Los proyectos son multi-ciudad.** → cambia el modelo, ver §13.1.
+3. **Umbral de "en riesgo": 2 días**, configurable.
+4. **Se arranca por la Fase 1 completa.**
 
-2. **¿Un proyecto pertenece a una ciudad o puede ser multi-ciudad?**
-   El modelo permite `city = NULL` para multi-ciudad. Confirmame si lo usarías
-   o simplificamos a una ciudad obligatoria.
+---
 
-3. **Umbral de "en riesgo": ¿2 días está bien?** Configurable igual.
+## 13. Segunda ronda de simulaciones
 
-4. **¿Empezamos por la Fase 1 completa, o querés ver primero un prototipo
-   visual del Gantt** para validar el aspecto antes de construir el fondo?
+La primera ronda validó el flujo feliz. Esta busca lo que lo rompe: casos
+borde, uso sostenido en el tiempo y el efecto de las decisiones de arriba.
+
+### 13.1 — Multi-ciudad rompe el filtro de ciudad ⚠️
+
+Confirmado que los proyectos son multi-ciudad, el modelo original
+(`city text NULL`, donde NULL = multi) tiene un agujero: **si filtrás por
+"Arequipa", los proyectos multi-ciudad desaparecen** aunque tengan tareas de
+Arequipa. Justo los proyectos más importantes se vuelven invisibles al filtrar.
+
+**Cambio al modelo:**
+
+```sql
+projects.cities  text[] NOT NULL DEFAULT '{}'   -- {} = todas las ciudades del país
+project_tasks.city text NULL                    -- de qué ciudad es ESTA tarea
+```
+
+Y el filtro por ciudad matchea si: la tarea es de esa ciudad, **o** el proyecto
+la incluye, **o** el proyecto es de alcance total (`cities = '{}'`).
+
+La ciudad a nivel tarea no es un capricho: en un proyecto como "Auditoría de
+rutas Q3" las tareas SON por ciudad ("revisar Lima", "revisar Arequipa"), y sin
+ese campo no podés preguntarle al tablero "¿cómo viene Arequipa?".
+
+### 13.2 — Actualizar en vivo durante la reunión es contraproducente ⚠️
+
+El diseño original suscribía "Hoy" a realtime para que los cambios aparecieran
+solos. Simulando la reunión con pantalla compartida: **una fila que se reordena
+o desaparece mientras estás hablando de ella desorienta a todos.**
+
+**Cambio:** "Hoy" NO se auto-actualiza. Cuando llegan cambios muestra un botón
+discreto arriba: _"3 actualizaciones nuevas — actualizar"_. Vos decidís cuándo.
+En "Mis tareas" y Kanban sí puede ser en vivo, no hay una reunión en curso.
+
+### 13.3 — Tareas sin fecha se vuelven invisibles ⚠️
+
+Una tarea sin `due_date` nunca entra en "vence hoy" ni en "en riesgo" ni en
+"vencidas". Desaparece del radar sin que nadie lo note — el mismo patrón de
+truncado silencioso que CLAUDE.md §5 prohíbe en los listados.
+
+**Cambio:** se permiten tareas sin fecha (hacen falta para backlog), pero
+"Hoy" y "Mis tareas" tienen una sección explícita **"Sin fecha (N)"**, siempre
+visible aunque esté vacía. Nada se esconde por omisión.
+
+### 13.4 — "Vence hoy" depende de la zona horaria ⚠️
+
+Con países de Perú (UTC-5) a Nepal (UTC+5:45), calcular "hoy" con `current_date`
+del servidor (UTC) hace que a las 19:00 de Lima el sistema ya crea que es
+mañana: tareas marcadas como vencidas un día antes. Con un umbral de 2 días,
+un error de ±1 día es la mitad de la ventana.
+
+**Cambio:** agregar `timezone` a `country_config` (hoy tiene `locale` pero no
+zona horaria) y calcular el "hoy" de cada país con esa zona, tanto en la vista
+como en el panel de Monitoreo. Es una columna nueva en una tabla que ya se
+edita desde Config.
+
+### 13.5 — Un hub marca "Lista" algo que no lo está
+
+**No agrego aprobación.** Un flujo de aprobación mete fricción y burocracia
+para un equipo de 5 personas, y la reunión diaria ya es la verificación: la
+tarea aparece en "Movido ayer" con su comentario y ahí se conversa.
+
+**Cambio:** Manuel puede reabrir una tarea (volverla a "En curso"), y cuando
+alguien cambia el estado de una tarea ajena se agrega un **comentario de
+sistema** automático: _"Manuel reabrió esta tarea"_. Transparencia sin
+burocracia — el hub se entera sin que nadie tenga que avisarle.
+
+### 13.6 — Reasignar una tarea
+
+Los comentarios son historia de la **tarea**, no de la persona: se quedan. Se
+agrega comentario de sistema _"reasignada de X a Y"_. La tarea sale sola de
+"Mis tareas" del anterior porque esa vista filtra por owner.
+
+### 13.7 — Un hub se desactiva y quedan tareas huérfanas
+
+Si `user_profiles.is_active = false`, sus tareas siguen asignadas a alguien que
+ya no entra. **No** se bloquea la desactivación (acoplaría dos sistemas), pero
+el panel de Monitoreo suma una línea: **"tareas asignadas a usuarios
+inactivos"**. Se ve en vez de pudrirse.
+
+### 13.8 — Un hub con 25 tareas en 3 proyectos
+
+Una lista plana ordenada por fecha son 25 filas: un muro.
+
+**Cambio:** "Mis tareas" agrupa en **Vencidas · Hoy · Esta semana · Después ·
+Sin fecha**, con las dos primeras abiertas y el resto colapsado. El hub ve 4-6
+filas al entrar, que es lo que le importa.
+
+### 13.9 — El primer día, sin datos
+
+Los estados vacíos deciden la adopción. Un tablero en blanco el día 1 se siente
+roto.
+
+**Cambio:** estados vacíos que guían, con el patrón de `EmptyState` que ya
+existe. Para el admin: _"Todavía no hay proyectos. Creá el primero…"_ con el
+botón. Para el hub sin tareas: _"No tenés tareas asignadas"_ — mensaje neutro,
+no un error.
+
+### 13.10 — Borrar un proyecto con tareas en curso
+
+`ON DELETE CASCADE` se lleva tareas y comentarios sin aviso, y el historial de
+trabajo de los hubs se pierde.
+
+**Cambio:** el borrado desde la UI **archiva** (`status = 'archived'`), no
+borra. Los proyectos archivados salen de todas las vistas salvo un filtro
+explícito "incluir archivados". El `DELETE` real queda solo para SQL directo.
+Mismo criterio que CLAUDE.md §8 sobre no borrar filas de producción a la
+ligera.
+
+### 13.11 — Dos personas en la misma tarea
+
+Un solo `owner_email`. **Se mantiene así**: dueño único es lo que hace que "¿de
+quién es esto?" tenga respuesta en la reunión. Si un trabajo es de dos, son dos
+tareas — y eso además obliga a partirlo, que suele ser lo correcto.
+
+### 13.12 — Edición concurrente
+
+Manuel mueve la fecha mientras el hub cambia el estado. **Ya está resuelto por
+el diseño**: las RPCs son acotadas (`set_task_status` solo toca `status`), así
+que escriben columnas distintas y no se pisan. Era un riesgo del `UPDATE`
+abierto que descartamos en §6.
+
+---
+
+## 14. Cambios al modelo de datos tras la ronda 2
+
+```sql
+-- projects
+cities      text[] NOT NULL DEFAULT '{}'    -- {} = todas las del país (§13.1)
+status      text   NOT NULL DEFAULT 'active' -- active | done | archived (§13.10)
+
+-- project_tasks
+city        text   NULL                      -- ciudad de ESTA tarea (§13.1)
+due_date    date   NULL                      -- permitido, pero visible (§13.3)
+
+-- country_config
+timezone    text   NOT NULL DEFAULT 'UTC'    -- para calcular "hoy" (§13.4)
+
+-- task_comments.kind ya contempla 'system' — se usa para reaperturas y
+-- reasignaciones (§13.5, §13.6)
+```
+
+---
+
+## 15. Fase 1 — alcance cerrado
+
+Con las dos rondas de simulación, esto es lo que entra:
+
+1. Migración: `projects`, `project_tasks`, `task_comments`, `task_status_log`
+   - `country_config.timezone` + RLS + RPCs `set_task_status`,
+     `add_task_comment`, `reassign_task`.
+2. Sección `projects` en el router y en `ALL_SECTIONS`.
+3. Vista **Hoy** (admin) con agrupación por persona, botón de actualización
+   manual, secciones Trabadas/Vence hoy/En riesgo/Movido ayer/Sin fecha.
+4. Vista **Mis tareas** (hub) agrupada por urgencia.
+5. Alta inline de proyectos y tareas.
+6. Estados de un clic + comentario inline + motivo obligatorio al trabar.
+7. Estados vacíos, i18n en 3 locales, tests de la lógica pura.
+
+Fuera de la Fase 1: Gantt, Kanban, panel de Monitoreo, Telegram.
