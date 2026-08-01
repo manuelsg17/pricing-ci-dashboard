@@ -1195,9 +1195,36 @@ export default function DataEntry() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey])
 
+  // Techo de espera del autosave (SESIONES_HALLAZGOS/durabilidad R1).
+  //
+  // El debounce era TRAILING PURO: cada tecla cancelaba el timer y lo
+  // reprogramaba a 1500 ms. Un hub que teclea con pausas de menos de 1,5s
+  // —o sea, un hub rápido— NUNCA disparaba el autosave. Simulado: 400 celdas
+  // tecleadas cada 1499 ms = CERO escrituras en 10 minutos. El peor caso no
+  // estaba acotado por 1,5s sino por cuánto aguantaba la persona sin pausar,
+  // y ante un apagón se perdía toda esa racha.
+  //
+  // Con el techo, entre la primera tecla pendiente y la escritura nunca pasan
+  // más de 3 segundos, sin perder el debounce en el uso normal.
+  //
+  // Costo: el JSON.stringify del borrador más grande medido son 0,042 ms, y
+  // la grilla YA re-renderiza en cada tecla (setEntry hace setEntriesByCity y
+  // no hay React.memo en src/components/dataentry/ — verificado). Así que esto
+  // no agrega ninguna reconciliación que no esté ocurriendo, y no entra en
+  // conflicto con los fixes P0/P1 de re-render de CLAUDE.md §5.
+  const DEBOUNCE_BORRADOR_MS = 1500
+  const TECHO_BORRADOR_MS = 3000
+  const pendienteDesdeRef = useRef(null)
+
   useEffect(() => {
     if (!draftHydratedRef.current) return
+    if (pendienteDesdeRef.current == null) pendienteDesdeRef.current = Date.now()
+    const espera = Math.max(
+      0,
+      Math.min(DEBOUNCE_BORRADOR_MS, TECHO_BORRADOR_MS - (Date.now() - pendienteDesdeRef.current))
+    )
     const id = setTimeout(() => {
+      pendienteDesdeRef.current = null
       // Recién Terminada/Descartada: no reescribir por unos segundos, sin
       // importar qué diga `entries` en este momento (ver guardia arriba).
       if (isJustFinished(draftKey)) return
@@ -1240,7 +1267,7 @@ export default function DataEntry() {
       } catch {
         /* quota / disabled */
       }
-    }, 1500)
+    }, espera)
     return () => clearTimeout(id)
   }, [
     entries,
@@ -1263,11 +1290,21 @@ export default function DataEntry() {
   // ciudad y la clave de ESTA corrida; el cleanup lee la rebanada de ESA ciudad
   // desde perCityRef (que retiene todas las ciudades), así flushea la ciudad
   // vieja bajo su clave vieja aunque ya se haya cambiado de ciudad.
-  useEffect(() => {
-    const flushCity = bucketKey
-    const flushKey = draftKey
-    return () => {
-      // Recién Terminada/Descartada: no reescribir (ver guardia arriba).
+  // Persistencia síncrona del borrador. Se usa desde DOS lugares: el cleanup
+  // del efecto (cambio de ciudad/fecha, navegación interna) y el evento
+  // `pagehide` (cerrar pestaña, cerrar navegador, bfcache, móvil).
+  //
+  // `pagehide` es necesario porque React NO corre cleanups de efectos al
+  // descargar la página, y el `beforeunload` de más abajo solo muestra el
+  // diálogo del navegador: no persiste nada. Sin esto, cerrar la pestaña
+  // perdía todo lo tecleado desde la última escritura del autosave
+  // (durabilidad R2). `pagehide` es el único evento confiable para esto —
+  // `beforeunload` no dispara en móvil ni con bfcache.
+  //
+  // NO ayuda en un apagón: ahí no corre ningún evento. Para eso está el techo
+  // del autosave (R1, arriba).
+  const persistirBorrador = useCallback(
+    (flushCity, flushKey) => {
       if (isJustFinished(flushKey)) return
       try {
         const m = perCityRef.current
@@ -1327,9 +1364,39 @@ export default function DataEntry() {
       } catch {
         /* quota / disabled */
       }
-    }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isJustFinished]
+  )
+
+  useEffect(() => {
+    const flushCity = bucketKey
+    const flushKey = draftKey
+    return () => persistirBorrador(flushCity, flushKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey])
+
+  // Cierre de pestaña / navegador / bfcache. Se lee el bucket y la clave de un
+  // ref para que el listener no se re-suscriba en cada cambio de ciudad.
+  const flushScopeRef = useRef({ bucketKey, draftKey })
+  flushScopeRef.current = { bucketKey, draftKey }
+  useEffect(() => {
+    const onPageHide = () => {
+      const f = flushScopeRef.current
+      persistirBorrador(f.bucketKey, f.draftKey)
+    }
+    window.addEventListener('pagehide', onPageHide)
+    // `visibilitychange` cubre el caso de cerrar la tapa de la laptop o pasar
+    // la app a segundo plano en un celular, donde `pagehide` puede no llegar.
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') onPageHide()
+    }
+    document.addEventListener('visibilitychange', onHidden)
+    return () => {
+      window.removeEventListener('pagehide', onPageHide)
+      document.removeEventListener('visibilitychange', onHidden)
+    }
+  }, [persistirBorrador])
 
   const clearDraft = useCallback(() => {
     try {
@@ -3188,6 +3255,30 @@ export default function DataEntry() {
   // deja de destruir el estado de sesión. Terminar y cambiar de país sí
   // siguen borrándola explícitamente, que es cuando corresponde.
 
+  // Base del cronómetro visible (⏱ del header).
+  //
+  // Se prefiere el inicio real del primer turno tocado antes que
+  // `sessionStartRef`, para que el reloj de pantalla y el `started_at` que se
+  // persiste no se contradigan. El caso concreto: al cerrar el Punto A de
+  // Aeropuerto "Ambos", `sessionStartRef` se reinicia a `Date.now()`, así que
+  // el Punto B —lleno hace una hora— mostraba 00:00:06.
+  //
+  // El guard de fecha NO es opcional: mirar una fecha PASADA seedea
+  // `turnoTimings` con los timestamps de aquel día (ver `historicTimings` en
+  // loadObservationsIntoForm), y sin este chequeo el cronómetro volvería a
+  // mostrar 30:00:00 — exactamente el bug que `debeReanudarTramo()` ya
+  // documenta y evita para la siembra. Corregir un día pasado es un tramo
+  // nuevo, y su reloj arranca en cero.
+  //
+  // Ojo: esto sigue siendo reloj de pared (incluye el almuerzo entre el corte
+  // de la mañana y el de la tarde); `duration_minutes` no. Son dos preguntas
+  // distintas —"desde cuándo estás en esto" vs "cuánto trabajo hubo"— y la
+  // segunda es la que se guarda y la que el user quiere poder promediar.
+  const timerStart =
+    date === todayStr()
+      ? (earliestTurnoStart(turnoTimings) ?? sessionStartRef.current)
+      : sessionStartRef.current
+
   // ── Render ─────────────────────────────────────────────
   return (
     <div className="de-page">
@@ -3196,10 +3287,7 @@ export default function DataEntry() {
         <div className="de-header__left">
           <h1>{t('dataentry.title')}</h1>
           {sessionActive && (
-            <SessionTimer
-              sessionStart={sessionStartRef.current}
-              title={t('dataentry.timer_title')}
-            />
+            <SessionTimer sessionStart={timerStart} title={t('dataentry.timer_title')} />
           )}
         </div>
         <div className="de-header__actions">

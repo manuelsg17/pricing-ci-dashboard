@@ -497,14 +497,26 @@ function bloque(desde, hasta, etiqueta) {
   return src.slice(i, j)
 }
 
-// 1. El autosave sigue siendo un debounce de 1500ms sin maxWait ni intervalo.
+// 1. El autosave es un debounce CON TECHO (R1, 2026-08-01).
+//
+// Este guard cazó el cambio cuando se aplicó el fix: antes exigía `}, 1500)`
+// y el debounce pasó a ser dinámico. Es exactamente para lo que existe — el
+// modelo de los bloques [1]-[9] se apoya en estas propiedades, y si el fuente
+// cambia sin actualizar el modelo, las simulaciones dejan de significar algo.
 const bAutosave = bloque('── Autosave a localStorage (draft)', 'Flush SÍNCRONO', 'autosave')
-ok(/\}, 1500\)/.test(bAutosave), 'el debounce del borrador sigue siendo de 1500ms')
-ok(/clearTimeout\(id\)/.test(bAutosave), 'el cleanup del autosave sigue cancelando el timer')
 ok(
-  !/setInterval/.test(bAutosave),
-  'el autosave sigue SIN un intervalo de respaldo (si se agrega uno, actualizar [1])'
+  /TECHO_BORRADOR_MS/.test(bAutosave) && /\}, espera\)/.test(bAutosave),
+  'el autosave tiene TECHO de espera (ya no es un debounce puro sin maxWait)'
 )
+ok(
+  /DEBOUNCE_BORRADOR_MS = 1500/.test(bAutosave),
+  'el debounce base sigue siendo de 1500ms'
+)
+ok(
+  /TECHO_BORRADOR_MS = 3000/.test(bAutosave),
+  'el techo es de 3000ms (si cambia, actualizar el peor caso de [4] APAGÓN)'
+)
+ok(/clearTimeout\(id\)/.test(bAutosave), 'el cleanup del autosave sigue cancelando el timer')
 
 // 2. El flush del cleanup sigue mergeando sobre lo ya escrito (fix P0-2).
 const bFlush = bloque('Flush SÍNCRONO', 'const clearDraft', 'flush')
@@ -518,7 +530,16 @@ const bUnload = bloque(
 )
 ok(
   !/localStorage|sendBeacon|setItem/.test(bUnload),
-  'el beforeunload sigue sin persistir nada (si se le agrega un flush, actualizar [2]-[5])'
+  'el beforeunload sigue sin persistir nada (correcto: para eso está pagehide)'
+)
+// 3b. Y AHORA sí hay persistencia en pagehide/visibilitychange (R2).
+ok(
+  /addEventListener\('pagehide'/.test(src) && /persistirBorrador/.test(src),
+  'pagehide persiste el borrador (cierre de pestaña/navegador)'
+)
+ok(
+  /visibilitychange/.test(src),
+  'visibilitychange cubre cerrar la tapa o pasar a segundo plano en celular'
 )
 ok(
   /e\.preventDefault\(\)/.test(bUnload),
