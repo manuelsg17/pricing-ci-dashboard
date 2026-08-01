@@ -637,18 +637,181 @@ Reglas nuevas del lado del cliente (todas con test, van a `lib/`):
 
 ---
 
-## 17. Fase 1 — alcance cerrado
+## 17. Cuarta ronda — aislamiento por país y uso sostenido
+
+Regla confirmada por el user (2026-07-31): **un hub de Perú solo ve y trabaja
+tareas de Perú; nunca de otro país, y viceversa. Lo único transversal es que un
+proyecto abarque varias ciudades.** Esto vuelve regla dura lo que en la ronda 3
+era una mejora, y obliga a revisar el modelo de seguridad completo.
+
+### 17.1 — Un comentario sin cambio de estado es invisible 🔴
+
+"Movido desde la última reunión" se calcula sobre **cambios de estado**
+(`task_status_log`). Pero el caso más común del día a día es que el hub escriba
+_"avancé con las rutas de SJM, mañana sigo"_ **sin tocar el estado** — porque la
+tarea sigue "En curso", que es la verdad.
+
+Ese comentario, que es exactamente lo que querés escuchar en la reunión, **no
+aparecería en ninguna parte**. La sección diría "sin novedades" cuando el hub sí
+reportó.
+
+**Cambio:** la sección pasa a llamarse **"Actividad desde la última reunión"** y
+se alimenta de la unión de dos fuentes: cambios de estado **y** comentarios
+nuevos. Es la corrección más importante de esta ronda: sin ella, el sistema
+castiga justo al hub que reporta bien sin inflar estados.
+
+### 17.2 — Modelo de seguridad de las RPCs 🔴
+
+Con aislamiento estricto hay que ser explícito sobre cómo se hace cumplir,
+porque hay una trampa: **una política RLS no puede restringir POR COLUMNA.**
+
+Si se permitiera `UPDATE` a los dueños vía política, un hub podría cambiar el
+título, las fechas o el owner de su tarea con una llamada directa a la API — la
+UI mostraría solo el botón de estado, pero la API no es la UI.
+
+**Diseño definitivo:**
+
+- **No existe política de `UPDATE` para no-admins** sobre `project_tasks`. El
+  `UPDATE` directo está cerrado.
+- El hub escribe **solo** por las RPCs `set_task_status` y `add_task_comment`,
+  que son `SECURITY DEFINER` y validan **las dos cosas**:
+  1. `can_access_country(<país del proyecto de la tarea>)` — aislamiento.
+  2. `owner_email = auth.email()` — que sea suya.
+- La #1 no es redundante: sin ella, si alguna vez una tarea quedara mal
+  asignada a alguien de otro país, esa persona podría escribirla. Defensa en
+  profundidad, que es lo que CLAUDE.md §3 pide después de tres rondas de fugas.
+- `SELECT` sigue siendo solo por país: los hubs de Perú ven todas las tareas de
+  Perú (decisión confirmada), ninguna de otro país.
+
+### 17.3 — Tareas de proyectos archivados ⚠️
+
+Al archivar un proyecto sus tareas siguen existiendo. Si "Mis tareas" filtra
+solo por owner y estado, **le siguen apareciendo al hub tareas de un proyecto
+que ya nadie mira** — ruido que erosiona la confianza en la lista.
+
+**Cambio:** todas las vistas filtran por `projects.status = 'active'`. Las
+tareas de proyectos archivados solo se ven entrando al proyecto archivado a
+propósito.
+
+### 17.4 — Una tarea trabada que nadie destraba ⚠️
+
+La ronda 3 agregó detección de tareas estancadas, pero solo para `doing`. Una
+tarea **trabada** hace 5 días es peor: alguien está esperando a otro y el
+trabajo está detenido.
+
+**Cambio:** las trabadas muestran **desde cuándo** lo están, y pasados 3 días
+se marcan en rojo intenso con el conteo (_"Trabada hace 5 días"_). Ya salen
+primeras en "Hoy"; esto le pone urgencia visible.
+
+### 17.5 — Orden ambiguo entre proyectos ⚠️
+
+`sort_order` es por proyecto. Un hub con tareas de 3 proyectos distintos tiene
+tres secuencias de `sort_order` que empiezan en 0, así que ordenar por ese campo
+mezcla arbitrariamente.
+
+**Cambio:** dentro de cada grupo de fecha el orden es
+`due_date → nombre de proyecto → sort_order`. Determinístico y estable entre
+recargas (el mismo criterio de desempate que ya se usa en la paginación de
+RawData).
+
+### 17.6 — Cambiar la fecha de una tarea sin avisar ⚠️
+
+Si adelantás el vencimiento de una tarea, el hub se entera cuando ya está en
+rojo. Es la misma clase de sorpresa que resolvimos con el comentario de sistema
+al reabrir o reasignar.
+
+**Cambio:** cambiar `due_date` o `start_date` desde el admin deja comentario de
+sistema: _"Manuel movió el vencimiento del 5 al 2 de agosto"_.
+
+### 17.7 — El país del proyecto no es obvio al crearlo ⚠️
+
+Un proyecto hereda el país del selector del Topbar. Si estás mirando Colombia y
+creás un proyecto pensando en Perú, nace en el país equivocado — y con
+aislamiento estricto, los hubs de Perú **nunca lo van a ver**. El error es
+silencioso y caro.
+
+**Cambio:** el modal de "Nuevo proyecto" muestra el país de forma prominente y
+no editable (_"Este proyecto será de **Perú**"_), con la bandera, igual que el
+Topbar. Ver el país antes de confirmar evita el error entero.
+
+### 17.8 — Escala a 20 hubs
+
+Con 20 personas, "Hoy" son 20 bloques y la reunión diaria deja de ser viable en
+ese formato (eso es un problema de proceso, no de software).
+
+Lo que sí hace el sistema:
+
+- Los bloques **sin novedades se colapsan** a una línea (ya estaba en el
+  diseño); con 20 hubs eso es la diferencia entre una pantalla y diez.
+- Arriba, una **barra de conteos por persona** (`Rai 3 · Edu 1 · …`) que
+  funciona como índice: clic y salta al bloque.
+- El filtro por owner permite hacer la reunión por sub-equipos.
+
+20 hubs × 10 tareas = 200 filas. Irrelevante para Postgres, sin índices
+especiales más allá de los obvios (`owner_email`, `project_id`, `due_date`).
+
+### 17.9 — Borrar una tarea recién creada por error
+
+Con alta inline se van a crear filas por accidente (un `Enter` de más).
+
+**Cambio:** borrar una tarea **sin actividad** (sin comentarios y sin cambios de
+estado) es directo, sin confirmación. Con actividad, pide confirmación diciendo
+cuántos comentarios se van a perder. La fricción aparece solo cuando hay algo
+que proteger.
+
+---
+
+## 18. Cambios acumulados de la ronda 4
+
+- "Movido" → **"Actividad"**: unión de cambios de estado + comentarios nuevos
+  (§17.1).
+- Sin política de `UPDATE` para no-admins; toda escritura del hub por RPC
+  `SECURITY DEFINER` con doble validación país + dueño (§17.2).
+- Todas las vistas filtran `projects.status = 'active'` (§17.3).
+- Antigüedad visible en trabadas, rojo intenso a los 3 días (§17.4).
+- Orden `due_date → proyecto → sort_order` (§17.5).
+- Comentario de sistema al cambiar fechas (§17.6).
+- País visible y no editable en el alta de proyecto (§17.7).
+- Barra de conteos por persona como índice en "Hoy" (§17.8).
+- Borrado sin fricción solo para tareas sin actividad (§17.9).
+
+---
+
+## 19. Estado de la convergencia
+
+| Ronda | Foco                 | Hallazgos | Graves |
+| ----- | -------------------- | --------- | ------ |
+| 1     | Flujo diario         | 4         | 0      |
+| 2     | Casos borde          | 4         | 2      |
+| 3     | Paso del tiempo      | 2         | 2      |
+| 4     | Aislamiento y escala | 3         | 2      |
+
+Los hallazgos graves de las rondas 3 y 4 fueron todos del mismo tipo: **cosas
+que el tablero NO mostraba y que parecían "sin novedades"** (el viernes
+invisible el lunes, el comentario sin cambio de estado). Ese patrón ya está
+cubierto de forma sistemática: toda vista de resumen ahora declara
+explícitamente qué ventana está mirando y de qué fuentes se alimenta.
+
+Las rondas siguientes empezarían a producir matices de estilo más que errores
+de diseño. **Se considera convergido para construir la Fase 1.**
+
+---
+
+## 20. Fase 1 — alcance cerrado
 
 Con las tres rondas de simulación, esto es lo que entra:
 
 1. Migración: `projects`, `project_tasks`, `task_comments`, `task_status_log`,
-   `section_last_seen`, `country_config.timezone`, RLS y las RPCs acotadas
-   `set_task_status`, `add_task_comment`, `reassign_task`.
+   `section_last_seen`, `country_config.timezone`, RLS (SELECT por país; **sin
+   política de UPDATE para no-admins**) y las RPCs `SECURITY DEFINER`
+   `set_task_status`, `add_task_comment`, `reassign_task`, que validan país
+   **y** dueño (§17.2).
 2. Sección `projects` en el router y en `ALL_SECTIONS`.
-3. Vista **Hoy** (admin), agrupada por persona, con actualización manual (nunca
-   en vivo, §13.2) y secciones: Trabadas → Vence hoy → En riesgo → Estancadas →
-   **Movido desde la última reunión** (ventana que salta días no hábiles,
-   §15.1) → Sin fecha.
+3. Vista **Hoy** (admin), agrupada por persona, con barra de conteos como
+   índice (§17.8), actualización manual (nunca en vivo, §13.2) y secciones:
+   Trabadas (con antigüedad, §17.4) → Vence hoy → En riesgo → Estancadas →
+   **Actividad desde la última reunión** (cambios de estado **y** comentarios,
+   con ventana que salta días no hábiles — §15.1 y §17.1) → Sin fecha.
 4. Vista **Mis tareas** (hub), agrupada en Vencidas · Hoy · Esta semana ·
    Después · Sin fecha, con **Completadas hoy** (§15.3) e indicador de tareas
    nuevas desde la última visita (§15.4).
@@ -661,6 +824,11 @@ Con las tres rondas de simulación, esto es lo que entra:
    en `lib/`: ventana de "última reunión", owners elegibles, corte de
    "completadas hoy" por zona horaria, detección de estancadas y validación de
    fechas.
+
+Además: todas las vistas filtran proyectos activos (§17.3), orden
+`due_date → proyecto → sort_order` (§17.5), comentarios de sistema al reabrir,
+reasignar o mover fechas (§13.5, §13.6, §17.6), país visible al crear un
+proyecto (§17.7) y borrado sin fricción solo para tareas sin actividad (§17.9).
 
 Fuera de la Fase 1: Gantt, Kanban, panel de Monitoreo, Telegram, correr fechas
 en lote y duplicar proyecto.
