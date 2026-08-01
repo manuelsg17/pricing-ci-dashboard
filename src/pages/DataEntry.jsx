@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sb, SESSION_ID } from '../lib/supabase'
 import { debeReanudarTramo } from '../lib/sessionPersistence'
+import { evaluateLease, serializeLease, ownsLease, leaseKey, LEASE_RENEW_MS } from '../lib/tabLease'
 import { duracionDeSesion } from '../lib/sessionDuration'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
@@ -1052,6 +1053,24 @@ export default function DataEntry() {
   // retener.
   const [storageFailed, setStorageFailed] = useState(false)
 
+  // ── Un solo escritor del borrador por navegador (P1-10) ──────────────
+  //
+  // El guard de la mig 191 protege la BASE contra dos pestañas del mismo hub.
+  // Esto protege el BORRADOR: las dos escriben la misma clave de localStorage
+  // con su `entries` completo, así que la última en escribir borra las celdas
+  // de la otra.
+  //
+  // Arranca en `true` a propósito: si empezara en false, cada F5 dejaría la
+  // pestaña sin autosave durante el primer tick — justo la ventana donde el
+  // hub teclea sus primeras celdas.
+  //
+  // NO se fusionan borradores, nunca. Fusionar dos `entries` resucita celdas
+  // que el hub borró a propósito, que es el bug con más antecedentes en este
+  // repo (CLAUDE.md §2). Escritor único, y el resto en modo lectura.
+  const [leaseOwner, setLeaseOwner] = useState(true)
+  const leaseOwnerRef = useRef(true)
+  leaseOwnerRef.current = leaseOwner
+
   const [lastSaveOkAt, setLastSaveOkAt] = useState(null) // guardado REAL
   const [lastHeartbeatOkAt, setLastHeartbeatOkAt] = useState(null) // solo conexión
 
@@ -1289,6 +1308,10 @@ export default function DataEntry() {
     )
     const id = setTimeout(() => {
       pendienteDesdeRef.current = null
+      // Otra pestaña es la dueña del borrador (P1-10): esta NO escribe. Se
+      // relee del storage y no del estado de React porque el lease pudo
+      // cambiar durante el debounce.
+      if (!leaseOwnerRef.current) return
       // Recién Terminada/Descartada: no reescribir por unos segundos, sin
       // importar qué diga `entries` en este momento (ver guardia arriba).
       if (isJustFinished(draftKey)) return
@@ -1372,6 +1395,10 @@ export default function DataEntry() {
   // del autosave (R1, arriba).
   const persistirBorrador = useCallback(
     (flushCity, flushKey) => {
+      // Corre desde pagehide/visibilitychange y desde el cleanup del efecto:
+      // clausuras que pueden tener un valor viejo. Por eso se lee el ref, que
+      // siempre tiene la verdad del último render.
+      if (!leaseOwnerRef.current) return
       if (isJustFinished(flushKey)) return
       try {
         const m = perCityRef.current
@@ -1451,6 +1478,30 @@ export default function DataEntry() {
     const onPageHide = () => {
       const f = flushScopeRef.current
       persistirBorrador(f.bucketKey, f.draftKey)
+      // Al cerrar/recargar, el candado se marca OCIOSO en vez de borrarse.
+      //
+      // React no corre cleanups al descargar, así que sin esto cerrar la
+      // pestaña dejaba el candado tomado hasta el TTL: el hub reabría y se
+      // encontraba en modo lectura dos minutos y medio, sin ninguna otra
+      // pestaña abierta.
+      //
+      // Pero BORRARLO tampoco sirve, y lo verifiqué en navegador: un F5 le
+      // entregaba el candado a la otra pestaña, aunque la que recarga sea la
+      // que tiene el trabajo. Marcarlo ocioso resuelve los dos casos —
+      // `evaluateLease` deja reclamar un candado ocioso a quien SÍ tiene
+      // trabajo, y el dueño original lo recupera solo al volver porque
+      // conserva su SESSION_ID (sessionStorage sobrevive el F5).
+      try {
+        const lk = leaseKey(f.draftKey)
+        if (ownsLease(localStorage.getItem(lk), SESSION_ID)) {
+          localStorage.setItem(
+            lk,
+            serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: false })
+          )
+        }
+      } catch {
+        /* sin storage no hay candado que marcar */
+      }
     }
     window.addEventListener('pagehide', onPageHide)
     // `visibilitychange` cubre el caso de cerrar la tapa de la laptop o pasar
@@ -1959,6 +2010,73 @@ export default function DataEntry() {
     country,
     dbConfigs,
   ])
+
+  // `engaged` = esta pestaña tiene trabajo de verdad. Una pestaña abierta solo
+  // para mirar no puede bloquear a la pestaña donde el hub va a trabajar.
+  const leaseEngaged = sessionActive || filledCount > 0
+  useEffect(() => {
+    const lKey = leaseKey(draftKey)
+    let vivo = true
+
+    const tick = () => {
+      if (!vivo) return
+      let raw = null
+      try {
+        raw = localStorage.getItem(lKey)
+      } catch {
+        // Sin localStorage no hay candado posible. Se sigue como dueño: el
+        // guard de servidor (mig 191) es el backstop, y degradar acá dejaría
+        // a una pestaña única sin autosave — una forma NUEVA de perder datos.
+        setLeaseOwner(true)
+        return
+      }
+
+      const { action } = evaluateLease({
+        raw,
+        mySid: SESSION_ID,
+        now: Date.now(),
+        myEngaged: leaseEngaged,
+      })
+      if (action === 'demote') {
+        setLeaseOwner(false)
+        return
+      }
+      try {
+        localStorage.setItem(
+          lKey,
+          serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: leaseEngaged })
+        )
+        // RELECTURA obligatoria: dos pestañas restauradas en el mismo tick por
+        // el crash-recovery de Chrome leen la clave vacía las dos y escriben
+        // las dos. Sin releer, ambas se creen dueñas y el bug vuelve entero.
+        setLeaseOwner(ownsLease(localStorage.getItem(lKey), SESSION_ID))
+      } catch {
+        setLeaseOwner(true)
+      }
+    }
+
+    tick()
+    const id = setInterval(tick, LEASE_RENEW_MS)
+
+    // Otra pestaña escribió el lease: reaccionar YA. Sin esto la degradación
+    // tarda hasta 30s, y en esa ventana las dos escriben el borrador.
+    const onStorage = (e) => {
+      if (e.key === lKey) tick()
+    }
+    window.addEventListener('storage', onStorage)
+
+    return () => {
+      vivo = false
+      clearInterval(id)
+      window.removeEventListener('storage', onStorage)
+      // Liberar SOLO si es mío: nunca borrar el lease de otra pestaña.
+      try {
+        if (ownsLease(localStorage.getItem(lKey), SESSION_ID)) localStorage.removeItem(lKey)
+      } catch {
+        /* sin storage no hay nada que liberar */
+      }
+    }
+  }, [draftKey, leaseEngaged])
 
   // Progreso POR TURNO (Mañana/Tarde/Noche) — para el header colapsable de
   // cada TurnoSection. Mismo criterio que filledCount/countAllFilled de
@@ -2595,6 +2713,13 @@ export default function DataEntry() {
   // categoría/franja), así que guardar seguido es seguro. Solo "Terminar
   // Sesión" exige la grilla completa/S-D.
   async function handleSaveProgress(forceOverwrite = false) {
+    // La mig 191 ya protegería la BD, pero rebotaría como conflicto y le
+    // ofrecería al hub el botón de forzar — o sea, un botón para pisarle el
+    // trabajo a la otra pestaña. Mejor cortar antes, con un motivo claro.
+    if (!leaseOwnerRef.current) {
+      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      return
+    }
     // Collect all full rows
     const rowsToInsert = []
     for (const uiCat of categories) {
@@ -2623,6 +2748,13 @@ export default function DataEntry() {
   // al terminar el ÚLTIMO se cierra la sesión de verdad (ver
   // `isFinalInScope` en `performSave`).
   async function handleFinishSession(forceOverwrite = false) {
+    // Peor que Guardar: cierra el turno, sella la duración y borra el latido
+    // con lo que tiene ESTA pestaña. Un alcance decidido por la pestaña
+    // equivocada cierra la jornada con menos puntos de los que el hub midió.
+    if (!leaseOwnerRef.current) {
+      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      return
+    }
     const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
     if (hasPartial || hasEmpty) {
       setMsg({ type: 'err', text: t('dataentry.err_finish') })
@@ -3268,6 +3400,13 @@ export default function DataEntry() {
   const heartbeatFailStreakRef = useRef(0)
 
   const sendHeartbeat = useCallback(async () => {
+    // `ci_active_sessions` tiene PK `user_email`: UNA sola fila por hub. Dos
+    // pestañas latiendo la hacen saltar entre buckets y corrompen
+    // `started_at`, que es la fuente de la duración.
+    //
+    // Se corta el ENVÍO, NO se borra la fila: borrarla al degradarse repetiría
+    // el bug P1-4 (el hub desaparece de "en vivo" y se pierde el inicio real).
+    if (!leaseOwnerRef.current) return
     const p = heartbeatRef.current
     if (!p || !p.city) return
     try {
@@ -3726,6 +3865,20 @@ export default function DataEntry() {
         >
           {msg.emphasize && <CheckCircle2 className="de-msg__icon" size={20} />}
           {msg.text}
+        </div>
+      )}
+
+      {/* Pestaña duplicada (P1-10). Banner PERMANENTE y arriba de todo: el
+          hub tiene que enterarse ANTES de teclear, no después de perder
+          trabajo. La grilla queda visible y editable a propósito (CLAUDE.md
+          §5): es una vista legítima, solo que no escribe. */}
+      {!leaseOwner && (
+        <div className="de-msg de-msg--err de-msg--emphasize">
+          <AlertTriangle className="de-msg__icon" size={20} />
+          <span>
+            <strong>{t('dataentry.lease_readonly_title')}</strong>{' '}
+            {t('dataentry.lease_readonly_body')}
+          </span>
         </div>
       )}
 
