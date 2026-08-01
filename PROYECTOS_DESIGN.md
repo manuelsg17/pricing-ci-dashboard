@@ -491,7 +491,153 @@ timezone    text   NOT NULL DEFAULT 'UTC'    -- para calcular "hoy" (§13.4)
 
 ---
 
-## 15. Fase 1 — alcance cerrado
+## 15. Tercera ronda de simulaciones — el paso del tiempo
+
+Las rondas 1 y 2 miraron el flujo y los casos borde. Esta mira qué pasa cuando
+el sistema lleva semanas corriendo, que es donde aparece lo que no se ve en una
+demo.
+
+### 15.1 — El problema del lunes 🔴 (el más grave de las tres rondas)
+
+"Movido ayer" significa literalmente ayer. **El lunes, "ayer" es domingo: no se
+movió nada.** Todo lo que los hubs avanzaron y comentaron el viernes NUNCA
+aparece en la reunión del lunes — que es probablemente la reunión más
+importante de la semana.
+
+Peor: el bug es silencioso. La pantalla no dice "faltan datos", dice "sin
+novedades". Vas a creer que nadie hizo nada el viernes.
+
+**Cambio:** la sección deja de ser "ayer" y pasa a ser **"desde la última
+reunión"**, con una ventana que salta los días no hábiles: un lunes muestra
+desde el viernes. El encabezado dice explícitamente el rango
+(_"Movido desde el viernes 28"_) para que nunca haya que adivinar qué estás
+viendo. Y queda un selector `24h · 3 días · 7 días` por si volvés de un feriado
+largo o de vacaciones.
+
+Esto también resuelve solo el caso de la reunión salteada: si no te reuniste en
+3 días, ampliás la ventana y no perdés nada.
+
+### 15.2 — Asignar a alguien que no puede ver la tarea 🔴
+
+El selector de owner lista usuarios. Pero las políticas RLS filtran por país:
+si asignás una tarea de un proyecto de Perú a un hub que solo tiene acceso a
+Colombia, **esa persona no puede ver su propia tarea**. La tarea existe, figura
+asignada, y es un agujero negro: el hub nunca se entera y vos creés que está
+asignada.
+
+**Cambio:** el selector de owner solo lista usuarios activos cuyo rol da acceso
+al país del proyecto. Es la misma consulta que ya usa `can_access_country`, del
+lado del cliente para el listado y revalidada en la RPC de asignación (nunca
+confiar solo en que la UI filtró).
+
+### 15.3 — La tarea marcada "Lista" desaparece al instante ⚠️
+
+El hub termina algo, lo marca, y la fila se esfuma de "Mis tareas". Dos
+efectos malos: pierde la sensación de avance del día (que es lo que sostiene el
+hábito), y si se equivocó de fila no tiene cómo deshacerlo.
+
+**Cambio:** las tareas marcadas "Lista" **se quedan visibles el resto del día**,
+en gris y con un check, bajo un encabezado _"Completadas hoy (N)"_. Al día
+siguiente salen solas. El hub cierra la jornada viendo lo que logró, y puede
+revertir un clic equivocado.
+
+### 15.4 — Nadie avisa cuando asignás algo nuevo ⚠️
+
+Hasta que exista Telegram (fase 3), el hub se entera de una tarea nueva solo
+cuando entra. Si le asignás algo un martes a la tarde, puede que lo vea el
+jueves.
+
+**Cambio (barato, sin notificaciones):** un indicador en el ítem de menú y
+arriba de "Mis tareas": _"2 tareas nuevas"_, calculado contra la última vez que
+el hub abrió la sección. No reemplaza a Telegram, pero cierra el peor caso —
+que algo asignado quede sin ver por días.
+
+### 15.5 — Cinco tareas vencen hoy, ¿cuál primero? ⚠️
+
+Sin un criterio, el hub elige por su cuenta y no necesariamente lo que a vos
+más te urge.
+
+**Cambio, sin agregar un campo de prioridad:** dentro de cada grupo se ordena
+por `sort_order`, que es el orden en que VOS pusiste las tareas en el proyecto.
+Así tu orden significa prioridad, se arrastra para reordenar, y no hay un campo
+más que mantener ni un "alta/media/baja" que todos marcan en alta.
+
+### 15.6 — Tareas repetitivas ("revisar CI todas las semanas")
+
+Un PM las necesita, pero crear 52 tareas iguales es absurdo y un motor de
+recurrencia es un proyecto en sí mismo.
+
+**Decisión: fuera de alcance, y creo que no hace falta.** Lo repetitivo de este
+equipo (la carga de CI) ya se controla en Monitoreo, que para eso existe. Este
+sistema es para proyectos con principio y fin. Para lo trimestral alcanza con
+**duplicar el proyecto anterior** (fase 4), que además deja replanificar fechas
+de una.
+
+### 15.7 — Fechas inválidas o en el pasado
+
+Nada impide poner `due_date` anterior a `start_date`, o crear una tarea ya
+vencida.
+
+**Cambio:** validación al guardar. `due_date < start_date` se rechaza. Una
+fecha de vencimiento en el pasado **se permite** (a veces cargás algo atrasado
+a propósito) pero se avisa en el momento: _"esta tarea nace vencida"_. Avisar
+en vez de prohibir.
+
+### 15.8 — El hub se toma vacaciones
+
+Sus tareas se vuelven vencidas y ensucian la vista con alarmas que nadie va a
+atender.
+
+**Decisión: no agrego un sistema de ausencias** — es un campo, una UI y una
+regla más para un caso que se resuelve conversando. Lo que sí ayuda es poder
+**correr fechas en lote**: seleccionar varias tareas y desplazarlas N días.
+Entra en fase 2. Mientras tanto, "sin novedades desde el X" ya te lo hace
+visible en la reunión.
+
+### 15.9 — Una tarea lleva 3 semanas "En curso"
+
+Suele significar que está mal dimensionada, no que el hub sea lento. Es la
+señal más útil que puede darte un tablero y ninguna vista la muestra.
+
+**Cambio:** en "Hoy", una tarea con más de 10 días hábiles en `doing` se marca
+como **estancada** con un ícono y el conteo de días. No es un estado nuevo, es
+un cálculo — igual que "en riesgo". Te da el pie para partirla en la reunión.
+
+### 15.10 — Corregir un comentario mal escrito
+
+**Decisión: los comentarios no se editan ni se borran.** Son una bitácora, y
+una bitácora editable no sirve como evidencia de qué se dijo cuándo — mismo
+criterio que el `audit_log` del proyecto. Si algo salió mal, se agrega otro
+comentario corrigiendo. Si en la práctica molesta, se revisa.
+
+---
+
+## 16. Cambios acumulados de la ronda 3
+
+```sql
+-- project_tasks: nada nuevo. "Estancada" y "en riesgo" son cálculos, no
+-- columnas — mismo criterio que se aplicó en la ronda 1.
+
+-- Nueva tabla, chica, para 15.4:
+section_last_seen (
+  user_email text NOT NULL,
+  section    text NOT NULL,          -- 'projects'
+  seen_at    timestamptz NOT NULL,
+  PRIMARY KEY (user_email, section)
+)
+```
+
+Reglas nuevas del lado del cliente (todas con test, van a `lib/`):
+
+- Ventana "desde la última reunión" que salta días no hábiles (§15.1).
+- Filtro de owners elegibles por país del proyecto (§15.2).
+- "Completadas hoy" con corte por día en la zona horaria del país (§15.3).
+- Detección de tarea estancada: >10 días hábiles en `doing` (§15.9).
+- Validación `due_date >= start_date` + aviso de tarea nacida vencida (§15.7).
+
+---
+
+## 17. Fase 1 — alcance cerrado
 
 Con las dos rondas de simulación, esto es lo que entra:
 
