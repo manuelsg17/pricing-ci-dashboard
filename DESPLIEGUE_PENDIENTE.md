@@ -96,6 +96,6 @@ Nada de lo de arriba depende de esto, pero conviene tenerlo presente:
 
 - El **diagnóstico completo del contador de sesión** encontró 16 problemas. En
   esta tanda se arreglaron los **dos P0** (la causa del reinicio) y quedan 14
-  documentados sin tocar — ver la sección correspondiente en `ROADMAP.md`.
+  documentados sin tocar — ver `SESIONES_HALLAZGOS.md`.
 - El responsive de **Monitoreo, Accesos, Reporte Semanal y Eventos** quedó
   identificado pero no implementado.
