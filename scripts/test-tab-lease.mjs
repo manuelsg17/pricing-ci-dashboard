@@ -168,14 +168,16 @@ eq(
   'justo en el umbral del TTL todavía NO está vencido'
 )
 eq(
-  evaluateLease({ raw: leaseDe(SID_B, T0 - (LEASE_TTL_MS + 1), true), mySid: SID_A, now: T0 }).action,
+  evaluateLease({ raw: leaseDe(SID_B, T0 - (LEASE_TTL_MS + 1), true), mySid: SID_A, now: T0 })
+    .action,
   'claim',
   'un milisegundo después del TTL sí'
 )
 
 // El TTL se puede inyectar (los tests no dependen del valor de producción).
 eq(
-  evaluateLease({ raw: leaseDe(SID_B, T0 - 5000, true), mySid: SID_A, now: T0, ttlMs: 1000 }).action,
+  evaluateLease({ raw: leaseDe(SID_B, T0 - 5000, true), mySid: SID_A, now: T0, ttlMs: 1000 })
+    .action,
   'claim',
   'ttlMs es inyectable'
 )
@@ -471,12 +473,17 @@ function crearPestana(sid, storage, key) {
   fondo.tick(t)
   let perdidas = 0
   for (let i = 0; i < 30; i++) {
-    t += 60_000 // throttling: un solo tick por minuto
-    frente.tick(t) // la de adelante intenta cada minuto
-    fondo.tick(t)
+    // Throttling real: ~1 tick por minuto, y con deriva (el navegador no
+    // garantiza los 60s exactos). Nada de 60_000 clavados: un test que se
+    // apoya en el borde exacto pasaría aunque el TTL fuera demasiado corto.
+    t += 60_000 + (i % 5) * 3000
+    frente.tick(t) // la de adelante intenta robarlo en cada oportunidad
+    // Cada 4 vueltas la pestaña de fondo queda CONGELADA y ni siquiera corre
+    // su tick: dos intervalos seguidos sin renovar. Es el peor caso realista.
+    if (i % 4 !== 3) fondo.tick(t)
     if (!fondo.owner) perdidas++
   }
-  eq(perdidas, 0, '8.7 media hora en segundo plano (1 tick/min) y la dueña nunca pierde el lease')
+  eq(perdidas, 0, '8.7 media hora en segundo plano, con ticks salteados, no pierde el lease')
   ok(!frente.owner, '8.7 la otra pestaña nunca logra robarlo')
 }
 
@@ -515,9 +522,7 @@ console.log('[9] guard: no existe ninguna fusión de borradores')
 // que agregar un `mergeDrafts` obligue a borrarlo a mano y a leer el motivo.
 const api = await import('../src/lib/tabLease.js')
 eq(
-  Object.keys(api)
-    .filter((k) => /merge|fusion|combin/i.test(k))
-    .length,
+  Object.keys(api).filter((k) => /merge|fusion|combin/i.test(k)).length,
   0,
   'el módulo no exporta ninguna función de fusión de borradores'
 )
