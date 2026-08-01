@@ -639,17 +639,28 @@ Reglas nuevas del lado del cliente (todas con test, van a `lib/`):
 
 ## 17. Fase 1 — alcance cerrado
 
-Con las dos rondas de simulación, esto es lo que entra:
+Con las tres rondas de simulación, esto es lo que entra:
 
-1. Migración: `projects`, `project_tasks`, `task_comments`, `task_status_log`
-   - `country_config.timezone` + RLS + RPCs `set_task_status`,
-     `add_task_comment`, `reassign_task`.
+1. Migración: `projects`, `project_tasks`, `task_comments`, `task_status_log`,
+   `section_last_seen`, `country_config.timezone`, RLS y las RPCs acotadas
+   `set_task_status`, `add_task_comment`, `reassign_task`.
 2. Sección `projects` en el router y en `ALL_SECTIONS`.
-3. Vista **Hoy** (admin) con agrupación por persona, botón de actualización
-   manual, secciones Trabadas/Vence hoy/En riesgo/Movido ayer/Sin fecha.
-4. Vista **Mis tareas** (hub) agrupada por urgencia.
-5. Alta inline de proyectos y tareas.
-6. Estados de un clic + comentario inline + motivo obligatorio al trabar.
-7. Estados vacíos, i18n en 3 locales, tests de la lógica pura.
+3. Vista **Hoy** (admin), agrupada por persona, con actualización manual (nunca
+   en vivo, §13.2) y secciones: Trabadas → Vence hoy → En riesgo → Estancadas →
+   **Movido desde la última reunión** (ventana que salta días no hábiles,
+   §15.1) → Sin fecha.
+4. Vista **Mis tareas** (hub), agrupada en Vencidas · Hoy · Esta semana ·
+   Después · Sin fecha, con **Completadas hoy** (§15.3) e indicador de tareas
+   nuevas desde la última visita (§15.4).
+5. Alta inline de proyectos y tareas, con el selector de owner **acotado a
+   quienes tienen acceso al país del proyecto** (§15.2) y validación de fechas
+   (§15.7).
+6. Estados de un clic + comentario inline + motivo obligatorio al trabar +
+   comentarios de sistema al reabrir o reasignar (§13.5, §13.6).
+7. Estados vacíos que guían, i18n en los 3 locales, y tests de la lógica pura
+   en `lib/`: ventana de "última reunión", owners elegibles, corte de
+   "completadas hoy" por zona horaria, detección de estancadas y validación de
+   fechas.
 
-Fuera de la Fase 1: Gantt, Kanban, panel de Monitoreo, Telegram.
+Fuera de la Fase 1: Gantt, Kanban, panel de Monitoreo, Telegram, correr fechas
+en lote y duplicar proyecto.
