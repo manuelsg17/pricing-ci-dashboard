@@ -642,6 +642,19 @@ export const TRANSLATIONS = {
     'projects.window_auto': 'Desde la última reunión',
     'projects.window_label': 'Mostrando actividad desde el {from} ({days} día(s))',
     'projects.refresh': 'Actualizar',
+    'turnos.title': 'Cuánto tarda cada corte',
+    'turnos.subtitle':
+      'Tiempo real de trabajo por turno. Solo se promedian las sesiones medidas de punta a punta.',
+    'turnos.last_days': 'Últimos {n} días',
+    'turnos.col_turno': 'Turno',
+    'turnos.col_mediana': 'Lo habitual',
+    'turnos.col_promedio': 'Promedio',
+    'turnos.col_rango': 'Más rápido – más lento',
+    'turnos.col_muestras': 'Sesiones',
+    'turnos.excluded':
+      '{n} sesión(es) quedaron fuera del cálculo porque no se pudieron medir bien (turno sin cerrar, o más de 4h seguidas).',
+    'turnos.none_excluded': 'Todas las sesiones del período se pudieron medir bien.',
+    'turnos.failed': 'No se pudo calcular el tiempo por turno.',
     // ── Errores del cliente (mig 185) ──────────────────────────────
     'errors.title': 'Errores detectados',
     'errors.failed': 'No se pudo cargar la bitácora de errores.',
@@ -2960,6 +2973,19 @@ export const TRANSLATIONS = {
     'projects.window_auto': 'Since last meeting',
     'projects.window_label': 'Showing activity since {from} ({days} day(s))',
     'projects.refresh': 'Refresh',
+    'turnos.title': 'How long each round takes',
+    'turnos.subtitle':
+      'Real working time per shift. Only sessions measured end to end are averaged.',
+    'turnos.last_days': 'Last {n} days',
+    'turnos.col_turno': 'Shift',
+    'turnos.col_mediana': 'Typical',
+    'turnos.col_promedio': 'Average',
+    'turnos.col_rango': 'Fastest – slowest',
+    'turnos.col_muestras': 'Sessions',
+    'turnos.excluded':
+      '{n} session(s) were left out because they could not be measured properly (shift left open, or over 4h straight).',
+    'turnos.none_excluded': 'Every session in this period could be measured properly.',
+    'turnos.failed': 'Could not compute time per shift.',
     // ── Client errors (mig 185) ────────────────────────────────────
     'errors.title': 'Errors detected',
     'errors.failed': 'Could not load the error log.',
@@ -5259,6 +5285,19 @@ export const TRANSLATIONS = {
     'projects.window_auto': 'С последней встречи',
     'projects.window_label': 'Активность с {from} ({days} дн.)',
     'projects.refresh': 'Обновить',
+    'turnos.title': 'Сколько занимает каждый обход',
+    'turnos.subtitle':
+      'Реальное рабочее время по сменам. Усредняются только сессии, измеренные полностью.',
+    'turnos.last_days': 'Последние {n} дней',
+    'turnos.col_turno': 'Смена',
+    'turnos.col_mediana': 'Обычно',
+    'turnos.col_promedio': 'В среднем',
+    'turnos.col_rango': 'Быстрее – медленнее',
+    'turnos.col_muestras': 'Сессии',
+    'turnos.excluded':
+      '{n} сессий не вошли в расчёт: их не удалось корректно измерить (смена не закрыта или более 4 ч подряд).',
+    'turnos.none_excluded': 'Все сессии периода удалось корректно измерить.',
+    'turnos.failed': 'Не удалось рассчитать время по сменам.',
     // ── Ошибки клиента (mig 185) ───────────────────────────────────
     'errors.title': 'Обнаружены ошибки',
     'errors.failed': 'Не удалось загрузить журнал ошибок.',
