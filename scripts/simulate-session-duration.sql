@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════
--- Paridad SQL ↔ JS del cálculo de `ci_sessions.duration_minutes` (mig 192).
+-- Paridad SQL ↔ JS del cálculo de `ci_sessions.duration_minutes` (mig 193).
 --
 -- POR QUÉ EXISTE
 -- La duración se escribe por DOS caminos: el cliente cuando el hub aprieta
@@ -7,7 +7,7 @@
 -- un admin la cierra a la fuerza. Tener dos implementaciones del mismo
 -- algoritmo es inevitable —una corre en el navegador y la otra en Postgres—
 -- pero que DIVERJAN no: sería volver a tener dos fuentes de verdad, que es
--- exactamente el bug que la mig 192 vino a cerrar.
+-- exactamente el bug que la mig 193 vino a cerrar.
 --
 -- Los casos de acá son los MISMOS que scripts/test-session-duration.mjs, con
 -- los mismos números esperados. Si uno de los dos cambia y el otro no, esto

@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 192_ci_duration_single_source.sql — que `ci_sessions.duration_minutes`
+-- 193_ci_duration_single_source.sql — que `ci_sessions.duration_minutes`
 -- deje de mentir, y que tenga UNA sola fuente de verdad.
 --
 -- REPORTE DEL USER (2026-08-01): "no tenga data de sesiones terminadas en
