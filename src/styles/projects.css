@@ -558,3 +558,114 @@
   display: inline-flex !important;
   margin-right: 12px;
 }
+
+/* ── Responsive (CLAUDE.md §1, alcance acotado 2026-07-31) ──────────────
+   Proyectos SÍ entra en responsive: marcar una rutina o mirar quién está
+   atrasado antes de una reunión son acciones de celular. La grilla de
+   Ingresar CI NO — ahí el caso de uso no existe.
+
+   Objetivo: legible y operable a 390px. Un solo breakpoint en 640px; más
+   breakpoints serían precisión falsa para un layout de una columna.
+
+   OJO: preflight de Tailwind está deshabilitado (tailwind.config.js), así
+   que acá no hay reset de estilos base — todo lo de abajo se verificó en
+   navegador a 390px, no se asumió. */
+@media (max-width: 640px) {
+  .projects {
+    padding: 12px 10px;
+  }
+
+  /* Las pestañas pasan a ocupar el ancho completo y repartirse parejo: a
+     390px, tres pestañas con padding fijo se desbordan. */
+  .projects__tabs {
+    width: 100%;
+  }
+  .projects__tabs button {
+    flex: 1;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  .projects__filters {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Lo más importante del bloque: la fila de tarea deja de ser
+     contenido-al-lado-de-botones y pasa a apilarse. En horizontal, los 4
+     botones de estado se comen ~200px y dejan el título en ~170px, o sea
+     cortado justo en lo único que el hub necesita leer. */
+  .ptask {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .ptask__states {
+    width: 100%;
+  }
+  .ptask__state {
+    flex: 1;
+    padding: 0 4px;
+    font-size: 11px;
+    /* 34px de alto: por debajo de eso el dedo empieza a errarle, y este es
+       EL control que el hub usa todos los días. */
+    height: 34px;
+  }
+
+  /* La ruta y los metadatos pueden ser largos; que corten en varias líneas
+     antes que desbordar el ancho de la pantalla. */
+  .ptask__meta,
+  .ptask__head {
+    gap: 6px;
+  }
+
+  /* La planilla de admin abandona el grid de columnas fijas (1fr 200px 140px
+     140px 32px = 512px mínimos) y se apila. El encabezado se oculta: sin
+     columnas no significa nada, y los propios controles ya se distinguen por
+     tipo (texto = título, lista de emails = dueño, fecha, lista de ciudades). */
+  .ptable__head {
+    display: none;
+  }
+  .ptable__row {
+    grid-template-columns: 1fr 1fr 32px;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  /* El título ocupa la fila completa; dueño/fecha/ciudad se reparten abajo. */
+  .ptable__row > input:first-child {
+    grid-column: 1 / -1;
+  }
+  .ptable__row > select:nth-of-type(1) {
+    grid-column: 1 / -1;
+  }
+  .ptable__row input,
+  .ptable__row select {
+    height: 34px;
+  }
+  .ptable__del,
+  .ptable__add {
+    height: 34px;
+  }
+
+  /* Formulario de proyecto nuevo: los pares de fecha dejan de ir lado a lado. */
+  .pform__row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pform {
+    max-width: 100%;
+  }
+
+  /* El encabezado de proyecto (nombre + progreso + archivar) se apila para
+     que el nombre no quede truncado a tres caracteres. */
+  .pproj__head {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pproj__meta {
+    width: 100%;
+    order: 3;
+  }
+}

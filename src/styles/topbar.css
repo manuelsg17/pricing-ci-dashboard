@@ -284,3 +284,58 @@
   background: #ffffff;
   color: var(--color-text);
 }
+
+/* ── Responsive (CLAUDE.md §1, alcance acotado 2026-07-31) ──────────────
+   La barra es COMPARTIDA por toda la app, así que este bloque no es parte de
+   "hacer responsive tal pantalla": es su precondición. Sin esto, .topbar__tabs
+   (499px) + .topbar__right (425px) en una sola fila que no baja fuerzan la
+   página entera a 1067px, y Proyectos se ve perfecto pero el usuario igual
+   scrollea de costado en TODA la app — verificado a 390px, no supuesto.
+
+   No cambia nada por encima de 640px, así que la grilla de Ingresar CI (fuera
+   del alcance responsive a propósito) queda intacta. */
+@media (max-width: 640px) {
+  .topbar {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    row-gap: 6px;
+  }
+
+  /* Las pestañas bajan a su propia franja y scrollean HORIZONTALMENTE dentro
+     de ella. Es la única parte de la app donde un scroll lateral es correcto:
+     una nav de 6 secciones no entra a 390px, y apilarla verticalmente comería
+     media pantalla en cada carga. */
+  .topbar__tabs {
+    order: 3;
+    flex: 1 0 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .topbar__tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .topbar__tab {
+    flex-shrink: 0;
+    padding: 0 10px;
+    font-size: 12.5px;
+  }
+
+  /* El grupo derecho puede envolver: con la barra de alto automático, que baje
+     una fila es preferible a recortar el selector de país, que es justamente
+     el control que evita cargar datos en el país equivocado. */
+  .topbar__right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    row-gap: 6px;
+  }
+  .topbar__account-trigger {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
