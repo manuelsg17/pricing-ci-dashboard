@@ -188,6 +188,62 @@ COMMENT ON FUNCTION public.close_ci_session(uuid, jsonb) IS
 REVOKE ALL ON FUNCTION public.close_ci_session(uuid, jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.close_ci_session(uuid, jsonb) TO authenticated;
 
+-- ── PARTE 3 · Un bug que este trabajo destapó, no que introdujo ───────
+-- El trigger `ci_close_fill_quality` (mig 195) es SECURITY INVOKER y llama a
+-- `ci_duration_quality_from_timings` → `ci_ts_or_null`, dos funciones a las
+-- que la mig 194 le REVOCÓ el EXECUTE a `authenticated` (a propósito: no
+-- tienen por qué quedar expuestas como RPC de PostgREST).
+--
+-- Resultado: cualquier INSERT a ci_sessions hecho por un hub que traiga
+-- `turno_timings` y NO traiga `duration_confiable` muere con
+--
+--     42501 · permission denied for function ci_ts_or_null
+--
+-- y el hub NO PUEDE TERMINAR LA SESIÓN. Hoy no se nota porque el cliente
+-- actual siempre manda `duration_confiable` y el trigger corta antes de
+-- llamar nada. Se nota en el único momento en que importa: la ventana entre
+-- aplicar las migraciones y publicar el bundle nuevo (DESPLIEGUE_PENDIENTE.md
+-- pide ese orden), en la que todo hub con la pestaña abierta desde antes
+-- corre el bundle VIEJO — que manda turno_timings sin duration_confiable.
+-- Es exactamente el "cliente con el bundle viejo todavía cargado" de
+-- CLAUDE.md §4, con pérdida de la sesión entera.
+--
+-- Se descubrió llamando a la RPC nueva por HTTP real contra PostgREST; la
+-- simulación SQL no lo veía porque su payload sí mandaba duration_confiable.
+--
+-- El fix es del trigger, no de los permisos: SECURITY DEFINER acá no abre
+-- nada —la función no consulta tablas, solo completa dos columnas de NEW y ya
+-- fija search_path— mientras que dar EXECUTE de los helpers a `authenticated`
+-- desharía la decisión deliberada de la mig 194 y los publicaría como RPC.
+CREATE OR REPLACE FUNCTION public.ci_close_fill_quality()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF NEW.duration_confiable IS NULL THEN
+    NEW.duration_motivo :=
+      ci_duration_quality_from_timings(NEW.turno_timings, NEW.ended_at);
+    NEW.duration_confiable := (NEW.duration_motivo IS NULL);
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+COMMENT ON FUNCTION public.ci_close_fill_quality() IS
+  'Completa duration_confiable/duration_motivo cuando el que inserta no los '
+  'manda. SECURITY DEFINER porque los helpers de la mig 194 no tienen EXECUTE '
+  'para authenticated y sin eso un cliente con bundle viejo no puede cerrar '
+  'su sesión (42501). No consulta ninguna tabla y fija search_path.';
+
+-- Ahora que corre con privilegios del dueño, el EXECUTE que Postgres le da a
+-- PUBLIC por defecto sobra. Postgres no re-chequea ese privilegio al disparar
+-- el trigger (verificado en local: el INSERT como `authenticated` sigue
+-- completando las columnas después del REVOKE), así que sacarlo no cuesta
+-- nada y cierra la superficie — CLAUDE.md §3: verificar, no asumir.
+REVOKE ALL ON FUNCTION public.ci_close_fill_quality() FROM PUBLIC, anon, authenticated;
+
 COMMIT;
 
 -- ── VERIFICACIÓN ──────────────────────────────────────────────────────

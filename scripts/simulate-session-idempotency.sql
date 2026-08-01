@@ -286,6 +286,49 @@ BEGIN
 END $$;
 
 \echo ''
+\echo '════ 6b. REGRESIÓN: cerrar sin mandar duration_confiable ════'
+-- El bundle VIEJO manda turno_timings y NO manda duration_confiable. Con el
+-- trigger de la mig 195 en SECURITY INVOKER, eso moría con
+-- "permission denied for function ci_ts_or_null" (42501) y el hub no podía
+-- terminar la sesión — justo en la ventana entre aplicar migraciones y
+-- publicar el bundle nuevo. Se detectó llamando a la RPC por HTTP real: el
+-- payload de esta simulación sí mandaba la columna y tapaba el caso.
+DO $$
+DECLARE
+  v_mail  text := 'hub.bundleviejo@local.test';
+  v_conf  boolean;
+BEGIN
+  EXECUTE format('SET LOCAL request.jwt.claims TO %L',
+                 json_build_object('email', v_mail, 'role', 'authenticated')::text);
+  SET LOCAL ROLE authenticated;
+  INSERT INTO ci_sessions (country, city, observed_date, user_email, started_at, ended_at,
+                           duration_minutes, rows_saved, turno_timings)
+  VALUES ('Peru','Arequipa','2026-08-01', v_mail,
+          '2026-08-01T09:00:00Z','2026-08-01T09:40:00Z', 40, 324,
+          '{"Mañana":{"startedAt":"2026-08-01T09:00:00Z","endedAt":"2026-08-01T09:40:00Z"}}'::jsonb);
+  RESET ROLE;
+
+  PERFORM pg_temp.esperar('el bundle viejo puede cerrar su sesión', pg_temp.filas(v_mail) = 1, true);
+
+  SELECT duration_confiable INTO v_conf FROM ci_sessions WHERE user_email = v_mail;
+  PERFORM pg_temp.esperar('y el trigger completa la marca de confianza solo', v_conf, true);
+END $$;
+
+-- Lo mismo por la RPC nueva, que es el camino que va a usar el cliente.
+DO $$
+DECLARE
+  v_mail text := 'hub.sinconf@local.test';
+  v_out  jsonb;
+  v_conf boolean;
+BEGIN
+  v_out := pg_temp.cerrar(v_mail, '66666666-6666-4666-8666-666666666666',
+                          pg_temp.payload(v_mail) - 'duration_confiable');
+  PERFORM pg_temp.esperar('la RPC cierra sin duration_confiable', (v_out->>'id') IS NOT NULL, true);
+  SELECT duration_confiable INTO v_conf FROM ci_sessions WHERE user_email = v_mail;
+  PERFORM pg_temp.esperar('y la marca queda completada por el trigger', v_conf, true);
+END $$;
+
+\echo ''
 \echo '════ 7. Permisos e higiene ════'
 DO $$
 DECLARE v_ok boolean;
@@ -294,6 +337,16 @@ BEGIN
     has_function_privilege('anon', 'public.close_ci_session(uuid,jsonb)', 'EXECUTE'), false);
   PERFORM pg_temp.esperar('authenticated sí puede',
     has_function_privilege('authenticated', 'public.close_ci_session(uuid,jsonb)', 'EXECUTE'), true);
+
+  -- El trigger quedó SECURITY DEFINER (parte 3): tiene que fijar search_path
+  -- y NO tiene por qué conservar el EXECUTE que Postgres le da a PUBLIC.
+  SELECT prosecdef AND proconfig @> ARRAY['search_path=public, pg_temp'] INTO v_ok
+    FROM pg_proc WHERE oid = 'public.ci_close_fill_quality()'::regprocedure;
+  PERFORM pg_temp.esperar('ci_close_fill_quality es DEFINER con search_path fijo', v_ok, true);
+  PERFORM pg_temp.esperar('y sin EXECUTE para authenticated',
+    has_function_privilege('authenticated', 'public.ci_close_fill_quality()', 'EXECUTE'), false);
+  PERFORM pg_temp.esperar('los helpers de la mig 194 siguen sin exponerse',
+    has_function_privilege('authenticated', 'public.ci_ts_or_null(text)', 'EXECUTE'), false);
 
   -- search_path fijo: un search_path mutable en una función expuesta es una
   -- vía de escalación clásica (CLAUDE.md §3).
