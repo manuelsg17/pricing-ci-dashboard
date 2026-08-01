@@ -16,8 +16,30 @@ un cambio: repasar el checklist de la sección 7 completo, no una versión abrev
   Auth + RLS) como único backend. Sin framework SSR, sin capa de API intermedia — el
   cliente habla directo con Supabase (`src/lib/supabase.js`) o con RPCs.
 - **Decisión de alcance deliberada** (no son huecos, no "arreglar" sin que lo pida el
-  user): sin diseño responsive/mobile, sin dark mode, sin TypeScript, sin tests E2E de
-  navegador automatizados en CI. Los hubs trabajan desde PC de escritorio.
+  user): sin dark mode, sin TypeScript. Los hubs hacen la carga de datos desde PC de
+  escritorio.
+- **Responsive: alcance ACOTADO, revisado 2026-07-31.** La decisión original era "sin
+  responsive" porque los hubs trabajan desde PC. Sigue siendo cierto para la carga de
+  datos — nadie llena una grilla de 108-324 celdas desde un teléfono — pero dejó de
+  serlo para las vistas de lectura y de marcado rápido (Proyectos, Monitoreo,
+  Dashboard): marcar una rutina diaria o mirar quién está atrasado antes de una
+  reunión son acciones de celular. Regla:
+  - **Entra en responsive**: Proyectos, Monitoreo, Dashboard y cualquier vista nueva
+    de lectura o de interacción liviana. Objetivo: legible y operable a 390px.
+  - **Queda fuera a propósito**: la grilla de Ingresar CI y Upload. Un layout
+    responsive ahí arriesga los fixes P0/P1 de re-render ya hechos (§5) a cambio de un
+    caso de uso que no existe.
+  - Todo lo nuevo nace responsive. Lo viejo se migra cuando se toca, no en un barrido.
+  - `tailwind.config.js` tiene **preflight deshabilitado** — los breakpoints (`sm:`,
+    `md:`…) funcionan igual, pero no hay reset de estilos base: verificar en navegador,
+    no asumir.
+- **Tests E2E de navegador: pendiente de adopción, ya no es un "no".** La decisión
+  original se tomó cuando no había un entorno local reproducible; desde que
+  `supabase start` funciona (2026-07-31) el motivo desapareció. La clase de bug más
+  cara y más repetida de este proyecto (supervivencia de estado a un F5 real,
+  guards anti-resurrección, sesiones compartidas) es exactamente la que un E2E caza y
+  un test unitario no. Ver §7.6: hoy ese flujo se cubre a mano y depende de que alguien
+  se acuerde de hacerlo.
 - **RPCs como patrón canónico** para lógica de negocio no trivial o que cruza tablas —
   no lógica de negocio duplicada en el cliente si ya existe una RPC equivalente.
   Los RPCs de dashboard con sufijo `_fast` leen materialized views (MV), no las tablas
@@ -128,7 +150,31 @@ conviviendo con la nueva y correcta gana en silencio, sin error, sin log.
 - **Rotación/exposición de credenciales**: nunca commitear tokens, service role keys,
   ni contraseñas — ni en código, ni en archivos de config trackeados, ni en mensajes
   de commit. Si una acción requiere el Admin API con `service_role`, mantenerla fuera
-  del bundle del cliente.
+  del bundle del cliente. **Una credencial expuesta se considera comprometida desde el
+  segundo cero**: rotarla de inmediato y revisar el uso. Borrarla del último commit NO
+  alcanza — queda en el historial, en los forks y en cualquier caché de la plataforma.
+- **Deny by default en toda tabla nueva expuesta por la Data API**: habilitar RLS en el
+  MISMO cambio que crea la tabla, y conceder a `anon`/`authenticated` solo los grants
+  mínimos. RLS y GRANT son controles complementarios, no alternativos — el permiso se
+  evalúa ANTES que la política, así que una tabla con RLS impecable y un grant amplio
+  sigue estando abierta.
+- **Una política por operación, con `TO` explícito.** `USING` filtra las filas que ya
+  existen; `WITH CHECK` valida el estado nuevo. Un `UPDATE` sin `WITH CHECK` deja
+  mover una fila fuera del alcance del propio usuario.
+- **Una política RLS no puede restringir por COLUMNA.** Si el usuario solo debe poder
+  cambiar un campo, la política no alcanza: va por RPC `SECURITY DEFINER` que valide y
+  escriba solo lo permitido. La UI muestra un botón; la API no es la UI (patrón ya
+  usado en mig 183/184 para que un hub cambie estado sin poder tocar título ni dueño).
+- **Nunca autorizar con `user_metadata`** — es editable por el propio usuario. Usar
+  tablas de roles protegidas o claims administrativos.
+- **Matriz mínima al tocar RLS**: `anon`, autenticado dueño, autenticado NO dueño, y
+  cruce de país. Verificar tanto lo permitido como lo denegado, y que una consulta
+  denegada no filtre la EXISTENCIA de datos ajenos (un `count` o un error distinto ya
+  es una fuga).
+- **Nunca usar `service_role` para que pase una prueba que pretende validar RLS.** Es
+  la forma más eficiente de tener una suite verde sobre una base abierta.
+- **Validar toda entrada en el límite del servidor**, no solo en el formulario. Y no
+  filtrar SQL, stack traces ni nombres de políticas en errores visibles al usuario.
 
 ---
 
@@ -158,6 +204,16 @@ conviviendo con la nueva y correcta gana en silencio, sin error, sin log.
   normalización nueva debe auditarse contra TODOS los caminos de entrada de datos, no
   solo el que se está tocando. Hay un script de chequeo
   (`scripts/check-normalization-drift.sql`) — correrlo si se toca normalización.
+- **Cambios incompatibles de esquema: expandir → desplegar → backfill → verificar →
+  contraer**, en releases separadas. Renombrar o borrar una columna en el mismo deploy
+  que la deja de usar rompe a cualquier cliente con el bundle viejo todavía cargado —
+  y en esta app el hub puede tener la pestaña abierta desde ayer. Primero se agrega lo
+  nuevo, después se migra el dato, y solo cuando nadie lee lo viejo se borra.
+- **Preferir migraciones correctivas hacia adelante** antes que un rollback de SQL. Un
+  rollback solo es aceptable si fue diseñado y probado como parte del cambio.
+- **Un backfill debe ser reanudable, acotado y observable** — nada de un UPDATE sin
+  WHERE sobre una tabla de millones de filas. Y en producción, con autorización
+  explícita para ESE backfill (§3, §8).
 
 ---
 
@@ -247,6 +303,9 @@ chicos.
    producción: confirmar con una query directa que el patrón del bug no sigue
    ocurriendo (no asumir que el fix funcionó solo porque el código "se ve bien").
 9. **i18n**: confirmar que ningún string nuevo quedó sin las 3 traducciones.
+   9b. **Si el cambio toca una vista dentro del alcance responsive (§1)**: verificarla a
+   390px además de escritorio — que no haya scroll horizontal, texto cortado ni
+   controles inalcanzables.
 10. **Limpieza de entorno de prueba**: si se usó Supabase local con datos/usuarios de
     prueba, borrarlos y `supabase stop` al terminar — nunca dejar residuos que
     puedan confundir la próxima sesión de trabajo.
@@ -267,3 +326,87 @@ chicos.
   acción específica (tabla, filas, motivo) — una autorización general ("arreglá todo")
   no cubre por sí sola un DELETE en una tabla compartida; confirmar la acción puntual
   antes de ejecutarla.
+
+---
+
+## 9. Entornos, despliegue y rollback
+
+Este proyecto tiene DOS entornos reales: **local** (Supabase en Docker) y
+**producción**. No hay Preview ni Staging, y no hace falta inventarlos para un
+proyecto de un solo desarrollador — pero eso significa que **local es la única red de
+seguridad que existe**, así que no es opcional.
+
+- **Local es el destino por defecto** de desarrollo, migraciones y pruebas.
+  `npx supabase start` levanta el stack; `npx supabase stop` lo apaga conservando los
+  datos. Nunca probar contra producción algo que local puede responder.
+- **`supabase db reset` es local; `--linked` es producción.** No son variantes del
+  mismo comando: uno reconstruye la base de Docker y el otro destruye la base remota.
+  **`db reset --linked` está prohibido en este proyecto, sin excepciones.** Escribir
+  siempre el flag explícito, no confiar en el default del subcomando.
+- **Antes de CUALQUIER comando remoto, verificar a qué proyecto está enlazada la CLI.**
+  No confiar en el link que la CLI recuerda de la sesión anterior — es exactamente el
+  camino por el que una migración de prueba termina en producción.
+- **Un rollback del deploy NO revierte la base de datos.** Volver al build anterior
+  deja el esquema nuevo intacto, y con él cualquier columna borrada o constraint
+  agregada. Por eso los cambios incompatibles se parten en releases (§4) y la ventana
+  de rollback exige que la versión anterior de la app siga funcionando contra el
+  esquema nuevo.
+- **Una sola autoridad aplica migraciones.** Nunca a la vez desde la CLI y desde el
+  Dashboard de Supabase — un cambio hecho a mano en el Dashboard queda fuera del
+  historial versionado y aparece después como drift inexplicable.
+- **El deploy corre `npm ci`, `npm run test:all` y `npm run build`** antes de publicar
+  (`.github/workflows/deploy.yml`). Si un test falla, el deploy se aborta: eso es
+  deliberado y no se saltea. `npm run lint` todavía NO está en CI — hasta que lo esté,
+  correrlo a mano es obligatorio (§7.1).
+
+---
+
+## 10. Seguridad operativa e incidentes
+
+Si se detecta pérdida o corrupción de datos, exposición de credenciales, acceso
+indebido o una regresión grave en producción:
+
+1. **Parar** las mutaciones y deploys relacionados. No seguir "arreglando" a ciegas.
+2. **Informar de inmediato** qué se sabe: alcance, entorno, hora aproximada y qué
+   todavía no se sabe. Un reporte incompleto y a tiempo vale más que uno completo y
+   tarde.
+3. **Preservar la evidencia** — logs, filas afectadas, queries de diagnóstico — antes
+   de tocar nada. Nunca copiar secretos como parte de esa evidencia.
+4. **Contener** con el mínimo daño: deshabilitar el flujo, revertir la app o revocar la
+   credencial. Rotar cualquier secreto involucrado (§3).
+5. **Medir el impacto real** con una query directa, no por inspección del código.
+6. **Recuperar**, verificar el servicio y los controles de acceso, y recién ahí cerrar.
+7. **Documentar** cronología, causa raíz y qué lo previene la próxima vez — en el
+   commit y en este archivo si genera una regla nueva.
+
+**La urgencia no elimina la confirmación para una operación destructiva.** Un incidente
+es precisamente cuando más caro sale un DELETE apurado sobre la tabla equivocada. Si
+hace falta destruir algo para contener, se pide igual — solo que primero.
+
+---
+
+## 11. Cómo se entrega un cambio
+
+No usar "todo funciona" como sustituto de evidencia. Si algo no se pudo ejecutar, se
+dice cuál y por qué — nunca se omite ni se da por hecho.
+
+```text
+Resultado      — qué se logró y para qué.
+Cambios        — archivos/áreas principales y las decisiones que importan.
+BD y seguridad — migraciones, RLS, RPCs, permisos. "No aplica" si corresponde.
+Validación     — comando o prueba : resultado REAL. Verificación manual : resultado.
+Despliegue     — pasos, orden, y cómo se revierte (o "no aplica").
+Pendientes     — lo no ejecutado, el motivo, los supuestos y qué sigue.
+```
+
+Reglas de honestidad, todas con antecedente en este proyecto:
+
+- **No afirmar que una prueba pasó si no se ejecutó**, ni que un fix funciona porque el
+  código "se ve bien" (§7.8 pide el barrido de datos reales por esto).
+- **No ocultar advertencias, drift ni trabajo incompleto** para cerrar más rápido.
+- **No inventar comandos, archivos, métricas ni estados de despliegue.** Si un script
+  no existe, se informa el hueco.
+- **Corregirse rápido y sin ceremonia** cuando un diagnóstico resultó equivocado: ya
+  pasó con una fuga de RLS que era un falso positivo del advisory y con una supuesta
+  discrepancia del dashboard que era un artefacto de la query de verificación. El costo
+  de un diagnóstico equivocado que se sostiene es mucho mayor que el de admitirlo.
