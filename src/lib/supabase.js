@@ -47,13 +47,33 @@ export const SESSION_ID = getSessionId()
 // real por impaciencia sería peor que el problema que se está resolviendo.
 const REQUEST_TIMEOUT_MS = 45_000
 
+// `AbortSignal.timeout` es Chrome 103 / Safari 16 / Firefox 100, y el target
+// de build de Vite es más bajo (safari14). Sin este guard, un hub que abra la
+// app en un Safari de iOS 15 o un Chrome viejo de Android recibía un
+// TypeError SÍNCRONO en el primer request: la app no cargaba, ni siquiera el
+// login. Un timeout es una mejora; romper el arranque no es un precio
+// aceptable por ella.
+const SOPORTA_TIMEOUT =
+  typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+const SOPORTA_ANY = typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function'
+
 function fetchConTimeout(input, init = {}) {
-  // Se respeta cualquier signal que ya venga (supabase-js usa uno propio para
-  // cancelar suscripciones): se combinan en vez de pisarlo.
-  const señales = [AbortSignal.timeout(REQUEST_TIMEOUT_MS)]
-  if (init.signal) señales.push(init.signal)
-  const signal = typeof AbortSignal.any === 'function' ? AbortSignal.any(señales) : señales[0]
-  return fetch(input, { ...init, signal })
+  // Sin soporte: se pasa el fetch tal cual, con el signal del llamador
+  // intacto. Se degrada al comportamiento anterior, no a uno peor.
+  if (!SOPORTA_TIMEOUT) return fetch(input, init)
+
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  // Sin AbortSignal.any NO se puede combinar sin perder uno de los dos. Se
+  // prioriza el signal del LLAMADOR: supabase-js lo usa para cancelar
+  // suscripciones y peticiones abortadas a propósito, y romperle eso causa
+  // fugas peores que la falta de timeout.
+  if (init.signal) {
+    return fetch(input, {
+      ...init,
+      signal: SOPORTA_ANY ? AbortSignal.any([timeout, init.signal]) : init.signal,
+    })
+  }
+  return fetch(input, { ...init, signal: timeout })
 }
 
 export const sb = createClient(supabaseUrl || '', supabaseKey || '', {

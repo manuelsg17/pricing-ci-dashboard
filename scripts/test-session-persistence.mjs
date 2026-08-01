@@ -12,6 +12,7 @@
 import {
   estadoDeGuardado,
   estadoDeServidor,
+  debeReanudarTramo,
   SERVIDOR_STALE_MS,
 } from '../src/lib/sessionPersistence.js'
 
@@ -295,6 +296,57 @@ eq(
   estadoFinal.kind,
   'nada_guardado',
   '100 latidos exitosos seguidos NO convierten "nada guardado" en "guardado"'
+)
+
+
+// ── [8] debeReanudarTramo — el bug que introdujo el fix de P1-7 ───────
+console.log('[8] debeReanudarTramo: reanudar vs. arrancar un tramo nuevo')
+
+const HOY = '2026-08-01'
+const abierto = { Morning: { startedAt: '2026-08-01T09:00:00Z' } }
+const cerrado = {
+  Morning: { startedAt: '2026-08-01T09:00:00Z', endedAt: '2026-08-01T11:00:00Z' },
+}
+
+eq(
+  debeReanudarTramo({ loadDate: HOY, today: HOY, timings: abierto }),
+  true,
+  'jornada de HOY sin cerrar → reanuda (F5 a mitad de trabajo)'
+)
+
+// EL CASO H1: mirar una fecha pasada no puede arrancar un cronómetro desde
+// la mañana de ese día — marcaba 30:00:00.
+eq(
+  debeReanudarTramo({ loadDate: '2026-07-28', today: HOY, timings: abierto }),
+  false,
+  'fecha PASADA → tramo nuevo, nunca hereda el inicio de ese día'
+)
+
+// EL CASO H3: terminar a las 11:00 y volver a las 15:00 marcaba 06:00:00.
+eq(
+  debeReanudarTramo({ loadDate: HOY, today: HOY, timings: cerrado }),
+  false,
+  'jornada de hoy YA CERRADA → es una corrección, no una continuación'
+)
+
+// Un turno cerrado y otro abierto: sigue habiendo trabajo en curso.
+eq(
+  debeReanudarTramo({
+    loadDate: HOY,
+    today: HOY,
+    timings: { ...cerrado, Evening: { startedAt: '2026-08-01T18:00:00Z' } },
+  }),
+  true,
+  'con un turno todavía abierto → reanuda'
+)
+
+eq(debeReanudarTramo({ loadDate: HOY, today: HOY, timings: {} }), false, 'sin timings → tramo nuevo')
+eq(debeReanudarTramo({ loadDate: HOY, today: HOY, timings: null }), false, 'timings null no rompe')
+eq(debeReanudarTramo(), false, 'sin argumentos no rompe')
+eq(
+  debeReanudarTramo({ loadDate: HOY, today: HOY, timings: { Morning: {} } }),
+  false,
+  'un turno sin startedAt no cuenta como jornada en curso'
 )
 
 // ── Resultado ─────────────────────────────────────────────────────────

@@ -747,9 +747,6 @@ export const TRANSLATIONS = {
     'dataentry.no_server_contact': '⚠ Sin contacto con el servidor — tu progreso está solo acá',
     'dataentry.no_server_contact_min':
       '⚠ Sin contacto con el servidor hace {m}m — tu progreso está solo en este navegador',
-    'dataentry.server_confirmed_ago': '✓ Confirmado en servidor hace {s}s',
-    'dataentry.server_unconfirmed_warn':
-      '⚠ No pudimos confirmar con el servidor hace {m}m — tu progreso puede estar solo en este navegador',
     'dataentry.other_draft_note': 'Tenés un borrador sin terminar en {city}, {date} ({n} celdas).',
     'dataentry.other_draft_jump': 'Ir ahí',
     'dataentry.other_draft_discard': 'Descartar',
@@ -3048,9 +3045,6 @@ export const TRANSLATIONS = {
     'dataentry.no_server_contact': '⚠ No contact with the server — your progress is only here',
     'dataentry.no_server_contact_min':
       '⚠ No contact with the server for {m}m — your progress is only in this browser',
-    'dataentry.server_confirmed_ago': '✓ Confirmed on server {s}s ago',
-    'dataentry.server_unconfirmed_warn':
-      "⚠ We couldn't confirm with the server for {m}m — your progress may only be in this browser",
     'dataentry.other_draft_note': 'You have an unfinished draft in {city}, {date} ({n} cells).',
     'dataentry.other_draft_jump': 'Go there',
     'dataentry.other_draft_discard': 'Discard',
@@ -5338,9 +5332,6 @@ export const TRANSLATIONS = {
     'dataentry.no_server_contact': '⚠ Нет связи с сервером — ваш прогресс только здесь',
     'dataentry.no_server_contact_min':
       '⚠ Нет связи с сервером уже {m} мин — ваш прогресс только в этом браузере',
-    'dataentry.server_confirmed_ago': '✓ Подтверждено сервером {s} с назад',
-    'dataentry.server_unconfirmed_warn':
-      '⚠ Не удалось подтвердить с сервером {m} мин — прогресс может быть сохранён только в этом браузере',
     'dataentry.other_draft_note': 'У вас есть незавершённый черновик в {city}, {date} ({n} ячеек).',
     'dataentry.other_draft_jump': 'Перейти туда',
     'dataentry.other_draft_discard': 'Отменить',

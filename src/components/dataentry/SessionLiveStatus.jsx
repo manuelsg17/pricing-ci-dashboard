@@ -68,6 +68,7 @@ export function SaveStatusIndicators({
   lastHeartbeatOkAt,
   filledCount = 0,
   savableCount = 0,
+  bucketKey,
   editSeqRef,
   savedSeqRef,
   t,
@@ -88,8 +89,10 @@ export function SaveStatusIndicators({
   const guardado = estadoDeGuardado({
     filledCount,
     savableCount,
-    editSeq: editSeqRef?.current ?? 0,
-    savedSeq: savedSeqRef?.current ?? -1,
+    // Del bucket ACTUAL: los contadores son por ciudad/frente, si no el
+    // cartel habla de un bucket y muestra el estado de otro.
+    editSeq: editSeqRef?.current?.[bucketKey] ?? 0,
+    savedSeq: savedSeqRef?.current?.[bucketKey] ?? -1,
   })
 
   const servidor = estadoDeServidor({

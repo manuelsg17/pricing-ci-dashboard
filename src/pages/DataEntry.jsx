@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sb, SESSION_ID } from '../lib/supabase'
+import { debeReanudarTramo } from '../lib/sessionPersistence'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
@@ -218,12 +219,17 @@ export default function DataEntry() {
   // pulsación — justo el costo que los fixes P0/P1 de la grilla evitaron
   // (CLAUDE.md §5). El indicador ya tiene su propio tick de 1s, así que leer
   // el ref con hasta un segundo de atraso no cambia nada para el usuario.
-  const editSeqRef = useRef(0)
-  const savedSeqRef = useRef(-1)
+  // POR BUCKET, no globales. Con un contador único, guardar Lima y después
+  // teclear en Arequipa hacía que Lima —completamente guardada— mostrara
+  // "cambios sin guardar"; y al revés, entrar a un bucket con borrador local
+  // nunca enviado mostraba "✓ Guardado en el servidor". Sería el mismo pecado
+  // que P2-14 con otro disfraz.
+  const editSeqRef = useRef({})
+  const savedSeqRef = useRef({})
 
   const markTouched = useCallback((bucket) => {
-    editSeqRef.current += 1
     if (!bucket) return
+    editSeqRef.current[bucket] = (editSeqRef.current[bucket] ?? 0) + 1
     setTouchedFronts((prev) => (prev.includes(bucket) ? prev : [...prev, bucket]))
   }, [])
 
@@ -1785,7 +1791,18 @@ export default function DataEntry() {
     }
     return Math.min(n, filledCount)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, indriveExtra, naKeys, categories, refsByUICat, timeslots, uiCity, filledCount])
+  }, [
+    entries,
+    indriveExtra,
+    naKeys,
+    categories,
+    refsByUICat,
+    timeslots,
+    uiCity,
+    filledCount,
+    country,
+    dbConfigs,
+  ])
 
   // Progreso POR TURNO (Mañana/Tarde/Noche) — para el header colapsable de
   // cada TurnoSection. Mismo criterio que filledCount/countAllFilled de
@@ -2153,6 +2170,11 @@ export default function DataEntry() {
       .filter((rt) => rt.competitors.length > 0)
 
     const payloads = rowsToInsert.map((r) => buildInsertPayload(r, capturedTime))
+    // Se captura el contador de ediciones ACÁ, junto con el payload — no
+    // después del await. Un guardado de 324 celdas tarda segundos, y todo lo
+    // que el hub teclee mientras viaja NO está en este payload: sellarlo al
+    // volver lo marcaría como guardado siendo mentira.
+    const seqEnviado = editSeqRef.current[bucketKey] ?? 0
 
     const { data: saveRes, error: saveErr } = await sb.rpc('save_ci_batch', {
       p_country: country,
@@ -2200,8 +2222,8 @@ export default function DataEntry() {
     // Guardado confirmado en servidor de verdad (no solo local) — ver
     // indicador en el header.
     setLastSaveOkAt(Date.now())
-    // Sella el contador: desde acá, todo lo tecleado cuenta como pendiente.
-    savedSeqRef.current = editSeqRef.current
+    // Sella SOLO lo que viajó en este payload, y solo para este bucket.
+    savedSeqRef.current[bucketKey] = seqEnviado
 
     if (isFinish) {
       const now = new Date()
@@ -2798,7 +2820,18 @@ export default function DataEntry() {
     // refresh). "Abrir" desde Historial ya lo activa explícito antes de
     // llegar acá; esto cubre el auto-load silencioso al reabrir.
     if (mapped > 0 && !sessionActive) {
-      sessionStartRef.current = earliestTurnoStart(historicTimings) || Date.now()
+      // El cronómetro reanuda el tramo histórico SOLO si esto es de verdad
+      // una continuación (misma fecha y jornada sin cerrar). Si no, arranca
+      // en cero: mirar un día pasado o volver a una ciudad ya terminada es un
+      // tramo NUEVO. Ver debeReanudarTramo() y su test — esta rama sembraba
+      // el reloj con el inicio de otro día y mostraba 30:00:00.
+      sessionStartRef.current = debeReanudarTramo({
+        loadDate,
+        today: todayStr(),
+        timings: historicTimings,
+      })
+        ? earliestTurnoStart(historicTimings) || Date.now()
+        : Date.now()
       setSessionActive(true)
       setPendingScopeMembers((prev) => (prev.length ? prev : [bucket]))
     }
@@ -3084,42 +3117,28 @@ export default function DataEntry() {
   sessionActiveRef.current = sessionActive
   const userEmailRef = useRef(userEmail)
   userEmailRef.current = userEmail
-  // El contexto del latido se espeja en un ref para poder acotar el borrado
-  // desde un cleanup que corre con deps vacías.
-  const heartbeatScopeRef = useRef({ country, dbCity, zone, date })
-  heartbeatScopeRef.current = { country, dbCity, zone, date }
-
-  useEffect(() => {
-    return () => {
-      if (!sessionActiveRef.current || !userEmailRef.current) return
-      // ACOTADO por (país, ciudad, zona, fecha) — antes borraba por
-      // `user_email` a secas (SESIONES_HALLAZGOS.md P1-4).
-      //
-      // Este cleanup corre en CUALQUIER desmontaje: alcanza con que el hub
-      // toque "Monitoreo" en el menú y vuelva. Sin acotar, ese paseo le
-      // borraba la única fila del latido: desaparecía de "en vivo" y, peor,
-      // se perdía el único registro server-side de cuándo empezó — el
-      // siguiente latido re-INSERTA con `started_at = now()`.
-      //
-      // Es además el mismo criterio que la mig 156 ya estableció del lado
-      // servidor para `admin_close_ci_session`, y que la re-limpieza de los
-      // 10s de `performSave` ya respeta: el cliente era el único que seguía
-      // borrando de más.
-      const s = heartbeatScopeRef.current
-      let q = sb
-        .from('ci_active_sessions')
-        .delete()
-        .eq('user_email', userEmailRef.current)
-        .eq('country', s.country)
-        .eq('city', s.dbCity)
-        .eq('observed_date', s.date)
-      q = s.zone != null ? q.eq('zone', s.zone) : q.is('zone', null)
-      q.then(
-        () => {},
-        () => {}
-      )
-    }
-  }, [])
+  // NO se borra el latido al desmontar (SESIONES_HALLAZGOS.md P1-4).
+  //
+  // Antes se hacía `.delete().eq('user_email', ...)`, y este cleanup corre en
+  // CUALQUIER desmontaje: alcanzaba con que el hub tocara "Monitoreo" en el
+  // menú y volviera para que desapareciera de "en vivo" y se perdiera el
+  // único registro server-side de cuándo empezó (el siguiente latido
+  // re-INSERTA con started_at = now()).
+  //
+  // El primer intento de arreglo fue ACOTAR el borrado por
+  // (país, ciudad, zona, fecha). No servía: `ci_active_sessions` tiene PK
+  // `user_email` a secas, así que hay UNA sola fila por hub y el predicado
+  // acotado matcheaba siempre la misma — un no-op. Y encima abría un caso
+  // nuevo: si el hub cambiaba de ciudad y navegaba afuera antes de que el
+  // latido con debounce de 1,5s actualizara la fila, el DELETE no matcheaba
+  // nada y quedaba una sesión fantasma marcada como viva.
+  //
+  // La solución correcta es no borrar acá y dejar que la fila caduque por
+  // ANTIGÜEDAD, que es como Monitoreo ya decide qué está vivo
+  // (LIVE_STALE_MS = 3 min, mig 146). El costo es que una salida real deja la
+  // fila visible hasta 3 minutos; el beneficio es que una navegación interna
+  // deja de destruir el estado de sesión. Terminar y cambiar de país sí
+  // siguen borrándola explícitamente, que es cuando corresponde.
 
   // ── Render ─────────────────────────────────────────────
   return (
@@ -3460,6 +3479,7 @@ export default function DataEntry() {
             lastHeartbeatOkAt={lastHeartbeatOkAt}
             filledCount={filledCount}
             savableCount={savableCount}
+            bucketKey={bucketKey}
             editSeqRef={editSeqRef}
             savedSeqRef={savedSeqRef}
             t={t}

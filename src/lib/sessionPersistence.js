@@ -125,3 +125,41 @@ export function estadoDeServidor({
     segundos: Math.max(0, Math.floor((now - lastSaveOkAt) / 1000)),
   }
 }
+
+/**
+ * ¿El cronómetro debe reanudar el tramo histórico, o arrancar uno nuevo?
+ *
+ * ESTA FUNCIÓN EXISTE POR UN BUG QUE SE INTRODUJO ARREGLANDO OTRO.
+ * Al cerrar la sesión cuando cambia la fecha (P1-7), se destapó un camino que
+ * antes estaba tapado: el auto-load silencioso hace
+ *
+ *     if (mapped > 0 && !sessionActive) sessionStartRef = earliestTurnoStart(...)
+ *
+ * y con la sesión ya cerrada esa rama ahora SÍ entra. Sembraba el cronómetro
+ * con el `startedAt` de OTRO día: mirar una fecha pasada mostraba 30:00:00 y
+ * al Terminar escribía esa duración. El fix de P1-7 empeoraba justo el número
+ * que decía arreglar.
+ *
+ * Dos reglas, las dos necesarias:
+ *
+ *   1. Solo se reanuda si la fecha cargada es HOY. Corregir un día pasado es
+ *      un tramo nuevo, no la continuación de aquella jornada — es lo mismo que
+ *      `openHistorySession` ya documenta como correcto.
+ *   2. Solo se reanuda si esa jornada NO estaba cerrada. Si todos los turnos
+ *      con inicio tienen también fin, la sesión ya terminó: volver a la
+ *      pantalla horas después es una corrección, no una continuación. Sin
+ *      esto, terminar a las 11:00 y volver a las 15:00 marcaba 06:00:00.
+ *
+ * @returns {boolean} true = sembrar desde los timings; false = arrancar en 0.
+ */
+export function debeReanudarTramo({ loadDate, today, timings } = {}) {
+  if (!loadDate || !today || loadDate !== today) return false
+  if (!timings || typeof timings !== 'object') return false
+
+  const turnos = Object.values(timings).filter((t) => t && t.startedAt)
+  if (turnos.length === 0) return false
+
+  // Jornada cerrada = todos los turnos empezados tienen fin.
+  const todosCerrados = turnos.every((t) => t.endedAt)
+  return !todosCerrados
+}
