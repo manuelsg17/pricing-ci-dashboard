@@ -6,9 +6,21 @@ nombrándola (CLAUDE.md §3), aunque hayas dado un OK general antes.
 
 ---
 
-## ⚠️ Lo único que tiene orden obligatorio
+## ⚠️ Lo que tiene orden obligatorio
 
-**La 186 va ANTES del deploy del frontend.**
+**DOS migraciones van ANTES del deploy del frontend: la 186 y la 194.**
+
+**La 194** (`ci_duration_single_source`) porque el cliente nuevo puede escribir
+`duration_minutes = NULL` cuando la duración no se puede determinar — un 0 se
+promedia y miente, un NULL se excluye. Si el frontend sube primero y la columna
+está `NOT NULL` en producción, **el hub no puede terminar la sesión**.
+
+Ojo con esto: la mig 11 declara la columna nullable y la 16 la declara
+`NOT NULL`. Cuál ganó en producción depende de cuál corrió después, y **no está
+verificado**. La 194 trae un `ALTER … DROP NOT NULL` idempotente que cubre los
+dos casos, pero solo si se aplica antes del deploy.
+
+**La 186** por el motivo de siempre:
 
 La `save_ci_batch` de la mig 182 **ya está en producción y está rota** — falla el
 100% de las llamadas. Hoy no hace daño porque nadie la llama. Pero el bundle
@@ -22,16 +34,22 @@ simplemente no funcionan hasta que estén.
 
 ## Orden recomendado
 
-| #   | Migración                           | Qué hace                                                                                          | Riesgo                                                        | Reversible                                    |
-| --- | ----------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------- |
-| 1   | **186** `fix_save_ci_batch_insert`  | Arregla la RPC rota que el frontend nuevo va a llamar                                             | Bajo — reemplaza una función que hoy falla siempre            | Sí, `CREATE OR REPLACE` a la versión previa   |
-| 2   | **190** `fix_broken_and_dead_rpcs`  | Arregla 2 RPCs **rotas en producción hoy** (paneles del Market vacíos) y retira 3 objetos muertos | Bajo-medio — incluye 3 `DROP FUNCTION`                        | Los DROP no, hay que recrear desde el archivo |
-| 3   | **185** `client_error_log`          | Bitácora de errores del cliente                                                                   | Bajo — tabla nueva                                            | Sí, `DROP TABLE`                              |
-| 4   | **183** `projects_and_tasks`        | 5 tablas de Proyectos                                                                             | Bajo — tablas nuevas                                          | Sí                                            |
-| 5   | **184** `projects_rpcs`             | RPCs de Proyectos                                                                                 | Bajo — depende de la 183                                      | Sí                                            |
-| 6   | **187** `section_write_grants`      | Tabla de mapeo + `can_write_table()`                                                              | Bajo — no cambia ninguna política todavía                     | Sí                                            |
-| 7   | **188** `uniform_write_policies`    | **20 tablas** cambian de `can_edit()` al modelo genérico                                          | **El más alto de la tanda**                                   | Sí, pero hay que reponer 60 políticas         |
-| 8   | **189** `close_cross_country_reads` | Cierra 3 lecturas entre países                                                                    | Bajo-medio — puede ocultar filas a un usuario mal configurado | Sí                                            |
+| #   | Migración                            | Qué hace                                                                                          | Riesgo                                                         | Reversible                                    |
+| --- | ------------------------------------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------- |
+| 1   | **186** `fix_save_ci_batch_insert`   | Arregla la RPC rota que el frontend nuevo va a llamar                                             | Bajo — reemplaza una función que hoy falla siempre             | Sí, `CREATE OR REPLACE` a la versión previa   |
+| 2   | **190** `fix_broken_and_dead_rpcs`   | Arregla 2 RPCs **rotas en producción hoy** (paneles del Market vacíos) y retira 3 objetos muertos | Bajo-medio — incluye 3 `DROP FUNCTION`                         | Los DROP no, hay que recrear desde el archivo |
+| 3   | **185** `client_error_log`           | Bitácora de errores del cliente                                                                   | Bajo — tabla nueva                                             | Sí, `DROP TABLE`                              |
+| 4   | **183** `projects_and_tasks`         | 5 tablas de Proyectos                                                                             | Bajo — tablas nuevas                                           | Sí                                            |
+| 5   | **184** `projects_rpcs`              | RPCs de Proyectos                                                                                 | Bajo — depende de la 183                                       | Sí                                            |
+| 6   | **187** `section_write_grants`       | Tabla de mapeo + `can_write_table()`                                                              | Bajo — no cambia ninguna política todavía                      | Sí                                            |
+| 7   | **188** `uniform_write_policies`     | **20 tablas** cambian de `can_edit()` al modelo genérico                                          | **El más alto de la tanda**                                    | Sí, pero hay que reponer 60 políticas         |
+| 8   | **189** `close_cross_country_reads`  | Cierra 3 lecturas entre países                                                                    | Bajo-medio — puede ocultar filas a un usuario mal configurado  | Sí                                            |
+| 9   | **192** `complete_section_write_map` | Completa el mapa de permisos + columna `gate`; retira 3 grants que sobraban                       | Bajo — solo restringe, nunca abre                              | Sí, `ALTER TABLE … DROP COLUMN gate`          |
+| 10  | **193** `generic_rpc_gates`          | 6 RPCs dejan de exigir `is_admin()`; suman chequeo de país explícito                              | Medio — afloja un guard, por eso el país va en el mismo cambio | Sí, `CREATE OR REPLACE` a la versión previa   |
+
+**La 192 va antes que la 193**: la 193 no depende técnicamente de ella, pero la
+192 es la que restringe y la 193 la que afloja — en ese orden nunca hay una
+ventana en la que el sistema esté más abierto que al empezar.
 
 **Después de la 188**, correr `npm run check:rls-drift` contra producción antes
 de dar nada por cerrado. Es la migración que más superficie toca.
