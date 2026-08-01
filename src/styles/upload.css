@@ -440,3 +440,26 @@
     font-size: 12.5px;
   }
 }
+
+/* Acciones del sync del bot en celular. Es el único flujo de Upload que tiene
+   sentido desde un teléfono (disparar el sync cuando el bot se atrasa), así
+   que se le da tamaño táctil de verdad en vez de dejarlo "entrando apenas". */
+@media (max-width: 640px) {
+  /* El primario a ancho completo: es la acción que uno viene a hacer. */
+  .botsync-actions > button:first-child {
+    width: 100%;
+    height: 40px;
+  }
+  /* Los secundarios comparten fila, pero a 36px — venían en 32px, y uno de
+     ellos ("Re-sync 30d") es destructivo. */
+  .botsync-actions > button:not(:first-child) {
+    flex: 1;
+    min-height: 36px;
+  }
+  /* Sin `margin-left:auto`: al envolver, empujaba el límite por corrida a una
+     fila propia alineada a la derecha, separada de todo. */
+  .botsync-limit {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+}

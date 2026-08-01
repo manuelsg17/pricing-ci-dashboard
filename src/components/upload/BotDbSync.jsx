@@ -316,7 +316,15 @@ export default function BotDbSync() {
         </div>
 
         {/* Acciones principales */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {/* `botsync-actions` existe para el tramo de celular (upload.css): el
+            sync del bot es lo único de esta pantalla que se dispara desde el
+            teléfono, así que ahí los botones pasan a ancho cómodo. "Re-sync
+            30d" es DESTRUCTIVO y venía en 32px de alto — un objetivo así de
+            chico para esa acción es exactamente cómo se toca por error. */}
+        <div
+          className="botsync-actions"
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}
+        >
           <Button
             onClick={() => handleSync()}
             disabled={running}
@@ -357,6 +365,7 @@ export default function BotDbSync() {
             <RotateCcw size={14} /> {t('botdbsync.resync_btn')}
           </Button>
           <label
+            className="botsync-limit"
             style={{
               fontSize: 11,
               display: 'flex',
