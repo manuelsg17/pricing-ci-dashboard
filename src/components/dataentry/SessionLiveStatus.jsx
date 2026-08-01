@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { LIVE_STALE_MS } from '../../lib/monitoring'
+import { useState, useEffect } from 'react'
+import { estadoDeGuardado, estadoDeServidor } from '../../lib/sessionPersistence'
 
 // Widgets del header de Ingresar CI que se actualizan cada segundo (cronómetro
 // de sesión + indicadores de "guardado/confirmado hace Xs"). Viven acá, en
@@ -42,56 +42,92 @@ export function SessionTimer({ sessionStart, title }) {
   )
 }
 
-// Indicadores de guardado: "guardado automáticamente hace Xs" (borrador local)
-// y "confirmado en servidor hace Xs" / aviso de no-confirmado. Reusa el mismo
-// umbral de 3 min (LIVE_STALE_MS) que Monitoreo. Comportamiento idéntico al que
-// estaba inline en DataEntry.
+// Indicadores de guardado.
+//
+// EL PUNTO DE ESTE COMPONENTE: decirle al hub la VERDAD sobre dónde está su
+// trabajo. Antes había un solo timestamp que el LATIDO también refrescaba, así
+// que "✓ Confirmado en servidor hace 4s" podía verse toda la sesión sin haber
+// guardado una sola celda (SESIONES_HALLAZGOS.md P2-14). Un latido prueba que
+// hay conexión; no prueba durabilidad.
+//
+// Toda la decisión de qué mostrar vive en src/lib/sessionPersistence.js, que
+// tiene test propio (scripts/test-session-persistence.mjs) — acá solo se
+// traduce a pantalla.
 export function SaveStatusIndicators({
   sessionActive,
-  sessionStart,
   lastDraftSavedAt,
-  lastServerOkAt,
+  lastSaveOkAt,
+  lastHeartbeatOkAt,
+  filledCount = 0,
+  savableCount = 0,
+  editSeqRef,
+  savedSeqRef,
   t,
 }) {
   const [nowTick, setNowTick] = useState(() => Date.now())
 
-  // Corre también con sessionActive solo (sin timestamp aún): si el PRIMER
-  // latido nunca se confirma, el reloj debe avanzar para que el aviso de "no
-  // confirmado" escale a los 3 min. Mismo criterio que el effect original.
+  // Corre también con sessionActive solo: si el primer latido nunca se
+  // confirma, el reloj debe avanzar para que el aviso escale.
   useEffect(() => {
-    if (!sessionActive && lastDraftSavedAt == null && lastServerOkAt == null) return
+    if (!sessionActive && lastDraftSavedAt == null && lastSaveOkAt == null) return
     const id = setInterval(() => setNowTick(Date.now()), 1000)
     return () => clearInterval(id)
-  }, [sessionActive, lastDraftSavedAt, lastServerOkAt])
+  }, [sessionActive, lastDraftSavedAt, lastSaveOkAt])
 
-  const serverConfirmState = useMemo(() => {
-    if (!sessionActive) return null
-    const ref = lastServerOkAt ?? sessionStart
-    if (ref == null) return null
-    const age = nowTick - ref
-    if (age <= LIVE_STALE_MS) {
-      return lastServerOkAt != null ? { kind: 'ok', s: Math.max(0, Math.floor(age / 1000)) } : null
-    }
-    return { kind: 'warn', m: Math.max(1, Math.floor(age / 60_000)) }
-  }, [sessionActive, lastServerOkAt, sessionStart, nowTick])
+  // Los contadores de edición viajan por REF para no re-renderizar la grilla
+  // en cada tecleo (CLAUDE.md §5). Se leen en el tick de 1s: un segundo de
+  // atraso es irrelevante para este cartel.
+  const guardado = estadoDeGuardado({
+    filledCount,
+    savableCount,
+    editSeq: editSeqRef?.current ?? 0,
+    savedSeq: savedSeqRef?.current ?? -1,
+  })
+
+  const servidor = estadoDeServidor({
+    sessionActive,
+    lastSaveOkAt,
+    lastHeartbeatOkAt,
+    hayCambiosSinGuardar: guardado.hayCambiosSinGuardar,
+    soloLocal: guardado.soloLocal,
+    now: nowTick,
+  })
 
   return (
     <>
       {lastDraftSavedAt != null && (
-        <span className="de-autosave-indicator">
+        <span className="de-autosave-indicator" title={t('dataentry.draft_only_hint')}>
           {t('dataentry.autosaved_ago', {
             s: Math.max(0, Math.floor((nowTick - lastDraftSavedAt) / 1000)),
           })}
         </span>
       )}
-      {serverConfirmState?.kind === 'ok' && (
+
+      {servidor?.kind === 'guardado' && (
         <span className="de-server-ok-indicator">
-          {t('dataentry.server_confirmed_ago', { s: serverConfirmState.s })}
+          {t('dataentry.saved_on_server_ago', { s: servidor.segundos })}
         </span>
       )}
-      {serverConfirmState?.kind === 'warn' && (
+
+      {servidor?.kind === 'guardado_parcial' && (
+        <span className="de-server-partial-indicator" title={t('dataentry.only_local_hint')}>
+          {t('dataentry.saved_but_local', { n: servidor.soloLocal })}
+        </span>
+      )}
+
+      {servidor?.kind === 'sin_guardar' && (
+        <span className="de-server-pending-indicator">{t('dataentry.unsaved_changes')}</span>
+      )}
+
+      {servidor?.kind === 'nada_guardado' && (
+        <span className="de-server-pending-indicator">{t('dataentry.nothing_saved_yet')}</span>
+      )}
+
+      {servidor?.kind === 'sin_conexion' && (
         <span className="de-server-warn-indicator">
-          {t('dataentry.server_unconfirmed_warn', { m: serverConfirmState.m })}
+          {servidor.minutos == null
+            ? t('dataentry.no_server_contact')
+            : t('dataentry.no_server_contact_min', { m: servidor.minutos })}
         </span>
       )}
     </>

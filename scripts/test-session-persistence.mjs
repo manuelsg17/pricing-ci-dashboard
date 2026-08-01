@@ -1,0 +1,303 @@
+// Simulaciones del estado de persistencia de "Ingresar CI"
+// (SESIONES_HALLAZGOS.md P2-13 y P2-14).
+//
+// LO QUE SE PRUEBA ACÁ NO ES COSMÉTICO: el hub decide si puede cerrar la
+// laptop mirando estos carteles. Un falso "todo guardado" es peor que no
+// mostrar nada, porque le da permiso para irse con trabajo sin persistir.
+//
+// La regla que verifican casi todos los casos: **conectividad NO es
+// durabilidad**. El latido prueba que el backend responde; no prueba que una
+// sola celda haya llegado a la base.
+
+import {
+  estadoDeGuardado,
+  estadoDeServidor,
+  SERVIDOR_STALE_MS,
+} from '../src/lib/sessionPersistence.js'
+
+let pass = 0
+let fail = 0
+const fallos = []
+
+function ok(cond, label) {
+  if (cond) pass++
+  else {
+    fail++
+    fallos.push(label)
+    console.error(`  ✗ ${label}`)
+  }
+}
+function eq(a, b, label) {
+  const good = JSON.stringify(a) === JSON.stringify(b)
+  if (!good) console.error(`     esperado ${JSON.stringify(b)}, obtuve ${JSON.stringify(a)}`)
+  ok(good, label)
+}
+
+const T0 = 1_800_000_000_000 // instante fijo; nada depende del reloj real
+
+// ── [1] estadoDeGuardado ──────────────────────────────────────────────
+console.log('[1] estadoDeGuardado: qué se guarda y qué queda local')
+
+eq(
+  estadoDeGuardado({ filledCount: 108, savableCount: 96, editSeq: 5, savedSeq: -1 }).soloLocal,
+  12,
+  'el caso del reporte: 108 llenas, 96 guardables → 12 quedan solo local'
+)
+
+eq(
+  estadoDeGuardado({ filledCount: 96, savableCount: 96, editSeq: 3, savedSeq: 3 }).todoAsegurado,
+  true,
+  'sin filas a medias y sin ediciones nuevas → todo asegurado'
+)
+
+eq(
+  estadoDeGuardado({ filledCount: 108, savableCount: 96, editSeq: 3, savedSeq: 3 }).todoAsegurado,
+  false,
+  'con 12 celdas en filas incompletas NO se puede decir "todo guardado"'
+)
+
+eq(
+  estadoDeGuardado({ filledCount: 50, savableCount: 50, editSeq: 7, savedSeq: 4 })
+    .hayCambiosSinGuardar,
+  true,
+  'editar después de guardar marca cambios pendientes'
+)
+
+eq(
+  estadoDeGuardado({ filledCount: 50, savableCount: 50, editSeq: 4, savedSeq: 4 })
+    .hayCambiosSinGuardar,
+  false,
+  'guardar deja el contador al día'
+)
+
+// El estado inicial no puede reportar "todo asegurado": nunca se guardó.
+eq(
+  estadoDeGuardado({ filledCount: 0, savableCount: 0, editSeq: 0, savedSeq: -1 }).todoAsegurado,
+  false,
+  'sesión recién abierta NO es "todo asegurado" (nunca se guardó)'
+)
+
+// Defensa: savable no puede superar a filled, pero si pasara no debe dar
+// negativo y arruinar el cartel.
+eq(
+  estadoDeGuardado({ filledCount: 10, savableCount: 99 }).soloLocal,
+  0,
+  'nunca devuelve un conteo negativo'
+)
+
+eq(estadoDeGuardado().soloLocal, 0, 'sin argumentos no rompe')
+
+// ── [2] estadoDeServidor: la mentira original ─────────────────────────
+console.log('[2] estadoDeServidor: el latido NO cuenta como guardado')
+
+// EL CASO QUE ORIGINÓ TODO: latido fresco, cero guardados. Antes esto
+// mostraba "✓ Confirmado en servidor hace 4s".
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: null,
+    lastHeartbeatOkAt: T0 - 4000,
+    now: T0,
+  }),
+  { kind: 'nada_guardado' },
+  'latido fresco sin ningún guardado → "nada guardado", NO "confirmado"'
+)
+
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 10_000,
+    lastHeartbeatOkAt: T0 - 2000,
+    now: T0,
+  }),
+  { kind: 'guardado', segundos: 10 },
+  'con un guardado real sí dice guardado, y la antigüedad es la del GUARDADO'
+)
+
+// Sutil pero importante: el latido es más nuevo que el guardado. La
+// antigüedad mostrada tiene que seguir siendo la del guardado, no la del
+// latido — si no, el cartel rejuvenece solo sin que nada se haya guardado.
+const conLatidoNuevo = estadoDeServidor({
+  sessionActive: true,
+  lastSaveOkAt: T0 - 120_000,
+  lastHeartbeatOkAt: T0 - 1000,
+  now: T0,
+})
+eq(conLatidoNuevo.segundos, 120, 'el latido nuevo NO rejuvenece la antigüedad del guardado')
+
+// ── [3] estadoDeServidor: cambios sin guardar ─────────────────────────
+console.log('[3] estadoDeServidor: cambios pendientes')
+
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 30_000,
+    lastHeartbeatOkAt: T0 - 1000,
+    hayCambiosSinGuardar: true,
+    soloLocal: 0,
+    now: T0,
+  }),
+  { kind: 'sin_guardar', segundos: 30, soloLocal: 0 },
+  'editar tras guardar → avisa que hay cambios sin guardar'
+)
+
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 5000,
+    lastHeartbeatOkAt: T0 - 1000,
+    hayCambiosSinGuardar: false,
+    soloLocal: 12,
+    now: T0,
+  }),
+  { kind: 'guardado_parcial', segundos: 5, soloLocal: 12 },
+  'guardado pero con 12 celdas en filas a medias → guardado PARCIAL'
+)
+
+// ── [4] estadoDeServidor: sin conexión gana sobre todo ────────────────
+console.log('[4] estadoDeServidor: la conexión tiene prioridad')
+
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 1000,
+    lastHeartbeatOkAt: T0 - (SERVIDOR_STALE_MS + 60_000),
+    now: T0,
+  }).kind,
+  'sin_conexion',
+  'aunque acabe de guardar, si el latido venció avisa de conexión'
+)
+
+// Es lo correcto: si no hay contacto con el servidor, decir "todo guardado"
+// sería un dato viejo presentado como fresco.
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 1000,
+    lastHeartbeatOkAt: null,
+    now: T0,
+  }).kind,
+  'sin_conexion',
+  'sin ningún latido todavía → sin conexión'
+)
+
+const justoEnElBorde = estadoDeServidor({
+  sessionActive: true,
+  lastSaveOkAt: T0 - 1000,
+  lastHeartbeatOkAt: T0 - SERVIDOR_STALE_MS,
+  now: T0,
+})
+eq(justoEnElBorde.kind, 'guardado', 'justo en el umbral todavía NO es "sin conexión"')
+
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: null,
+    lastHeartbeatOkAt: T0 - (SERVIDOR_STALE_MS + 1),
+    now: T0,
+  }).minutos,
+  3,
+  'informa hace cuántos minutos se perdió el contacto'
+)
+
+// ── [5] Sin sesión ────────────────────────────────────────────────────
+console.log('[5] sin sesión activa no se muestra nada')
+eq(estadoDeServidor({ sessionActive: false, lastSaveOkAt: T0, now: T0 }), null, 'sin sesión → null')
+eq(estadoDeServidor(), null, 'sin argumentos → null')
+
+// ── [6] Simulación: el día completo de un hub ─────────────────────────
+console.log('[6] simulación: jornada completa de un hub')
+
+let editSeq = 0
+let savedSeq = -1
+let lastSaveOkAt = null
+let lastHeartbeatOkAt = T0
+let t = T0
+
+const paso = (label, esperado, { filled, savable }) => {
+  const g = estadoDeGuardado({ filledCount: filled, savableCount: savable, editSeq, savedSeq })
+  const s = estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt,
+    lastHeartbeatOkAt,
+    hayCambiosSinGuardar: g.hayCambiosSinGuardar,
+    soloLocal: g.soloLocal,
+    now: t,
+  })
+  eq(s.kind, esperado, label)
+}
+
+// 09:00 — abre la sesión, todavía no tipeó nada.
+paso('09:00 recién abierta → nada guardado', 'nada_guardado', { filled: 0, savable: 0 })
+
+// 09:20 — tipeó 40 celdas, todas en filas completas. NO guardó.
+t += 20 * 60_000
+lastHeartbeatOkAt = t
+editSeq = 40
+paso('09:20 tipeó sin guardar → sigue sin nada guardado', 'nada_guardado', {
+  filled: 40,
+  savable: 40,
+})
+
+// 09:21 — guarda.
+t += 60_000
+lastHeartbeatOkAt = t
+lastSaveOkAt = t
+savedSeq = editSeq
+paso('09:21 guardó → guardado', 'guardado', { filled: 40, savable: 40 })
+
+// 09:40 — sigue tipeando; quedan 8 celdas en filas a medias.
+t += 19 * 60_000
+lastHeartbeatOkAt = t
+editSeq = 60
+paso('09:40 editó de nuevo → sin guardar', 'sin_guardar', { filled: 60, savable: 52 })
+
+// 09:41 — guarda: las filas completas van, las 8 a medias NO.
+t += 60_000
+lastHeartbeatOkAt = t
+lastSaveOkAt = t
+savedSeq = editSeq
+paso('09:41 guardó con 8 a medias → guardado PARCIAL, no "todo guardado"', 'guardado_parcial', {
+  filled: 60,
+  savable: 52,
+})
+
+// 09:45 — se corta internet. El último guardado sigue siendo válido, pero el
+// cartel no puede seguir diciendo "guardado" como si nada.
+t += 4 * 60_000
+paso('09:45 se cortó internet → sin conexión', 'sin_conexion', { filled: 60, savable: 52 })
+
+// 09:50 — vuelve, completa las filas y guarda todo.
+t += 5 * 60_000
+lastHeartbeatOkAt = t
+editSeq = 68
+lastSaveOkAt = t
+savedSeq = editSeq
+paso('09:50 completó y guardó todo → guardado limpio', 'guardado', { filled: 68, savable: 68 })
+
+const finalG = estadoDeGuardado({ filledCount: 68, savableCount: 68, editSeq, savedSeq })
+eq(finalG.todoAsegurado, true, '09:50 recién acá se puede decir "todo asegurado"')
+
+// ── [7] La regresión que NO puede volver ──────────────────────────────
+console.log('[7] guard de regresión: el latido nunca marca durabilidad')
+let latidos = 0
+let estadoFinal = null
+for (let i = 0; i < 100; i++) {
+  latidos++
+  estadoFinal = estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: null, // nunca guardó
+    lastHeartbeatOkAt: T0 + latidos * 25_000,
+    now: T0 + latidos * 25_000,
+  })
+}
+eq(
+  estadoFinal.kind,
+  'nada_guardado',
+  '100 latidos exitosos seguidos NO convierten "nada guardado" en "guardado"'
+)
+
+// ── Resultado ─────────────────────────────────────────────────────────
+console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} pasaron, ${fail} fallaron`)
+if (fail) console.error('Fallaron:\n  - ' + fallos.join('\n  - '))
+process.exit(fail === 0 ? 0 : 1)

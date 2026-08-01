@@ -726,6 +726,17 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Marcar toda la fila como "sin data" (no había oferta)',
     'dataentry.missing_cats_note': 'Sin ruta en este bracket para: {cats}.',
     'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
+    'dataentry.draft_only_hint':
+      'El borrador vive solo en ESTE navegador. Guardá para que quede en el servidor.',
+    'dataentry.saved_on_server_ago': '✓ Guardado en el servidor hace {s}s',
+    'dataentry.saved_but_local': '✓ Guardado · {n} celda(s) en filas incompletas siguen solo acá',
+    'dataentry.only_local_hint':
+      'Las filas incompletas no se guardan en el servidor. Completalas y guardá de nuevo.',
+    'dataentry.unsaved_changes': '● Cambios sin guardar',
+    'dataentry.nothing_saved_yet': '● Todavía no guardaste nada en el servidor',
+    'dataentry.no_server_contact': '⚠ Sin contacto con el servidor — tu progreso está solo acá',
+    'dataentry.no_server_contact_min':
+      '⚠ Sin contacto con el servidor hace {m}m — tu progreso está solo en este navegador',
     'dataentry.server_confirmed_ago': '✓ Confirmado en servidor hace {s}s',
     'dataentry.server_unconfirmed_warn':
       '⚠ No pudimos confirmar con el servidor hace {m}m — tu progreso puede estar solo en este navegador',
@@ -3006,6 +3017,17 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Mark the whole row as "no data" (no offer)',
     'dataentry.missing_cats_note': 'No route in this bracket for: {cats}.',
     'dataentry.autosaved_ago': 'Autosaved {s}s ago',
+    'dataentry.draft_only_hint':
+      'The draft lives only in THIS browser. Save so it reaches the server.',
+    'dataentry.saved_on_server_ago': '✓ Saved on the server {s}s ago',
+    'dataentry.saved_but_local': '✓ Saved · {n} cell(s) in incomplete rows are still only here',
+    'dataentry.only_local_hint':
+      'Incomplete rows are not saved to the server. Complete them and save again.',
+    'dataentry.unsaved_changes': '● Unsaved changes',
+    'dataentry.nothing_saved_yet': '● Nothing saved to the server yet',
+    'dataentry.no_server_contact': '⚠ No contact with the server — your progress is only here',
+    'dataentry.no_server_contact_min':
+      '⚠ No contact with the server for {m}m — your progress is only in this browser',
     'dataentry.server_confirmed_ago': '✓ Confirmed on server {s}s ago',
     'dataentry.server_unconfirmed_warn':
       "⚠ We couldn't confirm with the server for {m}m — your progress may only be in this browser",
@@ -5274,6 +5296,18 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Отметить всю строку как «нет данных» (не было предложения)',
     'dataentry.missing_cats_note': 'Нет маршрута в этом брекете для: {cats}.',
     'dataentry.autosaved_ago': 'Автосохранено {s} с назад',
+    'dataentry.draft_only_hint':
+      'Черновик хранится только в ЭТОМ браузере. Сохраните, чтобы он попал на сервер.',
+    'dataentry.saved_on_server_ago': '✓ Сохранено на сервере {s} с назад',
+    'dataentry.saved_but_local':
+      '✓ Сохранено · {n} ячеек в незаполненных строках остались только здесь',
+    'dataentry.only_local_hint':
+      'Незаполненные строки не сохраняются на сервере. Заполните их и сохраните снова.',
+    'dataentry.unsaved_changes': '● Несохранённые изменения',
+    'dataentry.nothing_saved_yet': '● На сервере пока ничего не сохранено',
+    'dataentry.no_server_contact': '⚠ Нет связи с сервером — ваш прогресс только здесь',
+    'dataentry.no_server_contact_min':
+      '⚠ Нет связи с сервером уже {m} мин — ваш прогресс только в этом браузере',
     'dataentry.server_confirmed_ago': '✓ Подтверждено сервером {s} с назад',
     'dataentry.server_unconfirmed_warn':
       '⚠ Не удалось подтвердить с сервером {m} мин — прогресс может быть сохранён только в этом браузере',

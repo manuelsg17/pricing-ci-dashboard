@@ -208,7 +208,21 @@ export default function DataEntry() {
   // que nunca visitó viajan con total=null (desconocido, distinto de 0).
   const [totalByBucket, setTotalByBucket] = useState({})
   const [touchedFronts, setTouchedFronts] = useState([])
+
+  // Contador monótono de ediciones vs. el valor que tenía en el último
+  // guardado OK. Es lo que permite decirle al hub la verdad sobre si su
+  // trabajo está en el servidor (SESIONES_HALLAZGOS.md P2-14).
+  //
+  // Va en REFS y no en estado a propósito: `markTouched` corre en CADA
+  // tecleo, y meter un setState acá re-renderizaría DataEntry en cada
+  // pulsación — justo el costo que los fixes P0/P1 de la grilla evitaron
+  // (CLAUDE.md §5). El indicador ya tiene su propio tick de 1s, así que leer
+  // el ref con hasta un segundo de atraso no cambia nada para el usuario.
+  const editSeqRef = useRef(0)
+  const savedSeqRef = useRef(-1)
+
   const markTouched = useCallback((bucket) => {
+    editSeqRef.current += 1
     if (!bucket) return
     setTouchedFronts((prev) => (prev.includes(bucket) ? prev : [...prev, bucket]))
   }, [])
@@ -641,6 +655,31 @@ export default function DataEntry() {
   // al de antes de este cambio.
   function handleStartSession(members) {
     sessionStartRef.current = Date.now()
+
+    // Borrar el latido viejo ANTES de arrancar (SESIONES_HALLAZGOS.md P1-5).
+    //
+    // `ci_active_sessions` tiene PK `user_email` a secas, y su
+    // `ON CONFLICT DO UPDATE` deja `started_at` intacto a propósito (mig 161)
+    // para que los latidos no lo pisen. La consecuencia no buscada: una
+    // sesión que quedó abierta ayer le regala su `started_at` a la de hoy —
+    // el hub arranca a las 09:00 y Monitoreo muestra ~24h, y si un admin la
+    // cierra, `admin_close_ci_session` escribe esa duración en ci_sessions.
+    //
+    // Un "Iniciar Sesión" explícito es la señal inequívoca de que empieza un
+    // tramo nuevo: se borra la fila para que el primer latido la re-cree con
+    // `started_at = now()`. Es el único punto del cliente donde borrar sin
+    // acotar es CORRECTO — justamente se quiere descartar cualquier resto,
+    // sea del bucket que sea.
+    if (userEmail) {
+      sb.from('ci_active_sessions')
+        .delete()
+        .eq('user_email', userEmail)
+        .then(
+          () => {},
+          () => {}
+        )
+    }
+
     setSessionActive(true)
     setPendingScopeMembers(members && members.length ? members : [bucketKey])
     // Lo que el hub haya tipeado ANTES de arrancar (grilla editable sin
@@ -916,7 +955,12 @@ export default function DataEntry() {
   // exitoso) — a diferencia de lastDraftSavedAt (solo local), esto le dice
   // al hub si su progreso está de verdad llegando al backend. Ver render
   // del indicador más abajo y el motivo en el comentario del latido.
-  const [lastServerOkAt, setLastServerOkAt] = useState(null)
+  // DOS estados distintos a propósito (SESIONES_HALLAZGOS.md P2-14). Antes
+  // había uno solo, y el LATIDO lo refrescaba: el hub veía "✓ Confirmado en
+  // servidor hace 4s" toda la sesión sin haber guardado una sola celda.
+  // Conectividad no es durabilidad.
+  const [lastSaveOkAt, setLastSaveOkAt] = useState(null) // guardado REAL
+  const [lastHeartbeatOkAt, setLastHeartbeatOkAt] = useState(null) // solo conexión
 
   useEffect(() => {
     draftHydratedRef.current = false
@@ -952,6 +996,31 @@ export default function DataEntry() {
       setTouchedFronts([])
       setPendingExtraFronts([])
       setPendingScopeMembers([])
+
+      // Y la SESIÓN también se cierra (SESIONES_HALLAZGOS.md P1-7).
+      //
+      // Hasta acá se limpiaba todo el estado de trabajo pero `sessionActive`
+      // y `sessionStartRef` quedaban intactos: el hub cambiaba la fecha para
+      // corregir algo de ayer y el cronómetro seguía corriendo desde la hora
+      // de la fecha anterior. El próximo "Terminar" insertaba en ci_sessions
+      // una duración que incluía todo el trabajo de OTRO día.
+      //
+      // Cambiar de fecha es tan inequívoco como cambiar de país: se abandona
+      // la sesión en curso. Lo ya guardado con "Guardar Progreso" queda
+      // intacto en la BD; esto solo cierra el estado en vivo.
+      if (sessionActive) {
+        setSessionActive(false)
+        sessionStartRef.current = null
+        if (userEmail) {
+          sb.from('ci_active_sessions')
+            .delete()
+            .eq('user_email', userEmail)
+            .then(
+              () => {},
+              () => {}
+            )
+        }
+      }
     }
     // Hidratar esta ciudad UNA vez por contexto. Al intercalar A↔B, la 2da vez
     // ya está en el set → no se re-hidrata (la memoria, más nueva, manda).
@@ -1652,6 +1721,29 @@ export default function DataEntry() {
     [entries, indriveExtra, naKeys]
   )
 
+  // Celdas que "Guardar progreso" va a persistir DE VERDAD — solo las de
+  // filas COMPLETAS (mismo criterio que handleSaveProgress).
+  //
+  // Antes el botón mostraba `filledCount` y el mensaje de éxito decía otro
+  // número: "Guardar progreso (108)" → "96 registros guardados". Las 12
+  // restantes quedaban solo en localStorage y el hub no tenía forma de
+  // saberlo (SESIONES_HALLAZGOS.md P2-13). Si esa laptop se rompía, se
+  // perdían.
+  const savableCount = useMemo(() => {
+    let n = 0
+    for (const uiCat of categories) {
+      for (const ref of refsByUICat[uiCat] || []) {
+        for (const ts of timeslots) {
+          if (rowState(uiCat, ref, ts) !== 'full') continue
+          // Una fila completa aporta una celda por competidor visible.
+          n += (getCiCompetitors(uiCity, uiCat, null, country, dbConfigs) || []).length
+        }
+      }
+    }
+    return Math.min(n, filledCount)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, indriveExtra, naKeys, categories, refsByUICat, timeslots, uiCity, filledCount])
+
   // Progreso POR TURNO (Mañana/Tarde/Noche) — para el header colapsable de
   // cada TurnoSection. Mismo criterio que filledCount/countAllFilled de
   // arriba, pero separado por el 3er segmento de la key (tsLabel) en vez de
@@ -2040,7 +2132,9 @@ export default function DataEntry() {
     }
     // Guardado confirmado en servidor de verdad (no solo local) — ver
     // indicador en el header.
-    setLastServerOkAt(Date.now())
+    setLastSaveOkAt(Date.now())
+    // Sella el contador: desde acá, todo lo tecleado cuenta como pendiente.
+    savedSeqRef.current = editSeqRef.current
 
     if (isFinish) {
       const now = new Date()
@@ -2192,6 +2286,21 @@ export default function DataEntry() {
       dropCity(setSurgeByCity)
       dropCity(setErrorKeysByCity)
       dropCity(setLoadedCombosByCity)
+
+      // Los tiempos de turno y la marca de hidratación TAMBIÉN se limpian
+      // (SESIONES_HALLAZGOS.md P1-8). `discardDraft` ya hacía las dos cosas;
+      // acá faltaban, y juntas formaban un circuito silencioso:
+      //
+      //   1. El hub termina Lima 11:00 (turno Mañana con startedAt=09:00).
+      //   2. Vuelve 15:00 a esa misma pestaña a corregir una celda.
+      //   3. El bucket seguía marcado como "ya hidratado", así que no se
+      //      re-lee nada; y los turnoTimings viejos seguían vivos en memoria,
+      //      así que el autosave los vuelve a persistir en el borrador.
+      //   4. Un F5 siembra sessionStartRef desde esas 09:00.
+      //   → 5 minutos de corrección quedan registrados como 360.
+      dropCity(setTurnoTimingsByCity)
+      hydratedCitiesRef.current.delete(finishedCity)
+
       // Re-escanear la lista de borradores (el terminado ya no está).
       setDraftScanTick((tk) => tk + 1)
     }
@@ -2809,7 +2918,7 @@ export default function DataEntry() {
       // Confirmación real de servidor — ver indicador "confirmado en
       // servidor" en el header. Un latido exitoso ya prueba que el backend
       // nos escucha, no hace falta esperar a un guardado explícito.
-      setLastServerOkAt(Date.now())
+      setLastHeartbeatOkAt(Date.now())
     } catch {
       // best-effort: un fallo acá nunca debe interrumpir al hub (el
       // indicador de servidor simplemente no se refresca y va envejeciendo
@@ -2845,16 +2954,40 @@ export default function DataEntry() {
   sessionActiveRef.current = sessionActive
   const userEmailRef = useRef(userEmail)
   userEmailRef.current = userEmail
+  // El contexto del latido se espeja en un ref para poder acotar el borrado
+  // desde un cleanup que corre con deps vacías.
+  const heartbeatScopeRef = useRef({ country, dbCity, zone, date })
+  heartbeatScopeRef.current = { country, dbCity, zone, date }
+
   useEffect(() => {
     return () => {
       if (!sessionActiveRef.current || !userEmailRef.current) return
-      sb.from('ci_active_sessions')
+      // ACOTADO por (país, ciudad, zona, fecha) — antes borraba por
+      // `user_email` a secas (SESIONES_HALLAZGOS.md P1-4).
+      //
+      // Este cleanup corre en CUALQUIER desmontaje: alcanza con que el hub
+      // toque "Monitoreo" en el menú y vuelva. Sin acotar, ese paseo le
+      // borraba la única fila del latido: desaparecía de "en vivo" y, peor,
+      // se perdía el único registro server-side de cuándo empezó — el
+      // siguiente latido re-INSERTA con `started_at = now()`.
+      //
+      // Es además el mismo criterio que la mig 156 ya estableció del lado
+      // servidor para `admin_close_ci_session`, y que la re-limpieza de los
+      // 10s de `performSave` ya respeta: el cliente era el único que seguía
+      // borrando de más.
+      const s = heartbeatScopeRef.current
+      let q = sb
+        .from('ci_active_sessions')
         .delete()
         .eq('user_email', userEmailRef.current)
-        .then(
-          () => {},
-          () => {}
-        )
+        .eq('country', s.country)
+        .eq('city', s.dbCity)
+        .eq('observed_date', s.date)
+      q = s.zone != null ? q.eq('zone', s.zone) : q.is('zone', null)
+      q.then(
+        () => {},
+        () => {}
+      )
     }
   }, [])
 
@@ -2911,7 +3044,7 @@ export default function DataEntry() {
               <Button onClick={handleSaveProgress} disabled={saving}>
                 {saving
                   ? t('dataentry.saving')
-                  : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
+                  : `${t('dataentry.save_progress')}${savableCount > 0 ? ` (${savableCount})` : ''}`}
               </Button>
               <Button
                 className="bg-green-800 hover:bg-green-900"
@@ -3192,9 +3325,13 @@ export default function DataEntry() {
               (LIVE_STALE_MS) que Monitoreo del lado del admin. */}
           <SaveStatusIndicators
             sessionActive={sessionActive}
-            sessionStart={sessionStartRef.current}
             lastDraftSavedAt={lastDraftSavedAt}
-            lastServerOkAt={lastServerOkAt}
+            lastSaveOkAt={lastSaveOkAt}
+            lastHeartbeatOkAt={lastHeartbeatOkAt}
+            filledCount={filledCount}
+            savableCount={savableCount}
+            editSeqRef={editSeqRef}
+            savedSeqRef={savedSeqRef}
             t={t}
           />
         </div>
@@ -3359,7 +3496,7 @@ export default function DataEntry() {
               <Button onClick={handleSaveProgress} disabled={saving}>
                 {saving
                   ? t('dataentry.saving')
-                  : `${t('dataentry.save_progress')}${filledCount > 0 ? ` (${filledCount})` : ''}`}
+                  : `${t('dataentry.save_progress')}${savableCount > 0 ? ` (${savableCount})` : ''}`}
               </Button>
               <Button
                 className="bg-green-800 hover:bg-green-900"
