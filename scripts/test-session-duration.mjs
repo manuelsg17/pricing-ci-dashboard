@@ -370,6 +370,72 @@ console.log('[10] Desglose y total salen del mismo módulo')
   eq(turnoBreakdownLabel({}), '', 'sin turnos, sin texto')
 }
 
+// ── [11] REGRESIÓN: el tramo de ancho cero ────────────────────────────
+// Lo encontró la revisión adversarial y era un P0: el mismo síntoma (0 min)
+// por un camino NUEVO, y peor que el original porque salía marcado como
+// medición confiable.
+//
+// Origen: el efecto de estampado veía `filled` saltar de 0 a 100% en un solo
+// update de estado y ponía `startedAt` y `endedAt` con el MISMO instante.
+// Pasa en toda rehidratación masiva sin semilla de `turno_timings`: el hub
+// usó "Guardar progreso" pero nunca "Terminar" (así que no hay fila en
+// ci_sessions de dónde sembrar) y vuelve desde otra laptop, o tras un relevo,
+// o con la caché limpia.
+console.log('[11] Regresión: tramos de ancho cero no son una medición')
+{
+  const t = iso(DIA, '12:00')
+  const envenenado = {
+    Mañana: { startedAt: t, endedAt: t },
+    Tarde: { startedAt: t, endedAt: t },
+    Noche: { startedAt: t, endedAt: t },
+  }
+  const r = duracionDeSesion({ turnoTimings: envenenado, fin: ms(DIA, '12:10') })
+  ok(r.minutos !== 0, 'un tramo de ancho cero NO puede dar un 0 con cara de dato')
+  eq(r.minutos, null, 'sin reloj de respaldo queda en null (desconocida)')
+  eq(r.fuente, 'desconocida', 'y NO se declara medido por turnos')
+  ok(!r.confiable, 'y nunca confiable')
+
+  // Con reloj de respaldo cae al fallback, marcado como no confiable — no a
+  // un 0 con `fuente: 'turnos'`.
+  const conReloj = duracionDeSesion({
+    turnoTimings: envenenado,
+    inicioReloj: ms(DIA, '11:30'),
+    fin: ms(DIA, '12:10'),
+  })
+  eq(conReloj.minutos, 40, 'con reloj de respaldo mide 40 min de pared')
+  eq(conReloj.fuente, 'reloj', 'declarado como reloj, no como turnos')
+  ok(!conReloj.confiable, 'y no confiable')
+
+  // Un tramo bueno convive con uno envenenado sin contaminarse.
+  const mixto = {
+    Mañana: { startedAt: iso(DIA, '09:00'), endedAt: iso(DIA, '09:45') },
+    Tarde: { startedAt: t, endedAt: t },
+  }
+  eq(
+    duracionDeSesion({ turnoTimings: mixto, fin: ms(DIA, '12:10') }).minutos,
+    45,
+    'el tramo bueno se mide y el de ancho cero se descarta'
+  )
+
+  // Un turno de 1 segundo SÍ es una medición (absurda, pero real): el filtro
+  // es `> 0`, no un umbral arbitrario que se coma trabajo legítimo.
+  eq(
+    duracionDeSesion({
+      turnoTimings: { M: { startedAt: iso(DIA, '09:00'), endedAt: iso(DIA, '09:00') } },
+      fin: ms(DIA, '09:10'),
+    }).minutos,
+    null,
+    'exactamente 0 ms se descarta'
+  )
+  eq(
+    tramosDeTurnos({
+      M: { startedAt: ms(DIA, '09:00'), endedAt: ms(DIA, '09:00') + 1000 },
+    })[0].minutos,
+    0,
+    '1 segundo redondea a 0.0 min pero SÍ es un tramo medido'
+  )
+}
+
 // ── Resultado ─────────────────────────────────────────────────────────
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} pasaron, ${fail} fallaron`)
 if (fail) console.error('Fallaron:\n  - ' + fallos.join('\n  - '))

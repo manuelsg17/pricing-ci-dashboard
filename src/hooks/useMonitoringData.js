@@ -37,6 +37,18 @@ export function useMonitoringData(country) {
             .eq('country', country)
             .gte('observed_date', from)
             .lte('observed_date', to)
+            // Se ordena por `ended_at`, no por `started_at`.
+            //
+            // Desde que la duración se deriva de `turno_timings`, `started_at`
+            // es el PRIMER TRABAJO REAL del bucket, no el arranque de la
+            // pestaña — y al reabrir una sesión para corregir una celda esa
+            // fila se guarda con el `started_at` del día original. Ordenando
+            // por ese campo, una corrección hecha hoy se hundía en la lista
+            // como si fuera de ayer, que es lo contrario de "Sesiones
+            // recientes". `ended_at` es siempre el instante del cierre, así
+            // que sí es monótono. Se deja `started_at` de desempate por si
+            // alguna fila vieja no tiene `ended_at` poblado.
+            .order('ended_at', { ascending: false, nullsFirst: false })
             .order('started_at', { ascending: false })
             .limit(300),
           sb.rpc('get_unfinished_ci_sessions', { p_country: country, p_from: from, p_to: to }),

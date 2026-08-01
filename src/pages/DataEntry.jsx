@@ -2996,6 +2996,27 @@ export default function DataEntry() {
         let endedAt = t?.endedAt
         let labelChanged = false
         if (filled > 0 && !startedAt) {
+          // Un turno que aparece YA COMPLETO sin tener `startedAt` no es
+          // trabajo que estemos viendo ocurrir: es una grilla que llegó
+          // entera de un saque (auto-load del servidor sin `turno_timings`
+          // de dónde sembrar — otra laptop, relevo entre hubs, caché limpia,
+          // o una sesión que solo usó "Guardar progreso" y nunca Terminar).
+          //
+          // Estampar acá ponía `startedAt` Y `endedAt` con el MISMO instante
+          // en la misma pasada: un tramo de ancho cero que hacía que
+          // `duration_minutes` saliera 0.0 — el síntoma que este trabajo vino
+          // a matar, por un camino nuevo. Y era peor que el original, porque
+          // el 0 quedaba marcado como medición confiable.
+          //
+          // Peor todavía: esos timings se propagan al borrador y al latido, y
+          // `startedAt` no se sobreescribe NUNCA, así que la corrupción era
+          // permanente para ese bucket+fecha y `admin_close_ci_session` leía
+          // lo mismo.
+          //
+          // No estampar nada es la respuesta honesta: de ese turno no sabemos
+          // cuándo se trabajó. La duración cae al fallback de reloj, marcado
+          // como NO confiable, que es exactamente lo que corresponde.
+          if (filled >= totalExpectedPerTimeslot) continue
           startedAt = new Date().toISOString()
           labelChanged = true
         }

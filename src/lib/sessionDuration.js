@@ -50,7 +50,7 @@
 //     `fuente: 'desconocida'` en vez de inventar un 0. Un 0 es una mentira
 //     que se promedia; un null se puede excluir.
 //
-// El mismo algoritmo vive en SQL (mig 187, `ci_duration_from_timings`) para
+// El mismo algoritmo vive en SQL (mig 194, `ci_duration_from_timings`) para
 // que el cierre administrativo no sea una segunda fuente de verdad — ese era
 // el otro camino por el que salía un 0 (escribía 0 literal cuando no
 // encontraba fila de latido).
@@ -194,7 +194,23 @@ export function minutosUnidos(tramos) {
 export function duracionDeSesion({ turnoTimings, inicioReloj = null, fin = Date.now() } = {}) {
   const finMs = aMs(fin) ?? Date.now()
   const porTurno = tramosDeTurnos(turnoTimings, { finDeSesion: finMs })
-  const medibles = porTurno.filter((t) => t.fin != null)
+
+  // `fin > inicio`, no `>=`: un tramo de ancho CERO no es "trabajo que duró
+  // nada", es un artefacto — y colarlo daba el peor resultado posible,
+  // `minutos: 0` con `confiable: true`, que ningún filtro de calidad saca.
+  //
+  // Lo produce cualquier grilla que llegue YA COMPLETA de un saque: el efecto
+  // de estampado de DataEntry.jsx veía `filled` saltar de 0 a 100% en un solo
+  // update y ponía `startedAt` y `endedAt` con el MISMO `new Date()`. Pasa al
+  // reabrir una fecha sin borrador local (otra laptop, relevo entre hubs,
+  // caché limpia) cuando no hay `turno_timings` de dónde sembrar.
+  //
+  // El origen está tapado en el efecto (ya no estampa un turno que aparece
+  // completo de entrada), pero este filtro se queda igual por dos motivos: en
+  // la BD ya hay filas con esos timings envenenados —`startedAt` no se
+  // sobreescribe nunca, así que no se recuperan solas— y este módulo no puede
+  // depender de que el único productor se porte bien.
+  const medibles = porTurno.filter((t) => t.fin != null && t.fin > t.inicio)
 
   if (medibles.length > 0) {
     const recortado = medibles.some((t) => t.recortado)

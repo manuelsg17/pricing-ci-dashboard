@@ -47,6 +47,22 @@
 -- sigue funcionando contra este esquema (CLAUDE.md §4).
 -- ════════════════════════════════════════════════════════════════════════
 
+-- ── Precondición: `duration_minutes` DEBE aceptar NULL ──────────────────
+-- "No sé" se escribe NULL, así que la columna tiene que permitirlo. En local
+-- ya es nullable, pero eso NO prueba nada sobre producción: la tabla se pudo
+-- crear por dos caminos distintos y solo uno deja la columna nullable —
+-- `11_ci_sessions.sql` la declara `numeric` (nullable) y
+-- `16_ci_sessions_ensure.sql` la declara `numeric NOT NULL`. El que ganó
+-- depende de cuál corrió primero en cada entorno, porque el segundo es
+-- `CREATE TABLE IF NOT EXISTS` y no toca una tabla que ya existe.
+--
+-- Si en producción ganó la 16, un cierre con duración desconocida violaría el
+-- NOT NULL y el hub NO PODRÍA TERMINAR LA SESIÓN. Se fuerza explícitamente en
+-- vez de asumir: `DROP NOT NULL` es idempotente y no hace nada si ya era
+-- nullable. Es exactamente la clase de suposición que CLAUDE.md §11 pide no
+-- dar por hecha.
+ALTER TABLE public.ci_sessions ALTER COLUMN duration_minutes DROP NOT NULL;
+
 -- ── Cast seguro ─────────────────────────────────────────────────────────
 -- `turno_timings` es jsonb libre: una clave con texto que no es una fecha
 -- haría abortar el cierre administrativo entero con un error de cast. Se
@@ -60,6 +76,16 @@ AS $function$
 BEGIN
   IF p_txt IS NULL OR p_txt = '' THEN
     RETURN NULL;
+  END IF;
+  -- Epoch en milisegundos. El cliente hoy siempre escribe `toISOString()`,
+  -- pero `aMs()` de src/lib/sessionDuration.js acepta epoch numérico como
+  -- contrato declarado (y su test lo afirma). Sin esta rama, el espejo SQL
+  -- devolvía NULL y DESCARTABA el turno: la misma entrada daba 40 min en el
+  -- cliente y "sin datos" en el cierre administrativo. Una divergencia entre
+  -- las dos implementaciones es volver a tener dos fuentes de verdad, que es
+  -- justo lo que esta migración cierra.
+  IF p_txt ~ '^[0-9]{10,14}$' THEN
+    RETURN to_timestamp(p_txt::bigint / 1000.0);
   END IF;
   RETURN p_txt::timestamptz;
 EXCEPTION WHEN others THEN
@@ -134,10 +160,15 @@ BEGIN
       FROM crudo
       WHERE ini IS NOT NULL
     ),
+    -- `fin > ini`, no `>=`: un tramo de ancho CERO no es "trabajo que duró
+    -- nada", es un artefacto. Lo produce una grilla que llega ya completa de
+    -- un saque, y colarlo daba `duration_minutes = 0.0` presentado como dato
+    -- bueno — el síntoma original por un camino nuevo. Debe coincidir con el
+    -- filtro de `medibles` en src/lib/sessionDuration.js.
     acotado AS (
       SELECT ini, LEAST(fin, ini + v_max_turno) AS fin
       FROM con_fin
-      WHERE fin IS NOT NULL AND fin >= ini
+      WHERE fin IS NOT NULL AND fin > ini
     )
     SELECT ini, fin FROM acotado ORDER BY ini
   LOOP

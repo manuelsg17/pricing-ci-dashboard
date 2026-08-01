@@ -170,6 +170,51 @@ BEGIN
     RAISE WARNING '[9d] fin anterior al inicio no debe cerrar el turno'; fallos := fallos + 1;
   END IF;
 
+  -- ── [10] REGRESIÓN: tramo de ancho cero (P0 de la revisión adversarial)
+  -- El efecto de estampado podía poner startedAt y endedAt con el MISMO
+  -- instante cuando la grilla llegaba ya completa de un saque. Eso daba
+  -- `duration_minutes = 0.0` presentado como dato bueno: el síntoma original
+  -- por un camino nuevo. Debe dar NULL, igual que en JS.
+  total := total + 1;
+  IF ci_duration_from_timings(
+       '{"Mañana":{"startedAt":"2026-08-01T12:00:00Z","endedAt":"2026-08-01T12:00:00Z"},
+         "Tarde":{"startedAt":"2026-08-01T12:00:00Z","endedAt":"2026-08-01T12:00:00Z"}}'::jsonb,
+       '2026-08-01T12:10:00Z'::timestamptz) IS NOT NULL THEN
+    RAISE WARNING '[10] tramo de ancho cero debe dar NULL, no 0'; fallos := fallos + 1;
+  END IF;
+
+  -- Un tramo bueno junto a uno envenenado no se contamina.
+  total := total + 1;
+  v_got := ci_duration_from_timings(
+    '{"Mañana":{"startedAt":"2026-08-01T09:00:00Z","endedAt":"2026-08-01T09:45:00Z"},
+      "Tarde":{"startedAt":"2026-08-01T12:00:00Z","endedAt":"2026-08-01T12:00:00Z"}}'::jsonb,
+    '2026-08-01T12:10:00Z'::timestamptz);
+  IF v_got IS DISTINCT FROM 45 THEN
+    RAISE WARNING '[10b] tramo bueno + ancho cero: esperaba 45, obtuve %', v_got; fallos := fallos + 1;
+  END IF;
+
+  -- 1 segundo SÍ es una medición: el filtro es "> 0", no un umbral arbitrario.
+  total := total + 1;
+  v_got := ci_duration_from_timings(
+    '{"M":{"startedAt":"2026-08-01T09:00:00Z","endedAt":"2026-08-01T09:00:01Z"}}'::jsonb, NULL);
+  IF v_got IS DISTINCT FROM 0.0 THEN
+    RAISE WARNING '[10c] 1 segundo debe medir 0.0, no NULL: obtuve %', v_got; fallos := fallos + 1;
+  END IF;
+
+  -- ── [10d] Paridad de epoch numérico ─────────────────────────────────
+  -- `aMs()` en JS acepta epoch ms como contrato declarado. El espejo SQL lo
+  -- descartaba (cast fallido → NULL → turno perdido): la misma entrada daba
+  -- 40 min en el cliente y "sin datos" en el cierre administrativo.
+  total := total + 1;
+  v_got := ci_duration_from_timings(
+    ('{"M":{"startedAt":' || (extract(epoch from '2026-08-01T09:00:00Z'::timestamptz)*1000)::bigint
+      || ',"endedAt":' || (extract(epoch from '2026-08-01T09:40:00Z'::timestamptz)*1000)::bigint
+      || '}}')::jsonb,
+    NULL);
+  IF v_got IS DISTINCT FROM 40 THEN
+    RAISE WARNING '[10d] epoch numérico: esperaba 40 (igual que JS), obtuve %', v_got; fallos := fallos + 1;
+  END IF;
+
   -- ── [11] ci_started_from_timings ────────────────────────────────────
   total := total + 1;
   IF ci_started_from_timings(
