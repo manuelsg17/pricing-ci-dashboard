@@ -4,6 +4,8 @@ import { sb, SESSION_ID } from '../lib/supabase'
 import { debeReanudarTramo } from '../lib/sessionPersistence'
 import { evaluateLease, serializeLease, ownsLease, leaseKey, LEASE_RENEW_MS } from '../lib/tabLease'
 import { duracionDeSesion } from '../lib/sessionDuration'
+import { duracionActiva, registrarActividad } from '../lib/idleDetection'
+import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
@@ -229,9 +231,23 @@ export default function DataEntry() {
   const editSeqRef = useRef({})
   const savedSeqRef = useRef({})
 
+  // Traza de actividad por bucket (P1-6). Va en REF por el MISMO motivo que
+  // editSeqRef: esto corre en CADA tecleo, y un setState acá re-renderizaría
+  // la grilla entera (CLAUDE.md §5). `registrarActividad` solo mira el último
+  // tramo y devuelve la misma referencia si el evento no aporta nada, así que
+  // el costo por tecla es constante y no crece con la jornada.
+  const actividadRef = useRef({})
+
   const markTouched = useCallback((bucket) => {
     if (!bucket) return
     editSeqRef.current[bucket] = (editSeqRef.current[bucket] ?? 0) + 1
+    // markTouched es el embudo ÚNICO de setEntry/setEta/setDisc/setIndrive y
+    // del marcado "sin data": cubre todo lo que el hub HACE, que es
+    // exactamente lo que cuenta como actividad.
+    actividadRef.current[bucket] = registrarActividad(
+      actividadRef.current[bucket] || [],
+      Date.now()
+    )
     setTouchedFronts((prev) => (prev.includes(bucket) ? prev : [...prev, bucket]))
   }, [])
 
@@ -2529,37 +2545,67 @@ export default function DataEntry() {
       // así `started_at`/`ended_at` describen la ventana de trabajo del
       // bucket que cierra, no la de la pestaña.
       const start = medicion.inicio ?? sessionStartRef.current ?? now.getTime()
-      const { error: sessErr } = await sb.from('ci_sessions').insert({
-        country,
-        city: dbCity,
-        // Distrito TukTuk (null en el resto) → el historial distingue "Lima
-        // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
-        zone,
-        observed_date: date,
-        user_email: userEmail,
-        started_at: new Date(start).toISOString(),
-        ended_at: now.toISOString(),
-        duration_minutes: dur,
-        // La marca de confianza (mig 195). `duracionDeSesion` YA la calculaba
-        // y se tiraba a la basura al escribir la fila: un número capado por el
-        // techo de 4h entraba a la base indistinguible de uno exacto, y
-        // cualquier promedio los mezclaba. Con esto, el dashboard puede
-        // promediar SOLO lo confiable y el resto queda auditable en vez de
-        // silenciosamente mal.
-        duration_confiable: medicion.confiable,
-        duration_motivo: medicion.motivo,
-        rows_saved: payloads.length,
-        // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
-        // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
-        // (mig 155) sin tener que recalcularlo del lado del servidor.
-        total_expected: totalExpected,
-        // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
-        // criterio: persistido acá para que sobreviva al DELETE del latido de
-        // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
-        // timestamps del turno actual (isFinalInScope puede cerrar solo un
-        // punto de "Ambos"; los turnos de otro miembro del alcance viven en
-        // SU PROPIO bucketKey/sesión, no se mezclan acá).
-        turno_timings: turnoTimings,
+
+      // Cuánto de esa ventana fue TRABAJO (P1-6). NO reemplaza a `medicion`:
+      // el techo de 4h sigue mandando en `duration_minutes` para no cambiarle
+      // el significado a una columna que ya tiene histórico y dashboards
+      // encima (CLAUDE.md §4). Los minutos activos van en columnas propias.
+      const actividad = duracionActiva({
+        turnoTimings,
+        actividad: actividadRef.current[bucketKey] || [],
+        fin: now,
+      })
+
+      // Clave de idempotencia del cierre (P2-11, mig 197). Se genera UNA vez
+      // por intento y se reusa en cada reintento — incluso después de un F5,
+      // porque vive en localStorage. Así, un INSERT que el servidor ya
+      // ejecutó y cuya respuesta se perdió NO se duplica. Un cierre nuevo
+      // (reabrir para corregir) trae token nuevo y sí inserta: ese rastro de
+      // revisiones es deliberado.
+      const cierre = tokenDeCierre({ userEmail, bucketKey, fecha: date })
+
+      const { error: sessErr } = await sb.rpc('close_ci_session', {
+        p_close_token: cierre.token,
+        p_session: {
+          country,
+          city: dbCity,
+          // Distrito TukTuk (null en el resto) → el historial distingue "Lima
+          // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
+          zone,
+          observed_date: date,
+          user_email: userEmail,
+          started_at: new Date(start).toISOString(),
+          ended_at: now.toISOString(),
+          duration_minutes: dur,
+          // La marca de confianza (mig 195). `duracionDeSesion` YA la calculaba
+          // y se tiraba a la basura al escribir la fila: un número capado por el
+          // techo de 4h entraba a la base indistinguible de uno exacto, y
+          // cualquier promedio los mezclaba. Con esto, el dashboard puede
+          // promediar SOLO lo confiable y el resto queda auditable en vez de
+          // silenciosamente mal.
+          duration_confiable: medicion.confiable,
+          duration_motivo: medicion.motivo,
+          rows_saved: payloads.length,
+          // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
+          // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
+          // (mig 155) sin tener que recalcularlo del lado del servidor.
+          total_expected: totalExpected,
+          // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
+          // criterio: persistido acá para que sobreviva al DELETE del latido de
+          // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
+          // timestamps del turno actual (isFinalInScope puede cerrar solo un
+          // punto de "Ambos"; los turnos de otro miembro del alcance viven en
+          // SU PROPIO bucketKey/sesión, no se mezclan acá).
+          turno_timings: turnoTimings,
+          // NULL explícito cuando no hubo traza utilizable: "no lo pude
+          // medir" y "no trabajó" no son lo mismo, y un 0 se promedia.
+          active_minutes: actividad.actividadMedida ? actividad.minutos : null,
+          idle_minutes: actividad.actividadMedida ? actividad.descontados : null,
+          // La traza cruda se guarda para poder RECALIBRAR el umbral de 5 min
+          // contra datos reales dentro de unas semanas, sin haber perdido el
+          // detalle. Hoy es una hipótesis fundada, no una medición.
+          activity_trace: actividad.actividadMedida ? actividadRef.current[bucketKey] || [] : null,
+        },
       })
       // supabase-js NO lanza excepción cuando un insert falla: devuelve
       // { error }. Sin este chequeo, un fallo (RLS, red, timeout) seguía de
@@ -2582,6 +2628,18 @@ export default function DataEntry() {
         setSaving(false)
         return false
       }
+
+      // Cierre CONFIRMADO por el servidor: se retira el token para que el
+      // próximo "Terminar" de este bucket sea un cierre nuevo y no un
+      // reintento.
+      //
+      // Va acá y NO en el camino de error, a propósito: retirarlo tras un
+      // fallo haría que el reintento mandara un token DISTINTO y duplicara
+      // justamente la fila que el servidor quizá ya escribió — que es el bug
+      // que esto viene a cerrar.
+      confirmarCierre({ userEmail, bucketKey, fecha: date })
+      actividadRef.current[bucketKey] = []
+
       // Limpiar el latido de sesión-activa (mig 146) SOLO si esto cierra la
       // sesión de VERDAD (isFinalInScope) — en Aeropuerto "Ambos", terminar el
       // primer punto no debe hacer desaparecer al hub de "en vivo" en
