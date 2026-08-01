@@ -23,14 +23,22 @@ function fmtElapsed(ms) {
 // inicio; cuando cambia (reabrir sesión reinicia el cronómetro) el effect se
 // re-corre y el reloj vuelve a 00:00 solo.
 export function SessionTimer({ sessionStart, title }) {
-  const [elapsed, setElapsed] = useState(() =>
-    fmtElapsed(Date.now() - (sessionStart ?? Date.now()))
-  )
+  // `sessionStart` puede llegar null: al cerrar la sesión (cambio de fecha o
+  // de país) se limpia el ref de forma SÍNCRONA, mientras que el
+  // `setSessionActive(false)` que desmonta este componente es asíncrono — hay
+  // un render en el medio con la sesión todavía activa y el inicio ya en null.
+  //
+  // Sin el guard, `Date.now() - null` es `Date.now()`: el cronómetro mostraría
+  // ~56 años. El estado inicial ya lo contemplaba, el efecto no.
+  const desde = sessionStart ?? Date.now()
+
+  const [elapsed, setElapsed] = useState(() => fmtElapsed(Date.now() - desde))
 
   useEffect(() => {
-    setElapsed(fmtElapsed(Date.now() - sessionStart))
+    const base = sessionStart ?? Date.now()
+    setElapsed(fmtElapsed(Date.now() - base))
     const id = setInterval(() => {
-      setElapsed(fmtElapsed(Date.now() - sessionStart))
+      setElapsed(fmtElapsed(Date.now() - base))
     }, 1000)
     return () => clearInterval(id)
   }, [sessionStart])

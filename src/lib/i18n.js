@@ -726,6 +726,16 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Marcar toda la fila como "sin data" (no había oferta)',
     'dataentry.missing_cats_note': 'Sin ruta en este bracket para: {cats}.',
     'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
+    'dataentry.err_save_conflict':
+      'No guardamos nada, para no borrar tu trabajo. Esta ciudad se guardó desde otro lado y esta pantalla tiene una versión más vieja.',
+    'dataentry.conflict_body':
+      'Elegí con cuál te quedás. Nada se perdió todavía: lo de la otra pantalla sigue guardado.',
+    'dataentry.conflict_reload': 'Traer lo último (reemplaza lo que ves acá)',
+    'dataentry.conflict_force': 'Guardar lo de esta pantalla igual',
+    'dataentry.conflict_force_confirm':
+      'Vas a reemplazar lo que se guardó desde el otro lado. ¿Seguimos?',
+    'dataentry.just_finished_note':
+      'Ya terminaste esta ciudad y fecha — tus datos están guardados. Mirá “Ver lo guardado” para revisarlos.',
     'dataentry.draft_only_hint':
       'El borrador vive solo en ESTE navegador. Guardá para que quede en el servidor.',
     'dataentry.saved_on_server_ago': '✓ Guardado en el servidor hace {s}s',
@@ -3017,6 +3027,16 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Mark the whole row as "no data" (no offer)',
     'dataentry.missing_cats_note': 'No route in this bracket for: {cats}.',
     'dataentry.autosaved_ago': 'Autosaved {s}s ago',
+    'dataentry.err_save_conflict':
+      'We saved nothing, so your work is not erased. This city was saved from somewhere else and this screen has an older version.',
+    'dataentry.conflict_body':
+      'Choose which one to keep. Nothing is lost yet — the other screen is still saved.',
+    'dataentry.conflict_reload': 'Get the latest (replaces what you see here)',
+    'dataentry.conflict_force': 'Save this screen anyway',
+    'dataentry.conflict_force_confirm':
+      'This will replace what was saved from the other side. Continue?',
+    'dataentry.just_finished_note':
+      'You already finished this city and date — your data is saved. Check “View saved” to review it.',
     'dataentry.draft_only_hint':
       'The draft lives only in THIS browser. Save so it reaches the server.',
     'dataentry.saved_on_server_ago': '✓ Saved on the server {s}s ago',
@@ -5296,6 +5316,16 @@ export const TRANSLATIONS = {
     'dataentry.sd_row_title': 'Отметить всю строку как «нет данных» (не было предложения)',
     'dataentry.missing_cats_note': 'Нет маршрута в этом брекете для: {cats}.',
     'dataentry.autosaved_ago': 'Автосохранено {s} с назад',
+    'dataentry.err_save_conflict':
+      'Мы ничего не сохранили, чтобы не стереть вашу работу. Этот город был сохранён с другого места, а здесь — более старая версия.',
+    'dataentry.conflict_body':
+      'Выберите, что оставить. Пока ничего не потеряно — данные с другого экрана сохранены.',
+    'dataentry.conflict_reload': 'Загрузить последнюю версию (заменит то, что здесь)',
+    'dataentry.conflict_force': 'Всё равно сохранить то, что здесь',
+    'dataentry.conflict_force_confirm':
+      'Это заменит то, что было сохранено с другого места. Продолжить?',
+    'dataentry.just_finished_note':
+      'Вы уже завершили этот город и дату — данные сохранены. Откройте «Посмотреть сохранённое», чтобы проверить.',
     'dataentry.draft_only_hint':
       'Черновик хранится только в ЭТОМ браузере. Сохраните, чтобы он попал на сервер.',
     'dataentry.saved_on_server_ago': '✓ Сохранено на сервере {s} с назад',

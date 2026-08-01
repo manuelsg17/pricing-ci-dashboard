@@ -42,7 +42,8 @@
     "test:yango-gmv-bonus": "node scripts/test-yango-gmv-bonus.mjs",
     "test:error-fingerprint": "node scripts/test-error-fingerprint.mjs",
     "simulate:permissions": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-permissions.sql",
-    "test:session-persistence": "node scripts/test-session-persistence.mjs"
+    "test:session-persistence": "node scripts/test-session-persistence.mjs",
+    "simulate:two-tabs": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-two-tabs.sql"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { sb } from '../lib/supabase'
+import { sb, SESSION_ID } from '../lib/supabase'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
@@ -959,6 +959,49 @@ export default function DataEntry() {
   // había uno solo, y el LATIDO lo refrescaba: el hub veía "✓ Confirmado en
   // servidor hace 4s" toda la sesión sin haber guardado una sola celda.
   // Conectividad no es durabilidad.
+  // ── Marca de agua de sincronización con el servidor (mig 191) ────────
+  // Guarda con qué versión del bucket se sincronizó ESTA pestaña. Va en
+  // sessionStorage y no en localStorage a propósito: dos pestañas comparten
+  // localStorage, así que ahí la marca de una "avalaría" el guardado de la
+  // otra — justo el bug que esto viene a cerrar. sessionStorage sobrevive un
+  // F5 y muere con la pestaña, que es exactamente la vida útil que queremos.
+  //
+  // La clave usa la identidad de BD (dbCity/zone), NO viewId: son namespaces
+  // distintos y mezclarlos ya causó pérdida de trabajo (CLAUDE.md §1).
+  // La clave se arma SIEMPRE con el bucket explícito, nunca con el "actual":
+  // loadObservationsIntoForm puede estar cargando un bucket distinto del que
+  // se está mirando, y escribir la marca bajo la clave equivocada haría que
+  // el guard avale un bucket que nunca se leyó. Es el mismo desfase de
+  // namespaces que CLAUDE.md §1 marca como causa de pérdida real de trabajo.
+  const syncSeqKeyFor = useCallback((c, city, z, d) => `de:seq:${c}|${city}|${z ?? ''}|${d}`, [])
+  const readSyncSeq = useCallback(() => {
+    try {
+      const v = sessionStorage.getItem(syncSeqKeyFor(country, dbCity, zone, date))
+      return v == null ? null : Number(v)
+    } catch {
+      return null
+    }
+  }, [syncSeqKeyFor, country, dbCity, zone, date])
+  const writeSyncSeqFor = useCallback(
+    (c, city, z, d, n) => {
+      const k = syncSeqKeyFor(c, city, z, d)
+      try {
+        if (n == null) sessionStorage.removeItem(k)
+        else sessionStorage.setItem(k, String(n))
+      } catch {
+        /* Safari privado: sin marca, el guard es conservador (avisa) en vez
+           de permisivo (pierde datos). */
+      }
+    },
+    [syncSeqKeyFor]
+  )
+  const writeSyncSeq = useCallback(
+    (n) => writeSyncSeqFor(country, dbCity, zone, date, n),
+    [writeSyncSeqFor, country, dbCity, zone, date]
+  )
+  // Conflicto detectado por el servidor: { at, isFinish } o null.
+  const [saveConflict, setSaveConflict] = useState(null)
+
   const [lastSaveOkAt, setLastSaveOkAt] = useState(null) // guardado REAL
   const [lastHeartbeatOkAt, setLastHeartbeatOkAt] = useState(null) // solo conexión
 
@@ -1985,7 +2028,12 @@ export default function DataEntry() {
   // punto pendiente. Para todo lo demás (Guardar Progreso, o un Terminar de
   // alcance único — el 99% de los casos) el valor por defecto reproduce el
   // comportamiento de siempre.
-  async function performSave(rowsToInsert, isFinish = false, isFinalInScope = true) {
+  async function performSave(
+    rowsToInsert,
+    isFinish = false,
+    isFinalInScope = true,
+    forceOverwrite = false
+  ) {
     // Distrito de TukTuk bloqueado (ver pill en el render, de-airport-subtab--
     // locked): ese guard solo cubre el click para ENTRAR al distrito — resumir
     // un borrador local o reabrir una sesión del historial navega directo a
@@ -2106,7 +2154,7 @@ export default function DataEntry() {
 
     const payloads = rowsToInsert.map((r) => buildInsertPayload(r, capturedTime))
 
-    const { error: saveErr } = await sb.rpc('save_ci_batch', {
+    const { data: saveRes, error: saveErr } = await sb.rpc('save_ci_batch', {
       p_country: country,
       p_city: dbCity,
       p_date: date,
@@ -2120,8 +2168,25 @@ export default function DataEntry() {
       p_user_email: userEmail || null,
       p_routes: routesPayload,
       p_rows: payloads,
+      // Guard de concurrencia (mig 191): identidad de ESTA pestaña + la marca
+      // de agua con la que se sincronizó. Si otra pestaña —u otro
+      // dispositivo con la misma cuenta— escribió este bucket después, el
+      // servidor aborta el guardado ENTERO en vez de borrar sus filas.
+      p_session_id: SESSION_ID,
+      p_expected_seq: readSyncSeq(),
+      p_force: forceOverwrite === true,
     })
     if (saveErr) {
+      // 55006 = otra pestaña/dispositivo escribió este bucket. El servidor NO
+      // borró ni insertó nada: la data de la otra sigue intacta.
+      if (saveErr.code === '55006') {
+        setSaveConflict({ at: saveErr.details || null, isFinish })
+        setMsg({ type: 'err', text: t('dataentry.err_save_conflict'), emphasize: true })
+        setSaving(false)
+        // NO se marca guardado, NO se limpia el borrador, NO se inserta en
+        // ci_sessions y NO se borra el latido: el hub no perdió nada.
+        return false
+      }
       // Mensaje ACCIONABLE para el hub (no el .message crudo de Postgres —
       // jerga técnica tipo "duplicate key value violates..." no le dice qué
       // hacer). El detalle técnico va a consola para diagnóstico nuestro.
@@ -2130,6 +2195,8 @@ export default function DataEntry() {
       setSaving(false)
       return false
     }
+    if (saveRes && Number.isFinite(Number(saveRes.seq))) writeSyncSeq(Number(saveRes.seq))
+    setSaveConflict(null)
     // Guardado confirmado en servidor de verdad (no solo local) — ver
     // indicador en el header.
     setLastSaveOkAt(Date.now())
@@ -2315,7 +2382,7 @@ export default function DataEntry() {
   // para terminarlas después. El re-guardado es idempotente (DELETE+INSERT por
   // categoría/franja), así que guardar seguido es seguro. Solo "Terminar
   // Sesión" exige la grilla completa/S-D.
-  async function handleSaveProgress() {
+  async function handleSaveProgress(forceOverwrite = false) {
     // Collect all full rows
     const rowsToInsert = []
     for (const uiCat of categories) {
@@ -2331,7 +2398,7 @@ export default function DataEntry() {
       setMsg({ type: 'err', text: t('dataentry.err_no_full') })
       return
     }
-    await performSave(rowsToInsert, false)
+    await performSave(rowsToInsert, false, true, forceOverwrite)
   }
 
   // ── Terminar sesión ────────────────────────────────────
@@ -2343,7 +2410,7 @@ export default function DataEntry() {
   // sigue activa y el hub pasa automáticamente al punto que falta, y recién
   // al terminar el ÚLTIMO se cierra la sesión de verdad (ver
   // `isFinalInScope` en `performSave`).
-  async function handleFinishSession() {
+  async function handleFinishSession(forceOverwrite = false) {
     const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
     if (hasPartial || hasEmpty) {
       setMsg({ type: 'err', text: t('dataentry.err_finish') })
@@ -2368,7 +2435,7 @@ export default function DataEntry() {
     // sesión solo cierra de verdad si TAMBIÉN queda vacío.
     const remainingExtraAfterThis = pendingExtraFronts.filter((bk) => bk !== bucketKey)
     const isFinalInScope = remainingAfterThis.length === 0 && remainingExtraAfterThis.length === 0
-    const ok = await performSave(rowsToInsert, true, isFinalInScope)
+    const ok = await performSave(rowsToInsert, true, isFinalInScope, forceOverwrite)
     if (!ok) return
     // Updaters funcionales: `remaining*AfterThis` son snapshots de ANTES del
     // await de performSave (que puede tardar segundos). Aplicarlos como array
@@ -2488,7 +2555,42 @@ export default function DataEntry() {
     // raíz real del bug "2 borradores reaparecidos" de Raisa, 2026-07-24).
     // Una apertura EXPLÍCITA (Historial → Abrir, openHistorySession) nunca
     // pasa `silent`, así que sigue funcionando sin cambios.
-    if (silent && isBucketJustFinished(bucket, loadDate)) return
+    if (silent && isBucketJustFinished(bucket, loadDate)) {
+      // Pero SÍ se explica por qué la grilla está vacía (P2-15). El guard
+      // funciona como se diseñó; el problema era que salía en silencio: el
+      // hub volvía 2 minutos después de Terminar, veía 0/162 y el botón
+      // "Iniciar Sesión", y eso es indistinguible de "perdí todo mi trabajo".
+      // Sus datos están guardados y a un clic en "Ver lo guardado".
+      setMsg({ type: 'ok', text: t('dataentry.just_finished_note') })
+      return
+    }
+    // Marca de agua PRIMERO, filas después (mig 191). El orden importa: si el
+    // otro escritor entra entre las dos lecturas, quedo con una marca vieja →
+    // el próximo guardado conflictúa, que es la dirección SEGURA. Al revés
+    // estaría avalando datos que no llegué a ver.
+    //
+    // Si la lectura falla NO se inventa una marca: sin marca el guard avisa
+    // en vez de dejar pasar. Un error de red nunca debe traducirse en
+    // "seguí, todo bien".
+    if (userEmail) {
+      const { data: wm, error: wmErr } = await sb
+        .from('ci_bucket_writes')
+        .select('write_seq')
+        .eq('user_email', userEmail)
+        .eq('country', country)
+        .eq('city', loadDbCity)
+        .eq('zone_key', loadZone ?? '')
+        .eq('observed_date', loadDate)
+        .maybeSingle()
+      writeSyncSeqFor(
+        country,
+        loadDbCity,
+        loadZone,
+        loadDate,
+        !wmErr && wm ? Number(wm.write_seq) : null
+      )
+    }
+
     let obsQuery = sb
       .from('pricing_observations')
       .select(
@@ -2646,11 +2748,39 @@ export default function DataEntry() {
     const newSurge = (data || []).some((r) => r.surge === true)
 
     // Vuelca lo cargado en la rebanada de la ciudad objetivo (loadDbCity).
-    setEntriesByCity((prev) => ({ ...prev, [bucket]: newEntries }))
-    setEtaByCity((prev) => ({ ...prev, [bucket]: newEta }))
-    setDiscByCity((prev) => ({ ...prev, [bucket]: newDisc }))
-    setIndriveByCity((prev) => ({ ...prev, [bucket]: newIndrive }))
-    setNaByCity((prev) => ({ ...prev, [bucket]: newNa }))
+    //
+    // En el auto-load SILENCIOSO lo tecleado por el hub SIEMPRE gana
+    // (SESIONES_HALLAZGOS.md P2-12). Antes esto era un reemplazo total: si el
+    // hub entraba a una ciudad ya guardada y empezaba a tipear de inmediato,
+    // la carga en curso resolvía unos segundos después y le borraba de la
+    // pantalla todo lo que había escrito. Es visible, y se lee como "se me
+    // borró todo".
+    //
+    // Es la regla de CLAUDE.md §2: un refresco en segundo plano nunca pisa
+    // una acción explícita y reciente del usuario. Un "Abrir" del historial
+    // (silent=false) SÍ reemplaza, porque ahí el hub lo pidió.
+    const conservarTecleado = (nuevos) => (prev) => {
+      const actual = prev[bucket]
+      if (!silent || !actual) return { ...prev, [bucket]: nuevos }
+      const fusion = { ...nuevos }
+      for (const [k, v] of Object.entries(actual)) {
+        if (v !== '' && v != null) fusion[k] = v
+      }
+      return { ...prev, [bucket]: fusion }
+    }
+
+    setEntriesByCity(conservarTecleado(newEntries))
+    setEtaByCity(conservarTecleado(newEta))
+    setDiscByCity(conservarTecleado(newDisc))
+    setIndriveByCity(conservarTecleado(newIndrive))
+    // Las marcas "sin data" se UNEN: son decisiones explícitas del hub
+    // ("revisé y no había oferta"), así que una carga de fondo no puede
+    // borrarlas.
+    setNaByCity((prev) => {
+      const actual = prev[bucket]
+      if (!silent || !actual || actual.size === 0) return { ...prev, [bucket]: newNa }
+      return { ...prev, [bucket]: new Set([...newNa, ...actual]) }
+    })
     setSurgeByCity((prev) => ({ ...prev, [bucket]: newSurge }))
     setLoadedCombosByCity((prev) => ({ ...prev, [bucket]: combos.size ? combos : null }))
     setErrorKeysByCity((prev) => ({ ...prev, [bucket]: new Set() }))
@@ -3344,6 +3474,42 @@ export default function DataEntry() {
         >
           {msg.emphasize && <CheckCircle2 className="de-msg__icon" size={20} />}
           {msg.text}
+        </div>
+      )}
+
+      {/* Recuperación de conflicto (mig 191). Sin estas dos salidas el hub
+          queda trabado: el servidor le frena el guardado y no tiene forma de
+          seguir. Las dos son EXPLÍCITAS y dicen qué descartan — ninguna
+          resuelve el conflicto en silencio. */}
+      {saveConflict && (
+        <div className="de-conflict">
+          <p className="de-conflict__body">{t('dataentry.conflict_body')}</p>
+          <div className="de-conflict__actions">
+            <button
+              type="button"
+              onClick={() => {
+                setSaveConflict(null)
+                setPendingLoad({ dbCity, zone, date })
+              }}
+            >
+              {t('dataentry.conflict_reload')}
+            </button>
+            <button
+              type="button"
+              className="de-conflict__force"
+              onClick={async () => {
+                if (!window.confirm(t('dataentry.conflict_force_confirm'))) return
+                const wasFinish = saveConflict.isFinish
+                setSaveConflict(null)
+                // Se rehace la recolección de filas por el mismo camino que el
+                // botón original, para no duplicar criterios de qué se manda.
+                if (wasFinish) await handleFinishSession(true)
+                else await handleSaveProgress(true)
+              }}
+            >
+              {t('dataentry.conflict_force')}
+            </button>
+          </div>
         </div>
       )}
 

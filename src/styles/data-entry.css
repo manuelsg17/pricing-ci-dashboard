@@ -1305,3 +1305,44 @@
   font-weight: 500;
   margin-top: 2px;
 }
+
+/* Panel de recuperación de conflicto de guardado (mig 191). Se muestra solo
+   cuando el servidor frenó un guardado porque otra pestaña o dispositivo
+   escribió el mismo bucket. Las dos salidas son explícitas: sin ellas el hub
+   queda trabado sin forma de seguir. */
+.de-conflict {
+  border: 1px solid var(--sem-yellow-fg, #b45309);
+  background: var(--sem-yellow-bg, #fffbeb);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.de-conflict__body {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.de-conflict__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.de-conflict__actions button {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.de-conflict__actions button:hover {
+  border-color: var(--color-text);
+}
+/* La opción destructiva se distingue por color Y por texto: reemplaza lo que
+   guardó la otra pantalla. */
+.de-conflict__force {
+  border-color: var(--sem-red-fg, #b91c1c) !important;
+  color: var(--sem-red-fg, #b91c1c);
+}
