@@ -49,7 +49,14 @@ const ROUTES = [
   { path: 'config', Component: Config, section: 'config' },
   { path: 'upload', Component: Upload, section: 'upload' },
   { path: 'distances', Component: DistanceRefs, section: 'distances' },
-  { path: 'access', Component: AccessManagement, section: 'access' },
+  // adminOnly a propósito (mig 187): Accesos escribe `roles` y `user_profiles`.
+  // Un rol no-admin con esta sección podría concederse a sí mismo cualquier
+  // permiso — es escalación de privilegios, no un permiso más. Por eso la
+  // sección `access` NO está en section_write_grants y la base la sigue
+  // gateando por is_admin(); marcarla acá evita el estado intermedio malo de
+  // "ves la pantalla pero cada guardado rebota". Hoy ningún rol no-admin la
+  // tiene, así que no cambia nada en la práctica.
+  { path: 'access', Component: AccessManagement, section: 'access', adminOnly: true },
   { path: 'monitoring', Component: Monitoring, adminOnly: true },
 ]
 

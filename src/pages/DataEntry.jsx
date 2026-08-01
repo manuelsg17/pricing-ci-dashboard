@@ -600,8 +600,31 @@ export default function DataEntry() {
     return map
   }, [countryConfig, uiCity])
 
-  // Cascada: reseteo cuando cambia el país
+  // Cascada: reseteo cuando cambia el país DE VERDAD.
+  //
+  // `countryConfig` NO sirve como señal de "cambió el país" (bug real
+  // 2026-08-01, causa del reporte "a los hubs se les reinicia el contador"):
+  // es un useMemo sobre `dbConfigs`, y CountryContext.fetchAllConfigs() setea
+  // un objeto NUEVO cada vez, con el mismo contenido. Eso pasa al arrancar la
+  // app (siembra desde el cache de localStorage y después refetchea) y CADA
+  // VEZ que cualquier usuario edita country_config / bot_rules /
+  // catalog_extras — el evento realtime `config:changed` dispara otro
+  // fetchAllConfigs en TODAS las sesiones abiertas.
+  //
+  // Con la identidad como disparador, estos dos efectos corrían sin que nadie
+  // cambiara de país: tiraban al hub a la primera ciudad (perdiendo la
+  // pestaña donde estaba trabajando) y el de más abajo además le mataba la
+  // sesión y le borraba el latido. Es exactamente el patrón que advierte
+  // CLAUDE.md §2 sobre efectos que dependen de objetos recreados en cada
+  // render, aplicado al efecto más destructivo del componente.
+  //
+  // Se comparan VALORES (el país), no identidades. `uiCity` ya nace con
+  // `uiCities[0]` en su useState, así que saltear el montaje no deja nada sin
+  // inicializar.
+  const prevCountryCascadeRef = useRef(country)
   useEffect(() => {
+    if (prevCountryCascadeRef.current === country) return
+    prevCountryCascadeRef.current = country
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
     setActiveTukTuk(null)
@@ -746,7 +769,15 @@ export default function DataEntry() {
   // El cambio de país resetea la ciudad y el cache de rutas; los datos del
   // formulario los limpia el effect de restauración al detectar el cambio de
   // contexto (país cambió → nueva draftKey → limpia todas las ciudades).
+  // MISMO guard que la cascada de arriba, y acá es crítico: este efecto MATA la
+  // sesión activa y borra el latido. Antes corría con solo cambiar la
+  // identidad de `countryConfig`, así que un admin guardando cualquier cambio
+  // en /config les cerraba la sesión a TODOS los hubs a la vez, y un simple
+  // arranque de la app se la cerraba al hub que estaba trabajando.
+  const prevCountrySessionRef = useRef(country)
   useEffect(() => {
+    if (prevCountrySessionRef.current === country) return
+    prevCountrySessionRef.current = country
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
     setActiveTukTuk(null)
@@ -1120,9 +1151,37 @@ export default function DataEntry() {
           hasMeaningfulIndriveExtra(ind) ||
           na.size > 0
         if (hasData) {
+          // Se MERGEA sobre lo que el autosave ya escribió, en vez de
+          // reemplazarlo.
+          //
+          // Bug real (causa del "el contador se les reinicia", 2026-08-01):
+          // este flush escribía un objeto NUEVO de 7 campos y pisaba los 10
+          // del autosave — y como el cleanup del autosave cancela su timer
+          // pendiente, esta era siempre la última escritura de la clave. Se
+          // perdían tres campos, en orden de gravedad:
+          //   · `turnoTimings` → al rehidratar, `earliestTurnoStart` devolvía
+          //     null y `sessionStartRef` caía a Date.now(): cronómetro en
+          //     00:00. Es el bug histórico #2 de sessionStartRef reintroducido
+          //     por otro camino (CLAUDE.md §2).
+          //   · `pendingScopeMembers` → un Aeropuerto con alcance "Ambos"
+          //     volvía a alcance de un solo punto: el hub terminaba en A y la
+          //     sesión cerraba como final SIN avisar que faltaba B, que
+          //     quedaba sin medir y sin que nadie se enterara.
+          //   · `pendingExtraFronts` → mismo problema con frentes simultáneos.
+          //
+          // Mergear en vez de enumerar campos hace que esto no se pueda
+          // volver a romper: si mañana el autosave persiste un campo nuevo,
+          // este flush lo conserva sin necesidad de conocerlo.
+          let previo = {}
+          try {
+            previo = JSON.parse(localStorage.getItem(flushKey) || '{}') || {}
+          } catch {
+            previo = {}
+          }
           localStorage.setItem(
             flushKey,
             JSON.stringify({
+              ...previo,
               entries: ent,
               indriveExtra: ind,
               etaEntries: eta,

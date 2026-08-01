@@ -696,3 +696,66 @@
   gap: 8px;
   padding: 0 16px 8px;
 }
+
+/* ── Responsive (CLAUDE.md §1, alcance acotado) ─────────────────────────
+   Este archivo lo comparten TRES rutas: Dashboard, Market y Coverage. Todo lo
+   de acá hay que verificarlo en las tres, no solo en el dashboard.
+
+   Ya existía un @media (max-width: 1200px) más arriba que colapsa las grillas
+   de tablas y gráficos a una columna — este bloque es el tramo de teléfono.
+   Los gráficos NO necesitan nada: todos los recharts del proyecto ya usan
+   <ResponsiveContainer width="100%">. */
+@media (max-width: 640px) {
+  .dashboard {
+    padding: 12px 10px;
+  }
+
+  /* REGRESIÓN INTRODUCIDA POR EL RESPONSIVE DE LA BARRA SUPERIOR (2026-08-01):
+     este `top: 52px` daba por sentada una barra de alto fijo, pero en móvil la
+     barra pasó a alto automático (~92px) porque las pestañas bajan a su propia
+     franja. La barra de filtros quedaba anclada DEBAJO y se veía tapada.
+     En un teléfono, además, una barra de filtros pegajosa de ~200px se come un
+     cuarto de la pantalla; que scrollee con el contenido es mejor que arreglar
+     el `top`. */
+  .filter-bar-wrapper {
+    position: static;
+  }
+
+  /* Con 11 grupos de filtros apilados, el contenido supera los 200px y se
+     derramaba por encima de lo de abajo (overflow: visible, necesario para los
+     dropdowns). Sin tope, simplemente empuja el contenido hacia abajo. */
+  .filter-bar {
+    max-height: none;
+    padding: 8px 10px;
+  }
+  .filter-bar__group {
+    flex-wrap: wrap;
+  }
+
+  /* Las tarjetas de KPI a 2 columnas: a una sola quedan 8 pantallazos de
+     scroll para leer 8 números; a 3 no entra el texto. */
+  .kpi-grid,
+  .dashboard__kpis {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Cualquier grilla de 2-3 columnas que haya sobrevivido al tramo de 1200px
+     pasa a una sola. */
+  .bracket-section__tables,
+  .bracket-section__charts {
+    grid-template-columns: 1fr;
+  }
+
+  /* El scroll lateral se resuelve DENTRO de cada tabla, no a nivel de página:
+     así el encabezado y los filtros quedan siempre visibles y solo se desplaza
+     la tabla que lo necesita. */
+  .dashboard {
+    overflow-x: hidden;
+  }
+  .dashboard table {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+}

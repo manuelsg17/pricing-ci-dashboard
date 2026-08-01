@@ -411,3 +411,32 @@
   border: 1px solid #e5e7eb;
   border-radius: 6px;
 }
+
+/* ── Responsive (CLAUDE.md §1) ──────────────────────────────────────────
+   Alcance deliberadamente CHICO: lo único que se necesita de Upload desde un
+   celular es disparar el sync del bot cuando se atrasa. Cargar un Excel desde
+   el teléfono no es un caso real, así que el resto solo se hace legible, no
+   cómodo. */
+@media (max-width: 640px) {
+  .upload-page,
+  .upload {
+    padding: 12px 10px;
+  }
+
+  /* Las 4 pestañas no entran en 390px. Mismo tratamiento que la barra
+     superior: scrollean dentro de su propia franja en vez de apilarse y
+     comerse media pantalla. */
+  .upload-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .upload-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .upload-tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+}

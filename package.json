@@ -40,7 +40,8 @@
     "test:session-fronts": "node scripts/test-session-fronts.mjs",
     "test:competitor-bonus": "node scripts/test-competitor-bonus.mjs",
     "test:yango-gmv-bonus": "node scripts/test-yango-gmv-bonus.mjs",
-    "test:error-fingerprint": "node scripts/test-error-fingerprint.mjs"
+    "test:error-fingerprint": "node scripts/test-error-fingerprint.mjs",
+    "simulate:permissions": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-permissions.sql"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
