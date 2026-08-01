@@ -1,7 +1,15 @@
 # Diseño — Modelo de permisos genérico (UI ↔ RLS)
 
-Estado: **PLAN, sin implementar**. Escrito 2026-07-31.
-Prerrequisito de nada; se puede implementar cuando haya una ventana tranquila.
+Estado: **IMPLEMENTADO en local, sin subir a producción**. Escrito 2026-07-31,
+implementado 2026-08-01 en las migs **187** (tabla + `can_write_table()`), **188**
+(políticas uniformes en 20 tablas) y **189** (lecturas cross-país).
+
+Las decisiones de producto que bloqueaban el seed se tomaron con defaults
+razonables y quedan documentadas en el encabezado de la mig 187 — todas son
+reversibles con un INSERT/DELETE en `section_write_grants`, sin migración.
+
+Validación: `npm run simulate:permissions` (22 aserciones sobre RLS real).
+Orden de despliegue: ver `DESPLIEGUE_PENDIENTE.md`.
 
 ---
 
