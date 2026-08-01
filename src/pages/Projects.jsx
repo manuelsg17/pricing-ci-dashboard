@@ -26,7 +26,24 @@ export default function Projects() {
   const { session } = useAuth()
   const userEmail = session?.user?.email || ''
 
-  const [view, setView] = useState(() => (isAdmin ? 'today' : 'mine'))
+  // `isAdmin` llega ASÍNCRONO (useAccessControl consulta user_profiles), así
+  // que en el primer render siempre es false. Con un initializer de useState
+  // el admin quedaba clavado en "Mis tareas" y nunca veía "Hoy" al entrar —
+  // detectado corriendo la app de verdad, no en las simulaciones.
+  // El efecto corrige la vista cuando el rol resuelve, pero solo si el usuario
+  // todavía no eligió pestaña a mano: si no, le estaríamos moviendo la
+  // pantalla debajo de los pies.
+  const [view, setView] = useState('mine')
+  const [viewTouched, setViewTouched] = useState(false)
+
+  useEffect(() => {
+    if (!viewTouched && isAdmin) setView('today')
+  }, [isAdmin, viewTouched])
+
+  function changeView(next) {
+    setViewTouched(true)
+    setView(next)
+  }
   const [windowPreset, setWindowPreset] = useState('auto')
   const [ownerFilter, setOwnerFilter] = useState('')
 
@@ -73,7 +90,7 @@ export default function Projects() {
               key={tab.key}
               type="button"
               className={view === tab.key ? 'is-active' : ''}
-              onClick={() => setView(tab.key)}
+              onClick={() => changeView(tab.key)}
             >
               {tab.label}
             </button>

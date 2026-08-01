@@ -115,6 +115,7 @@ export const COUNTRY_CONFIG = {
     label: 'Perú 🇵🇪',
     currency: 'S/',
     locale: 'es-PE',
+    timezone: 'America/Lima',
 
     // Fallback estático (solo se usa si DB falla). Mantenemos sincronizado
     // con country_config.cities en DB (mig 79 + 84 + 85). Source-of-truth
@@ -397,6 +398,7 @@ export const COUNTRY_CONFIG = {
     label: 'Nepal 🇳🇵',
     currency: 'NPR',
     locale: 'ne-NP',
+    timezone: 'Asia/Kathmandu',
 
     cities: ['Kathmandu'],
     dbCities: ['Kathmandu'],
@@ -431,6 +433,7 @@ export const COUNTRY_CONFIG = {
     label: 'Bolivia 🇧🇴',
     currency: 'BOB',
     locale: 'es-BO',
+    timezone: 'America/La_Paz',
 
     cities: ['Santa Cruz'],
     dbCities: ['Santa Cruz'],
@@ -465,6 +468,7 @@ export const COUNTRY_CONFIG = {
     label: 'Venezuela 🇻🇪',
     currency: 'USD',
     locale: 'es-VE',
+    timezone: 'UTC',
 
     cities: ['Caracas'],
     dbCities: ['Caracas'],
@@ -499,6 +503,7 @@ export const COUNTRY_CONFIG = {
     label: 'Zambia 🇿🇲',
     currency: 'ZMW',
     locale: 'en-ZM',
+    timezone: 'UTC',
 
     cities: ['Lusaka'],
     dbCities: ['Lusaka'],
@@ -533,6 +538,7 @@ export const COUNTRY_CONFIG = {
     label: 'Colombia 🇨🇴',
     currency: 'COP',
     locale: 'es-CO',
+    timezone: 'America/Bogota',
 
     // Estructura real (mayo 2026): Bogotá, Cali, Barranquilla.
     // dbCities sin tilde para matchear el normalize del bot (helioho.st
@@ -765,6 +771,11 @@ export function dbConfigToInternal(row) {
     label: row.label,
     currency: row.currency || 'USD',
     locale: row.locale || 'en-US',
+    // Zona horaria IANA (mig 183). Sin esto, "hoy" se calcula con la hora del
+    // navegador/servidor: a las 22:11 de Lima ya son las 03:11 UTC del día
+    // siguiente, y una tarea que vence HOY aparece como vencida. Bug real,
+    // detectado corriendo la app — el fallback a UTC no alcanza.
+    timezone: row.timezone || 'UTC',
     iso2: row.iso2 || null,
     nativeLabel: row.native_label || row.label,
     status: row.status || 'active',
