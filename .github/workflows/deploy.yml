@@ -35,6 +35,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        # CLAUDE.md §7.1 exige CERO warnings, no solo cero errores. Hasta
+        # 2026-08-01 esto dependía de que alguien se acordara de correrlo a
+        # mano antes de pushear; ahora el deploy se aborta igual que con los
+        # tests. `npm run lint` ya trae --max-warnings 0.
+        run: npm run lint
+
       - name: Run unit tests
         # Tests sin framework — corren con `node` plano. Si fallan, el
         # deploy se aborta (previene regresiones en bot_mapping,

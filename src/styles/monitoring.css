@@ -216,3 +216,125 @@
 .mon-recent-inactive__toggle:hover {
   color: var(--color-text);
 }
+
+/* ── Panel de errores del cliente (mig 185) ─────────────────────────────
+   Borde rojo a la izquierda porque es lo único de Monitoreo que exige una
+   acción del admin — el resto son métricas que se leen. Solo se renderiza si
+   hay errores sin resolver, así que no compite por atención cuando no pasa
+   nada (ver ClientErrorsPanel.jsx). */
+.mon-panel--errors {
+  border-left: 3px solid var(--color-danger, #dc2626);
+}
+.mon-panel__count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-danger, #dc2626);
+  background: #fef2f2;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.mon-panel__refresh {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.mon-panel__refresh:hover:not(:disabled) {
+  color: var(--color-text);
+}
+.mon-panel__empty,
+.mon-panel__more {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 8px 0 0;
+}
+
+.cerr {
+  border-top: 1px solid var(--color-border);
+  padding: 10px 0;
+}
+.cerr__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cerr__src {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #eef2ff;
+  color: #3730a3;
+  flex-shrink: 0;
+}
+/* El origen se distingue por color Y por texto: el color solo no alcanza
+   (CLAUDE.md §12 del template — no transmitir estado únicamente con color). */
+.cerr__src--boundary {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.cerr__src--section {
+  background: #fef3c7;
+  color: #92400e;
+}
+.cerr__msg {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cerr__hits {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-danger, #dc2626);
+  flex-shrink: 0;
+}
+.cerr__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 3px;
+}
+.cerr__dev {
+  font-style: italic;
+}
+.cerr__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+.cerr__actions button {
+  font-size: 11px;
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.cerr__actions button:hover {
+  color: var(--color-text);
+}
+.cerr__resolve {
+  color: var(--color-success, #059669) !important;
+}
+.cerr__stack {
+  font-size: 10.5px;
+  line-height: 1.45;
+  background: #f8fafc;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

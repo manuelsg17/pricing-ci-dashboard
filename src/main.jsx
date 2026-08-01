@@ -11,6 +11,7 @@ import { ConfigProvider } from './context/ConfigProvider'
 import { ToastProvider } from './components/ui/Toast'
 import { ConfirmProvider } from './components/ui/ConfirmDialog'
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import { installGlobalErrorHandlers } from './lib/errorLog'
 // Sprint 2.1: Tailwind ANTES de global.css. tailwind.css agrega utility
 // classes; global.css define tokens y overrides — el orden permite a
 // global.css ganar en caso de conflicto. Sin preflight (ver tailwind.config.js)
@@ -73,6 +74,13 @@ const queryClient = new QueryClient({
     window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash)
   }
 })(window.location)
+
+// Errores que NINGÚN ErrorBoundary ve: los de código asíncrono y las promesas
+// sin catch (mig 185). Un `await` que revienta fuera del render no dispara el
+// boundary, así que sin esto justo la clase más silenciosa de fallo —la que
+// deja al hub mirando una pantalla que no responde— seguiría sin registrarse.
+// Se instala antes del render para no perder los errores del arranque.
+installGlobalErrorHandlers()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -13,6 +13,7 @@ import DetailTable from '../components/monitoring/DetailTable'
 import CompletedSessionsTable from '../components/monitoring/CompletedSessionsTable'
 import WeeklyCoveragePanel from '../components/monitoring/WeeklyCoveragePanel'
 import PriceComplianceAlerts from '../components/monitoring/PriceComplianceAlerts'
+import ClientErrorsPanel from '../components/monitoring/ClientErrorsPanel'
 import '../styles/data-entry.css'
 import '../styles/monitoring.css'
 
@@ -51,6 +52,10 @@ export default function Monitoring() {
           <h1>{t('monitoring.title')}</h1>
         </div>
       </div>
+
+      {/* Primero de todo, y solo aparece si hay algo: un error que un hub
+          está viendo AHORA gana en prioridad sobre cualquier métrica (mig 185). */}
+      <ClientErrorsPanel />
 
       <RepresentativityCard />
 

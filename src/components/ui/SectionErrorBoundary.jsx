@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import { Button } from './shadcn/button'
 import { translate } from '../../lib/i18n'
+import { reportError } from '../../lib/errorLog'
 
 // Class component: no puede usar el hook useI18n(). Lee el idioma actual
 // de localStorage (misma key que LanguageContext.jsx) directo, con
@@ -31,6 +32,15 @@ export default class SectionErrorBoundary extends Component {
     if (typeof window !== 'undefined' && window.console) {
       console.error(`[SectionErrorBoundary:${this.props.label || 'unknown'}]`, error, info)
     }
+    // `label` identifica QUÉ sección se cayó — es lo que hace accionable el
+    // reporte, porque el resto del dashboard sigue funcionando y el error
+    // pasaría desapercibido (mig 185).
+    reportError({
+      source: 'section',
+      label: this.props.label,
+      error,
+      componentStack: info?.componentStack,
+    })
   }
 
   handleReset = () => {

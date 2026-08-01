@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useMemo, useEffect, useCallback, u
 import { getCountryConfig, dbConfigToInternal, COUNTRIES } from '../lib/constants'
 import { botRulesRowsToInternal } from '../lib/botMapping'
 import { sb } from '../lib/supabase'
+import { setErrorContext } from '../lib/errorLog'
 
 const CountryContext = createContext(null)
 
@@ -151,6 +152,14 @@ export function CountryProvider({ children }) {
   useEffect(() => {
     fetchAllConfigs()
   }, [fetchAllConfigs])
+
+  // El reporte de errores (mig 185) corre desde class components y desde
+  // handlers globales, donde no hay forma de leer este contexto. Se lo
+  // empujamos: sin el país, un error de producción no dice de qué operación
+  // vino y deja de ser accionable.
+  useEffect(() => {
+    setErrorContext({ country })
+  }, [country])
 
   // Live-sync: cuando OTRA sesión cambia country_config (o tablas que
   // afectan los extras JSONB), refetcheamos en silencio. El toast lo

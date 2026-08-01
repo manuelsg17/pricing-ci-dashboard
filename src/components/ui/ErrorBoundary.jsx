@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import { Button } from './shadcn/button'
 import { translate } from '../../lib/i18n'
+import { reportError } from '../../lib/errorLog'
 
 // Class component: no puede usar el hook useI18n(). Lee el idioma actual
 // de localStorage (misma key que LanguageContext.jsx) directo, con
@@ -28,6 +29,10 @@ export default class ErrorBoundary extends Component {
     if (typeof window !== 'undefined' && window.console) {
       console.error('[ErrorBoundary]', error, info)
     }
+    // Sin esto el error moría en la consola del hub y nadie se enteraba
+    // nunca (mig 185). No se hace await: el reporte no debe demorar el
+    // render de la pantalla de error.
+    reportError({ source: 'boundary', error, componentStack: info?.componentStack })
   }
 
   handleReload = () => {
