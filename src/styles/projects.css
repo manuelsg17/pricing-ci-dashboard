@@ -1,0 +1,560 @@
+/* Proyectos — reutiliza los tokens del proyecto (semáforo, bordes, panel) en
+   vez de inventar una paleta nueva: el lenguaje visual de "rojo = urgente,
+   ámbar = atención, verde = ok" ya está aprendido por los hubs. */
+
+.projects {
+  padding: 16px 20px;
+  flex: 1;
+  max-width: 1400px;
+}
+
+/* ── Barra superior ─────────────────────────────────────────── */
+.projects__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.projects__tabs {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.projects__tabs button {
+  padding: 0 16px;
+  height: 32px;
+  border: none;
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.projects__tabs button:hover {
+  background: #e9ecef;
+  color: var(--color-text);
+}
+.projects__tabs button.is-active {
+  background: var(--color-yango);
+  color: #fff;
+}
+
+.projects__filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.projects__filters label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.projects__filters select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 12px;
+}
+.projects__refresh {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.projects__refresh:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
+
+/* ── Vista ──────────────────────────────────────────────────── */
+.pview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pview__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.pview__new {
+  background: var(--color-yango-light);
+  color: var(--color-yango-dark);
+  border-radius: 99px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* El rango de la ventana SIEMPRE visible: es lo que evita el "problema del
+   lunes", donde la pantalla decía "sin novedades" en vez de "faltan datos". */
+.pview__window {
+  font-size: 11px;
+  color: var(--color-muted);
+  background: #f8fafc;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+}
+
+.pview__index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pview__index-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 99px;
+  font-size: 11px;
+  color: var(--color-text);
+  text-decoration: none;
+  background: var(--color-panel);
+}
+.pview__index-item:hover {
+  border-color: var(--color-yango);
+}
+.pview__index-n {
+  background: var(--color-border-soft);
+  border-radius: 99px;
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.pview__quiet,
+.pgroup__empty,
+.phub__quiet {
+  font-size: 12px;
+  color: var(--color-subtle);
+  font-style: italic;
+}
+.phub__quiet {
+  margin-left: 8px;
+  font-weight: 400;
+}
+
+.pview__err,
+.pview__warn {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.pview__err {
+  background: var(--sem-red-bg);
+  color: var(--sem-red-fg);
+  border: 1px solid #f5c6c6;
+}
+.pview__warn {
+  background: var(--sem-yellow-bg);
+  color: var(--sem-yellow-fg);
+}
+
+.pview__toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Bloque por persona ─────────────────────────────────────── */
+.phub {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.phub__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 8px;
+}
+
+/* ── Grupo (urgencia / balde) ───────────────────────────────── */
+.pgroup {
+  margin-bottom: 10px;
+}
+.pgroup__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-muted);
+  margin: 0 0 6px;
+}
+.pgroup__count {
+  background: var(--color-border-soft);
+  border-radius: 99px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+.pgroup--danger .pgroup__title {
+  color: var(--sem-red-fg);
+}
+.pgroup--danger .pgroup__count {
+  background: var(--sem-red-bg);
+}
+.pgroup--warn .pgroup__title {
+  color: var(--sem-yellow-fg);
+}
+.pgroup--warn .pgroup__count {
+  background: var(--sem-yellow-bg);
+}
+.pgroup--ok .pgroup__title {
+  color: var(--sem-green-fg);
+}
+.pgroup--ok .pgroup__count {
+  background: var(--sem-green-bg);
+}
+
+/* ── Fila de tarea ──────────────────────────────────────────── */
+.ptask {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-soft);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
+.ptask--overdue {
+  border-left-color: var(--sem-red-fg);
+}
+.ptask--done {
+  opacity: 0.6;
+}
+.ptask--done .ptask__title {
+  text-decoration: line-through;
+}
+
+.ptask__main {
+  flex: 1;
+  min-width: 0;
+}
+.ptask__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ptask__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.ptask__project,
+.ptask__city {
+  font-size: 10px;
+  color: var(--color-muted);
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.ptask__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.ptask__due.is-overdue {
+  color: var(--sem-red-fg);
+  font-weight: 700;
+}
+.ptask__due.is-risk {
+  color: var(--sem-yellow-fg);
+  font-weight: 600;
+}
+
+.ptask__flag {
+  font-weight: 700;
+  color: var(--sem-yellow-fg);
+}
+.ptask__flag.is-warn {
+  color: var(--sem-yellow-fg);
+}
+.ptask__flag.is-hot {
+  color: var(--sem-red-fg);
+}
+
+.ptask__last {
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: var(--color-text);
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+}
+.ptask__last.is-system {
+  font-style: italic;
+  color: var(--color-muted);
+}
+.ptask__last-author {
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+/* Comentario SIEMPRE visible: si estuviera a dos clics, un hub apurado no
+   entra y el tablero se queda sin el dato más útil. */
+.ptask__comment {
+  margin-top: 6px;
+}
+.ptask__comment input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--color-bg);
+}
+.ptask__comment input:focus {
+  outline: none;
+  border-color: var(--color-yango);
+  box-shadow: 0 0 0 2px var(--color-yango-mid);
+}
+
+.ptask__err {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--sem-red-fg);
+}
+
+/* Control segmentado: UN clic para cambiar estado, sin modal ni "guardar". */
+.ptask__states {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.ptask__state {
+  padding: 0 10px;
+  height: 28px;
+  border: none;
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.ptask__state:hover:not(:disabled) {
+  background: #e9ecef;
+}
+.ptask__state:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.ptask__state--todo.is-active {
+  background: #64748b;
+  color: #fff;
+}
+.ptask__state--doing.is-active {
+  background: #2563eb;
+  color: #fff;
+}
+.ptask__state--blocked.is-active {
+  background: var(--sem-red-fg);
+  color: #fff;
+}
+.ptask__state--done.is-active {
+  background: var(--sem-green-fg);
+  color: #fff;
+}
+
+/* ── Admin: proyectos y planilla de tareas ──────────────────── */
+.pproj {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.pproj__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.pproj__toggle {
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0;
+}
+.pproj__meta {
+  flex: 1;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.pproj__archive {
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  padding: 3px 8px;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.pproj__archive:hover {
+  border-color: var(--sem-red-fg);
+  color: var(--sem-red-fg);
+}
+
+.ptable {
+  padding: 10px 14px;
+}
+.ptable__head,
+.ptable__row {
+  display: grid;
+  grid-template-columns: 1fr 200px 140px 140px 32px;
+  gap: 8px;
+  align-items: center;
+}
+.ptable__head {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  padding-bottom: 6px;
+}
+.ptable__row {
+  margin-bottom: 5px;
+}
+.ptable__row input,
+.ptable__row select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--color-bg);
+  width: 100%;
+}
+.ptable__row--new input,
+.ptable__row--new select {
+  background: #fffdf5;
+}
+.ptable__del,
+.ptable__add {
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.ptable__del:hover {
+  border-color: var(--sem-red-fg);
+  color: var(--sem-red-fg);
+}
+.ptable__add {
+  color: var(--sem-green-fg);
+  font-weight: 700;
+}
+
+/* ── Formulario de proyecto ─────────────────────────────────── */
+.pform {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 620px;
+}
+.pform label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.pform input {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--color-bg);
+}
+.pform__row {
+  display: flex;
+  gap: 10px;
+}
+.pform__row label {
+  flex: 1;
+}
+
+/* El país, grande y no editable: crear un proyecto en el país equivocado
+   significa que sus hubs nunca lo verían, y el error sería silencioso. */
+.pform__country {
+  font-size: 13px;
+  padding: 8px 12px;
+  background: var(--color-yango-light);
+  border-radius: var(--radius-sm);
+  color: var(--color-yango-dark);
+}
+.pform__cities {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+.pform__cities legend {
+  font-size: 11px;
+  color: var(--color-muted);
+  padding: 0 4px;
+}
+.pform__hint {
+  font-size: 10px;
+  color: var(--color-subtle);
+  margin: 0 0 6px;
+}
+.pform__chk {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-text);
+  display: inline-flex !important;
+  margin-right: 12px;
+}

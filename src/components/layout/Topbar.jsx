@@ -28,6 +28,7 @@ const getNav = (t) => [
     icon: '🗄️',
     children: [
       { id: 'dataentry', label: t('nav.dataentry') },
+      { id: 'projects', label: t('nav.projects') },
       { id: 'monitoring', label: t('nav.monitoring'), adminOnly: true },
       { id: 'upload', label: t('nav.upload') },
       { id: 'rawdata', label: t('nav.rawdata') },

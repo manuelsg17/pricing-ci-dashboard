@@ -16,6 +16,7 @@ const Upload = lazy(() => import('./pages/Upload'))
 const DistanceRefs = lazy(() => import('./pages/DistanceRefs'))
 const RawData = lazy(() => import('./pages/RawData'))
 const DataEntry = lazy(() => import('./pages/DataEntry'))
+const Projects = lazy(() => import('./pages/Projects'))
 const DriverEarnings = lazy(() => import('./pages/DriverEarnings'))
 const Rentabilidad = lazy(() => import('./pages/Rentabilidad'))
 const WeeklyReport = lazy(() => import('./pages/WeeklyReport'))
@@ -35,6 +36,7 @@ const Monitoring = lazy(() => import('./pages/Monitoring'))
 const ROUTES = [
   { path: 'dashboard', Component: Dashboard, section: 'dashboard' },
   { path: 'dataentry', Component: DataEntry, section: 'dataentry' },
+  { path: 'projects', Component: Projects, section: 'projects' },
   { path: 'earnings', Component: DriverEarnings, section: 'earnings' },
   { path: 'rentabilidad', Component: Rentabilidad, section: 'rentabilidad' },
   { path: 'report', Component: WeeklyReport, section: 'report' },
