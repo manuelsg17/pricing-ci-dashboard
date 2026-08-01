@@ -2,14 +2,119 @@
 
 Estado: **IMPLEMENTADO en local, sin subir a producción**. Escrito 2026-07-31,
 implementado 2026-08-01 en las migs **187** (tabla + `can_write_table()`), **188**
-(políticas uniformes en 20 tablas) y **189** (lecturas cross-país).
+(políticas uniformes en 20 tablas), **189** (lecturas cross-país), **192**
+(mapa completo + columna `gate`) y **193** (RPCs genéricas).
 
 Las decisiones de producto que bloqueaban el seed se tomaron con defaults
 razonables y quedan documentadas en el encabezado de la mig 187 — todas son
 reversibles con un INSERT/DELETE en `section_write_grants`, sin migración.
 
-Validación: `npm run simulate:permissions` (22 aserciones sobre RLS real).
+Validación: `npm run simulate:permissions` (58 aserciones sobre RLS real) y
+`npm run check:section-grants` (detección automática de drift).
 Orden de despliegue: ver `DESPLIEGUE_PENDIENTE.md`.
+
+---
+
+## Segunda pasada (2026-08-01): los tres huecos que quedaban
+
+Las migs 187/188/189 dejaron el modelo funcionando pero **incompleto en tres
+frentes**. Los tres tenían la misma forma: el permiso genérico existía, y al
+lado quedaba un camino que seguía decidiendo con la foto de roles de ayer.
+
+### 1. El mapa no cubría todo lo que la app escribe (mig 192)
+
+`section_write_grants` se sembró a mano y solo declaraba las secciones cuyas
+tablas se gatean por `can_write_table()`. Quedaban afuera **Proyectos, Ingresar
+CI, Data Raw, Cargar Data y Accesos** — no porque su permiso estuviera mal, sino
+porque nadie lo había escrito. Un mapa incompleto no es documentación floja:
+
+- nadie puede responder "¿qué va a poder escribir este rol?" mirando un solo
+  lugar — y la pantalla de Accesos tampoco, porque lee de ahí;
+- un chequeo automático no puede distinguir "esta tabla se olvidó" de "esta
+  tabla se gatea por dueño a propósito": o inventa huecos, o se acostumbra a
+  ignorarlos y deja pasar el verdadero.
+
+Además, la protección de `access` era una **ausencia**: la fila no estaba, y
+por eso no concedía. Una ausencia no se defiende sola — un admin que agregara
+de buena fe `('mi_seccion','roles')` creería estar dando un permiso más.
+
+La 192 agrega la columna **`gate`**, que declara CÓMO se gatea cada escritura:
+
+| gate        | Significado                                                     | ¿Concede?                    |
+| ----------- | --------------------------------------------------------------- | ---------------------------- |
+| `'section'` | La política llama `can_write_table()`: tener la sección alcanza | **Sí**                       |
+| `'owner'`   | La política filtra por dueño (+país); el criterio es "es tuyo"  | No — documenta               |
+| `'admin'`   | Solo admin por diseño (escalación o acción administrativa)      | No — documenta y **protege** |
+
+`can_write_table()` pasa a mirar **solo** las filas `'section'`. Con eso, agregar
+filas al mapa deja de poder abrir un agujero por accidente, que es exactamente
+lo que uno quiere de una tabla pensada para editarse sin migración.
+
+La 192 también retiró tres grants que sobraban (`bot_sync_watermark`,
+`upload_batches`, `catalog_extras`): ninguna pantalla las escribe, las escriben
+funciones `SECURITY DEFINER` que no necesitan el grant.
+
+### 2. Nada detectaba el drift (`npm run check:section-grants`)
+
+Lo anterior no puede depender de que alguien se acuerde. `scripts/check-section-grants-drift.mjs`:
+
+1. lee la constante `ROUTES` de `App.jsx` → sección ↔ página;
+2. camina el **grafo de imports** de cada página (una pantalla nueva o un hook
+   nuevo quedan cubiertos sin tocar el script);
+3. extrae escrituras (`.from().insert/update/delete/upsert`) y llamadas `.rpc()`;
+4. contrasta contra la **base**, no contra una copia en el repo:
+   - **Fase A**: toda `(sección, tabla)` que la app escribe tiene fila en el mapa.
+   - **Fase B**: toda RPC que llama una sección no-admin es alcanzable por esa
+     sección.
+
+**El análisis es por símbolo, no por archivo, y eso importa.** La primera
+versión atribuía a una sección toda escritura de cualquier archivo alcanzable, y
+reportó tres huecos que no existían (Rentabilidad importa
+`useCompetitorCommissions` solo para leer; DataEntry importa de
+`useDistanceRefs` solo el fetch). Un falso positivo acá no es ruido inocente:
+empuja a declarar una fila "para que pase el checker", y esa fila **concede
+escritura que la pantalla no necesita**. El checker terminaría abriendo
+permisos. Ante cualquier ambigüedad se cuenta todo: sobre-reportar cuesta una
+revisión, no reportar devuelve el bug original en silencio.
+
+### 3. Las RPCs seguían nombrando "admin" (mig 193)
+
+Seis funciones alcanzables desde `config` y `upload` preguntaban `is_admin()`.
+Para un rol al que se le delegara esa sección, el resultado era el bug original
+por otra puerta: la pantalla se abre, los formularios guardan (RLS ya lo permite
+desde la 188) y el botón de al lado tira `access_denied: … es solo para admin`.
+Un permiso a medias es peor que uno negado.
+
+Pasaron a `can_access_section('<sección>')`, que ya existía (mig 181) y es
+genérica igual que `can_write_table()`.
+
+**Lo que habría sido un agujero, y por eso va en el mismo cambio**: `is_admin()`
+hacía **doble trabajo**. Estas funciones son `SECURITY DEFINER` —bypasean RLS— y
+ninguna verificaba el país: el aislamiento se sostenía por accidente, porque el
+admin tiene todos los países. Aflojar el guard sin agregar
+`require_country_access(p_country)` habría dejado a cualquier rol con `config`
+congelar promedios de Colombia desde Perú.
+
+`list_audit_log` no toma país por parámetro: filtra por fila. Admin sigue
+viendo todo (incluidas las globales con `country` NULL); un rol con `config` ve
+solo las de sus países.
+
+Excepción declarada y con motivo: `reassign_task` sigue siendo solo-admin
+(acción administrativa por diseño, mig 184 §15.2), anotada en
+`ADMIN_ONLY_RPCS` dentro del checker.
+
+### 4. La pantalla de Accesos ya no elige a ciegas
+
+`AccessManagement.jsx` lee `section_write_grants` **de la base** (no una
+constante del front, que se desincronizaría el día que se agregue una fila) y
+muestra:
+
+- una etiqueta por sección: `Escribe: N` / `Solo lo propio` / `Solo admin` /
+  `Solo lectura`, con el detalle completo de las tres categorías en el tooltip;
+- un resumen en vivo mientras se edita: "con esta selección, el rol podrá
+  escribir: …";
+- lo mismo en la tarjeta cerrada, para revisar un rol sin entrar a editarlo —
+  entrar a editar es justo el momento en que es fácil guardar sin querer.
 
 ---
 
@@ -138,7 +243,7 @@ Sin columna `country` (catálogos globales): solo `can_write_table('<tabla>')`.
 
 ---
 
-## Decisión de producto pendiente (bloquea el seed)
+## Decisión de producto pendiente (bloquea el seed) — RESUELTA en la mig 187
 
 Por cada sección hay que decidir si **escribe** o es **solo lectura**. La
 auditoría dejó el mapa; falta la intención de negocio en los casos ambiguos:

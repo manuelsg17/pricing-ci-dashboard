@@ -114,6 +114,24 @@ conviviendo con la nueva y correcta gana en silencio, sin error, sin log.
   `scripts/check-rls-policy-drift.sql`) contra local Y contra producción. Una tabla
   con 2+ políticas para el mismo comando (`cmd`) no es automáticamente un bug, pero
   exige revisión manual antes de asumir que es intencional.
+- **Los permisos de escritura son GENÉRICOS y viven en `section_write_grants`**
+  (migs 187/192), no en la política de cada tabla. Cambiar qué puede hacer un rol
+  es editar `roles.permissions` desde la pantalla de Accesos — **nunca** escribir
+  una migración. Al agregar una pantalla que escriba una tabla nueva, o una RPC
+  nueva llamada desde una pantalla, correr **`npm run check:section-grants`**: cruza
+  el grafo de imports de cada ruta contra el mapa y contra `pg_proc`, y falla si la
+  app escribe algo que la base no le va a dejar escribir. Es obligatorio en el
+  checklist §7 — sin él, la pantalla se abre y el guardado rebota **en silencio**,
+  que es el bug exacto que este modelo vino a matar.
+  - La columna `gate` decide si una fila **concede** (`'section'`) o solo
+    **documenta** (`'owner'` = la política filtra por dueño, `'admin'` = reservada).
+    `can_write_table()` mira solo las `'section'`. Nunca poner `roles` ni
+    `user_profiles` en `'section'`: es escalación de privilegios, no un permiso más.
+  - Una RPC `SECURITY DEFINER` llamada desde una pantalla NO debe exigir
+    `is_admin()` salvo que la pantalla entera sea `adminOnly`. Va por
+    `can_access_section('<sección>')`. Y si se afloja ese guard, hay que agregar
+    `require_country_access(p_country)` en el mismo cambio: en varias funciones
+    `is_admin()` estaba sosteniendo el aislamiento por país sin decirlo (mig 193).
 - **Al reemplazar una política vieja, `DROP POLICY IF EXISTS` explícito antes de
   `CREATE POLICY`** — nunca asumir que la nueva "gana". Mismo criterio para RPCs:
   `CREATE OR REPLACE FUNCTION` con una firma de parámetros distinta NO reemplaza la
@@ -277,6 +295,11 @@ chicos.
 4. **Si el cambio toca RLS/políticas/permisos**: `check:rls-drift` local Y prod,
    `pg_class.relacl` para objetos nuevos, `pg_proc.proconfig` para funciones
    `SECURITY DEFINER` nuevas.
+   4b. **Si el cambio agrega o toca una pantalla, un hook que escriba, o una RPC
+   llamada desde el cliente**: `npm run check:section-grants` (sin huecos) y
+   `npm run simulate:permissions` (todas en verde). El primero avisa que el mapa
+   quedó corto; el segundo prueba contra RLS real que un rol gana y pierde
+   permisos solo editando `roles.permissions`.
 5. **Si el cambio toca una migración SQL**: `supabase db reset` limpio en local
    primero, verificación manual de las políticas/funciones resultantes, y recién
    después aplicar a producción — con una confirmación explícita del user para ESA

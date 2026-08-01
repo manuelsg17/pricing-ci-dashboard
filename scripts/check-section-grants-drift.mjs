@@ -575,7 +575,9 @@ const fnRows = psqlJson(
     WHERE n.nspname = 'public'`
 )
 const fns = new Map()
+const fnSrc = new Map() // nombre -> cuerpo concatenado de todas sus firmas
 for (const row of fnRows) {
+  fnSrc.set(row.name, (fnSrc.get(row.name) || '') + '\n' + (row.src || ''))
   // Una función puede estar SOBRECARGADA. El criterio se toma sobre el
   // conjunto: alcanza con que UNA firma sea llamable o genérica para que la
   // pantalla funcione; "exige admin" solo vale si lo exigen TODAS.
@@ -621,7 +623,14 @@ for (const [section, acc] of [...bySection].sort()) {
 
 // Filas del mapa que ya nadie escribe: no rompen nada, pero una con
 // gate='section' concede escritura sobre una tabla que la pantalla dejó de
-// tocar. Se avisa, no se falla.
+// tocar — permiso regalado. Se avisa, no se falla.
+//
+// Dos casos NO son sobrante y no deben avisar, o el aviso se vuelve ruido de
+// fondo y se deja de leer, que es como muere un checker:
+//   · la tabla se escribe DENTRO de una RPC que esa sección llama (el cliente
+//     nunca hace `.from(...).insert(...)`, pero la pantalla sí la escribe);
+//   · gate='admin', que existe justamente para dejar constancia de una tabla
+//     que la sección NO puede conceder.
 for (const key of granted) {
   const [section, table] = key.split('::')
   const acc = bySection.get(section)
@@ -629,12 +638,18 @@ for (const key of granted) {
     warnings.push(
       `sección '${section}' no existe en ROUTES (mapea '${table}') — ¿se renombró o se borró la pantalla?`
     )
-  } else if (!acc.tables.has(table)) {
-    warnings.push(
-      `'${section}' → '${table}': está en el mapa pero ningún archivo de esa sección la escribe ` +
-        `(gate='${gateOf.get(key)}').`
-    )
+    continue
   }
+  if (acc.tables.has(table)) continue
+  if (gateOf.get(key) === 'admin') continue
+  const viaRpc = [...acc.rpcs.keys()].some((fn) =>
+    new RegExp(`\\b${table}\\b`).test(fnSrc.get(fn) || '')
+  )
+  if (viaRpc) continue
+  warnings.push(
+    `'${section}' → '${table}': está en el mapa pero nada de esa sección la escribe ` +
+      `(gate='${gateOf.get(key)}') — es un permiso que se concede de más.`
+  )
 }
 
 // ── FASE B — RPCs inalcanzables desde su propia sección ───────────────

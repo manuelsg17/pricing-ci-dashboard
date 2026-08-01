@@ -100,11 +100,17 @@ migración — ese es el punto del diseño. Las tomé con defaults razonables:
 
 ```bash
 npx supabase start
-npx supabase db reset          # las 193 migraciones desde cero
-npm run simulate:permissions   # 22 aserciones sobre RLS real
+npx supabase db reset            # todas las migraciones desde cero
+npm run simulate:permissions     # 58 aserciones sobre RLS real
+npm run check:section-grants     # ¿el mapa cubre lo que la app escribe?
 npm run check:rls-drift
 npm run lint && npm run build && npm run test:all
 ```
+
+`check:section-grants` es el que hay que volver a correr **después** de aplicar
+la 192/193 en producción: compara el código del bundle contra el mapa que hay en
+esa base, así que un seed distinto en prod aparecería ahí y en ningún otro lado.
+Necesita la base LOCAL por defecto; para apuntarlo a otra, `SUPABASE_DB_CONTAINER`.
 
 ---
 

@@ -976,6 +976,24 @@ export const TRANSLATIONS = {
     'access.no_users': 'Sin usuarios registrados.',
     'access.confirm_delete_user': '¿Eliminar este usuario?',
     'access.confirm_delete_role': '¿Eliminar este rol? Los usuarios asignados perderán su rol.',
+    // Qué puede ESCRIBIR cada sección (section_write_grants, migs 187/192).
+    // Sin esto el user elige secciones a ciegas: la pantalla muestra un check
+    // por sección y nada dice si además concede escritura, sobre qué tabla, ni
+    // si el permiso lo decide otra cosa (el dueño de la fila, o ser admin).
+    'access.writes': 'Escribe',
+    'access.writes_none': 'Solo lectura',
+    'access.writes_owner': 'Solo lo propio',
+    'access.writes_admin': 'Solo admin',
+    'access.will_write_title': 'Con esta selección, el rol podrá escribir:',
+    'access.will_write_none': 'Ninguna tabla: con estas secciones el rol es de solo lectura.',
+    'access.will_write_hint':
+      'Sale de section_write_grants, la misma tabla que usan las políticas de la base — no es una lista aparte que pueda quedar desactualizada.',
+    'access.writes_owner_hint':
+      'Escribe solo sus propias filas (su sesión, sus presets): no depende de esta sección.',
+    'access.writes_admin_hint':
+      'Esta sección NO concede escritura: esas tablas quedan reservadas a un admin.',
+    'access.grants_load_error':
+      'No se pudo cargar el mapa de escrituras. Los permisos de la base no cambian; solo falta este detalle en pantalla.',
 
     // ── Realtime / Live-sync ──────────────────────────────────────────
     'realtime.other_session':
@@ -3270,6 +3288,20 @@ export const TRANSLATIONS = {
     'access.no_users': 'No registered users.',
     'access.confirm_delete_user': 'Delete this user?',
     'access.confirm_delete_role': 'Delete this role? Assigned users will lose their role.',
+    'access.writes': 'Writes',
+    'access.writes_none': 'Read only',
+    'access.writes_owner': 'Own rows only',
+    'access.writes_admin': 'Admin only',
+    'access.will_write_title': 'With this selection, the role will be able to write:',
+    'access.will_write_none': 'No tables: with these sections the role is read-only.',
+    'access.will_write_hint':
+      'Comes from section_write_grants, the same table the database policies use — not a separate list that could drift.',
+    'access.writes_owner_hint':
+      'Writes only its own rows (own session, own presets): does not depend on this section.',
+    'access.writes_admin_hint':
+      'This section grants NO write access: those tables stay reserved for an admin.',
+    'access.grants_load_error':
+      'Could not load the write map. Database permissions are unchanged; only this on-screen detail is missing.',
 
     // ── Realtime / Live-sync ──────────────────────────────────────────
     'realtime.other_session': 'Another session updated {target}. The new values are now applied.',
@@ -5564,6 +5596,20 @@ export const TRANSLATIONS = {
     'access.no_users': 'Нет зарегистрированных пользователей.',
     'access.confirm_delete_user': 'Удалить этого пользователя?',
     'access.confirm_delete_role': 'Удалить эту роль? Назначенные пользователи потеряют свою роль.',
+    'access.writes': 'Запись',
+    'access.writes_none': 'Только чтение',
+    'access.writes_owner': 'Только свои записи',
+    'access.writes_admin': 'Только админ',
+    'access.will_write_title': 'С этим набором роль сможет писать в:',
+    'access.will_write_none': 'Ни в одну таблицу: с этими разделами роль только для чтения.',
+    'access.will_write_hint':
+      'Берётся из section_write_grants — той же таблицы, что используют политики базы, а не из отдельного списка, который может устареть.',
+    'access.writes_owner_hint':
+      'Пишет только свои строки (своя сессия, свои пресеты): от этого раздела не зависит.',
+    'access.writes_admin_hint':
+      'Этот раздел НЕ даёт права на запись: эти таблицы остаются только для админа.',
+    'access.grants_load_error':
+      'Не удалось загрузить карту записи. Права в базе не изменились, не хватает только этой детали на экране.',
 
     // ── Realtime / Live-sync ──────────────────────────────────────────
     'realtime.other_session': 'Другая сессия обновила {target}. Новые значения уже применены.',

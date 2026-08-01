@@ -142,6 +142,38 @@ ON CONFLICT (section, table_name) DO UPDATE
   SET gate = EXCLUDED.gate,
       note = EXCLUDED.note;
 
+-- ── 4. Tres grants que sobraban ───────────────────────────────────────
+-- El checker los encontró desde el otro lado: filas del mapa que conceden
+-- escritura sobre tablas que NINGUNA pantalla escribe. No es un bug activo,
+-- pero es permiso regalado — y el día que se delegue `config` o `upload` a un
+-- rol operativo, ese permiso de más pasa a ser real.
+--
+--   bot_sync_watermark — la escriben sync_bot_quotes() y reset_bot_watermark(),
+--                        ambas SECURITY DEFINER: bypasean RLS y no necesitan
+--                        que el llamador tenga el grant.
+--   upload_batches     — hoy no la escribe NADA (las RPCs que la insertaban ya
+--                        no existen). Se conserva la fila para dejar dicho que
+--                        `upload` es su sección dueña; el SELECT sigue gateado
+--                        por país desde la mig 189.
+--   catalog_extras     — se administra a mano por SQL. La UI de `Config →
+--                        Países → + Custom` guarda en country_config.extras
+--                        (mig 58), no acá.
+--
+-- Verificado con `npm run check:section-grants`, que resuelve por símbolo el
+-- grafo de imports de cada ruta: ninguna de las tres aparece como escritura de
+-- cliente. Pasarlas a 'admin' no le saca nada a ninguna pantalla existente.
+UPDATE public.section_write_grants
+   SET gate = 'admin',
+       -- coalesce: en el seed de la 187 `catalog_extras` quedó con note NULL, y
+       -- `NULL || texto` es NULL — la nota se habría perdido en silencio.
+       note = coalesce(note || ' ', '') ||
+              '[192] Ninguna pantalla la escribe directo: sin grant por sección.'
+ WHERE (section, table_name) IN (
+   ('upload', 'bot_sync_watermark'),
+   ('upload', 'upload_batches'),
+   ('config', 'catalog_extras')
+ );
+
 COMMIT;
 
 -- ── VERIFICACIÓN ──────────────────────────────────────────────────────

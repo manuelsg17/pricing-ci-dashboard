@@ -3,6 +3,7 @@ import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useCountry } from '../context/CountryContext'
 import { useRoles, useInvalidateRoles } from '../hooks/useRoles'
+import { useSectionWriteGrants, tablesGrantedBy } from '../hooks/useSectionWriteGrants'
 import { ALL_SECTIONS, SECTION_LABELS } from '../hooks/useAccessControl'
 import { useI18n } from '../context/LanguageContext'
 import { COUNTRIES } from '../lib/constants'
@@ -276,12 +277,92 @@ function UsersTab({ roles }) {
   )
 }
 
+// ── Qué escribe cada sección ───────────────────────────────────────────────
+// Etiqueta corta al lado de cada checkbox. Antes de esto, elegir secciones era
+// a ciegas: el check decía "ve esta pantalla" y nada decía si además concede
+// escritura, sobre qué, ni si el permiso lo decide otra cosa. Justo la
+// pregunta que hay que responder ANTES de guardar un rol nuevo, no después de
+// que un hub reporte que no puede guardar.
+function SectionWriteBadge({ buckets }) {
+  const { t } = useI18n()
+  if (!buckets) return <span className="am-wgrant am-wgrant--none">{t('access.writes_none')}</span>
+
+  // La etiqueta dice lo MEJOR que concede la sección; el tooltip aclara el
+  // resto. Varias secciones son mixtas (Proyectos escribe `section_last_seen`
+  // por dueño y `project_tasks` solo-admin; Cargar Data igual), así que
+  // mostrar un solo grupo y callar los otros sería contar media verdad —
+  // justo el tipo de media verdad que hace que alguien delegue creyendo que
+  // delegó más de lo que delegó.
+  const detalle = [
+    buckets.section.length ? `${t('access.writes')}:\n  ${buckets.section.join('\n  ')}` : null,
+    buckets.owner.length
+      ? `${t('access.writes_owner')} — ${t('access.writes_owner_hint')}\n  ${buckets.owner.join('\n  ')}`
+      : null,
+    buckets.admin.length
+      ? `${t('access.writes_admin')} — ${t('access.writes_admin_hint')}\n  ${buckets.admin.join('\n  ')}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  if (buckets.section.length > 0) {
+    return (
+      <span className="am-wgrant am-wgrant--write" title={detalle}>
+        {t('access.writes')}: {buckets.section.length}
+      </span>
+    )
+  }
+  if (buckets.owner.length > 0) {
+    return (
+      <span className="am-wgrant am-wgrant--owner" title={detalle}>
+        {t('access.writes_owner')}
+      </span>
+    )
+  }
+  if (buckets.admin.length > 0) {
+    return (
+      <span className="am-wgrant am-wgrant--admin" title={detalle}>
+        {t('access.writes_admin')}
+      </span>
+    )
+  }
+  return <span className="am-wgrant am-wgrant--none">{t('access.writes_none')}</span>
+}
+
+// Resumen en vivo de lo que el rol va a poder escribir con las secciones
+// tildadas EN ESTE MOMENTO — se recalcula mientras se edita, para que el
+// efecto del cambio se vea antes de guardarlo.
+function WriteSummary({ sections, bySection, error }) {
+  const { t } = useI18n()
+  const tables = tablesGrantedBy(sections, bySection)
+  return (
+    <div className="am-write-summary">
+      <div className="am-write-summary__title">{t('access.will_write_title')}</div>
+      {error ? (
+        <div className="am-write-summary__empty">{t('access.grants_load_error')}</div>
+      ) : tables.length === 0 ? (
+        <div className="am-write-summary__empty">{t('access.will_write_none')}</div>
+      ) : (
+        <div className="am-write-summary__tables">
+          {tables.map((tbl) => (
+            <code key={tbl} className="am-write-summary__table">
+              {tbl}
+            </code>
+          ))}
+        </div>
+      )}
+      <div className="am-write-summary__hint">{t('access.will_write_hint')}</div>
+    </div>
+  )
+}
+
 // ── Roles tab ──────────────────────────────────────────────────────────────
 function RolesTab({ availableCountries }) {
   const { t } = useI18n()
   const toast = useToast()
   const confirm = useConfirm()
   const { data: roles = [], isLoading: loading } = useRoles()
+  const { bySection: writeGrants, isError: grantsError } = useSectionWriteGrants()
   const invalidateRoles = useInvalidateRoles()
   const [editing, setEditing] = useState(null) // role id being edited
   const [draftPerms, setDraftPerms] = useState({ sections: [], countries: [] })
@@ -487,10 +568,16 @@ function RolesTab({ availableCountries }) {
                               }
                             }}
                           />
-                          {SECTION_LABELS[sec] || sec}
+                          <span className="am-check__label">{SECTION_LABELS[sec] || sec}</span>
+                          <SectionWriteBadge buckets={writeGrants[sec]} />
                         </label>
                       ))}
                     </div>
+                    <WriteSummary
+                      sections={draftPerms.sections}
+                      bySection={writeGrants}
+                      error={grantsError}
+                    />
                   </div>
 
                   <div className="am-perm-group">
@@ -550,6 +637,17 @@ function RolesTab({ availableCountries }) {
                     {role.permissions?.countries?.includes('all')
                       ? t('access.all_m')
                       : (role.permissions?.countries || []).join(', ') || '—'}
+                  </span>
+                  {/* También en la tarjeta cerrada: revisar qué escribe un rol
+                      ya creado no debería exigir entrar a editarlo — entrar a
+                      editar es justo el momento en que es fácil guardar sin
+                      querer un cambio que no se pretendía hacer. */}
+                  <span className="am-role-card__perm-label">{t('access.writes')}:</span>
+                  <span className="am-role-card__perm-val">
+                    {(() => {
+                      const tables = tablesGrantedBy(role.permissions?.sections, writeGrants)
+                      return tables.length ? tables.join(', ') : t('access.writes_none')
+                    })()}
                   </span>
                 </div>
               )}
