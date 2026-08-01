@@ -34,7 +34,7 @@ válido. Aplicarla sola es seguro: no depende de nada más del bloque.
 
 ---
 
-## 🔴 Bloque B — APLICADO, pero FALTA LA 199 (urgente)
+## Bloque B — ✅ APLICADO (194, 195, 199)
 
 Aplicadas y verificadas: **194** y **195**.
 
@@ -46,52 +46,90 @@ Aplicadas y verificadas: **194** y **195**.
 - Aislamiento por país verificado como hub real: Colombia **DENEGADO** (42501),
   Perú permitido.
 
-### ⚠️ Falta `supabase/199_fix_trigger_calidad_permisos.sql`
+### `supabase/199_fix_trigger_calidad_permisos.sql` — también aplicada
 
 La 195 crea el trigger `trg_ci_close_fill_quality` como `SECURITY INVOKER`. El
 fix que lo pasa a `DEFINER` estaba escrito… dentro de la **mig 197**, que es
-del Bloque D. Aplicar B sin D deja la ventana abierta.
+del Bloque D. Aplicar B sin D dejó a los hubs sin poder cerrar sesión durante
+unos minutos: el bundle desplegado inserta directo en `ci_sessions` con
+`turno_timings` y **sin** `duration_confiable`, así que el trigger ejecutaba
+`ci_ts_or_null` —sin `EXECUTE` para `authenticated` desde la 194— y moría con
+`42501`.
 
-**Efecto mientras tanto**: el bundle desplegado inserta directo en
-`ci_sessions` con `turno_timings` y **sin** `duration_confiable`, así que el
-trigger ejecuta `ci_ts_or_null` —a la que la 194 le revocó `EXECUTE`— y muere
-con `42501`. **El hub no puede terminar la sesión.**
+Sin pérdida de datos: los precios se guardan antes y el código no limpia el
+borrador ni borra el latido cuando ese INSERT falla.
 
-No hay pérdida de datos: los precios ya se guardaron antes y el código no
-limpia el borrador ni borra el latido cuando este INSERT falla.
+Verificado en producción con el INSERT literal del bundle viejo, como rol
+`authenticated`, en transacción revertida: **"EL HUB PUEDE CERRAR →
+confiable=true, dur=40.0"**. Y `ci_ts_or_null` **sigue sin `EXECUTE`** para
+`authenticated`: la higiene de la 194 se conservó.
 
-Reproducido en local como rol `authenticated`: sin el fix → `42501`; con el
-fix → `INSERT` OK y `duration_confiable = true`.
-
-Aplicar la 199 (o, equivalente, adelantar el Bloque D) desbloquea el cierre.
+**Lección, ya escrita en el archivo de la 199**: una simulación que valida un
+camino de ESCRITURA del hub tiene que hacer `SET LOCAL ROLE authenticated`.
+Corriendo como `postgres` solo prueba que el SQL compila. Misma familia que la
+mig 182.
 
 ---
 
-## Bloque C — El histórico inflado (¡ENSAYO PRIMERO!)
+## Bloque C — ✅ APLICADO (196 + backfill autorizado)
 
-Requiere el Bloque B aplicado.
+Aplicado en dos pasos a propósito: la 196 **ejecuta el backfill dentro del
+propio archivo**, así que primero se aplicó la estructura (columnas, función,
+procedimiento, vistas) y recién después se corrió el ensayo y el backfill real.
 
-1. `supabase/196_ci_duration_backfill_historico.sql`
-2. **ANTES de confiar en el resultado**, correr el ensayo, que NO escribe nada:
+Ensayo (sin escribir nada) → backfill completo, autorizado por el user viendo
+esos números:
+
+|                                          | Antes   | Después            |
+| ---------------------------------------- | ------- | ------------------ |
+| Minutos totales                          | 6.863,4 | **2.370,7** (−65%) |
+| Máximo                                   | 721,6   | **212,1**          |
+| Promedio                                 | 92,7    | **49,4**           |
+| Filas en 0                               | 6       | **0**              |
+| Filas de juguete (<2 min con +20 celdas) | 20      | **0**              |
+| Por encima del techo de 720 min          | 1       | **0**              |
+
+74 filas corregidas · 29 estaban infladas · 19 estaban cortas · 26 quedaron en
+NULL · **0 pendientes**. Idempotencia verificada: la segunda corrida no tocó
+nada.
+
+Las 26 en NULL no tenían `turno_timings` medibles (casi todas del 20 al 24 de
+julio). Ya estaban marcadas `duration_confiable = false` por la 195 y el panel
+de turnos ya las excluía, así que la métrica no cambia — solo el historial, que
+ahora muestra `—` en vez de un número sin sustento. El bundle desplegado ya lo
+renderiza así (`CompletedSessionsTable.jsx:59`).
+
+**Vuelta atrás completa**, si en algún momento querés los números viejos:
 
 ```sql
-CALL ci_backfill_duration_minutes(p_dry_run => true);
+UPDATE ci_sessions
+   SET duration_minutes = duration_minutes_legacy,
+       duration_minutes_legacy = NULL,
+       duration_backfilled_at  = NULL
+ WHERE duration_backfilled_at IS NOT NULL;
 ```
 
-Te dice cuántas filas cambiarían y cuántas quedarían en NULL. Las filas viejas
-sin `turno_timings` medibles quedan en **NULL**, no se les inventa un número —
-si hay muchas de antes de julio, van a quedar sin dato. Decidilo con ese
-número a la vista.
-
-3. Recién ahí, el backfill real. Los valores originales quedan en
-   `duration_minutes_legacy`: se puede volver atrás.
+Ninguna materialized view lee `ci_sessions`, así que no hay agregados que
+refrescar.
 
 ---
 
-## Bloque D — Fin de los duplicados
+## Bloque D — Fin de los duplicados ← SIGUE ESTE
 
 1. `supabase/197_ci_session_close_idempotency.sql`
 2. `supabase/198_admin_close_idempotente.sql`
+
+La 197 vuelve a crear `ci_close_fill_quality` como `DEFINER`: es el mismo
+estado que ya dejó la 199, así que aplicarla no revierte nada. Además le
+REVOCA el `EXECUTE` que Postgres le da a PUBLIC por defecto, que hoy sigue
+abierto.
+
+La 198 cambia el tipo de retorno de `admin_close_ci_session` de `void` a
+`jsonb`, por eso lleva `DROP FUNCTION` — los parámetros no cambian, así que no
+crea overload. De paso cierra el `EXECUTE` que `anon` tiene sobre esa función
+en producción (no es explotable: es `SECURITY DEFINER` y abre con `is_admin()`
+
+- `require_country_access()`, pero es superficie que no hace falta).
 
 ---
 
