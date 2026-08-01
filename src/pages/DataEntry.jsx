@@ -1915,75 +1915,69 @@ export default function DataEntry() {
         addRoute(c.uiCat, c.dbCat, c.timeslot, c.bracket, c.pa, c.pb, c.zone ?? null)
     }
 
-    // Los DELETE por ruta se disparan en PARALELO (Promise.all) para no encadenar
-    // un round-trip por ruta — clave para que guardar/terminar no se vuelva lento
-    // en ciudades con muchas rutas (ej. TukTuk, 7 distritos × bracket).
-    const delResults = await Promise.all(
-      Array.from(routeDels.values()).map((rt) => {
-        // Acotar el DELETE a los competidores VISIBLES (getCiCompetitors) de esa
-        // categoría — así un competidor "no ofrece" (ciHidden) con histórico NO se
-        // borra al re-guardar. Nombres normalizados igual que buildInsertPayload.
-        const visibleNames = (
-          rt.uiCat ? getCiCompetitors(uiCity, rt.uiCat, null, country, dbConfigs) : []
-        ).map((c) => normalizeCompetitorName(c, { city: dbCity }))
-        if (visibleNames.length === 0) return Promise.resolve({ error: null })
-        let q = sb
-          .from('pricing_observations')
-          .delete()
-          .eq('country', country)
-          .eq('city', dbCity)
-          .eq('category', rt.dbCat)
-          .eq('observed_date', date)
-          .eq('timeslot', rt.timeslot)
-          .eq('distance_bracket', rt.bracket)
-          .eq('data_source', 'manual')
-          .in('competition_name', visibleNames)
-        q = rt.pa != null ? q.eq('point_a', rt.pa) : q.is('point_a', null)
-        q = rt.pb != null ? q.eq('point_b', rt.pb) : q.is('point_b', null)
-        // Zona (distrito): el DELETE SIEMPRE se acota a la zona de ESTA VISTA
-        // (`zone` — el distrito activo en TukTuk, null en el resto), nunca a
-        // `rt.zone` (que puede venir de una fila cargada del historial y no ser
-        // confiable: hay ~76k filas manuales con zona no-null fuera de TukTuk,
-        // ej. observaciones importadas por Excel para Aeropuerto con
-        // zone='Airport_A' — Upload.jsx). Antes, fuera de TukTuk, el DELETE no
-        // tenía predicado de zona: guardar una ruta borraba TODAS las filas de
-        // esa ruta+franja sin importar su zona, incluida esa data ajena — se
-        // perdía en silencio. Acotar por la zona CONSTANTE de la vista (nunca
-        // por la de la fila individual) es seguro: todo lo que esta vista
-        // guarda o vuelve a cargar pertenece siempre a su propia zona (ver
-        // `viewRefs` para TukTuk) — nunca borra ni pisa una zona ajena.
-        q = zone != null ? q.eq('zone', zone) : q.is('zone', null)
-        // Acotar al dueño (este hub) + legacy sin dueño (NULL). SIEMPRE por dueño:
-        // sin email se cae a solo-NULL, nunca a un DELETE sin predicado de dueño.
-        q = userEmail
-          ? q.or(`uploaded_by.eq.${userEmail},uploaded_by.is.null`)
-          : q.is('uploaded_by', null)
-        return q
-      })
-    )
-    const delErr = delResults.find((r) => r && r.error)?.error
-    if (delErr) {
+    // DELETE + INSERT en UNA transacción del servidor (migs 182/186).
+    //
+    // Antes esto eran N DELETEs en paralelo y después INSERTs en lotes de 200.
+    // Los dos pasos chequeaban su error, pero NO eran atómicos: si fallaba el
+    // lote 2 de 3, las filas ya estaban borradas y solo se había reinsertado
+    // una parte — la ruta quedaba a medias en la BD. Estaba mitigado (el
+    // borrador local sobrevive y reintentar arregla), pero si el hub cerraba la
+    // laptop en vez de reintentar, esos datos se perdían y nadie se enteraba.
+    //
+    // El cuerpo de una función plpgsql corre en una sola transacción: si el
+    // INSERT falla, el DELETE se revierte solo. Verificado en local — ver el
+    // bloque de pruebas de la mig 186.
+    //
+    // La función es SECURITY INVOKER, así que las políticas RLS de
+    // pricing_observations siguen aplicando igual que con el acceso directo.
+    //
+    // Los competidores VISIBLES se siguen calculando ACÁ, no en SQL: dependen
+    // de la config del cliente (getCiCompetitors/ciHidden), y duplicar esa
+    // lógica en la base sería exactamente el tipo de divergencia que ya causó
+    // problemas con la normalización (CLAUDE.md §4).
+    const routesPayload = Array.from(routeDels.values())
+      .map((rt) => ({
+        category: rt.dbCat,
+        timeslot: rt.timeslot,
+        bracket: rt.bracket,
+        point_a: rt.pa,
+        point_b: rt.pb,
+        // Un competidor marcado "no ofrece" (ciHidden) conserva su histórico:
+        // si no está visible, no entra en el acote y por lo tanto no se borra.
+        competitors: (rt.uiCat
+          ? getCiCompetitors(uiCity, rt.uiCat, null, country, dbConfigs)
+          : []
+        ).map((c) => normalizeCompetitorName(c, { city: dbCity })),
+      }))
+      // Sin competidores visibles no hay nada que borrar. Se filtra acá además
+      // de en SQL para no mandar ruido por la red.
+      .filter((rt) => rt.competitors.length > 0)
+
+    const payloads = rowsToInsert.map((r) => buildInsertPayload(r, capturedTime))
+
+    const { error: saveErr } = await sb.rpc('save_ci_batch', {
+      p_country: country,
+      p_city: dbCity,
+      p_date: date,
+      // La zona CONSTANTE de la vista (el distrito activo en TukTuk, null en el
+      // resto) — NUNCA la de la fila individual. Hay ~76k filas manuales con
+      // zona no-null fuera de TukTuk (Aeropuerto por Excel) que un borrado sin
+      // este acote se llevaba puestas en silencio.
+      p_zone: zone ?? null,
+      // Sin email se cae a solo-las-sin-dueño, nunca a un borrado sin predicado
+      // de dueño (mig 139).
+      p_user_email: userEmail || null,
+      p_routes: routesPayload,
+      p_rows: payloads,
+    })
+    if (saveErr) {
       // Mensaje ACCIONABLE para el hub (no el .message crudo de Postgres —
       // jerga técnica tipo "duplicate key value violates..." no le dice qué
       // hacer). El detalle técnico va a consola para diagnóstico nuestro.
-      console.error('[performSave] delete error:', delErr)
+      console.error('[performSave] save_ci_batch error:', saveErr)
       setMsg({ type: 'err', text: t('dataentry.err_save_failed') })
       setSaving(false)
       return false
-    }
-
-    const payloads = rowsToInsert.map((r) => buildInsertPayload(r, capturedTime))
-    const BATCH = 200
-    for (let i = 0; i < payloads.length; i += BATCH) {
-      const { error: insErr } = await sb
-        .from('pricing_observations')
-        .insert(payloads.slice(i, i + BATCH))
-      if (insErr) {
-        console.error('[performSave] insert error:', insErr)
-        setMsg({ type: 'err', text: t('dataentry.err_save_failed') })
-        setSaving(false)
-        return false
-      }
     }
     // Guardado confirmado en servidor de verdad (no solo local) — ver
     // indicador en el header.
