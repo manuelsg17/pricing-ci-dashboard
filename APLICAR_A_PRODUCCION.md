@@ -20,17 +20,36 @@ después de cada bloque, antes de pasar al siguiente.
 
 ---
 
-## Bloque A — Permisos genéricos ✅ APLICADO (falta solo la 193)
+## Bloque A — Permisos genéricos ✅ APLICADO (187, 188, 189, 192, 193)
 
 Aplicadas y verificadas: 187, 188, 189, 192. Drift verificado en 0.
 
-**Queda pendiente `supabase/193_generic_rpc_gates.sql`**, que afloja 6 RPCs de
-`is_admin()` a `can_access_section()` y —en el mismo cambio— les agrega el
-chequeo de país que NUNCA tuvieron: son SECURITY DEFINER, bypasean RLS, y el
-aislamiento se sostenía por accidente porque el admin tiene todos los países.
+### 193 · las RPCs dejan de nombrar "admin"
 
-No aplicarla deja esas 6 funciones como estaban (solo admin), que es un estado
-válido. Aplicarla sola es seguro: no depende de nada más del bloque.
+Las 6 pasaron de `is_admin()` a `can_access_section()` y —en el mismo cambio—
+sumaron el chequeo de país que **nunca tuvieron**: son `SECURITY DEFINER`,
+bypasean RLS, y el aislamiento entre países se sostenía por accidente porque el
+admin los tiene todos.
+
+Las 6 quedaron con **firma única** (sin `PGRST203`), `search_path` fijo y sin
+`EXECUTE` para `anon`. Cinco ya no mencionan `is_admin()` y todas chequean país.
+`list_audit_log` lo conserva a propósito: filtra **por fila**, no rechaza — el
+admin ve todo (incluidas las filas globales con `country` NULL) y un rol con
+`config` ve solo sus países.
+
+Probado con usuarios reales de producción:
+
+| Quien                    | RPC                       | Resultado            |
+| ------------------------ | ------------------------- | -------------------- |
+| `analyst` (sin `config`) | snapshots                 | **DENEGADO** (42501) |
+| `analyst`                | bitácora                  | 0 filas              |
+| admin                    | snapshots Perú y Colombia | permitido            |
+| admin                    | bitácora                  | 500 filas (el tope)  |
+
+**Hoy no cambia nada operativo**: ningún rol tiene todavía `config` ni `upload`,
+así que estas funciones siguen siendo de admin en la práctica. Lo que cambia es
+que el día que delegues `config`, los botones funcionan **y** el aislamiento por
+país se sostiene solo.
 
 ---
 
@@ -167,23 +186,46 @@ SELECT city, zone, observed_date, user_email, count(*)
 
 ---
 
-## Bloque E — Proyectos
+## Bloque E — Proyectos ✅ YA ESTABA APLICADO (183, 184)
 
-1. `supabase/183_projects_and_tasks.sql`
-2. `supabase/184_projects_rpcs.sql`
+**Esta guía estaba desactualizada**: la 183 y la 184 ya estaban en producción
+antes de esta sesión. No se aplicó nada; se verificó que estuviera completo y
+sin drift.
+
+- Las **5 tablas** existen con RLS activa: `projects`, `project_tasks`,
+  `task_comments`, `task_status_log`, `section_last_seen`.
+- **14 políticas**, idénticas a local una a una en nombre, comando, rol y
+  expresión (`can_access_country` para leer; `is_admin() AND
+can_access_country` para escribir; `section_last_seen` filtra por dueño).
+- Las **4 RPCs** (`set_task_status`, `reassign_task`, `add_task_comment`,
+  `_task_guard`) son `SECURITY DEFINER` con `search_path` fijo, sin `EXECUTE`
+  para `anon`.
+- `country_config.timezone` poblado: Lima, Bogotá, La Paz, Katmandú.
+- 0 filas en `projects` y `project_tasks` — nadie lo usó todavía.
 
 ---
 
-## ⚠️ El merge a main va AL FINAL
+## Estado global de seguridad (verificado al cierre)
 
-`main` dispara deploy automático. El frontend de la rama
-`feat/duracion-confiable` llama a funciones de las migs **195, 197 y 198**: si
-el bundle sale antes, esas pantallas se rompen.
+| Chequeo                                               | Resultado |
+| ----------------------------------------------------- | --------- |
+| Tablas con 2+ políticas para el mismo comando         | **0**     |
+| `SECURITY DEFINER` sin `search_path` en todo `public` | **0**     |
+| `anon` con `EXECUTE` en las RPCs tocadas esta sesión  | **0**     |
 
-**Orden**: bloques A-E → verificar → merge.
+---
 
-Ya pasó una vez hoy: un push a main desplegó el frontend nuevo contra la base
-vieja y los hubs no pudieron guardar durante la mañana.
+## ⚠️ Lo único que queda: el merge a main
+
+Todas las migraciones están aplicadas. `main` dispara deploy automático, y el
+frontend de `feat/duracion-confiable` llama a funciones de las migs **195, 197
+y 198** — que ya están en producción, así que el merge es seguro **ahora**.
+
+Ya pasó una vez: un push a main desplegó el frontend nuevo contra la base vieja
+y los hubs no pudieron guardar durante la mañana. Ahora el orden es el correcto.
+
+Al desplegar, el cliente empieza a mandar `close_token`: la idempotencia de la
+197 pasa a ejercitarse de verdad (hoy está aplicada pero ningún cliente la usa).
 
 ---
 
