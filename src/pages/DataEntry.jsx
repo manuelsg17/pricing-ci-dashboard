@@ -2,7 +2,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sb, SESSION_ID } from '../lib/supabase'
 import { debeReanudarTramo } from '../lib/sessionPersistence'
+import { evaluateLease, serializeLease, ownsLease, leaseKey, LEASE_RENEW_MS } from '../lib/tabLease'
 import { duracionDeSesion } from '../lib/sessionDuration'
+import { duracionActiva, registrarActividad } from '../lib/idleDetection'
+import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
@@ -18,7 +21,7 @@ import { useCITimeslots } from '../hooks/useCITimeslots'
 import { isTukTukDistrictEnabled, firstEnabledTukTukDistrict } from '../lib/tuktukDistricts'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
-import { Lock, CheckCircle2 } from 'lucide-react'
+import { Lock, CheckCircle2, AlertTriangle } from 'lucide-react'
 import BracketRouteGroup from '../components/dataentry/BracketRouteGroup'
 import TurnoSection from '../components/dataentry/TurnoSection'
 import InstructionsBanner from '../components/dataentry/InstructionsBanner'
@@ -228,9 +231,23 @@ export default function DataEntry() {
   const editSeqRef = useRef({})
   const savedSeqRef = useRef({})
 
+  // Traza de actividad por bucket (P1-6). Va en REF por el MISMO motivo que
+  // editSeqRef: esto corre en CADA tecleo, y un setState acá re-renderizaría
+  // la grilla entera (CLAUDE.md §5). `registrarActividad` solo mira el último
+  // tramo y devuelve la misma referencia si el evento no aporta nada, así que
+  // el costo por tecla es constante y no crece con la jornada.
+  const actividadRef = useRef({})
+
   const markTouched = useCallback((bucket) => {
     if (!bucket) return
     editSeqRef.current[bucket] = (editSeqRef.current[bucket] ?? 0) + 1
+    // markTouched es el embudo ÚNICO de setEntry/setEta/setDisc/setIndrive y
+    // del marcado "sin data": cubre todo lo que el hub HACE, que es
+    // exactamente lo que cuenta como actividad.
+    actividadRef.current[bucket] = registrarActividad(
+      actividadRef.current[bucket] || [],
+      Date.now()
+    )
     setTouchedFronts((prev) => (prev.includes(bucket) ? prev : [...prev, bucket]))
   }, [])
 
@@ -1006,8 +1023,69 @@ export default function DataEntry() {
     (n) => writeSyncSeqFor(country, dbCity, zone, date, n),
     [writeSyncSeqFor, country, dbCity, zone, date]
   )
+  // Re-sincroniza la marca de agua cuando se restauró un borrador y por lo
+  // tanto no se va a consultar el servidor (durabilidad R3). Ver el porqué en
+  // el punto de llamada.
+  const sincronizarMarcaDesdeBorrador = useCallback(
+    async (city, z, d, savedAt) => {
+      if (!userEmail) return
+      const { data, error } = await sb
+        .from('ci_bucket_writes')
+        .select('write_seq, last_write_at')
+        .eq('user_email', userEmail)
+        .eq('country', country)
+        .eq('city', city)
+        .eq('zone_key', z ?? '')
+        .eq('observed_date', d)
+        .maybeSingle()
+
+      // Sin fila en el servidor no hay con qué conflictuar: nada que hacer.
+      if (error || !data) return
+
+      const escrituraServidor = new Date(data.last_write_at).getTime()
+      // Solo se adopta si ESTE cliente es estrictamente más nuevo. Si el
+      // servidor escribió después de nuestro último borrador, hubo otra
+      // pantalla de verdad y el conflicto tiene que aparecer.
+      if (savedAt != null && Number.isFinite(escrituraServidor) && escrituraServidor <= savedAt) {
+        writeSyncSeqFor(country, city, z, d, Number(data.write_seq))
+      }
+    },
+    [userEmail, country, writeSyncSeqFor]
+  )
+
   // Conflicto detectado por el servidor: { at, isFinish } o null.
   const [saveConflict, setSaveConflict] = useState(null)
+
+  // El borrador NO se está pudiendo escribir (durabilidad R5).
+  //
+  // Los tres `catch` vacíos de este archivo tapaban dos fallos MUDOS y muy
+  // caros: localStorage lleno (QuotaExceededError) y localStorage
+  // deshabilitado (Safari privado). En los dos casos el hub sigue tecleando
+  // creyendo que su borrador se guarda, y la única señal era que el contador
+  // "guardado hace Xs" se congelaba — algo que nadie mira.
+  //
+  // Con esto, el hub se entera y puede hacer lo único que lo salva: tocar
+  // Guardar progreso para mandar al SERVIDOR lo que el navegador no puede
+  // retener.
+  const [storageFailed, setStorageFailed] = useState(false)
+
+  // ── Un solo escritor del borrador por navegador (P1-10) ──────────────
+  //
+  // El guard de la mig 191 protege la BASE contra dos pestañas del mismo hub.
+  // Esto protege el BORRADOR: las dos escriben la misma clave de localStorage
+  // con su `entries` completo, así que la última en escribir borra las celdas
+  // de la otra.
+  //
+  // Arranca en `true` a propósito: si empezara en false, cada F5 dejaría la
+  // pestaña sin autosave durante el primer tick — justo la ventana donde el
+  // hub teclea sus primeras celdas.
+  //
+  // NO se fusionan borradores, nunca. Fusionar dos `entries` resucita celdas
+  // que el hub borró a propósito, que es el bug con más antecedentes en este
+  // repo (CLAUDE.md §2). Escritor único, y el resto en modo lectura.
+  const [leaseOwner, setLeaseOwner] = useState(true)
+  const leaseOwnerRef = useRef(true)
+  leaseOwnerRef.current = leaseOwner
 
   const [lastSaveOkAt, setLastSaveOkAt] = useState(null) // guardado REAL
   const [lastHeartbeatOkAt, setLastHeartbeatOkAt] = useState(null) // solo conexión
@@ -1077,6 +1155,9 @@ export default function DataEntry() {
     if (!hydratedCitiesRef.current.has(targetCity)) {
       hydratedCitiesRef.current.add(targetCity)
       let draftApplied = false
+      // Momento de la última escritura del borrador — lo necesita R3 para
+      // decidir si la marca del servidor es más vieja que lo que hay acá.
+      let borradorSavedAt = null
       try {
         let raw = localStorage.getItem(draftKey)
         // Migración única de borradores del formato viejo (sin email, previo
@@ -1117,6 +1198,7 @@ export default function DataEntry() {
               setTurnoTimingsByCity((prev) => ({ ...prev, [targetCity]: parsed.turnoTimings }))
             }
             setLastDraftSavedAt(parsed.savedAt || null)
+            borradorSavedAt = parsed.savedAt || null
             setMsg({
               type: 'ok',
               text: t('dataentry.draft_restored', { n: restored + naArr.length }),
@@ -1184,6 +1266,23 @@ export default function DataEntry() {
       // creía que se habían perdido (incidente 2026-07-22, Arequipa Aeropuerto).
       if (!draftApplied) {
         setPendingLoad({ dbCity, zone, date, auto: true })
+      } else {
+        // Se restauró un borrador, así que NO se va a llamar a
+        // loadObservationsIntoForm — y esa es la única función que lee la
+        // marca de agua del servidor. Sin esto, la marca queda vacía y el
+        // primer guardado da un CONFLICTO FALSO (durabilidad R3).
+        //
+        // A quién castigaba: al hub que MÁS guarda. Después de un apagón o
+        // de cerrar el navegador, el sessionStorage se pierde (ahí vive la
+        // marca) pero el borrador sobrevive en localStorage. Al volver, ese
+        // hub veía "otra pantalla guardó esto" sin que existiera ninguna
+        // otra pantalla.
+        //
+        // La regla es conservadora a propósito: se adopta la marca del
+        // servidor SOLO si su última escritura es MÁS VIEJA que el borrador
+        // local. Si es más nueva, alguien escribió de verdad después y el
+        // conflicto es legítimo — se deja que aparezca.
+        sincronizarMarcaDesdeBorrador(dbCity, zone, date, borradorSavedAt)
       }
     }
     // Marcar hidratado en el siguiente tick para evitar que el effect de save
@@ -1225,6 +1324,10 @@ export default function DataEntry() {
     )
     const id = setTimeout(() => {
       pendienteDesdeRef.current = null
+      // Otra pestaña es la dueña del borrador (P1-10): esta NO escribe. Se
+      // relee del storage y no del estado de React porque el lease pudo
+      // cambiar durante el debounce.
+      if (!leaseOwnerRef.current) return
       // Recién Terminada/Descartada: no reescribir por unos segundos, sin
       // importar qué diga `entries` en este momento (ver guardia arriba).
       if (isJustFinished(draftKey)) return
@@ -1260,12 +1363,15 @@ export default function DataEntry() {
             })
           )
           setLastDraftSavedAt(savedAt)
+          setStorageFailed(false)
         } else {
           localStorage.removeItem(draftKey)
           setLastDraftSavedAt(null)
         }
       } catch {
-        /* quota / disabled */
+        // Ver `storageFailed`: dejar esto mudo es lo que convertía un
+        // navegador sin espacio en una pérdida silenciosa de trabajo.
+        setStorageFailed(true)
       }
     }, espera)
     return () => clearTimeout(id)
@@ -1305,6 +1411,10 @@ export default function DataEntry() {
   // del autosave (R1, arriba).
   const persistirBorrador = useCallback(
     (flushCity, flushKey) => {
+      // Corre desde pagehide/visibilitychange y desde el cleanup del efecto:
+      // clausuras que pueden tener un valor viejo. Por eso se lee el ref, que
+      // siempre tiene la verdad del último render.
+      if (!leaseOwnerRef.current) return
       if (isJustFinished(flushKey)) return
       try {
         const m = perCityRef.current
@@ -1362,7 +1472,7 @@ export default function DataEntry() {
           )
         }
       } catch {
-        /* quota / disabled */
+        setStorageFailed(true)
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1384,6 +1494,30 @@ export default function DataEntry() {
     const onPageHide = () => {
       const f = flushScopeRef.current
       persistirBorrador(f.bucketKey, f.draftKey)
+      // Al cerrar/recargar, el candado se marca OCIOSO en vez de borrarse.
+      //
+      // React no corre cleanups al descargar, así que sin esto cerrar la
+      // pestaña dejaba el candado tomado hasta el TTL: el hub reabría y se
+      // encontraba en modo lectura dos minutos y medio, sin ninguna otra
+      // pestaña abierta.
+      //
+      // Pero BORRARLO tampoco sirve, y lo verifiqué en navegador: un F5 le
+      // entregaba el candado a la otra pestaña, aunque la que recarga sea la
+      // que tiene el trabajo. Marcarlo ocioso resuelve los dos casos —
+      // `evaluateLease` deja reclamar un candado ocioso a quien SÍ tiene
+      // trabajo, y el dueño original lo recupera solo al volver porque
+      // conserva su SESSION_ID (sessionStorage sobrevive el F5).
+      try {
+        const lk = leaseKey(f.draftKey)
+        if (ownsLease(localStorage.getItem(lk), SESSION_ID)) {
+          localStorage.setItem(
+            lk,
+            serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: false })
+          )
+        }
+      } catch {
+        /* sin storage no hay candado que marcar */
+      }
     }
     window.addEventListener('pagehide', onPageHide)
     // `visibilitychange` cubre el caso de cerrar la tapa de la laptop o pasar
@@ -1893,6 +2027,73 @@ export default function DataEntry() {
     dbConfigs,
   ])
 
+  // `engaged` = esta pestaña tiene trabajo de verdad. Una pestaña abierta solo
+  // para mirar no puede bloquear a la pestaña donde el hub va a trabajar.
+  const leaseEngaged = sessionActive || filledCount > 0
+  useEffect(() => {
+    const lKey = leaseKey(draftKey)
+    let vivo = true
+
+    const tick = () => {
+      if (!vivo) return
+      let raw = null
+      try {
+        raw = localStorage.getItem(lKey)
+      } catch {
+        // Sin localStorage no hay candado posible. Se sigue como dueño: el
+        // guard de servidor (mig 191) es el backstop, y degradar acá dejaría
+        // a una pestaña única sin autosave — una forma NUEVA de perder datos.
+        setLeaseOwner(true)
+        return
+      }
+
+      const { action } = evaluateLease({
+        raw,
+        mySid: SESSION_ID,
+        now: Date.now(),
+        myEngaged: leaseEngaged,
+      })
+      if (action === 'demote') {
+        setLeaseOwner(false)
+        return
+      }
+      try {
+        localStorage.setItem(
+          lKey,
+          serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: leaseEngaged })
+        )
+        // RELECTURA obligatoria: dos pestañas restauradas en el mismo tick por
+        // el crash-recovery de Chrome leen la clave vacía las dos y escriben
+        // las dos. Sin releer, ambas se creen dueñas y el bug vuelve entero.
+        setLeaseOwner(ownsLease(localStorage.getItem(lKey), SESSION_ID))
+      } catch {
+        setLeaseOwner(true)
+      }
+    }
+
+    tick()
+    const id = setInterval(tick, LEASE_RENEW_MS)
+
+    // Otra pestaña escribió el lease: reaccionar YA. Sin esto la degradación
+    // tarda hasta 30s, y en esa ventana las dos escriben el borrador.
+    const onStorage = (e) => {
+      if (e.key === lKey) tick()
+    }
+    window.addEventListener('storage', onStorage)
+
+    return () => {
+      vivo = false
+      clearInterval(id)
+      window.removeEventListener('storage', onStorage)
+      // Liberar SOLO si es mío: nunca borrar el lease de otra pestaña.
+      try {
+        if (ownsLease(localStorage.getItem(lKey), SESSION_ID)) localStorage.removeItem(lKey)
+      } catch {
+        /* sin storage no hay nada que liberar */
+      }
+    }
+  }, [draftKey, leaseEngaged])
+
   // Progreso POR TURNO (Mañana/Tarde/Noche) — para el header colapsable de
   // cada TurnoSection. Mismo criterio que filledCount/countAllFilled de
   // arriba, pero separado por el 3er segmento de la key (tsLabel) en vez de
@@ -2344,29 +2545,67 @@ export default function DataEntry() {
       // así `started_at`/`ended_at` describen la ventana de trabajo del
       // bucket que cierra, no la de la pestaña.
       const start = medicion.inicio ?? sessionStartRef.current ?? now.getTime()
-      const { error: sessErr } = await sb.from('ci_sessions').insert({
-        country,
-        city: dbCity,
-        // Distrito TukTuk (null en el resto) → el historial distingue "Lima
-        // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
-        zone,
-        observed_date: date,
-        user_email: userEmail,
-        started_at: new Date(start).toISOString(),
-        ended_at: now.toISOString(),
-        duration_minutes: dur,
-        rows_saved: payloads.length,
-        // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
-        // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
-        // (mig 155) sin tener que recalcularlo del lado del servidor.
-        total_expected: totalExpected,
-        // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
-        // criterio: persistido acá para que sobreviva al DELETE del latido de
-        // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
-        // timestamps del turno actual (isFinalInScope puede cerrar solo un
-        // punto de "Ambos"; los turnos de otro miembro del alcance viven en
-        // SU PROPIO bucketKey/sesión, no se mezclan acá).
-        turno_timings: turnoTimings,
+
+      // Cuánto de esa ventana fue TRABAJO (P1-6). NO reemplaza a `medicion`:
+      // el techo de 4h sigue mandando en `duration_minutes` para no cambiarle
+      // el significado a una columna que ya tiene histórico y dashboards
+      // encima (CLAUDE.md §4). Los minutos activos van en columnas propias.
+      const actividad = duracionActiva({
+        turnoTimings,
+        actividad: actividadRef.current[bucketKey] || [],
+        fin: now,
+      })
+
+      // Clave de idempotencia del cierre (P2-11, mig 197). Se genera UNA vez
+      // por intento y se reusa en cada reintento — incluso después de un F5,
+      // porque vive en localStorage. Así, un INSERT que el servidor ya
+      // ejecutó y cuya respuesta se perdió NO se duplica. Un cierre nuevo
+      // (reabrir para corregir) trae token nuevo y sí inserta: ese rastro de
+      // revisiones es deliberado.
+      const cierre = tokenDeCierre({ userEmail, bucketKey, fecha: date })
+
+      const { error: sessErr } = await sb.rpc('close_ci_session', {
+        p_close_token: cierre.token,
+        p_session: {
+          country,
+          city: dbCity,
+          // Distrito TukTuk (null en el resto) → el historial distingue "Lima
+          // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
+          zone,
+          observed_date: date,
+          user_email: userEmail,
+          started_at: new Date(start).toISOString(),
+          ended_at: now.toISOString(),
+          duration_minutes: dur,
+          // La marca de confianza (mig 195). `duracionDeSesion` YA la calculaba
+          // y se tiraba a la basura al escribir la fila: un número capado por el
+          // techo de 4h entraba a la base indistinguible de uno exacto, y
+          // cualquier promedio los mezclaba. Con esto, el dashboard puede
+          // promediar SOLO lo confiable y el resto queda auditable en vez de
+          // silenciosamente mal.
+          duration_confiable: medicion.confiable,
+          duration_motivo: medicion.motivo,
+          rows_saved: payloads.length,
+          // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
+          // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
+          // (mig 155) sin tener que recalcularlo del lado del servidor.
+          total_expected: totalExpected,
+          // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
+          // criterio: persistido acá para que sobreviva al DELETE del latido de
+          // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
+          // timestamps del turno actual (isFinalInScope puede cerrar solo un
+          // punto de "Ambos"; los turnos de otro miembro del alcance viven en
+          // SU PROPIO bucketKey/sesión, no se mezclan acá).
+          turno_timings: turnoTimings,
+          // NULL explícito cuando no hubo traza utilizable: "no lo pude
+          // medir" y "no trabajó" no son lo mismo, y un 0 se promedia.
+          active_minutes: actividad.actividadMedida ? actividad.minutos : null,
+          idle_minutes: actividad.actividadMedida ? actividad.descontados : null,
+          // La traza cruda se guarda para poder RECALIBRAR el umbral de 5 min
+          // contra datos reales dentro de unas semanas, sin haber perdido el
+          // detalle. Hoy es una hipótesis fundada, no una medición.
+          activity_trace: actividad.actividadMedida ? actividadRef.current[bucketKey] || [] : null,
+        },
       })
       // supabase-js NO lanza excepción cuando un insert falla: devuelve
       // { error }. Sin este chequeo, un fallo (RLS, red, timeout) seguía de
@@ -2389,6 +2628,18 @@ export default function DataEntry() {
         setSaving(false)
         return false
       }
+
+      // Cierre CONFIRMADO por el servidor: se retira el token para que el
+      // próximo "Terminar" de este bucket sea un cierre nuevo y no un
+      // reintento.
+      //
+      // Va acá y NO en el camino de error, a propósito: retirarlo tras un
+      // fallo haría que el reintento mandara un token DISTINTO y duplicara
+      // justamente la fila que el servidor quizá ya escribió — que es el bug
+      // que esto viene a cerrar.
+      confirmarCierre({ userEmail, bucketKey, fecha: date })
+      actividadRef.current[bucketKey] = []
+
       // Limpiar el latido de sesión-activa (mig 146) SOLO si esto cierra la
       // sesión de VERDAD (isFinalInScope) — en Aeropuerto "Ambos", terminar el
       // primer punto no debe hacer desaparecer al hub de "en vivo" en
@@ -2520,6 +2771,13 @@ export default function DataEntry() {
   // categoría/franja), así que guardar seguido es seguro. Solo "Terminar
   // Sesión" exige la grilla completa/S-D.
   async function handleSaveProgress(forceOverwrite = false) {
+    // La mig 191 ya protegería la BD, pero rebotaría como conflicto y le
+    // ofrecería al hub el botón de forzar — o sea, un botón para pisarle el
+    // trabajo a la otra pestaña. Mejor cortar antes, con un motivo claro.
+    if (!leaseOwnerRef.current) {
+      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      return
+    }
     // Collect all full rows
     const rowsToInsert = []
     for (const uiCat of categories) {
@@ -2548,6 +2806,13 @@ export default function DataEntry() {
   // al terminar el ÚLTIMO se cierra la sesión de verdad (ver
   // `isFinalInScope` en `performSave`).
   async function handleFinishSession(forceOverwrite = false) {
+    // Peor que Guardar: cierra el turno, sella la duración y borra el latido
+    // con lo que tiene ESTA pestaña. Un alcance decidido por la pestaña
+    // equivocada cierra la jornada con menos puntos de los que el hub midió.
+    if (!leaseOwnerRef.current) {
+      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      return
+    }
     const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
     if (hasPartial || hasEmpty) {
       setMsg({ type: 'err', text: t('dataentry.err_finish') })
@@ -3193,6 +3458,13 @@ export default function DataEntry() {
   const heartbeatFailStreakRef = useRef(0)
 
   const sendHeartbeat = useCallback(async () => {
+    // `ci_active_sessions` tiene PK `user_email`: UNA sola fila por hub. Dos
+    // pestañas latiendo la hacen saltar entre buckets y corrompen
+    // `started_at`, que es la fuente de la duración.
+    //
+    // Se corta el ENVÍO, NO se borra la fila: borrarla al degradarse repetiría
+    // el bug P1-4 (el hub desaparece de "en vivo" y se pierde el inicio real).
+    if (!leaseOwnerRef.current) return
     const p = heartbeatRef.current
     if (!p || !p.city) return
     try {
@@ -3654,6 +3926,30 @@ export default function DataEntry() {
         </div>
       )}
 
+      {/* Pestaña duplicada (P1-10). Banner PERMANENTE y arriba de todo: el
+          hub tiene que enterarse ANTES de teclear, no después de perder
+          trabajo. La grilla queda visible y editable a propósito (CLAUDE.md
+          §5): es una vista legítima, solo que no escribe. */}
+      {!leaseOwner && (
+        <div className="de-msg de-msg--err de-msg--emphasize">
+          <AlertTriangle className="de-msg__icon" size={20} />
+          <span>
+            <strong>{t('dataentry.lease_readonly_title')}</strong>{' '}
+            {t('dataentry.lease_readonly_body')}
+          </span>
+        </div>
+      )}
+
+      {/* Fallo de almacenamiento del navegador (durabilidad R5). Persistente
+          y destacado: es la única situación donde el hub DEBE actuar ya, y
+          antes no se enteraba de nada. */}
+      {storageFailed && (
+        <div className="de-msg de-msg--err de-msg--emphasize">
+          <AlertTriangle className="de-msg__icon" size={20} />
+          {t('dataentry.storage_failed')}
+        </div>
+      )}
+
       {/* Recuperación de conflicto (mig 191). Sin estas dos salidas el hub
           queda trabado: el servidor le frena el guardado y no tiene forma de
           seguir. Las dos son EXPLÍCITAS y dicen qué descartan — ninguna
@@ -3665,6 +3961,19 @@ export default function DataEntry() {
             <button
               type="button"
               onClick={() => {
+                // ANTES de reemplazar, se respalda el borrador actual
+                // (durabilidad R4). Esta rama hace un reemplazo TOTAL —
+                // `conservarTecleado` solo aplica al auto-load silencioso —
+                // y con él se iban las celdas de filas INCOMPLETAS, que no
+                // están en el servidor por definición: eran una pérdida
+                // permanente y sin aviso. El respaldo le da al hub una
+                // segunda chance si eligió mal.
+                try {
+                  const actual = localStorage.getItem(draftKey)
+                  if (actual) localStorage.setItem(`de:respaldo:${draftKey}`, actual)
+                } catch {
+                  setStorageFailed(true)
+                }
                 setSaveConflict(null)
                 setPendingLoad({ dbCity, zone, date })
               }}

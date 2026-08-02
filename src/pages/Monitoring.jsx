@@ -14,6 +14,7 @@ import CompletedSessionsTable from '../components/monitoring/CompletedSessionsTa
 import WeeklyCoveragePanel from '../components/monitoring/WeeklyCoveragePanel'
 import PriceComplianceAlerts from '../components/monitoring/PriceComplianceAlerts'
 import ClientErrorsPanel from '../components/monitoring/ClientErrorsPanel'
+import TurnoTimesPanel from '../components/monitoring/TurnoTimesPanel'
 import '../styles/data-entry.css'
 import '../styles/monitoring.css'
 
@@ -56,6 +57,11 @@ export default function Monitoring() {
       {/* Primero de todo, y solo aparece si hay algo: un error que un hub
           está viendo AHORA gana en prioridad sobre cualquier métrica (mig 185). */}
       <ClientErrorsPanel />
+
+      {/* Cuánto tarda cada corte (mig 195). Va arriba de la representatividad
+          porque responde una pregunta de gestión —"¿cuánto le lleva a mi
+          equipo?"— y no de calidad del dato. */}
+      <TurnoTimesPanel />
 
       <RepresentativityCard />
 

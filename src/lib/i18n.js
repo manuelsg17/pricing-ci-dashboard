@@ -642,6 +642,19 @@ export const TRANSLATIONS = {
     'projects.window_auto': 'Desde la última reunión',
     'projects.window_label': 'Mostrando actividad desde el {from} ({days} día(s))',
     'projects.refresh': 'Actualizar',
+    'turnos.title': 'Cuánto tarda cada corte',
+    'turnos.subtitle':
+      'Tiempo real de trabajo por turno. Solo se promedian las sesiones medidas de punta a punta.',
+    'turnos.last_days': 'Últimos {n} días',
+    'turnos.col_turno': 'Turno',
+    'turnos.col_mediana': 'Lo habitual',
+    'turnos.col_promedio': 'Promedio',
+    'turnos.col_rango': 'Más rápido – más lento',
+    'turnos.col_muestras': 'Sesiones',
+    'turnos.excluded':
+      '{n} sesión(es) quedaron fuera del cálculo porque no se pudieron medir bien (turno sin cerrar, o más de 4h seguidas).',
+    'turnos.none_excluded': 'Todas las sesiones del período se pudieron medir bien.',
+    'turnos.failed': 'No se pudo calcular el tiempo por turno.',
     // ── Errores del cliente (mig 185) ──────────────────────────────
     'errors.title': 'Errores detectados',
     'errors.failed': 'No se pudo cargar la bitácora de errores.',
@@ -730,10 +743,15 @@ export const TRANSLATIONS = {
       'No guardamos nada, para no borrar tu trabajo. Esta ciudad se guardó desde otro lado y esta pantalla tiene una versión más vieja.',
     'dataentry.conflict_body':
       'Elegí con cuál te quedás. Nada se perdió todavía: lo de la otra pantalla sigue guardado.',
-    'dataentry.conflict_reload': 'Traer lo último (reemplaza lo que ves acá)',
+    'dataentry.conflict_reload': 'Traer lo último (guardamos copia de lo tuyo)',
     'dataentry.conflict_force': 'Guardar lo de esta pantalla igual',
     'dataentry.conflict_force_confirm':
       'Vas a reemplazar lo que se guardó desde el otro lado. ¿Seguimos?',
+    'dataentry.lease_readonly_title': 'Esta pestaña está en modo lectura.',
+    'dataentry.lease_readonly_body':
+      'Tenés otra pestaña abierta con esta misma carga. Seguí trabajando ahí — lo que escribas acá no se guarda. Si ya cerraste la otra, recargá esta página.',
+    'dataentry.storage_failed':
+      'Este navegador no puede guardar tu borrador (sin espacio o bloqueado). Tocá “Guardar progreso” AHORA para mandar tu trabajo al servidor — si cerrás la página, se pierde.',
     'dataentry.just_finished_note':
       'Ya terminaste esta ciudad y fecha — tus datos están guardados. Mirá “Ver lo guardado” para revisarlos.',
     'dataentry.draft_only_hint':
@@ -2960,6 +2978,19 @@ export const TRANSLATIONS = {
     'projects.window_auto': 'Since last meeting',
     'projects.window_label': 'Showing activity since {from} ({days} day(s))',
     'projects.refresh': 'Refresh',
+    'turnos.title': 'How long each round takes',
+    'turnos.subtitle':
+      'Real working time per shift. Only sessions measured end to end are averaged.',
+    'turnos.last_days': 'Last {n} days',
+    'turnos.col_turno': 'Shift',
+    'turnos.col_mediana': 'Typical',
+    'turnos.col_promedio': 'Average',
+    'turnos.col_rango': 'Fastest – slowest',
+    'turnos.col_muestras': 'Sessions',
+    'turnos.excluded':
+      '{n} session(s) were left out because they could not be measured properly (shift left open, or over 4h straight).',
+    'turnos.none_excluded': 'Every session in this period could be measured properly.',
+    'turnos.failed': 'Could not compute time per shift.',
     // ── Client errors (mig 185) ────────────────────────────────────
     'errors.title': 'Errors detected',
     'errors.failed': 'Could not load the error log.',
@@ -3046,10 +3077,15 @@ export const TRANSLATIONS = {
       'We saved nothing, so your work is not erased. This city was saved from somewhere else and this screen has an older version.',
     'dataentry.conflict_body':
       'Choose which one to keep. Nothing is lost yet — the other screen is still saved.',
-    'dataentry.conflict_reload': 'Get the latest (replaces what you see here)',
+    'dataentry.conflict_reload': 'Get the latest (we keep a copy of yours)',
     'dataentry.conflict_force': 'Save this screen anyway',
     'dataentry.conflict_force_confirm':
       'This will replace what was saved from the other side. Continue?',
+    'dataentry.lease_readonly_title': 'This tab is read-only.',
+    'dataentry.lease_readonly_body':
+      'You have another tab open with this same entry. Keep working there — nothing you type here is saved. If you already closed the other one, reload this page.',
+    'dataentry.storage_failed':
+      'This browser cannot save your draft (out of space or blocked). Hit “Save progress” NOW to send your work to the server — if you close the page, it is lost.',
     'dataentry.just_finished_note':
       'You already finished this city and date — your data is saved. Check “View saved” to review it.',
     'dataentry.draft_only_hint':
@@ -5259,6 +5295,19 @@ export const TRANSLATIONS = {
     'projects.window_auto': 'С последней встречи',
     'projects.window_label': 'Активность с {from} ({days} дн.)',
     'projects.refresh': 'Обновить',
+    'turnos.title': 'Сколько занимает каждый обход',
+    'turnos.subtitle':
+      'Реальное рабочее время по сменам. Усредняются только сессии, измеренные полностью.',
+    'turnos.last_days': 'Последние {n} дней',
+    'turnos.col_turno': 'Смена',
+    'turnos.col_mediana': 'Обычно',
+    'turnos.col_promedio': 'В среднем',
+    'turnos.col_rango': 'Быстрее – медленнее',
+    'turnos.col_muestras': 'Сессии',
+    'turnos.excluded':
+      '{n} сессий не вошли в расчёт: их не удалось корректно измерить (смена не закрыта или более 4 ч подряд).',
+    'turnos.none_excluded': 'Все сессии периода удалось корректно измерить.',
+    'turnos.failed': 'Не удалось рассчитать время по сменам.',
     // ── Ошибки клиента (mig 185) ───────────────────────────────────
     'errors.title': 'Обнаружены ошибки',
     'errors.failed': 'Не удалось загрузить журнал ошибок.',
@@ -5346,10 +5395,15 @@ export const TRANSLATIONS = {
       'Мы ничего не сохранили, чтобы не стереть вашу работу. Этот город был сохранён с другого места, а здесь — более старая версия.',
     'dataentry.conflict_body':
       'Выберите, что оставить. Пока ничего не потеряно — данные с другого экрана сохранены.',
-    'dataentry.conflict_reload': 'Загрузить последнюю версию (заменит то, что здесь)',
+    'dataentry.conflict_reload': 'Загрузить последнюю версию (копия вашей сохранится)',
     'dataentry.conflict_force': 'Всё равно сохранить то, что здесь',
     'dataentry.conflict_force_confirm':
       'Это заменит то, что было сохранено с другого места. Продолжить?',
+    'dataentry.lease_readonly_title': 'Эта вкладка только для чтения.',
+    'dataentry.lease_readonly_body':
+      'У вас открыта другая вкладка с этой же загрузкой. Продолжайте там — здесь ничего не сохраняется. Если вы её уже закрыли, обновите эту страницу.',
+    'dataentry.storage_failed':
+      'Этот браузер не может сохранить черновик (нет места или запрещено). Нажмите «Сохранить прогресс» СЕЙЧАС, чтобы отправить работу на сервер — при закрытии страницы она будет потеряна.',
     'dataentry.just_finished_note':
       'Вы уже завершили этот город и дату — данные сохранены. Откройте «Посмотреть сохранённое», чтобы проверить.',
     'dataentry.draft_only_hint':
