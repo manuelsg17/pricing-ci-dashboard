@@ -554,11 +554,10 @@ ok(
 
 // 5. Y por lo tanto la marca de agua NO se re-sincroniza al restaurar un
 //    borrador — la causa del falso conflicto de [3] y [4].
-const bHidratacion = bloque(
-  'if (debeHidratarBorrador({',
-  'if (!draftApplied)',
-  'hidratación'
-)
+// El ancla NO incluye el `if (` de adelante a propósito: prettier parte esa
+// línea cuando pasa de los 100 caracteres, y un ancla que depende del formato
+// se rompe sola en el próximo commit (pasó el 2026-08-02).
+const bHidratacion = bloque('debeHidratarBorrador({', 'if (!draftApplied)', 'hidratación')
 ok(
   !/writeSyncSeq/.test(bHidratacion),
   'la restauración del borrador sigue sin re-sincronizar la marca de agua (causa del falso conflicto)'
