@@ -54,8 +54,37 @@
 -- no puede romper ningún cliente porque ninguno la invoca. Si preferís
 -- conservarla, la alternativa conservadora está al pie de este archivo.
 --
--- ── 2 · validate_country_setup — P1, se GATEA ──────────────────────────
+-- ── 2 · validate_country_setup — P1, se GATEA POR SECCIÓN ──────────────
 -- La llama el frontend, así que NO se puede borrar: se le agrega el guard.
+--
+-- ⚠️ CORRECCIÓN A UNA VERSIÓN ANTERIOR DE ESTE ARCHIVO.
+-- Este comentario decía: "se llama desde la pantalla de Config con el país
+-- activo del usuario, así que el guard nunca se dispara en el uso normal".
+-- ERA FALSO, y el fix que justificaba —`require_country_access`— rompía el
+-- flujo real.
+--
+-- El único call site es `src/components/config/CountryWizard.jsx` y pasa
+-- `draft.country_key`: el país que se ACABA DE CREAR, que por definición
+-- todavía no está en `roles.permissions.countries` de nadie. Con
+-- `require_country_access` el paso final del wizard rebota siempre para
+-- cualquiera que no sea admin (el admin pasa porque `can_access_country`
+-- cortocircuita en `is_admin()`).
+--
+-- Y rebotaba EN SILENCIO: el call site hace `const { data: vData } = await
+-- sb.rpc(...)` sin mirar `error`, así que el panel de validación queda vacío y
+-- el wizard dice que salió bien. Exactamente el fallo mudo que CLAUDE.md §3
+-- nombra.
+--
+-- El gate correcto es POR SECCIÓN, que es además lo que CLAUDE.md §3 pide
+-- textualmente: "una RPC SECURITY DEFINER llamada desde una pantalla NO debe
+-- exigir is_admin() salvo que la pantalla entera sea adminOnly; va por
+-- can_access_section('<sección>')". `/config` no es adminOnly.
+--
+-- El chequeo de país se OMITE a propósito, y esta vez con motivo: la función
+-- existe para validar el setup de un país que se está creando. Exigir acceso
+-- previo a ese país es una contradicción con su propósito. Quien puede
+-- configurar países ya puede leer y escribir `country_config`; que además vea
+-- el diagnóstico de uno no agrega ningún privilegio.
 --
 -- Sin login devuelve el diagnóstico operativo del país. Salida real de un
 -- anónimo contra local:
@@ -108,8 +137,14 @@ DECLARE
   v_pricing_obs         int;
 BEGIN
   -- LO ÚNICO QUE CAMBIA. Es SECURITY DEFINER y bypasea RLS: sin esto,
-  -- `p_country` era texto libre que nadie validaba.
-  PERFORM require_country_access(p_country);
+  -- `p_country` era texto libre que cualquier ANÓNIMO podía consultar.
+  --
+  -- Por SECCIÓN y no por país: la llama el CountryWizard con un país recién
+  -- creado, que todavía no está en los permisos de nadie (ver la cabecera).
+  IF NOT can_access_section('config') THEN
+    RAISE EXCEPTION 'access_denied: validar la configuración de un país requiere la sección Configuración'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
 
   SELECT count(*) INTO v_bot_rules           FROM bot_rules             WHERE country = p_country AND active;
   SELECT count(*) INTO v_bracket_weights_all FROM bracket_weights       WHERE country = p_country AND category = 'all';

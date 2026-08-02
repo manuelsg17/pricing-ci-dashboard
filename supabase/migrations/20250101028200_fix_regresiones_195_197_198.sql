@@ -312,6 +312,8 @@ DECLARE
   v_motivo         text;
   v_id             bigint;
   v_hay_latido     boolean;
+  v_medida         numeric;   -- duración salida de los turnos (o NULL)
+  v_piso           boolean := false;  -- se disparó el piso de plausibilidad
 BEGIN
   IF NOT is_admin() THEN
     RAISE EXCEPTION 'Solo un administrador puede cerrar una sesión ajena';
@@ -358,24 +360,57 @@ BEGIN
     AND po.uploaded_by = p_user_email
     AND po.data_source = 'manual';
 
-  v_inicio := COALESCE(ci_started_from_timings(v_turno_timings), v_started_at, v_now);
-
   -- ci_duration_recalculada, NO ci_duration_from_timings: el envoltorio de la
-  -- mig 196 devuelve NULL donde la otra devuelve 0.0 por redondeo. Con 0.0 el
-  -- COALESCE no caía al reloj de pared y la fila quedaba en 0 minutos marcada
-  -- como confiable — el síntoma original por una puerta nueva.
+  -- mig 196 devuelve NULL donde la otra devuelve 0.0 por redondeo. Se calcula
+  -- UNA vez y se reusa: llamarla dos veces invitaba a que las ramas se
+  -- desincronizaran.
+  v_medida := ci_duration_recalculada(v_turno_timings, v_now);
+
+  -- ── PISO DE PLAUSIBILIDAD ────────────────────────────────────────────
+  -- `ci_duration_recalculada` es `NULLIF(x, 0)`: caza el 0.0 EXACTO y nada
+  -- más. Un turno de 4 segundos redondea a 0.1 y salía con motivo NULL, o sea
+  -- CONFIABLE. Es el mismo "sesiones de 0.1 minutos" que originó todo este
+  -- trabajo, apenas corrido un decimal.
+  --
+  -- Un corte son 36-108 celdas. Menos de UN minuto de trabajo medido en TODOS
+  -- los turnos juntos no es una medición corta: es una grilla que llegó
+  -- completa de un saque, o timings estampados en el mismo instante. Se trata
+  -- igual que la ausencia de medición y se cae al reloj, marcado.
+  IF v_medida IS NOT NULL AND v_medida < 1.0 THEN
+    v_medida := NULL;
+    v_piso   := true;
+  END IF;
+
   v_duracion := COALESCE(
-    ci_duration_recalculada(v_turno_timings, v_now),
+    v_medida,
     CASE WHEN v_started_at IS NOT NULL AND v_started_at <= v_now
       THEN round((LEAST(EXTRACT(EPOCH FROM (v_now - v_started_at)), 43200) / 60.0)::numeric, 1)
     END
   );
 
+  -- ── LA VENTANA TIENE QUE DESCRIBIR LA DURACIÓN ───────────────────────
+  -- Antes `v_inicio` salía SIEMPRE de los turnos y `v_duracion` podía salir
+  -- del reloj del latido: dos fuentes distintas que se contradecían por
+  -- órdenes de magnitud. Caso real medido: latido abierto hace 9 h + un turno
+  -- de 2 segundos → la fila decía 540 minutos con started_at y ended_at
+  -- separados por 2 segundos. Y `CompletedSessionsTable` muestra la duración
+  -- en negrita, al lado de esas dos columnas.
+  --
+  -- Si la duración vino del reloj, el inicio también.
+  IF v_medida IS NOT NULL THEN
+    v_inicio := COALESCE(ci_started_from_timings(v_turno_timings), v_started_at, v_now);
+  ELSE
+    v_inicio := COALESCE(v_started_at, ci_started_from_timings(v_turno_timings), v_now);
+  END IF;
+
   v_motivo := ci_duration_quality_from_timings(v_turno_timings, v_now);
-  -- Mismo criterio que arriba: si la duración NO salió de los turnos, la fila
-  -- no es confiable aunque la calidad de los timings diera NULL.
-  IF ci_duration_recalculada(v_turno_timings, v_now) IS NULL THEN
-    v_motivo := COALESCE(v_motivo, 'reloj_latido');
+  -- Si la duración NO salió de los turnos, la fila no es confiable aunque la
+  -- calidad de los timings diera NULL.
+  IF v_medida IS NULL THEN
+    v_motivo := COALESCE(v_motivo, CASE WHEN v_piso THEN 'duracion_de_juguete' ELSE 'reloj_latido' END);
+    -- El piso es más específico que "los turnos se veían bien": si se disparó,
+    -- gana él, para que una auditoría pueda encontrar estas filas por motivo.
+    IF v_piso THEN v_motivo := 'duracion_de_juguete'; END IF;
   END IF;
 
   INSERT INTO ci_sessions (
@@ -424,9 +459,21 @@ COMMIT;
 --    Y en su país sigue funcionando igual (idempotencia intacta: mismo token
 --    devuelve el mismo id, token nuevo inserta).
 --
--- 3) admin_close con un turno de 2 segundos:
---      → duration_minutes NULL (no 0.0), duration_confiable = false
---      SELECT count(*) FROM ci_sessions WHERE duration_minutes = 0;   → 0
+-- 3) admin_close con un turno de 2 segundos y otro de 4 segundos:
+--      → los dos caen al reloj del latido, duration_confiable = false y
+--        duration_motivo = 'duracion_de_juguete'
+--      → started_at/ended_at describen la MISMA ventana que duration_minutes
+--
+--    La verificación anterior era VACUA: contaba `duration_minutes = 0`, que es
+--    justo el único caso que NULLIF(x,0) ya manejaba. Un turno de 4 segundos da
+--    0.1 y pasaba igual. Lo que hay que contar es:
+--
+--      SELECT count(*) FROM ci_sessions
+--       WHERE duration_minutes < 1 AND duration_confiable;         → 0
+--      SELECT count(*) FROM ci_sessions
+--       WHERE duration_confiable
+--         AND duration_minutes > EXTRACT(EPOCH FROM (ended_at-started_at))/60 + 1;  → 0
+--        (la duración no puede exceder su propia ventana)
 --
 -- 4) Sin overloads: una sola firma para las 4 funciones tocadas.
 -- 5) npm run check:anon-rpcs → nivel 1 en 0.
