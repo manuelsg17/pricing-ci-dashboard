@@ -47,6 +47,28 @@
 -- NOTA DE ESTILO (CLAUDE.md §3): `DROP POLICY IF EXISTS` explícito antes de
 -- `CREATE POLICY`. Nunca asumir que la nueva "gana": las permisivas se
 -- combinan con OR y la vieja laxa sobrevive en silencio.
+--
+-- ── UNA DIFERENCIA QUE SE VERIFICÓ, NO SE ASUMIÓ ───────────────────────
+-- La política de INSERT de `pricing_observations` en producción trae el
+-- predicado de país ESCRITO A MANO (un `country IN (SELECT
+-- jsonb_array_elements_text(…))` más un EXISTS para `'all'`), no la función.
+-- Acá se reemplaza por `can_access_country(country)`, y las dos NO son
+-- idénticas: la función abre con `p_country IS NOT NULL AND (…)`, así que
+-- devuelve false para country NULL incluso siendo admin, mientras que el
+-- predicado inline lo dejaba pasar por la rama `is_admin()`.
+--
+-- Se comprobó contra producción antes de escribir esto:
+--
+--   pricing_observations.country  → NOT NULL, 0 filas nulas
+--   ci_sessions.country           → NOT NULL, 0 filas nulas
+--   ci_active_sessions.country    → NOT NULL, 0 filas nulas
+--
+-- El NOT NULL de la columna hace la diferencia inalcanzable: no existe un
+-- INSERT válido con country NULL que la política nueva pudiera rechazar y la
+-- vieja aceptara. En todo lo demás son equivalentes (`IN` sobre el array vs
+-- `?` sobre el jsonb, y el mismo `is_admin()` de escape).
+--
+-- Si mañana alguien afloja ese NOT NULL, esta equivalencia deja de valer.
 -- ════════════════════════════════════════════════════════════════════════
 
 BEGIN;
@@ -86,13 +108,30 @@ CREATE POLICY ci_active_sessions_insert
     AND can_access_country(country)
   );
 
--- El UPDATE del latido (upsert con merge-duplicates) necesita el mismo criterio:
--- sin WITH CHECK, una fila propia se podía MOVER a otro país después de creada.
+-- El UPDATE del latido (upsert con merge-duplicates) necesita el país en el
+-- WITH CHECK: sin él, una fila propia se podía MOVER a otro país después de
+-- creada, que es el mismo ataque del INSERT por la puerta de al lado.
+--
+-- ⚠️ EL PAÍS VA SOLO EN `WITH CHECK`, NUNCA EN `USING`.
+-- La primera versión de esta migración lo puso en los dos y eso ROMPÍA el
+-- latido. `USING` se evalúa contra la fila que YA EXISTE, y `ci_active_sessions`
+-- tiene PK `user_email`: una sola fila por persona, que el latido pisa con
+-- ON CONFLICT DO UPDATE. Si a un hub le cambian el país del rol desde Accesos,
+-- su fila vieja queda en un país al que ya no tiene acceso → el USING falla →
+-- no puede pisarla NUNCA MÁS.
+--
+-- Reproducido: latido en Perú OK; el admin le cambia countries a ['Colombia'];
+-- el latido siguiente da 42501 y la fila queda congelada en Peru/Lima. El hub
+-- desaparece de Monitoreo y `admin_close_ci_session` deja de encontrarlo
+-- (v_hay_latido = false), así que tampoco se le puede cerrar la sesión.
+--
+-- Con el país solo en WITH CHECK el ataque sigue cerrado —mover la fila a un
+-- país ajeno da 42501— y el cambio legítimo de país funciona.
 DROP POLICY IF EXISTS ci_active_sessions_update ON public.ci_active_sessions;
 CREATE POLICY ci_active_sessions_update
   ON public.ci_active_sessions
   FOR UPDATE TO authenticated
-  USING      (((user_email = (select auth.email())) OR (select is_admin())) AND can_access_country(country))
+  USING      ((user_email = (select auth.email())) OR (select is_admin()))
   WITH CHECK (((user_email = (select auth.email())) OR (select is_admin())) AND can_access_country(country));
 
 COMMIT;
