@@ -55,7 +55,8 @@
     "simulate:two-tabs": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-two-tabs.sql",
     "simulate:hub-daily": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-hub-daily-minutes.sql",
     "simulate:duration-backfill": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-duration-backfill.sql",
-    "simulate:admin-close": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-admin-close.sql"
+    "simulate:admin-close": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-admin-close.sql",
+    "simulate:adversarial": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-adversarial-sesiones.sql"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
