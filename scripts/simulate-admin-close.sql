@@ -188,5 +188,52 @@ BEGIN
 END $$;
 
 \echo ''
+\echo '════ 9. Por el ROL REAL, no como postgres ════'
+-- LA LECCIÓN DE LA MIG 199. Todo lo de arriba corre como `postgres`, que tiene
+-- EXECUTE sobre absolutamente todo. Eso alcanza para probar que el SQL compila
+-- y que la lógica es correcta, pero NO prueba que un hub o un admin de verdad
+-- pueda ejecutarlo: el cliente llega por PostgREST como rol `authenticated`.
+--
+-- Ese hueco dejó a los hubs sin poder cerrar sesión en producción el
+-- 2026-08-01: el trigger de la mig 195 llamaba a helpers sin EXECUTE para
+-- `authenticated` y moría con 42501, mientras esta clase de simulación seguía
+-- toda en verde.
+DO $$
+DECLARE v_antes int; v_r jsonb;
+BEGIN
+  SELECT count(*)::int INTO v_antes FROM ci_sessions WHERE zone = 'ROL-REAL';
+  PERFORM pg_temp.abrir_sesion('ROL-REAL', '2026-08-01T08:00:00Z');
+
+  PERFORM set_config('request.jwt.claims',
+    '{"email":"qa.admin@local.test","role":"authenticated"}', true);
+  SET LOCAL ROLE authenticated;
+
+  -- Camino completo como lo recorre la pantalla de Monitoreo: EXECUTE sobre la
+  -- función + cuerpo SECURITY DEFINER + trigger de calidad sobre el INSERT.
+  v_r := admin_close_ci_session('Peru','Lima','ROL-REAL', DATE '2026-08-01','hub.qa@local.test');
+  RESET ROLE;
+
+  PERFORM pg_temp.esperar('un admin REAL (rol authenticated) puede cerrar',
+    (v_r->>'cerrada')::boolean, true);
+  PERFORM pg_temp.esperar('  insertó la fila',
+    (SELECT count(*)::int FROM ci_sessions WHERE zone='ROL-REAL'), v_antes + 1);
+  -- Si el trigger no pudiera leer los timings (42501), la llamada habría
+  -- abortado entera. Que la marca venga completa prueba la cadena entera.
+  PERFORM pg_temp.esperar('  y el trigger completó la marca de confianza',
+    (SELECT duration_confiable FROM ci_sessions WHERE zone='ROL-REAL'), true);
+
+  -- El doble clic también tiene que ser idempotente por el rol real.
+  PERFORM set_config('request.jwt.claims',
+    '{"email":"qa.admin@local.test","role":"authenticated"}', true);
+  SET LOCAL ROLE authenticated;
+  v_r := admin_close_ci_session('Peru','Lima','ROL-REAL', DATE '2026-08-01','hub.qa@local.test');
+  RESET ROLE;
+
+  PERFORM pg_temp.esperar('  el segundo clic sigue sin duplicar',
+    (SELECT count(*)::int FROM ci_sessions WHERE zone='ROL-REAL'), v_antes + 1);
+  PERFORM pg_temp.esperar('  y se reporta como duplicado', (v_r->>'duplicado')::boolean, true);
+END $$;
+
+\echo ''
 \echo '✓ TODAS LAS SIMULACIONES DEL CIERRE ADMIN PASARON'
 ROLLBACK;

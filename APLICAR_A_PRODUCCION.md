@@ -114,22 +114,56 @@ refrescar.
 
 ---
 
-## Bloque D — Fin de los duplicados ← SIGUE ESTE
+## Bloque D — ✅ APLICADO (197, 198)
 
-1. `supabase/197_ci_session_close_idempotency.sql`
-2. `supabase/198_admin_close_idempotente.sql`
+Probado en producción por el **rol real** (`SET LOCAL ROLE authenticated`), todo
+en transacciones revertidas que no dejaron ni una fila.
 
-La 197 vuelve a crear `ci_close_fill_quality` como `DEFINER`: es el mismo
-estado que ya dejó la 199, así que aplicarla no revierte nada. Además le
-REVOCA el `EXECUTE` que Postgres le da a PUBLIC por defecto, que hoy sigue
-abierto.
+**197 · el reintento de red deja de duplicar**
 
-La 198 cambia el tipo de retorno de `admin_close_ci_session` de `void` a
-`jsonb`, por eso lleva `DROP FUNCTION` — los parámetros no cambian, así que no
-crea overload. De paso cierra el `EXECUTE` que `anon` tiene sobre esa función
-en producción (no es explotable: es `SECURITY DEFINER` y abre con `is_admin()`
+| Caso                         | Resultado                                   |
+| ---------------------------- | ------------------------------------------- |
+| Primer cierre                | `duplicado=false`, inserta                  |
+| Reintento con el MISMO token | `duplicado=true`, **mismo id**              |
+| Revisión con token nuevo     | `duplicado=false`, inserta                  |
+| Filas totales                | **2** (el rastro de revisiones se conserva) |
 
-- `require_country_access()`, pero es superficie que no hace falta).
+El riesgo de esta migración era su `REVOKE` sobre `ci_close_fill_quality`:
+Postgres **no** re-chequea `EXECUTE` al disparar un trigger, verificado contra
+producción con el INSERT literal del bundle viejo → `confiable=true`.
+
+**198 · el doble clic del admin deja de duplicar**
+
+| Caso          | Resultado                                       |
+| ------------- | ----------------------------------------------- |
+| Primer clic   | `cerrada=true`, `duplicado=false`               |
+| Segundo clic  | `cerrada=false`, `duplicado=true`, **mismo id** |
+| Filas totales | **1**                                           |
+
+`admin_close_ci_session`: una sola firma (sin `PGRST203`), retorna `jsonb`,
+`DEFINER` con `search_path` fijo, y **`anon` ya no tiene `EXECUTE`** — la
+superficie que estaba abierta quedó cerrada.
+
+**Drift de políticas RLS: 0.**
+
+### Evidencia con datos reales (CLAUDE.md §7.8)
+
+Un hub cerró una sesión de verdad mientras se aplicaba el bloque:
+`educespe` · Corp · 162/162 celdas · **46,8 min** · `duration_confiable = true`,
+clasificada sola por el trigger. Sin `close_token` porque el bundle nuevo
+todavía no está desplegado — que es exactamente lo esperado.
+
+### Los 3 grupos duplicados históricos siguen ahí
+
+La 197 evita duplicados NUEVOS; no borra los viejos. Son datos, y borrar filas
+de producción necesita autorización explícita nombrando tabla y motivo
+(CLAUDE.md §8). El impacto en la métrica ya está contenido: `ci_hub_daily_minutes`
+une los tramos en vez de sumar duraciones.
+
+```sql
+SELECT city, zone, observed_date, user_email, count(*)
+  FROM ci_sessions GROUP BY 1,2,3,4 HAVING count(*) > 1;
+```
 
 ---
 
