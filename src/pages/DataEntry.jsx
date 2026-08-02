@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sb, SESSION_ID } from '../lib/supabase'
-import { debeReanudarTramo } from '../lib/sessionPersistence'
+import { debeReanudarTramo, debeHidratarBorrador } from '../lib/sessionPersistence'
 import { evaluateLease, serializeLease, ownsLease, leaseKey, LEASE_RENEW_MS } from '../lib/tabLease'
 import { duracionDeSesion } from '../lib/sessionDuration'
 import { duracionActiva, registrarActividad } from '../lib/idleDetection'
@@ -1152,7 +1152,40 @@ export default function DataEntry() {
     }
     // Hidratar esta ciudad UNA vez por contexto. Al intercalar A↔B, la 2da vez
     // ya está en el set → no se re-hidrata (la memoria, más nueva, manda).
-    if (!hydratedCitiesRef.current.has(targetCity)) {
+    //
+    // `userEmail &&` NO es defensivo: es la corrección de una PÉRDIDA DE DATOS
+    // real, reproducida en navegador contra local (2026-08-02).
+    //
+    // `draftKey` lleva el email adentro (`de:draft:<email>:<país>:<vista>:<fecha>`)
+    // y `userEmail` llega ASÍNCRONO, después del primer render. Sin este guard
+    // la secuencia era:
+    //
+    //   1. Monta con userEmail vacío → draftKey queda `de:draft::Peru:Lima:…`
+    //      (segmento del email en blanco) → no encuentra NINGÚN borrador.
+    //   2. Igual marca la ciudad en `hydratedCitiesRef`, así que cuando el
+    //      email llega y `draftKey` cambia, el efecto vuelve a correr pero ya
+    //      NO re-hidrata: el borrador bueno queda huérfano para siempre.
+    //   3. Como `draftApplied` quedó en false, se agenda el auto-load del
+    //      servidor. Ese llega con la grilla en memoria vacía, así que
+    //      `conservarTecleado` cae en la rama `!actual` y REEMPLAZA entero.
+    //   4. El autosave escribe ese estado —el del servidor— encima del
+    //      borrador. El trabajo sin guardar del hub desaparece del disco.
+    //
+    // Medido: borrador con 7 celdas → 4 después de un F5, y un valor editado
+    // (88.88) revertido al del servidor (11.01). Es exactamente el "estado que
+    // debe sobrevivir un F5" de CLAUDE.md §2, y la clase de bug más repetida
+    // del proyecto.
+    //
+    // El guard alcanza porque `draftKey` ya está en las dependencias del
+    // efecto: apenas el email aparece, el efecto se re-dispara y esta vez
+    // hidrata con la clave correcta, ANTES de que nadie marque la ciudad.
+    //
+    // La decisión vive en `debeHidratarBorrador` (src/lib/sessionPersistence.js)
+    // y tiene sus propias pruebas — así la regla no se puede volver a perder
+    // en una línea suelta de este componente.
+    if (
+      debeHidratarBorrador({ userEmail, yaHidratado: hydratedCitiesRef.current.has(targetCity) })
+    ) {
       hydratedCitiesRef.current.add(targetCity)
       let draftApplied = false
       // Momento de la última escritura del borrador — lo necesita R3 para

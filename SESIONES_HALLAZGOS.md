@@ -12,6 +12,71 @@ donde el hub **pierde datos** o **cree que guardó y no guardó**.
 
 ---
 
+## 🔎 Auditoría del 2026-08-02 — estado REAL de los 14 pendientes
+
+El cuerpo de este documento quedó viejo: describe como pendientes cosas que ya
+se arreglaron entre el 1 y el 2 de agosto. Se auditó **cada uno** contra el
+código de `main` y contra producción. Resultado: **13 de 14 cerrados, 1 abierto.**
+
+| Issue                                    | Estado         | Evidencia                                                     |
+| ---------------------------------------- | -------------- | ------------------------------------------------------------- |
+| P1-3 · nunca siembra desde el latido     | ✅             | `ci_started_from_timings` + `earliestTurnoStart`              |
+| P1-4 · desmontar borra el latido         | ✅             | `markBucketJustFinished` / `isBucketJustFinished`             |
+| P1-5 · `started_at` heredado de ayer     | ✅             | `debeReanudarTramo` + techo de 12 h (mig 194)                 |
+| P1-6 · laptop cerrada infla la duración  | ✅             | techo de 4 h + `turno_recortado` + `activity_trace`           |
+| P1-7 · cambiar la fecha no toca el reloj | ✅             | `hydratedCitiesRef` + cascada de contexto                     |
+| P1-8 · `turnoTimingsByCity` no se limpia | ✅             | `setTurnoTimingsByCity` en el cierre                          |
+| **P1-9 · auto-reload por deploy**        | ⚠️ **ABIERTO** | ver abajo                                                     |
+| P1-10 · dos pestañas se pisan            | ✅             | candado + 86 aserciones + **verificado en 2 pestañas reales** |
+| P2-11 · reintento duplica la sesión      | ✅             | `close_token` (mig 197) — 0 duplicados reales en producción   |
+| P2-12 · el auto-load pisa lo tipeado     | ✅             | `conservarTecleado`                                           |
+| P2-13 · el botón promete de más          | ✅             | `savableCount`                                                |
+| P2-14 · el indicador miente              | ✅             | `estadoDeServidor`                                            |
+| P2-15 · tras Terminar queda muda         | ✅             | `just_finished_note`                                          |
+| P2-16 · "Guardando…" colgado             | ✅             | `fetchConTimeout` (45 s)                                      |
+
+### P1-9, lo único abierto — y lo que cambió
+
+`RealtimeSyncProvider.jsx:70` **recarga la página sola a los 60 segundos** de
+detectar un deploy. El toast se puede cerrar y ocultar la pestaña lo cancela,
+pero si el hub está tipeando y no toca nada, la recarga ocurre.
+
+Su mitad grave —perder el trabajo sin guardar— **ya está cubierta**: el borrador
+sobrevive la recarga (flush en `pagehide` + caso `[2] A · F5` de
+`simulate-durability.mjs`), y desde el fix del F5 de más abajo la recarga ya no
+puede hacer que el servidor pise el borrador. Lo que queda es de experiencia:
+una recarga inesperada a mitad de una celda.
+
+---
+
+## 🐛 Bug NUEVO encontrado y arreglado el 2026-08-02 — pérdida de datos en el F5
+
+No estaba en los 16 originales. Apareció probando el flujo real en navegador
+contra local, y era **la peor clase de bug del proyecto**: silencioso y en el
+camino más transitado.
+
+**Repro medido**: borrador con 7 celdas → **4** después de un F5. Un valor
+editado a mano (88.88) volvió al del servidor (11.01). El trabajo desaparecía
+también del disco, no solo de la pantalla.
+
+**Causa raíz** (confirmada instrumentando, no deduciendo): `draftKey` lleva el
+email adentro y `userEmail` llega **asíncrono**. La hidratación corría en el
+primer render con la clave `de:draft::Peru:Lima:…` —segmento del email vacío—,
+no encontraba nada, **igual marcaba el bucket como hidratado** (bloqueando el
+reintento bueno cuando el email llegaba), y al no haber borrador aplicado
+agendaba el auto-load del servidor, que encontraba la grilla vacía y
+**reemplazaba entero** en vez de fusionar. El autosave terminaba escribiendo el
+estado del servidor encima del borrador.
+
+**Fix**: `debeHidratarBorrador()` en `src/lib/sessionPersistence.js` — sin
+identidad no se lee ni se marca nada. Es una función pura con 9 pruebas propias,
+para que la regla no vuelva a perderse en una línea suelta del componente.
+
+**Verificado en navegador**: con borrador, lo local gana y sobrevive el F5; sin
+borrador, el auto-load del servidor sigue trayendo lo guardado.
+
+---
+
 ## ✅ Arreglados (commit `846881e`)
 
 ### P0-1 — Un cambio de config le cerraba la sesión a todos los hubs

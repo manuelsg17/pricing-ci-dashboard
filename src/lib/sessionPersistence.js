@@ -163,3 +163,39 @@ export function debeReanudarTramo({ loadDate, today, timings } = {}) {
   const todosCerrados = turnos.every((t) => t.endedAt)
   return !todosCerrados
 }
+
+/**
+ * ¿Se puede hidratar YA el borrador de este bucket?
+ *
+ * Existe por una PÉRDIDA DE DATOS real, reproducida en navegador contra local
+ * (2026-08-02) y corregida en `DataEntry.jsx`.
+ *
+ * La clave del borrador lleva el email adentro
+ * (`de:draft:<email>:<país>:<vista>:<fecha>`) y `userEmail` llega ASÍNCRONO,
+ * después del primer render. Sin este guard, la secuencia era:
+ *
+ *   1. Monta sin email → la clave sale con el segmento vacío
+ *      (`de:draft::Peru:Lima:…`) → no encuentra ningún borrador.
+ *   2. Igual marca el bucket como "ya hidratado", así que cuando el email
+ *      llega el efecto se re-dispara pero YA NO re-hidrata: el borrador bueno
+ *      queda huérfano.
+ *   3. Al no haber borrador aplicado se agenda el auto-load del servidor, que
+ *      encuentra la grilla vacía y REEMPLAZA en vez de fusionar.
+ *   4. El autosave escribe ese estado del servidor encima del borrador. El
+ *      trabajo sin guardar del hub desaparece del disco.
+ *
+ * Medido antes del fix: borrador con 7 celdas → 4 tras un F5, y un valor
+ * editado a mano revertido al del servidor.
+ *
+ * La regla es una sola: **sin identidad no se toca nada**. Ni se lee (la clave
+ * sería incorrecta) ni se marca como hecho (impediría el reintento bueno).
+ *
+ * @param {object}  args
+ * @param {string=} args.userEmail    email del hub; vacío mientras auth resuelve
+ * @param {boolean} args.yaHidratado  si este bucket ya se hidrató en este contexto
+ * @returns {boolean} true = leer el borrador y marcar el bucket como hidratado
+ */
+export function debeHidratarBorrador({ userEmail, yaHidratado } = {}) {
+  if (typeof userEmail !== 'string' || userEmail === '') return false
+  return !yaHidratado
+}

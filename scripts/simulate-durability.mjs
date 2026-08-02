@@ -555,13 +555,28 @@ ok(
 // 5. Y por lo tanto la marca de agua NO se re-sincroniza al restaurar un
 //    borrador — la causa del falso conflicto de [3] y [4].
 const bHidratacion = bloque(
-  'if (!hydratedCitiesRef.current.has(targetCity))',
+  'if (debeHidratarBorrador({',
   'if (!draftApplied)',
   'hidratación'
 )
 ok(
   !/writeSyncSeq/.test(bHidratacion),
   'la restauración del borrador sigue sin re-sincronizar la marca de agua (causa del falso conflicto)'
+)
+
+// 5b. La hidratación NO puede volver a correr sin saber quién es el usuario.
+//     Pérdida de datos real del 2026-08-02: `draftKey` lleva el email adentro
+//     y `userEmail` llega asíncrono. Hidratar antes buscaba una clave con el
+//     segmento vacío, no encontraba el borrador, marcaba el bucket como hecho
+//     —bloqueando el reintento— y dejaba que el auto-load del servidor pisara
+//     el trabajo sin guardar. Medido: 7 celdas → 4 tras un F5.
+ok(
+  /debeHidratarBorrador\(\{\s*userEmail/.test(src),
+  'la hidratación sigue guardada por la identidad del usuario (no vuelve el bug del F5)'
+)
+ok(
+  !/if \(!hydratedCitiesRef\.current\.has\(targetCity\)\) \{/.test(src),
+  'y ya no queda el guard viejo, que ignoraba el email'
 )
 
 // 6. La marca de agua y el id de pestaña siguen en sessionStorage (mueren

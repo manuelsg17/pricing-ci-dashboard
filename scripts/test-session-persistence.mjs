@@ -13,6 +13,7 @@ import {
   estadoDeGuardado,
   estadoDeServidor,
   debeReanudarTramo,
+  debeHidratarBorrador,
   SERVIDOR_STALE_MS,
 } from '../src/lib/sessionPersistence.js'
 
@@ -348,6 +349,60 @@ eq(
   false,
   'un turno sin startedAt no cuenta como jornada en curso'
 )
+
+
+// ── debeHidratarBorrador — la pérdida de datos del F5 (2026-08-02) ────────
+//
+// El bug: la clave del borrador lleva el email adentro y `userEmail` llega
+// asíncrono. Hidratar antes de saber quién es el usuario buscaba una clave
+// con el segmento vacío, no encontraba nada, marcaba el bucket como hecho
+// —bloqueando el reintento bueno— y dejaba que el auto-load del servidor
+// pisara el borrador. Reproducido en navegador: 7 celdas → 4 tras un F5.
+console.log('\n[F5] debeHidratarBorrador — sin identidad no se toca nada')
+
+ok(
+  debeHidratarBorrador({ userEmail: 'hub@yango.com', yaHidratado: false }) === true,
+  'con email y sin hidratar todavía → SÍ hidrata'
+)
+ok(
+  debeHidratarBorrador({ userEmail: 'hub@yango.com', yaHidratado: true }) === false,
+  'con email pero ya hidratado → no re-hidrata (la memoria manda)'
+)
+// EL CASO DEL BUG. Antes esto devolvía "sí" y marcaba el bucket para siempre.
+ok(
+  debeHidratarBorrador({ userEmail: '', yaHidratado: false }) === false,
+  'email vacío → NO hidrata (la clave saldría con el segmento en blanco)'
+)
+ok(
+  debeHidratarBorrador({ userEmail: undefined, yaHidratado: false }) === false,
+  'email undefined → tampoco'
+)
+ok(
+  debeHidratarBorrador({ userEmail: null, yaHidratado: false }) === false,
+  'email null → tampoco'
+)
+ok(debeHidratarBorrador({}) === false, 'sin argumentos útiles → no hidrata')
+ok(debeHidratarBorrador() === false, 'llamada sin objeto → no explota y no hidrata')
+// Un email no-string (bug de tipos aguas arriba) no puede colarse: construiría
+// una clave inválida igual que el vacío.
+ok(
+  debeHidratarBorrador({ userEmail: 42, yaHidratado: false }) === false,
+  'email que no es string → no hidrata'
+)
+// La secuencia real del F5: primer render sin email, segundo con email.
+{
+  const yaHidratados = new Set()
+  const paso1 = debeHidratarBorrador({ userEmail: '', yaHidratado: yaHidratados.has('Lima') })
+  if (paso1) yaHidratados.add('Lima')
+  const paso2 = debeHidratarBorrador({
+    userEmail: 'hub@yango.com',
+    yaHidratado: yaHidratados.has('Lima'),
+  })
+  ok(paso1 === false, 'secuencia F5 · render 1 (sin email) no hidrata')
+  ok(paso2 === true, 'secuencia F5 · render 2 (con email) SÍ hidrata — el borrador se recupera')
+}
+
+
 
 // ── Resultado ─────────────────────────────────────────────────────────
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} pasaron, ${fail} fallaron`)
