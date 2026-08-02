@@ -15,14 +15,43 @@
 -- revisión manual antes de asumir que es intencional.
 --
 -- Uso: correr contra local o producción (ver README → workflow local).
+--
+-- ── CORRECCIÓN 2026-08-02 ─────────────────────────────────────────────
+-- La versión anterior agrupaba por (tablename, cmd) tal como los devuelve
+-- pg_policies. Una política `FOR ALL` figura con cmd='ALL' y NUNCA agrupa con
+-- una de comando puntual — así que el chequeo era ciego justo a la forma de
+-- drift que vino a cazar: una `FOR ALL USING(true)` conviviendo con las
+-- correctas por comando devolvía CERO filas.
+--
+-- Verificado con una mutación en local: creando
+--   CREATE POLICY country_config_legacy_open ON country_config
+--     FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- el detector viejo no reportaba nada mientras un usuario de Colombia pasaba
+-- de ver 1 país a ver los 6. Con el arreglo, la fila aparece en los 4 comandos.
+--
+-- Ahora `ALL` se expande a los cuatro comandos ANTES de agrupar.
+WITH expandidas AS (
+  SELECT p.tablename,
+         CASE WHEN p.cmd = 'ALL' THEN c.cmd ELSE p.cmd END AS cmd,
+         p.policyname,
+         p.qual,
+         (p.cmd = 'ALL') AS es_for_all
+  FROM pg_policies p
+  CROSS JOIN LATERAL (
+    SELECT unnest(CASE WHEN p.cmd = 'ALL'
+                       THEN ARRAY['SELECT','INSERT','UPDATE','DELETE']
+                       ELSE ARRAY[p.cmd] END) AS cmd
+  ) c
+  WHERE p.schemaname = 'public'
+)
 SELECT
   tablename,
   cmd,
-  count(*)                             AS policy_count,
-  array_agg(policyname ORDER BY policyname) AS policies,
-  array_agg(qual ORDER BY policyname)       AS quals
-FROM pg_policies
-WHERE schemaname = 'public'
+  count(*)                                  AS policy_count,
+  array_agg(policyname ORDER BY policyname)  AS policies,
+  bool_or(es_for_all)                        AS incluye_una_for_all,
+  array_agg(qual ORDER BY policyname)        AS quals
+FROM expandidas
 GROUP BY tablename, cmd
 HAVING count(*) > 1
 ORDER BY tablename, cmd;
