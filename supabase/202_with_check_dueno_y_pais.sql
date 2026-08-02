@@ -47,6 +47,28 @@
 -- NOTA DE ESTILO (CLAUDE.md §3): `DROP POLICY IF EXISTS` explícito antes de
 -- `CREATE POLICY`. Nunca asumir que la nueva "gana": las permisivas se
 -- combinan con OR y la vieja laxa sobrevive en silencio.
+--
+-- ── UNA DIFERENCIA QUE SE VERIFICÓ, NO SE ASUMIÓ ───────────────────────
+-- La política de INSERT de `pricing_observations` en producción trae el
+-- predicado de país ESCRITO A MANO (un `country IN (SELECT
+-- jsonb_array_elements_text(…))` más un EXISTS para `'all'`), no la función.
+-- Acá se reemplaza por `can_access_country(country)`, y las dos NO son
+-- idénticas: la función abre con `p_country IS NOT NULL AND (…)`, así que
+-- devuelve false para country NULL incluso siendo admin, mientras que el
+-- predicado inline lo dejaba pasar por la rama `is_admin()`.
+--
+-- Se comprobó contra producción antes de escribir esto:
+--
+--   pricing_observations.country  → NOT NULL, 0 filas nulas
+--   ci_sessions.country           → NOT NULL, 0 filas nulas
+--   ci_active_sessions.country    → NOT NULL, 0 filas nulas
+--
+-- El NOT NULL de la columna hace la diferencia inalcanzable: no existe un
+-- INSERT válido con country NULL que la política nueva pudiera rechazar y la
+-- vieja aceptara. En todo lo demás son equivalentes (`IN` sobre el array vs
+-- `?` sobre el jsonb, y el mismo `is_admin()` de escape).
+--
+-- Si mañana alguien afloja ese NOT NULL, esta equivalencia deja de valer.
 -- ════════════════════════════════════════════════════════════════════════
 
 BEGIN;

@@ -36,13 +36,18 @@ VALUES ('qa_dur','QA duracion','{"sections":["dataentry"],"countries":["Peru"]}'
 INSERT INTO user_profiles (email, first_name, last_name, role_id, is_active)
 VALUES ('qa.dur@local.test','QA','Dur',(SELECT id FROM roles WHERE name='qa_dur'), true);
 
--- Las RPCs de esta migración exigen acceso al país (SECURITY DEFINER +
--- require_country_access, CLAUDE.md §3). Sin claims, auth.email() es NULL y
--- rebotan — que es el comportamiento correcto y se verifica en el bloque 8.
--- Los INSERT de más abajo siguen corriendo como `postgres`, que bypasea RLS:
--- lo que se está probando acá es la lógica de unión, no las políticas.
+-- Desde la mig 201 las dos RPCs son SOLO ADMIN, además de exigir acceso al
+-- país: devuelven quién trabajó y cuántos minutos, y la RLS de ci_sessions
+-- reserva ese dato a admin y al dueño. Antes bastaba con tener el país, y eso
+-- era una fuga: cualquier hub enumeraba el trabajo de sus compañeros.
+--
+-- El cuerpo de esta simulación prueba la LÓGICA DE UNIÓN, así que corre con
+-- identidad de admin. Que un NO admin quede afuera se verifica en el bloque 8.
+INSERT INTO user_profiles (email, first_name, last_name, role_id, is_active)
+VALUES ('qa.duradm@local.test','QA','DurAdm',(SELECT id FROM roles WHERE name='admin'), true);
+
 SELECT set_config('request.jwt.claims',
-  '{"email":"qa.dur@local.test","role":"authenticated"}', true);
+  '{"email":"qa.duradm@local.test","role":"authenticated"}', true);
 
 -- Helper: inserta una sesión con turnos dados.
 CREATE OR REPLACE FUNCTION pg_temp.sesion(
@@ -222,18 +227,41 @@ BEGIN
 END $$;
 
 \echo ''
-\echo '════ 8. Aislamiento por país ════'
+\echo '════ 8. Quién puede pedir estos números (mig 201) ════'
 DO $$
 DECLARE v_err text;
 BEGIN
-  -- El rol qa_dur tiene countries=['Peru'] solamente.
+  -- ANTES DE LA MIG 201 ESTO ERA UNA FUGA. Con solo tener el país alcanzaba, y
+  -- la RPC —SECURITY DEFINER— devolvía el email, los minutos y las sesiones de
+  -- TODOS los hubs de ese país, bypaseando la RLS de ci_sessions. Reproducido
+  -- el 2026-08-02: el hub A leía 0 filas de B por la tabla y las obtenía todas
+  -- por la RPC.
+  PERFORM set_config('request.jwt.claims',
+    '{"email":"qa.dur@local.test","role":"authenticated"}', true);   -- NO admin, países=['Peru']
+
   BEGIN
-    PERFORM * FROM ci_hub_daily_minutes('Colombia', current_date - 30, current_date);
+    PERFORM * FROM ci_hub_daily_minutes('Peru', current_date - 30, current_date);
     v_err := 'NO FALLÓ';
-  EXCEPTION WHEN OTHERS THEN
-    v_err := 'denegado';
+  EXCEPTION WHEN OTHERS THEN v_err := 'denegado';
   END;
-  PERFORM pg_temp.esperar('un hub de Peru NO puede pedir minutos de Colombia', v_err, 'denegado');
+  PERFORM pg_temp.esperar('un hub NO admin no ve los minutos ni de su propio país', v_err, 'denegado');
+
+  BEGIN
+    PERFORM * FROM ci_turno_minutes('Peru', current_date - 30, current_date);
+    v_err := 'NO FALLÓ';
+  EXCEPTION WHEN OTHERS THEN v_err := 'denegado';
+  END;
+  PERFORM pg_temp.esperar('  tampoco los tiempos por turno', v_err, 'denegado');
+
+  -- Y el admin sí, que es lo que la pantalla de Monitoreo necesita.
+  PERFORM set_config('request.jwt.claims',
+    '{"email":"qa.duradm@local.test","role":"authenticated"}', true);
+  BEGIN
+    PERFORM * FROM ci_hub_daily_minutes('Peru', current_date - 30, current_date);
+    v_err := 'permitido';
+  EXCEPTION WHEN OTHERS THEN v_err := 'FALLÓ PARA EL ADMIN';
+  END;
+  PERFORM pg_temp.esperar('  el admin sí puede', v_err, 'permitido');
 END $$;
 
 \echo ''
