@@ -235,16 +235,16 @@ export default function AirportMarkersTable({ country }) {
         <table className="config-table">
           <thead>
             <tr>
-              <th scope="col">BASE CITY</th>
-              <th scope="col">CITY FROM</th>
-              <th scope="col">CITY TO</th>
+              <th scope="col">{t('config.airports.col_base_city')}</th>
+              <th scope="col">{t('config.airports.col_city_from')}</th>
+              <th scope="col">{t('config.airports.col_city_to')}</th>
               <th scope="col">
-                ZONE FROM
+                {t('config.airports.col_zone_from')}
                 <br />
                 <small style={{ fontWeight: 400 }}>{t('config.airports.hint_zone')}</small>
               </th>
               <th scope="col">
-                ZONE TO
+                {t('config.airports.col_zone_to')}
                 <br />
                 <small style={{ fontWeight: 400 }}>{t('config.airports.hint_zone')}</small>
               </th>

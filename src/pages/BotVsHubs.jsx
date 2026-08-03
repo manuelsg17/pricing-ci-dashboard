@@ -231,7 +231,7 @@ export default function BotVsHubs() {
               fontSize: 12,
             }}
           >
-            <option value="">Todos</option>
+            <option value="">{t('botvshubs.all')}</option>
             {competitors.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -296,7 +296,7 @@ export default function BotVsHubs() {
                 fontSize: 13,
               }}
             >
-              <span style={{ fontWeight: 700, color: '#166534' }}>Hubs: </span>
+              <span style={{ fontWeight: 700, color: '#166534' }}>{t('botvshubs.hubs')}: </span>
               <span style={{ color: '#166534' }}>
                 {totals.hubObs.toLocaleString()} observaciones
               </span>
@@ -310,7 +310,7 @@ export default function BotVsHubs() {
                 fontSize: 13,
               }}
             >
-              <span style={{ fontWeight: 700, color: '#1e40af' }}>Bot: </span>
+              <span style={{ fontWeight: 700, color: '#1e40af' }}>{t('botvshubs.bot')}: </span>
               <span style={{ color: '#1e40af' }}>
                 {totals.botObs.toLocaleString()} observaciones
               </span>

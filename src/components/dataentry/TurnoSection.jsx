@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useI18n } from '../../context/LanguageContext'
 
 // Turno (Mañana/Tarde/Noche) como agrupador PRINCIPAL de la grilla: el hub
 // completa todos los brackets de un turno antes de pasar al siguiente. Se
@@ -6,6 +7,7 @@ import { useState } from 'react'
 // que ya tiene BracketRouteGroup adentro (dos niveles de colapso sin
 // relación entre sí).
 export default function TurnoSection({ timeslot, filled, total, hasErrors, children }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(true)
   const done = total > 0 && filled >= total
   return (
@@ -26,7 +28,11 @@ export default function TurnoSection({ timeslot, filled, total, hasErrors, child
         {/* Colapsado + con celdas en error: el hub no puede verlas para
             saber qué falta — avisar en la cabecera misma. */}
         {!open && hasErrors && (
-          <span className="de-turno-error-badge" aria-hidden="true" title="Hay filas a medias">
+          <span
+            className="de-turno-error-badge"
+            aria-hidden="true"
+            title={t('dataentry.turno_has_partial')}
+          >
             ⚠
           </span>
         )}

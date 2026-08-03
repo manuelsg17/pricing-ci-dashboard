@@ -556,7 +556,7 @@ function DashboardContent() {
               size="sm"
               className="border-sky-200 text-sky-800 hover:bg-sky-50"
               onClick={() => setH2hOpen(true)}
-              title="Comparar Yango vs un competidor específico, bracket por bracket"
+              title={t('dashboard.h2h_tooltip')}
             >
               <Swords size={14} style={{ color: '#0284c7' }} /> Head-to-Head
             </Button>
@@ -565,7 +565,7 @@ function DashboardContent() {
               size="sm"
               className="border-green-200 text-green-700 hover:bg-green-50"
               onClick={() => setAnalyticsOpen(true)}
-              title="Ver análisis avanzados: % liderazgo por bracket, timeline de posición"
+              title={t('dashboard.analytics_tooltip')}
             >
               <LineChartIcon size={14} style={{ color: '#16a34a' }} /> Analytics
             </Button>
@@ -588,9 +588,10 @@ function DashboardContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => setExportOpen((o) => !o)}
-                title="Exportar PNG / CSV / PDF"
+                title={t('dashboard.export_tooltip')}
               >
-                <Download size={14} /> Exportar <ChevronDown size={13} style={{ opacity: 0.6 }} />
+                <Download size={14} /> {t('dashboard.export')}{' '}
+                <ChevronDown size={13} style={{ opacity: 0.6 }} />
               </Button>
               {exportOpen && (
                 <>
@@ -965,7 +966,7 @@ function DashboardContent() {
         <Sheet open={h2hOpen} onOpenChange={setH2hOpen}>
           <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>Head-to-Head — Yango vs un competidor</SheetTitle>
+              <SheetTitle>{t('dashboard.h2h_title')}</SheetTitle>
               <SheetDescription>
                 Compará Yango vs un competidor específico bracket por bracket. Best/worst
                 auto-resaltados.
@@ -989,7 +990,7 @@ function DashboardContent() {
         <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
           <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>Analytics avanzados</SheetTitle>
+              <SheetTitle>{t('dashboard.analytics_title')}</SheetTitle>
               <SheetDescription>
                 % liderazgo de Yango por bracket y evolución del ranking en el tiempo.
               </SheetDescription>

@@ -459,7 +459,9 @@ export default function Rentabilidad() {
             style={inputStyle}
             onChange={(e) => setLiveTrips(Number(e.target.value) || 0)}
           />
-          <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>viajes/sem</span>
+          <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+            {t('rentabilidad.trips_per_week_short')}
+          </span>
         </div>
 
         {/* Selector de competidores — chips toggleables, label visible en cada barra */}
@@ -690,8 +692,7 @@ export default function Rentabilidad() {
         <div
           style={{ fontSize: 12, color: 'var(--color-text)', marginBottom: 12, lineHeight: 1.5 }}
         >
-          El <strong>arquetipo</strong> es el perfil del conductor con el que comparás — sirve para
-          evaluar los bonos de forma justa. Cada control afecta a un competidor distinto:
+          {t('rentabilidad.archetype_help')}
         </div>
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
@@ -761,8 +762,7 @@ export default function Rentabilidad() {
       </CollapsibleSection>
 
       <div style={{ fontSize: 12, color: 'var(--color-muted)', margin: '4px 2px 12px' }}>
-        ℹ️ Cómo leer: cada barra es la <strong>ganancia neta del conductor</strong> (precio ×
-        (1−comisión) + bonos). Más alta = mejor para el conductor.
+        {t('rentabilidad.chart_help')}
       </div>
 
       {/* ── Gráficos (small multiples) ── */}
@@ -874,7 +874,9 @@ export default function Rentabilidad() {
               marginBottom: 4,
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 700 }}>Cómo se compone la ganancia</span>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>
+              {t('rentabilidad.breakdown_title')}
+            </span>
             <select
               value={refTier?.dbCategory || ''}
               onChange={(e) => setRefTierCat(e.target.value)}
@@ -906,31 +908,31 @@ export default function Rentabilidad() {
                 color: showDetail ? 'var(--color-yango, #E53935)' : 'var(--color-muted)',
               }}
               onClick={() => setShowDetail((s) => !s)}
-              title="Mostrar/ocultar columnas Comisión efectiva y % por bonos"
+              title={t('rentabilidad.toggle_detail_tooltip')}
             >
-              {showDetail ? '− Detalle' : '+ Detalle'}
+              {showDetail ? `− ${t('rentabilidad.detail')}` : `+ ${t('rentabilidad.detail')}`}
             </Button>
           </div>
           <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 10 }}>
-            {liveTrips} viajes/sem · valores semanales (+ columna por viaje) — cuánto sale de la{' '}
-            <strong>tarifa</strong> (después de comisión) y cuánto de{' '}
-            <strong>bonos/incentivos</strong> del competidor.
+            {t('rentabilidad.breakdown_help', { trips: liveTrips })}
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={matrixTableStyle}>
               <thead>
                 <tr>
-                  <th style={thStyle}># Viajes/sem</th>
-                  <th style={thStyle}>Competidor</th>
-                  <th style={thStyle}>Tarifa prom</th>
+                  <th style={thStyle}>{t('rentabilidad.col_trips')}</th>
+                  <th style={thStyle}>{t('rentabilidad.col_competitor')}</th>
+                  <th style={thStyle}>{t('rentabilidad.col_avg_fare')}</th>
                   <th style={thStyle}>GMV</th>
-                  <th style={thStyle}>GMV − comisión</th>
-                  <th style={thStyle}>Incentivos</th>
-                  <th style={thStyle}>Total</th>
-                  <th style={thStyle}>Por viaje</th>
-                  <th style={thStyle}>Rank</th>
-                  {showDetail && <th style={thStyle}>Comisión efectiva</th>}
-                  {showDetail && <th style={thStyle}>% por bonos</th>}
+                  <th style={thStyle}>{t('rentabilidad.col_gmv_net')}</th>
+                  <th style={thStyle}>{t('rentabilidad.col_incentives')}</th>
+                  <th style={thStyle}>{t('rentabilidad.col_total')}</th>
+                  <th style={thStyle}>{t('rentabilidad.col_per_trip')}</th>
+                  <th style={thStyle}>{t('rentabilidad.col_rank')}</th>
+                  {showDetail && (
+                    <th style={thStyle}>{t('rentabilidad.col_effective_commission')}</th>
+                  )}
+                  {showDetail && <th style={thStyle}>{t('rentabilidad.col_bonus_pct')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -948,7 +950,10 @@ export default function Rentabilidad() {
                         <span style={{ color: COMPETITOR_COLORS[b.comp] || '#64748b' }}>●</span>{' '}
                         {b.comp}
                         {isBest && (
-                          <span style={{ color: '#16A34A', fontWeight: 700 }}> · más rentable</span>
+                          <span style={{ color: '#16A34A', fontWeight: 700 }}>
+                            {' '}
+                            · {t('rentabilidad.most_profitable')}
+                          </span>
                         )}
                       </td>
                       <td style={tdStyle}>{fmt2(b.avgFare)}</td>
@@ -1030,7 +1035,7 @@ export default function Rentabilidad() {
               <thead>
                 <tr>
                   <th style={thStyle}>{t('rentabilidad.col_scenario')}</th>
-                  <th style={thStyle}>Mi Zona</th>
+                  <th style={thStyle}>{t('rentabilidad.col_my_zone')}</th>
                   <th style={thStyle}>{t('rentabilidad.col_commission')}</th>
                   <th style={thStyle}>{t('rentabilidad.col_net')}</th>
                   {rivalCols.map((c) => (
@@ -1111,10 +1116,8 @@ export default function Rentabilidad() {
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={formulaCardStyle}>
             <div style={formulaLabelStyle}>{t('rentabilidad.formula_competitor')}</div>
-            <div style={formulaExprStyle}>
-              neto/semana = precio × viajes × (1 − comisión) + bonos
-            </div>
-            <div style={formulaExprStyle}>neto/viaje = neto/semana ÷ viajes</div>
+            <div style={formulaExprStyle}>{t('rentabilidad.formula_net_week')}</div>
+            <div style={formulaExprStyle}>{t('rentabilidad.formula_net_trip')}</div>
           </div>
           <div style={formulaCardStyle}>
             <div style={formulaLabelStyle}>Yango — {t('rentabilidad.formula_stacked')}</div>

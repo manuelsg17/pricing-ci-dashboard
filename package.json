@@ -34,7 +34,7 @@
     "test:timeslot-label": "node scripts/test-timeslot-label.mjs",
     "test:upload-parsers": "node scripts/test-upload-parsers.mjs",
     "test:project-tasks": "node scripts/test-project-tasks.mjs",
-    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config && npm run test:catalogs && npm run test:weights-cascade && npm run test:simple-avg-cutoff && npm run test:indrive-recent-ref && npm run test:format && npm run test:normalize-competitor && npm run test:ingestion-corp && npm run test:distance-refs-replication && npm run test:bracket-order && npm run test:bracket-grouping && npm run test:indrive-avg && npm run test:bot-coverage && npm run test:representativity && npm run test:ci-competitors && npm run test:monitoring && npm run test:timeslot-label && npm run test:session-fronts && npm run test:competitor-bonus && npm run test:yango-gmv-bonus && npm run test:upload-parsers && npm run test:project-tasks && npm run test:yango-brand && npm run test:effective-price && npm run test:error-fingerprint && npm run test:session-persistence && npm run test:tab-lease && npm run test:durability && npm run test:session-duration && npm run test:idle-detection && npm run test:close-token && npm run check:migration-collisions",
+    "test:all": "npm run test:bot-mapping && npm run test:bracket-normalize && npm run test:bracket-parity && npm run test:get-country-config && npm run test:catalogs && npm run test:weights-cascade && npm run test:simple-avg-cutoff && npm run test:indrive-recent-ref && npm run test:format && npm run test:normalize-competitor && npm run test:ingestion-corp && npm run test:distance-refs-replication && npm run test:bracket-order && npm run test:bracket-grouping && npm run test:indrive-avg && npm run test:bot-coverage && npm run test:representativity && npm run test:ci-competitors && npm run test:monitoring && npm run test:timeslot-label && npm run test:session-fronts && npm run test:competitor-bonus && npm run test:yango-gmv-bonus && npm run test:upload-parsers && npm run test:project-tasks && npm run test:yango-brand && npm run test:effective-price && npm run test:i18n-parity && npm run test:error-fingerprint && npm run test:session-persistence && npm run test:tab-lease && npm run test:durability && npm run test:session-duration && npm run test:idle-detection && npm run test:close-token && npm run check:migration-collisions",
     "check:rls-drift": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -f scripts/check-rls-policy-drift.sql",
     "check:normalization-drift": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -f scripts/check-normalization-drift.sql",
     "check:section-grants": "node scripts/check-section-grants-drift.mjs",
@@ -61,7 +61,8 @@
     "test:yango-brand": "node scripts/test-yango-brand.mjs",
     "test:effective-price": "node scripts/test-effective-price.mjs",
     "simulate:rpcs-lectura": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-rpcs-lectura-cruzada.sql",
-    "simulate:reasignar": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-reasignar-destino.sql"
+    "simulate:reasignar": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-reasignar-destino.sql",
+    "test:i18n-parity": "node scripts/test-i18n-parity.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

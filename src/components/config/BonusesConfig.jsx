@@ -854,7 +854,7 @@ export default function BonusesConfig({ country }) {
                       <input
                         type="text"
                         value={m.group_key || ''}
-                        placeholder="ej. uber-quest"
+                        placeholder={t('config.bonuses.group_key_placeholder')}
                         style={{ width: 130 }}
                         onChange={(e) => setField(row.id, 'group_key', e.target.value || null)}
                       />
@@ -872,7 +872,7 @@ export default function BonusesConfig({ country }) {
                       <input
                         type="text"
                         value={m.day_window || ''}
-                        placeholder="L-D / V-D"
+                        placeholder={t('config.bonuses.day_window_placeholder')}
                         style={{ width: 90 }}
                         onChange={(e) => setField(row.id, 'day_window', e.target.value || null)}
                       />
@@ -899,7 +899,7 @@ export default function BonusesConfig({ country }) {
                       <input
                         type="text"
                         value={m.zone || ''}
-                        placeholder="Centro/Mall"
+                        placeholder={t('config.bonuses.zone_placeholder')}
                         style={{ width: 110 }}
                         onChange={(e) => setField(row.id, 'zone', e.target.value || null)}
                       />

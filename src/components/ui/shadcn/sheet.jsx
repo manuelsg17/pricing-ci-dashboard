@@ -6,6 +6,7 @@ import * as SheetPrimitive from '@radix-ui/react-dialog'
 import { cva } from 'class-variance-authority'
 import { X } from 'lucide-react'
 import { cn } from '../../../lib/utils'
+import { useI18n } from '../../../context/LanguageContext'
 
 const Sheet = SheetPrimitive.Root
 const SheetTrigger = SheetPrimitive.Trigger
@@ -47,18 +48,29 @@ const sheetVariants = cva(
   }
 )
 
-const SheetContent = React.forwardRef(({ side = 'right', className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-      {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-yango focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Cerrar</span>
-      </SheetPrimitive.Close>
-    </SheetPrimitive.Content>
-  </SheetPortal>
-))
+// El label del botón de cerrar es texto visible para lectores de pantalla, así
+// que pasa por t() como cualquier otro (CLAUDE.md §6). Es el único punto de este
+// primitivo vendorizado que tiene copy propio.
+const SheetContent = React.forwardRef(({ side = 'right', className, children, ...props }, ref) => {
+  const { t } = useI18n()
+  const closeLabel = t('app.close')
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
+      >
+        {children}
+        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-yango focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">{closeLabel}</span>
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  )
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({ className, ...props }) => (

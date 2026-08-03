@@ -430,7 +430,7 @@ export default function DriverEarnings() {
       {/* ── Params ── */}
       <div className="earn-panel">
         <div className="earn-panel__header">
-          <span className="earn-panel__title">Parámetros</span>
+          <span className="earn-panel__title">{t('earnings.params')}</span>
         </div>
         <div className="earn-panel__body">
           {/* City tabs */}
@@ -559,10 +559,10 @@ export default function DriverEarnings() {
               <table className="earn-ref-table">
                 <thead>
                   <tr>
-                    <th>Competidor</th>
-                    <th>Precio prom. / viaje</th>
-                    <th># Observaciones</th>
-                    <th>Comisión %</th>
+                    <th>{t('earnings.col_competitor')}</th>
+                    <th>{t('earnings.col_avg_price_trip')}</th>
+                    <th>{t('earnings.col_observations')}</th>
+                    <th>{t('earnings.col_commission_pct')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -648,7 +648,10 @@ export default function DriverEarnings() {
                               <div className="earn-cell">
                                 <span className="earn-cell__amount">{fmt(cell.total)}</span>
                                 {cell.totalBonus > 0 && (
-                                  <span className="earn-cell__bonus" title="Incluye bono">
+                                  <span
+                                    className="earn-cell__bonus"
+                                    title={t('earnings.includes_bonus')}
+                                  >
                                     ✦
                                   </span>
                                 )}
@@ -656,7 +659,9 @@ export default function DriverEarnings() {
                               {/* Tooltip */}
                               <div className="earn-tooltip">
                                 <div className="earn-tooltip__row">
-                                  <span className="earn-tooltip__label">Precio/viaje</span>
+                                  <span className="earn-tooltip__label">
+                                    {t('earnings.price_per_trip')}
+                                  </span>
                                   <span className="earn-tooltip__val">
                                     {fmt(cell.pricePerTrip)}
                                   </span>
@@ -677,14 +682,18 @@ export default function DriverEarnings() {
                                 </div>
                                 {cell.totalBonus > 0 && (
                                   <div className="earn-tooltip__row">
-                                    <span className="earn-tooltip__label">+ Bono</span>
+                                    <span className="earn-tooltip__label">
+                                      + {t('earnings.bonus')}
+                                    </span>
                                     <span className="earn-tooltip__val">
                                       + {fmt(cell.totalBonus)}
                                     </span>
                                   </div>
                                 )}
                                 <div className="earn-tooltip__row earn-tooltip__total">
-                                  <span className="earn-tooltip__label">Total neto</span>
+                                  <span className="earn-tooltip__label">
+                                    {t('earnings.net_total')}
+                                  </span>
                                   <span className="earn-tooltip__val">{fmt(cell.total)}</span>
                                 </div>
                               </div>
@@ -775,7 +784,7 @@ export default function DriverEarnings() {
               <input
                 className="earn-notes-input"
                 type="text"
-                placeholder="Notas del escenario (opcional)…"
+                placeholder={t('earnings.notes_placeholder')}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -850,11 +859,11 @@ export default function DriverEarnings() {
               <table className="earn-history-table">
                 <thead>
                   <tr>
-                    <th>Fecha</th>
-                    <th>Semana ref.</th>
-                    <th>Escala</th>
-                    <th>Notas</th>
-                    <th>Usuario</th>
+                    <th>{t('earnings.col_date')}</th>
+                    <th>{t('earnings.col_ref_week')}</th>
+                    <th>{t('earnings.col_scale')}</th>
+                    <th>{t('earnings.col_notes')}</th>
+                    <th>{t('earnings.col_user')}</th>
                     <th></th>
                   </tr>
                 </thead>

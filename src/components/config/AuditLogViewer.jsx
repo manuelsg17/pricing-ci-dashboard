@@ -178,7 +178,7 @@ export default function AuditLogViewer() {
           <input
             value={fCountry}
             onChange={(e) => setFCountry(e.target.value)}
-            placeholder="Peru, Colombia…"
+            placeholder={t('config.audit.country_placeholder')}
             className="audit-input"
           />
         </label>

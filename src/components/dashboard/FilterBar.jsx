@@ -208,7 +208,7 @@ export default function FilterBar({ className = '' }) {
       <div className="filter-bar__group">
         <span
           className="filter-bar__label"
-          title="Filtra por tus ventanas de Rush Hour (Config → Horarios → Rush Hour). Sí = solo data en horario rush; No = el resto."
+          title={t('filter.surge_tooltip')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}
         >
           {t('filter.surge')} <Zap size={11} />

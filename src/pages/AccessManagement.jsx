@@ -179,7 +179,7 @@ function UsersTab({ roles }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="Min 6 chars"
+                placeholder={t('access.password_placeholder')}
                 minLength={6}
               />
             </label>

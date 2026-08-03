@@ -416,22 +416,26 @@ export default function WeeklyReport() {
                     {/* Summary cards */}
                     <div className="report-summary">
                       <div className="report-card">
-                        <div className="report-card__label">Competidores</div>
+                        <div className="report-card__label">{t('report.card_competitors')}</div>
                         <div className="report-card__value">{competitors.length}</div>
                       </div>
                       <div className="report-card">
-                        <div className="report-card__label">Brackets activos</div>
+                        <div className="report-card__label">{t('report.card_active_brackets')}</div>
                         <div className="report-card__value">{priceRows.length}</div>
                       </div>
                       <div className="report-card">
-                        <div className="report-card__label">Semana ref.</div>
+                        <div className="report-card__label">{t('report.card_ref_week')}</div>
                         <div className="report-card__value">{refWeek}</div>
-                        <div className="report-card__sub">Año {refYear}</div>
+                        <div className="report-card__sub">
+                          {t('report.year', { year: refYear })}
+                        </div>
                       </div>
                       <div className="report-card">
-                        <div className="report-card__label">Comparación</div>
+                        <div className="report-card__label">{t('report.card_comparison')}</div>
                         <div className="report-card__value">{compareWeek}</div>
-                        <div className="report-card__sub">Año {compareYear}</div>
+                        <div className="report-card__sub">
+                          {t('report.year', { year: compareYear })}
+                        </div>
                       </div>
                     </div>
 
@@ -442,7 +446,7 @@ export default function WeeklyReport() {
                         <table className="report-table">
                           <thead>
                             <tr>
-                              <th>Bracket</th>
+                              <th>{t('report.col_bracket')}</th>
                               {competitors.map((c) => (
                                 <th key={c}>{c}</th>
                               ))}
@@ -471,7 +475,7 @@ export default function WeeklyReport() {
                         <table className="report-table">
                           <thead>
                             <tr>
-                              <th>Bracket</th>
+                              <th>{t('report.col_bracket')}</th>
                               {competitors.map((c) => (
                                 <th key={c}>{c}</th>
                               ))}
