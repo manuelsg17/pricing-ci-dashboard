@@ -394,6 +394,32 @@
   color: #fff;
 }
 
+/* Texto libre y contenido de largo no acotado dentro de la fila de tarea.
+   Sin esto, UN SOLO token sin espacios empuja la página entera: una URL de
+   Google Sheets pegada en un comentario da 254px de scroll horizontal a
+   390px, medido. Mismo caso y mismo patrón que `.cerr__meta > *` en
+   monitoring.css, que se arregló por lo idéntico.
+   VA FUERA DEL @media a propósito: una URL rompe la tarjeta a cualquier
+   ancho; a 390px solo se nota antes.
+   `overflow-wrap: anywhere` y no solo `break-word` porque únicamente
+   `anywhere` cambia el tamaño min-content, que es lo que hace falta para
+   que `.ptask__title` ceda dentro del flex de `.ptask__head`.
+   Los 5 son los que muestran contenido que alguien escribe sin restricción:
+   título y comentario los escribe el hub; el nombre del proyecto lo escribe
+   el admin (maxLength=120, sin formato); la ciudad viene de config; y
+   `.ptask__owner` es un email de hasta 28 chars — hoy es código muerto
+   (`showOwner` nunca llega en true), pero se cubre igual para que
+   encenderlo no reabra el bug. */
+.ptask__title,
+.ptask__last,
+.ptask__project,
+.ptask__city,
+.ptask__owner {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* ── Admin: proyectos y planilla de tareas ──────────────────── */
 .pproj {
   background: var(--color-panel);

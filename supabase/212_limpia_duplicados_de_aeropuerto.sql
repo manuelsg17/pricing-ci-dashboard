@@ -23,15 +23,48 @@
 --   │ medición escrita N veces, no N mediciones.                          │
 --   └─────────────────────────────────────────────────────────────────────┘
 --
---   ┌─ NO SE BORRA (17.374 copias, 9.477 grupos) ─────────────────────────┐
---   │ Todo lo anterior al 31/07/2026 y lo que no es aeropuerto.           │
---   │ FIRMA OPUESTA: 6.012 de los 9.477 grupos (63%) tienen PRECIOS       │
---   │ DISTINTOS, y 9.185 son filas sin dueño (cargas de Excel de otra      │
---   │ época). Precios distintos = observaciones plausiblemente legítimas.  │
---   │ Borrarlas sería destruir mediciones reales para dejar una tabla más  │
---   │ prolija — exactamente lo que no se hace.                            │
---   │ Necesitan su propio diagnóstico; quedan documentadas, no barridas.   │
+--   ┌─ NO SE BORRA — Y NO SON DUPLICADOS. NO LAS LIMPIE NADIE. ───────────┐
+--   │                                                                     │
+--   │ ⚠️ CORREGIDO 2026-08-03 (revisión adversarial posterior). La versión │
+--   │ original de este bloque decía que estas 17.374 filas eran duplicados │
+--   │ "que necesitan su propio diagnóstico". ESO ERA UN ARMA CARGADA: dejó │
+--   │ escrita, al lado, la clave de agrupación con la que borrarlas.       │
+--   │                                                                     │
+--   │ LA CLAVE DE ESTE ARCHIVO NO IDENTIFICA UNA OBSERVACIÓN: le falta     │
+--   │ `observed_time`. Agregándolo, las 17.374 caen a 6.592 (-62%).        │
+--   │ Descomposición medida en producción:                                │
+--   │   · 12.188 (70%) son capturas a HORAS DISTINTAS = mediciones reales  │
+--   │   ·  2.881 (17%) no tienen precio y la MV ya las descarta            │
+--   │   ·  2.120 (12%) comparten ruta y minuto; de esas solo 1.451 son     │
+--   │                  clones byte-a-byte con precio usable                │
+--   │                                                                     │
+--   │ Y el "63% con precios distintos" que la versión vieja leía como      │
+--   │ señal de peligro es EVIDENCIA A FAVOR DE CONSERVARLAS: son capturas  │
+--   │ separadas del mismo turno, con dispersión normal (ratio medio        │
+--   │ max/min = 1,32; el 96% por debajo de 3x).                           │
+--   │                                                                     │
+--   │ COSTO MEDIDO DE BORRARLAS CON LA CLAVE DE ESTE ARCHIVO:             │
+--   │   12.040 observaciones destruidas · 7.473 celdas del dashboard que   │
+--   │   DESAPARECEN · 671 celdas con el promedio desviado >5% (máx 55,5%). │
+--   │   Mecanismo: 5.675 grupos abarcan más de un `time_of_day`, así que   │
+--   │   el "conservar la más nueva" deja celdas enteras sin ninguna fila.  │
+--   │                                                                     │
+--   │ Impacto de NO borrarlas: 12 celdas sobre 284.933 (0,004%) tienen el  │
+--   │ promedio movido. Conservarlas es la opción correcta por lejos.       │
 --   └─────────────────────────────────────────────────────────────────────┘
+--
+-- ── POR QUÉ EL ALCANCE DE ARRIBA SÍ ERA BORRABLE ────────────────────────
+-- La duda razonable tras lo anterior: si `observed_time` distingue capturas,
+-- ¿no habré borrado mediciones reales acá también? No, y esto se midió:
+-- en el camino de la app, `observed_time` NO es la hora de medición sino el
+-- reloj del click de Guardar (DataEntry.jsx estampa una sola marca por click,
+-- igual para todas las filas de ese guardado — mig 148). Verificado en
+-- producción: el 81% de las filas con dueño tiene `observed_time` a menos de
+-- 2 minutos de su `uploaded_at`.
+-- Por eso, para una fila de HUB, "mismo precio + distinta observed_time" es
+-- la misma grilla guardada dos veces. Para una fila de EXCEL, en cambio, la
+-- hora viene de la planilla y sí distingue capturas. De ahí que el alcance
+-- de arriba (con dueño) sea borrable y el de abajo (sin dueño) no lo sea.
 --
 -- ── CUÁL SE CONSERVA ────────────────────────────────────────────────────
 -- La MÁS NUEVA (`uploaded_at DESC, id DESC`). Es lo que habría quedado si el

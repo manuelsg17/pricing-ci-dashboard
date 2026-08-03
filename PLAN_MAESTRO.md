@@ -20,10 +20,29 @@
 > `ci_zona_efectiva()`, que ahora usan el trigger que la escribe Y el borrado
 > que la busca.
 >
-> La **212** limpió 10.080 copias — y **no** las otras 17.374: el 63% de esos
-> grupos tiene precios distintos entre copias, o sea que son observaciones
-> plausiblemente legítimas y borrarlas habría destruido datos reales. Quedan
-> documentadas para su propio diagnóstico, no barridas.
+> La **212** limpió 10.080 copias — y **no** las otras 17.374.
+>
+> ### ⚠️ Las 17.374 NO son duplicados. Nadie las limpie.
+>
+> Una revisión adversarial posterior (12 agentes) midió lo que este documento
+> daba por sabido, y estaba mal. **La clave con la que se contaron no
+> identifica una observación: le falta `observed_time`.** Con él, las 17.374
+> caen a 6.592, y de esas solo **1.451** son clones reales con precio usable.
+> El 70% son capturas a horas distintas del mismo turno: mediciones legítimas.
+>
+> El "63% con precios distintos" que se leía como señal de peligro es en
+> realidad **evidencia a favor de conservarlas** (dispersión normal, ratio
+> medio 1,32).
+>
+> **Costo medido de borrarlas con esa clave: 12.040 observaciones destruidas,
+> 7.473 celdas del dashboard que desaparecen, 671 con el promedio desviado
+> más del 5%.** Contra un impacto de conservarlas de 12 celdas sobre 284.933
+> (0,004%). La cabecera de la mig 212 ya se corrigió, porque dejaba escrita al
+> lado la clave con la que ejecutar ese borrado.
+>
+> Es la **tercera vez** que un pendiente documentado resulta estar al revés.
+> Los tres tenían la misma forma: una conclusión heredada que nadie volvió a
+> medir antes de proponer actuar sobre ella.
 >
 > ### Correcciones a lo que este mismo documento afirmaba
 >
