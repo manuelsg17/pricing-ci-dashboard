@@ -1,6 +1,8 @@
 // Importar con extensión explícita para que el test `node scripts/test-bot-mapping.mjs`
 // (Node ESM strict, sin Vite/bundler) pueda resolver el módulo. Vite resuelve
 // sin extensión, pero Node puro requiere la extensión.
+import { normalizarNumero } from './uploadParsers.js'
+
 import { getCountryConfig } from './constants.js'
 
 /**
@@ -93,9 +95,16 @@ const BRACKET_MAP = {
  */
 function parsePrice(val, maxPrice) {
   if (val === null || val === undefined || val === '') return null
-  const s = String(val).trim().replace(/,/g, '') // quitar comas (Colombia)
-  const n = parseFloat(s)
-  if (isNaN(n) || n <= 0 || n > maxPrice) return null
+  // MISMO parser que el camino de Excel (uploadParsers.normalizarNumero).
+  //
+  // Antes acá se hacía `.replace(/,/g, '')` y allá `.replace(',', '.')`:
+  // criterios OPUESTOS para el mismo string. "1,234.50" entraba como 1234.5 por
+  // el bot y como 1.234 por Excel — el precio dividido por mil, sin error y sin
+  // outlier, porque el umbral solo mira el techo. Es exactamente la divergencia
+  // de normalización que CLAUDE.md §4 prohíbe: ninguna lógica de este tipo
+  // puede vivir en un solo lugar si el dato entra por varios caminos.
+  const n = typeof val === 'number' ? val : normalizarNumero(val)
+  if (n === null || isNaN(n) || n <= 0 || n > maxPrice) return null
   return n
 }
 

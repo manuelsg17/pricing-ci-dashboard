@@ -21,6 +21,44 @@ function getSemaforoClassDynamic(deltaPct, bands) {
   return 'sem-red'
 }
 
+// Trae TODAS las filas de una RPC, paginando. PostgREST aplica su "Max Rows"
+// (1000 por defecto, `supabase/config.toml`) también al resultado de una
+// función, y lo hace SIN error: la respuesta se ve válida pero está truncada.
+//
+// El dashboard lo pisaba de lleno en la vista Histórica: 5 competidores × 6
+// brackets × 52 semanas × surge{f,t} = 3.120 filas pedidas. Entraban las
+// primeras 1.000 por el ORDER BY del RPC —Cabify y Didi— y Yango, Uber,
+// InDrive y YangoComfort NO llegaban. Los KPIs "Yango WA", "Líder de mercado" y
+// "Posición Yango" mostraban “—” o el líder equivocado, indistinguible de "no
+// hay datos". Con el rango por defecto de 24 semanas ya son 1.440.
+//
+// El corte NO es "vino menos de lo que pedí": si el Max Rows del proyecto fuera
+// menor que PASO, el primer chunk ya vendría corto y cortaríamos ahí. Se toma
+// el tamaño del PRIMER chunk como paso efectivo del servidor y se sigue
+// mientras cada página venga completa. Mismo criterio robusto que
+// `fetchAllObservations`.
+const PASO_RPC = 1000
+const MAX_PAGINAS = 50 // 50k filas: techo de cordura, no un límite esperado
+
+async function rpcCompleto(nombre, params) {
+  const todas = []
+  let paso = null
+
+  for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
+    const desde = todas.length
+    const hasta = desde + (paso ?? PASO_RPC) - 1
+    const { data, error } = await sb.rpc(nombre, params).range(desde, hasta)
+    if (error) return { data: null, error }
+
+    const chunk = data || []
+    todas.push(...chunk)
+    if (paso === null) paso = chunk.length
+    if (chunk.length === 0 || paso === 0 || chunk.length < paso) break
+  }
+
+  return { data: todas, error: null }
+}
+
 export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo = []) {
   const {
     country,
@@ -91,7 +129,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         const { year: y2, week: w2 } = getYearWeek(lastDate)
 
         const [liveRes, frozenRes] = await Promise.all([
-          sb.rpc('get_dashboard_data_weekly_fast', {
+          rpcCompleto('get_dashboard_data_weekly_fast', {
             p_city: dbCity,
             p_category: dbCategory,
             p_country: country,
@@ -118,7 +156,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         if (frozenRes.error) throw frozenRes.error
         return { rawRows: liveRes.data || [], frozenRows: frozenRes.data || [] }
       }
-      const { data: dailyData, error: err } = await sb.rpc('get_dashboard_data_daily_fast', {
+      const { data: dailyData, error: err } = await rpcCompleto('get_dashboard_data_daily_fast', {
         p_city: dbCity,
         p_category: dbCategory,
         p_country: country,
@@ -247,7 +285,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     const weights =
       f_country === 'Peru'
         ? buildWeightsMap(LEGACY_WEIGHTS_PE, f_dbCity, f_dbCategory)
-        : buildWeightsMap(dbWeights || [], f_dbCity, f_dbCategory) || DEFAULT_WEIGHTS
+        : buildWeightsMap(dbWeights || [], f_dbCity, f_dbCategory, f_country) || DEFAULT_WEIGHTS
 
     // Determinar períodos (columnas)
     let periods = []

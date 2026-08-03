@@ -224,36 +224,84 @@ BEGIN
 END $$;
 
 \echo ''
-\echo '════════ 5. SEGURIDAD: cruce de países ════════'
+\echo ''
+\echo '════════ 5. SEGURIDAD: quién ve los minutos de quién ════════'
 DO $$
 DECLARE v_err text;
 BEGIN
-  PERFORM pg_temp.como('adv.a@local.test');   -- solo Peru
+  -- OJO: hasta la mig 201 este bloque afirmaba que un hub común PODÍA leer
+  -- ci_hub_daily_minutes de su propio país, y lo daba por correcto. Era la
+  -- fuga: esas RPCs son SECURITY DEFINER y devuelven el email, los minutos y
+  -- la cantidad de sesiones de TODOS los hubs del país, bypaseando la RLS de
+  -- ci_sessions. O sea que esta batería tenía el agujero codificado como
+  -- comportamiento esperado. Ahora son solo-admin.
+  PERFORM pg_temp.como('adv.a@local.test');   -- hub NO admin, países=['Peru']
   SET LOCAL ROLE authenticated;
+
   BEGIN
-    PERFORM * FROM ci_hub_daily_minutes('Colombia', DATE '2026-07-01', DATE '2026-08-01');
+    PERFORM * FROM ci_hub_daily_minutes('Peru', DATE '2026-07-01', DATE '2026-08-01');
     v_err := 'NO FALLÓ';
   EXCEPTION WHEN OTHERS THEN v_err := 'denegado';
   END;
-  PERFORM pg_temp.esperar('un hub de Perú NO lee minutos de Colombia', v_err, 'denegado');
+  PERFORM pg_temp.esperar('un hub NO admin no ve minutos ajenos, ni de su país', v_err, 'denegado');
 
   BEGIN
-    PERFORM * FROM ci_turno_minutes('Colombia', DATE '2026-07-01', DATE '2026-08-01');
+    PERFORM * FROM ci_turno_minutes('Peru', DATE '2026-07-01', DATE '2026-08-01');
     v_err := 'NO FALLÓ';
   EXCEPTION WHEN OTHERS THEN v_err := 'denegado';
   END;
   PERFORM pg_temp.esperar('  ni los tiempos por turno', v_err, 'denegado');
+  RESET ROLE;
 
+  -- El admin sí, que es para quien existe la pantalla.
+  PERFORM pg_temp.como('adv.admin@local.test');
+  SET LOCAL ROLE authenticated;
   BEGIN
     PERFORM * FROM ci_hub_daily_minutes('Peru', DATE '2026-07-01', DATE '2026-08-01');
     v_err := 'permitido';
-  EXCEPTION WHEN OTHERS THEN v_err := 'FALLÓ LO PROPIO';
+  EXCEPTION WHEN OTHERS THEN v_err := 'FALLÓ PARA EL ADMIN';
   END;
-  PERFORM pg_temp.esperar('  pero SÍ los de su propio país', v_err, 'permitido');
+  PERFORM pg_temp.esperar('  el admin sí', v_err, 'permitido');
   RESET ROLE;
 END $$;
 
 \echo ''
+\echo '════════ 5b. SEGURIDAD: cruce de países donde el hub SÍ llega ════════'
+DO $$
+DECLARE v_err text;
+BEGIN
+  -- El aislamiento por país se sigue probando, pero por una RPC que un hub
+  -- común pueda llamar. En ci_hub_daily_minutes ya no aplica: solo llegan
+  -- admins, y el rol admin tiene countries=['all'], así que su
+  -- require_country_access quedó inalcanzable (defensa en profundidad, por si
+  -- mañana se le acotan los países al rol admin).
+  PERFORM pg_temp.como('adv.a@local.test');
+  SET LOCAL ROLE authenticated;
+
+  BEGIN
+    PERFORM close_ci_session(gen_random_uuid(), jsonb_build_object(
+      'country','Colombia','city','Bogota','observed_date','2026-08-01',
+      'user_email','adv.a@local.test','started_at', now()::text,
+      'ended_at', now()::text, 'duration_minutes', 30,
+      'rows_saved', 10, 'total_expected', 10));
+    v_err := 'NO FALLÓ';
+  EXCEPTION WHEN OTHERS THEN v_err := 'denegado';
+  END;
+  PERFORM pg_temp.esperar('un hub de Peru NO cierra sesiones de Colombia', v_err, 'denegado');
+
+  BEGIN
+    PERFORM close_ci_session(gen_random_uuid(), jsonb_build_object(
+      'country','Peru','city','Lima','observed_date','2026-08-01',
+      'user_email','adv.a@local.test','started_at', now()::text,
+      'ended_at', now()::text, 'duration_minutes', 30,
+      'rows_saved', 10, 'total_expected', 10));
+    v_err := 'permitido';
+  EXCEPTION WHEN OTHERS THEN v_err := 'FALLÓ LO PROPIO';
+  END;
+  PERFORM pg_temp.esperar('  pero SÍ las de su propio país', v_err, 'permitido');
+  RESET ROLE;
+END $$;
+
 \echo '════════ 6. El camino del BUNDLE VIEJO (regresión de la mig 199) ════════'
 DO $$
 DECLARE v_err text; v_conf boolean;

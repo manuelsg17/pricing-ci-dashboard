@@ -33,7 +33,7 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
   async function handleClose(r, key) {
     if (!window.confirm(t('monitoring.close_session_confirm', { hub: r.uploaded_by }))) return
     setClosingKey(key)
-    const { error } = await sb.rpc('admin_close_ci_session', {
+    const { data, error } = await sb.rpc('admin_close_ci_session', {
       p_country: country,
       p_city: r.city,
       p_zone: r.zone ?? null,
@@ -43,6 +43,30 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
     if (error) {
       setClosingKey(null)
       window.alert(t('monitoring.close_session_error'))
+      return
+    }
+    // La mig 198 cambió el retorno de `void` a `{id, duplicado, cerrada}`, y
+    // este cliente seguía mirando SOLO `error`. Sin esto, un `cerrada:false`
+    // —que NO es un error— se leía como éxito: la fila se marcaba resuelta, el
+    // botón se deshabilitaba, y la sesión nunca entraba a ci_sessions.
+    //
+    // Y no es un caso raro: `ci_active_sessions` tiene PK `user_email`, o sea
+    // UNA fila de latido por hub. Cualquier bucket que no sea el que el hub
+    // tiene abierto ahora mismo no tiene latido que cerrar — y son justo esos
+    // los que este panel lista, porque `get_unfinished_ci_sessions` busca
+    // observaciones sin fila en ci_sessions, sin mirar el latido.
+    //
+    // Fallar en silencio acá es lo peor que puede pasar: este botón es la red
+    // de seguridad para cuando a un hub se le corta la sesión de verdad.
+    if (data && data.cerrada === false) {
+      setClosingKey(null)
+      window.alert(
+        data.id
+          ? t('monitoring.close_session_already', { id: data.id })
+          : t('monitoring.close_session_nothing')
+      )
+      // No se marca como cerrada: la fila TIENE que seguir en el panel.
+      await onClosed?.()
       return
     }
     setClosedKeys((prev) => new Set(prev).add(key))

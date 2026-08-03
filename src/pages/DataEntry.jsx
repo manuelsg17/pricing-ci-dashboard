@@ -4,7 +4,7 @@ import { sb, SESSION_ID } from '../lib/supabase'
 import { debeReanudarTramo, debeHidratarBorrador } from '../lib/sessionPersistence'
 import { evaluateLease, serializeLease, ownsLease, leaseKey, LEASE_RENEW_MS } from '../lib/tabLease'
 import { duracionDeSesion } from '../lib/sessionDuration'
-import { duracionActiva, registrarActividad } from '../lib/idleDetection'
+import { duracionActiva, registrarActividad, normalizarActividad } from '../lib/idleDetection'
 import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
@@ -1230,6 +1230,16 @@ export default function DataEntry() {
             if (parsed.turnoTimings && typeof parsed.turnoTimings === 'object') {
               setTurnoTimingsByCity((prev) => ({ ...prev, [targetCity]: parsed.turnoTimings }))
             }
+            // Se FUSIONA con lo que ya haya en memoria —el hub pudo teclear
+            // antes de que termine la hidratación async— y se normaliza:
+            // `normalizarActividad` ordena y fusiona tramos, así que rehidratar
+            // no inventa un hueco donde no lo hubo.
+            if (Array.isArray(parsed.actividad)) {
+              actividadRef.current[targetCity] = normalizarActividad([
+                ...(actividadRef.current[targetCity] || []),
+                ...parsed.actividad,
+              ])
+            }
             setLastDraftSavedAt(parsed.savedAt || null)
             borradorSavedAt = parsed.savedAt || null
             setMsg({
@@ -1392,6 +1402,17 @@ export default function DataEntry() {
               // a mitad de trabajo sin perder el aviso de "todavía falta".
               pendingExtraFronts,
               turnoTimings,
+              // LA TRAZA DEBE SOBREVIVIR AL F5 — lo dice idleDetection.js en su
+              // cabecera y CLAUDE.md §2. Vivía SOLO en `actividadRef`, que nace
+              // vacío en cada montaje: tras una recarga, `active_minutes` medía
+              // desde el F5 y todo lo trabajado antes se escribía como
+              // `idle_minutes`, con `actividadMedida = true`. O sea marcado
+              // como medición buena.
+              //
+              // Medido: un F5 a las 12:30 de una jornada de 3 h escribía
+              // active=30 / idle=150. Y `activity_trace` —el dato crudo que se
+              // guarda justamente para recalibrar el umbral— viajaba truncado.
+              actividad: actividadRef.current[bucketKey] || [],
               savedAt,
             })
           )
@@ -1420,6 +1441,10 @@ export default function DataEntry() {
     pendingScopeMembers,
     pendingExtraFronts,
     turnoTimings,
+    // `bucketKey` entró a las dependencias al empezar a persistir la traza de
+    // actividad, que se guarda por bucket. Re-disparar el autosave al cambiar
+    // de bucket es correcto: es lo mismo que ya hace `draftKey`.
+    bucketKey,
   ])
 
   // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
@@ -1500,6 +1525,9 @@ export default function DataEntry() {
               discEntries: disc,
               surge: m.surgeByCity[flushCity] ?? false,
               naKeys: Array.from(na),
+              // El flush cubre los ≤3 s entre el último autosave y el
+              // pagehide: sin la traza acá, ese tramo final se perdía igual.
+              actividad: actividadRef.current[flushCity] || previo.actividad || [],
               savedAt: Date.now(),
             })
           )
@@ -1555,8 +1583,27 @@ export default function DataEntry() {
     window.addEventListener('pagehide', onPageHide)
     // `visibilitychange` cubre el caso de cerrar la tapa de la laptop o pasar
     // la app a segundo plano en un celular, donde `pagehide` puede no llegar.
+    // `visibilitychange` cubre la DURABILIDAD (tapa de la laptop, app a segundo
+    // plano en el celular, donde `pagehide` puede no llegar): solo persiste el
+    // borrador. NO marca el candado como ocioso.
+    //
+    // POR QUÉ NO. Cambiar de pestaña no es cerrar la pestaña: esta sigue siendo
+    // la que tiene el trabajo. Marcarla ociosa le entregaba el candado a la
+    // otra, y como no hay handler de `visible`, al volver NO se recuperaba —
+    // quedaba en solo lectura, sin autosave ni flush, mientras el hub seguía
+    // tecleando. Todo lo escrito desde ese momento se perdía en el próximo F5.
+    //
+    // Y basta un alt-tab al simulador del competidor, que es el flujo NORMAL de
+    // carga: la otra pestaña de la app ya estaba oculta, nunca vuelve a
+    // disparar `hidden`, y su candado queda vivo para siempre.
+    //
+    // Si la pestaña muere de verdad sin `pagehide`, el candado vence solo por
+    // TTL — que es exactamente para lo que existe el TTL.
     const onHidden = () => {
-      if (document.visibilityState === 'hidden') onPageHide()
+      if (document.visibilityState === 'hidden') {
+        const f = flushScopeRef.current
+        persistirBorrador(f.bucketKey, f.draftKey)
+      }
     }
     document.addEventListener('visibilitychange', onHidden)
     return () => {
@@ -1754,9 +1801,23 @@ export default function DataEntry() {
     // jamás cerraba, además de reenviar al hub a rellenar desde cero un
     // punto que él mismo acababa de vaciar. Descartar equivale a decidir
     // que ese punto ya no forma parte de esta sesión.
-    const discardedUi = d.resume?.uiCity ?? d.city
+    // El alcance vive en espacio bucketKey (`resolvedStartMembers`), NO en
+    // uiCity. En TukTuk el uiCity es la ciudad BASE ('Lima') mientras el
+    // alcance es 'TT~Lima~Comas'; y en Colombia el uiCity es 'Bogotá' con
+    // dbName 'Bogota'. Filtrando por uiCity el miembro nunca salía del alcance:
+    // `isFinalInScope` no se cumplía NUNCA, el botón decía "Terminar punto"
+    // para siempre, el latido no se borraba y el hub quedaba "en vivo" en
+    // Monitoreo indefinidamente. La única salida era rellenar de cero la grilla
+    // que acababa de descartar.
+    //
+    // Aeropuerto no lo sufría porque ahí uiName === dbName en las configs
+    // sembradas — por eso el fix de 2026-07-23 pareció completo.
+    //
+    // Las dos líneas de abajo YA usaban d.bucketKey: la asimetría delataba el
+    // olvido.
+    const discardedScope = d.bucketKey ?? d.resume?.uiCity ?? d.city
     setPendingScopeMembers((prev) =>
-      prev.includes(discardedUi) ? prev.filter((m) => m !== discardedUi) : prev
+      prev.includes(discardedScope) ? prev.filter((m) => m !== discardedScope) : prev
     )
     // Mismo criterio para un frente extra (punto 2) descartado: ya no debe
     // seguir bloqueando "Terminar Sesión" en las demás vistas.
@@ -3216,7 +3277,22 @@ export default function DataEntry() {
       if (!silent || !actual || actual.size === 0) return { ...prev, [bucket]: newNa }
       return { ...prev, [bucket]: new Set([...newNa, ...actual]) }
     })
-    setSurgeByCity((prev) => ({ ...prev, [bucket]: newSurge }))
+    // Mismo criterio que `conservarTecleado` y que la unión de `naKeys`: un
+    // auto-load silencioso NO puede pisar una acción explícita y reciente del
+    // hub (CLAUDE.md §2). Esta línea se había quedado afuera del fix de P2-12.
+    //
+    // Importa más de lo que parece: el hub entra a una ciudad+fecha sin
+    // borrador, prende el switch de SURGE y empieza a teclear; la query resuelve
+    // 1-2 s después, las celdas se conservan pero `surge` vuelve al valor del
+    // servidor. Al guardar, TODAS las filas se estampan con surge=false, y el
+    // propio código documenta que corromper ese campo rompe en silencio el
+    // filtro SURGE del dashboard.
+    //
+    // Solo protege el `true`: si el hub lo prendió, gana él. Un "Abrir" del
+    // historial (silent=false) sigue mandando.
+    setSurgeByCity((prev) =>
+      silent && prev[bucket] === true ? prev : { ...prev, [bucket]: newSurge }
+    )
     setLoadedCombosByCity((prev) => ({ ...prev, [bucket]: combos.size ? combos : null }))
     setErrorKeysByCity((prev) => ({ ...prev, [bucket]: new Set() }))
     // En el auto-cargado silencioso (ver hidratación arriba) no hay nada que

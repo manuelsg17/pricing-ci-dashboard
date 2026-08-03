@@ -65,7 +65,7 @@ export function useRentabilidadPrices({
       const weights =
         country === 'Peru'
           ? buildWeightsMap(LEGACY_WEIGHTS_PE, dbCity, cat)
-          : buildWeightsMap(dbWeights || [], dbCity, cat) || DEFAULT_WEIGHTS
+          : buildWeightsMap(dbWeights || [], dbCity, cat, country) || DEFAULT_WEIGHTS
       result[cat] = {}
       for (const [comp, brackets] of Object.entries(byComp)) {
         const bracketPrices = {}

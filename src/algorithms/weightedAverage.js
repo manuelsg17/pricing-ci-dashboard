@@ -104,17 +104,40 @@ export function computePeriodAvg(bracketPrices, weights, year, week) {
  *                              { city, category, bracket, weight }
  * @param {string} city
  * @param {string} [category]  — opcional, default 'all'
+ * @param {string} [country]   — si se pasa, descarta los pesos de otros países.
+ *                               Las filas sin `country` (arreglos legacy
+ *                               hardcodeados) se aceptan siempre.
  * @returns {Object} { very_short: 0.0983, ... }
  */
-export function buildWeightsMap(dbWeights, city, category = 'all') {
+export function buildWeightsMap(dbWeights, city, category = 'all', country = null) {
   if (!Array.isArray(dbWeights) || dbWeights.length === 0) return {}
+
+  // FILTRO POR PAÍS — sin esto, todo país que no sea Perú usaba los pesos de
+  // OTRO país, y encima de forma no determinística.
+  //
+  // `ConfigProvider` trae `bracket_weights` de los 6 países sin `.eq('country')`
+  // y sin ORDER BY. La cascada terminaba cayendo al nivel ('all','all'), que
+  // matchea en TODOS los países a la vez, y el `reduce` de abajo se queda con
+  // el ÚLTIMO que devuelva Postgres — o sea, con el que el planner decida ese
+  // día. Medido para Colombia: 4,02% de diferencia contra su WA correcto.
+  //
+  // Y la función SQL espejo (`freeze_pricing_wa`, mig 56) SÍ filtra por país en
+  // sus cuatro niveles, así que las semanas congeladas y las vivas de la misma
+  // fila se calculaban con metodologías distintas.
+  //
+  // Las filas sin `country` se aceptan siempre: así siguen funcionando los
+  // arreglos hardcodeados como LEGACY_WEIGHTS_PE, que no lo llevan.
+  const filas = country
+    ? dbWeights.filter((w) => w.country == null || w.country === country)
+    : dbWeights
+  if (filas.length === 0) return {}
 
   // Filas existentes pueden no tener `category` (pre mig 56) — tratamos
   // como 'all' para retrocompat.
   const cat = (row) => row.category ?? 'all'
 
   const tryFilter = (cityMatch, categoryMatch) =>
-    dbWeights.filter((w) => cityMatch(w.city) && categoryMatch(cat(w)))
+    filas.filter((w) => cityMatch(w.city) && categoryMatch(cat(w)))
 
   // Probamos cada nivel en orden
   const candidates = [

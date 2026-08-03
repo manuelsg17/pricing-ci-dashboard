@@ -41,6 +41,7 @@ export default function Monitoring() {
     totalRows,
     detail,
     sessions,
+    sessionsTotal,
     unfinished,
   } = useMonitoringData(country)
   const coverage = useWeeklyCoverage(country)
@@ -109,7 +110,7 @@ export default function Monitoring() {
           <UnfinishedSessionsPanel rows={unfinished} onClosed={load} />
           <HubSummaryTable byHub={byHub} totalRows={totalRows} />
           <DetailTable detail={detail} />
-          <CompletedSessionsTable sessions={sessions} />
+          <CompletedSessionsTable sessions={sessions} total={sessionsTotal} />
         </>
       )}
     </div>
