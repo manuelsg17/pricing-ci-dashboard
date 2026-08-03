@@ -59,6 +59,33 @@ async function rpcCompleto(nombre, params) {
   return { data: todas, error: null }
 }
 
+// Hermano de `rpcCompleto` para una tabla. Mismo problema y misma solución: el
+// tope de 1.000 filas de PostgREST corta SIN error, así que una consulta que
+// puede devolver más tiene que paginar o miente en silencio.
+//
+// `pricing_wa_frozen` viajaba en el mismo Promise.all que el RPC ya paginado y
+// se había quedado afuera: pide hasta 3.744 filas (competidor × bracket × semana)
+// y se comía todo lo que pasara de 1.000. Como son las SEMANAS CONGELADAS, el
+// recorte no se ve como un hueco sino como precios distintos de los publicados.
+//
+// El ORDER BY no es cosmético: sin un orden estable, dos páginas consecutivas
+// pueden repetir y saltear filas.
+async function tablaCompleta(construirQuery) {
+  const todas = []
+  let paso = null
+  for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
+    const desde = todas.length
+    const hasta = desde + (paso ?? PASO_RPC) - 1
+    const { data, error } = await construirQuery().range(desde, hasta)
+    if (error) return { data: null, error }
+    const chunk = data || []
+    todas.push(...chunk)
+    if (paso === null) paso = chunk.length
+    if (chunk.length === 0 || paso === 0 || chunk.length < paso) break
+  }
+  return { data: todas, error: null }
+}
+
 export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo = []) {
   const {
     country,
@@ -143,14 +170,20 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
             p_time_of_day: timeOfDayParam,
             p_rush_hour: rushHourParam,
           }),
-          sb
-            .from('pricing_wa_frozen')
-            .select('competition_name,distance_bracket,year,week,avg_price,observation_count')
-            .eq('country', country)
-            .eq('city', dbCity)
-            .eq('category', dbCategory)
-            .gte('year', y1)
-            .lte('year', y2),
+          tablaCompleta(() =>
+            sb
+              .from('pricing_wa_frozen')
+              .select('competition_name,distance_bracket,year,week,avg_price,observation_count')
+              .eq('country', country)
+              .eq('city', dbCity)
+              .eq('category', dbCategory)
+              .gte('year', y1)
+              .lte('year', y2)
+              .order('year')
+              .order('week')
+              .order('competition_name')
+              .order('distance_bracket')
+          ),
         ])
         if (liveRes.error) throw liveRes.error
         if (frozenRes.error) throw frozenRes.error

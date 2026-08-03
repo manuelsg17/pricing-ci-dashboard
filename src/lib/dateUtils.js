@@ -59,5 +59,20 @@ export function getMondayWeeksAgo(n) {
  * @returns {string}
  */
 export function toISODate(d) {
-  return d.toISOString().slice(0, 10)
+  // Componentes LOCALES, no `toISOString()`.
+  //
+  // Todas las Date que llegan acá se construyen en hora local — `new Date(y, m, d)`,
+  // `getMondayWeeksAgo`, `Date.now() - n días`— y representan una fecha de
+  // CALENDARIO, no un instante. `toISOString()` las pasa a UTC primero: en
+  // cualquier huso al ESTE de Greenwich, la medianoche local es el día ANTERIOR
+  // en UTC, así que la fecha salía corrida un día.
+  //
+  // No es hipotético: `country_config` tiene países en UTC+2 y UTC+5:45, y hay
+  // locale ruso activo. El rango entero del dashboard se movía un día para esos
+  // usuarios, y el drill-down dejaba de explicar la celda que lo abrió — sin
+  // error y sin aviso, que es la peor forma.
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
 }

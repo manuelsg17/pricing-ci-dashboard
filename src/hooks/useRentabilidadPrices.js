@@ -62,10 +62,15 @@ export function useRentabilidadPrices({
       // Mismos pesos que el dashboard (ver usePricingData): Perú usa los pesos
       // históricos reales fijados en código; otros países, la BD. Desde 2026-W25
       // el WA es promedio simple (computePeriodAvg lo decide por refYear/refWeek).
-      const weights =
+      // `|| DEFAULT_WEIGHTS` era código muerto: buildWeightsMap devuelve `{}`
+      // cuando el filtro por país no deja ninguna fila, y `{}` es TRUTHY. La red
+      // de seguridad nunca se ejecutaba y el WA histórico del país entero quedaba
+      // en null. Hay que preguntar por el contenido, no por la existencia.
+      const propios =
         country === 'Peru'
           ? buildWeightsMap(LEGACY_WEIGHTS_PE, dbCity, cat)
-          : buildWeightsMap(dbWeights || [], dbCity, cat, country) || DEFAULT_WEIGHTS
+          : buildWeightsMap(dbWeights || [], dbCity, cat, country)
+      const weights = propios && Object.keys(propios).length > 0 ? propios : DEFAULT_WEIGHTS
       result[cat] = {}
       for (const [comp, brackets] of Object.entries(byComp)) {
         const bracketPrices = {}

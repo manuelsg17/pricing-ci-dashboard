@@ -5,6 +5,7 @@ import { useI18n } from '../../context/LanguageContext'
 import { formatCurrency } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
 import { computeEffectivePrice } from '../../algorithms/indrive'
+import { toISODate } from '../../lib/dateUtils'
 import { Button } from '../ui/shadcn/button'
 
 function getWeekDateRange(periodKey) {
@@ -18,10 +19,11 @@ function getWeekDateRange(periodKey) {
   monday.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7)
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
-  return {
-    start: monday.toISOString().slice(0, 10),
-    end: sunday.toISOString().slice(0, 10),
-  }
+  // `toISODate` y no `toISOString()`: las dos Date se construyen en hora local
+  // (`new Date(year, 0, 4)` + setDate), así que en cualquier huso al este de
+  // Greenwich el UTC de esa medianoche cae el día ANTERIOR. La ventana de la
+  // semana se corría un día y el modal dejaba de explicar la celda que lo abrió.
+  return { start: toISODate(monday), end: toISODate(sunday) }
 }
 
 export default function DrillDownModal({
