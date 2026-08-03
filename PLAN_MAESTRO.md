@@ -31,6 +31,24 @@ reales. **13 hallazgos, 12 sobrevivieron al panel, 1 refutado.**
 | P2     | El candado de pestañas no cubre el latido                                                          | ⛔ **abierto**                     |
 | —      | `upload_pricing_batch` contra el statement_timeout                                                 | ❌ refutado por el panel           |
 
+### Lo que la consolidación corrigió de mi propio trabajo
+
+Dos cosas que yo había dado por cerradas y no lo estaban. Las dos ya están
+arregladas, pero vale dejarlas escritas porque el patrón se repite:
+
+- **El fix de 6.4 tapaba solo el aeropuerto.** Puse
+  `dbCityToUiCity[nextBucket] ?? nextBucket`, y para TukTuk la clave es
+  `TT~Lima~Comas`, que no está en ese mapa: el `??` devolvía el bucketKey crudo y
+  el bug quedaba idéntico por el camino MÁS fácil de alcanzar. Ahora desarma la
+  clave con `parseBucketKey`, igual que `openHistorySession`.
+- **`canEditRow` en Ver Datos documentaba el modelo viejo.** Su comentario decía
+  que las filas sin dueño siguen editables por cualquiera con el país — falso
+  desde la mig 203. El botón quedaba habilitado para filas que el hub nunca iba a
+  poder tocar.
+
+Y una corrección a este propio repo: **`npm run lint` SÍ está en CI** desde el
+2026-08-01 (`deploy.yml`). CLAUDE.md §9 decía lo contrario; ya está corregido.
+
 ### Lo que sigue abierto, y por qué importa
 
 **El piso de plausibilidad solo defiende por abajo.** La mig 201 puso un piso de
@@ -44,6 +62,20 @@ da 2 casos, no 0. Es el reporte de productividad de la gente.
 fechas distintas son dueñas cada una del suyo y las dos laten sobre la única fila
 de `ci_active_sessions` (PK `user_email`). Es el caso MÁS probable, no el raro:
 el hub abre una segunda pestaña justamente porque está en otro frente.
+_Al implementarlo:_ un lease global deja a la pestaña que no late sin ack nunca,
+y el indicador de "confirmado en servidor" le va a mentir al hub. Hay que
+distinguir "no soy la pestaña que late" de "el servidor no responde", o se cambia
+un bug silencioso por una alarma falsa.
+
+**El modelo de `simulate-durability` es PRE-fix y se contradice con sus propias
+invariantes.** Endurecí las invariantes (ahora exigen la forma de la cuenta, no
+la presencia del identificador, y una mutación lint-clean las pone en rojo), pero
+el modelo de `tipear` sigue siendo un debounce puro sin techo: afirma en verde
+pérdidas de 60 y 30 celdas donde el planificador real deja 0-2. Las dos mitades
+del archivo pasan. El arreglo de fondo es sacar la decisión del god-component a
+un módulo puro (`esperaAutosave`, `mergearBorrador`) y que el modelo lo IMPORTE
+en vez de re-implementarlo — mismo criterio con el que ya salieron
+`debeHidratarBorrador` y `debeReanudarTramo`.
 
 ---
 

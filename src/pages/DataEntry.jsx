@@ -9,7 +9,7 @@ import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
-import { buildFronts, frontLabel } from '../lib/sessionFronts'
+import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
@@ -3000,10 +3000,27 @@ export default function DataEntry() {
       // bucketKey; `setUiCity` espera un uiCity. Pasarle el bucketKey directo
       // dejaba la app en una "ciudad" que no existe en el catálogo: grilla
       // vacía, y el latido reportando a Monitoreo una ciudad inventada.
-      // Invisible hoy porque para los aeropuertos actuales los dos coinciden.
+      //
+      // La primera versión de este fix hacía `dbCityToUiCity[nextBucket] ?? nextBucket`
+      // y tapaba SOLO el caso aeropuerto: para TukTuk la clave es 'TT~Lima~Comas',
+      // que no está en ese mapa, así que el `??` devolvía el bucketKey crudo y el
+      // bug quedaba igual — justo por el camino más fácil de alcanzar (el botón
+      // "Ir ahí" de un borrador de otro distrito mete un segundo bucketKey en el
+      // alcance). Hay que DESARMAR la clave, que es lo que ya hace
+      // `openHistorySession` 45 líneas más abajo.
       const nextBucket = remainingAfterThis[0]
-      setUiCity(dbCityToUiCity[nextBucket] ?? nextBucket)
-      setActiveTukTuk(null)
+      const partes = parseBucketKey(nextBucket)
+      const targetUi = dbCityToUiCity[partes?.city ?? nextBucket] || partes?.city || nextBucket
+      if (partes?.zone) {
+        setUiCity(tukTukInfo?.baseUiCity || targetUi)
+        setActiveTukTuk(partes.zone)
+      } else if (uiCities.includes(targetUi)) {
+        setUiCity(targetUi)
+        setActiveTukTuk(null)
+      }
+      // Si no está en el catálogo no se salta a ningún lado: el aviso de frentes
+      // pendientes ya le dice al hub qué le falta, y mandarlo a una pestaña
+      // inexistente es peor que dejarlo donde está.
     }
   }
 

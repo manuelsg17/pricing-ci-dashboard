@@ -28,16 +28,21 @@ export default function RawData() {
   const toast = useToast()
   const confirm = useConfirm()
   const { session } = useAuth()
-  const { isAdmin } = useAccessControl()
+  const { isAdmin, canAccess } = useAccessControl()
   const userEmail = session?.user?.email || ''
 
   // Seguridad (auditoría 2026-07-26): la RLS de UPDATE/DELETE ya bloquea a
   // un hub tocar filas manuales de OTRO hub — esto es solo la señal visual
   // en la UI, para no dejar que un hub_expert intente editar/borrar y se
-  // encuentre con un error genérico de RLS sin explicación. Filas bot o
-  // manuales legacy sin dueño (uploaded_by null) siguen editables por
-  // cualquiera con acceso al país, igual que hoy.
-  const canEditRow = (r) => isAdmin || !r.uploaded_by || r.uploaded_by === userEmail
+  // encuentre con un error genérico de RLS sin explicación.
+  //
+  // ACTUALIZADO tras la mig 203: las filas SIN DUEÑO (el bot y el histórico
+  // legacy) ya NO son editables por cualquiera con acceso al país — piden la
+  // sección `upload`. El comentario viejo describía el modelo anterior y el
+  // botón quedaba habilitado para filas que el hub nunca iba a poder tocar:
+  // apretarlo solo servía para cobrarse un toast rojo.
+  const canEditRow = (r) =>
+    isAdmin || (r.uploaded_by ? r.uploaded_by === userEmail : canAccess('upload'))
 
   const cityTabs = useMemo(
     () => config.dbCities.map((db) => ({ db, label: getCityLabel(db) })),

@@ -377,10 +377,10 @@ seguridad que existe**, así que no es opcional.
 - **Una sola autoridad aplica migraciones.** Nunca a la vez desde la CLI y desde el
   Dashboard de Supabase — un cambio hecho a mano en el Dashboard queda fuera del
   historial versionado y aparece después como drift inexplicable.
-- **El deploy corre `npm ci`, `npm run test:all` y `npm run build`** antes de publicar
-  (`.github/workflows/deploy.yml`). Si un test falla, el deploy se aborta: eso es
-  deliberado y no se saltea. `npm run lint` todavía NO está en CI — hasta que lo esté,
-  correrlo a mano es obligatorio (§7.1).
+- **El deploy corre `npm ci`, `npm run lint`, `npm run test:all` y `npm run build`**
+  antes de publicar (`.github/workflows/deploy.yml`). Si cualquiera falla, el deploy
+  se aborta: eso es deliberado y no se saltea. `lint` entró al pipeline el
+  2026-08-01; esta sección decía lo contrario hasta el 2026-08-03.
 
 ---
 
