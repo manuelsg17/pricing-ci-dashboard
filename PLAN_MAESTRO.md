@@ -1,11 +1,25 @@
 # Plan maestro — todo lo encontrado, y en qué orden se arregla
 
-Estado al **2026-08-02**. Consolida las tres rondas de revisión adversarial del
-día (dos con agentes en paralelo, una con workflow de hallar → refutar →
-consolidar) más los hallazgos de la sesión de trabajo previa.
+> **Actualizado 2026-08-02, corrida nocturna.** Bloques 3, 4 (parcial), 5 y 6
+> (parcial) implementados y validados. Lo único que NO se puede avanzar sin vos
+> es el **Bloque 1**: aplicar a producción exige tu autorización explícita para
+> cada migración (CLAUDE.md §3), y una instrucción general no la cubre.
+>
+> **Migraciones escritas y probadas en local, esperando tu OK: 200, 201, 202,
+> 203, 204.**
 
-Regla de lectura: los bloques están ordenados por **daño real × facilidad**, no
-por elegancia. Un bloque se puede hacer entero de una sentada.
+## Lo implementado en la corrida nocturna
+
+| Bloque              | Qué se cerró                                                                                                                                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **3 · Upload**      | El `DELETE` sin transacción (RPC nueva), `parseExcelDate` que convertía un año suelto en 1905 y ensanchaba el borrado, `toNumeric` que dividía precios por mil y divergía del bot, y el panel de outliers que corregía la fila equivocada |
+| **4 · Dashboard**   | Los pesos que se mezclaban entre países (4,02% de error, no determinístico) y el tope de 1.000 filas que hacía desaparecer competidores enteros                                                                                           |
+| **5 · Monitoreo**   | El error de `ci_sessions` que no se destructuraba, el truncado silencioso en 300 sesiones, y la tarjeta de representatividad que desaparecía al fallar                                                                                    |
+| **6 · Ingresar CI** | El candado de pestañas que quedaba degradado para siempre, la traza de actividad que no sobrevivía al F5, `discardDraft` con el namespace equivocado, y el `surge` que el auto-load pisaba                                                |
+| **Extra**           | Un hub sin secciones podía borrar los 150.000 registros del bot (mig 203); la clave i18n cruda visible al usuario; Monitoreo desbordaba 315px a 390px                                                                                     |
+
+Todo con `test:all` en 0, lint sin warnings, build OK y las **8 simulaciones SQL
+en verde**.
 
 ---
 
