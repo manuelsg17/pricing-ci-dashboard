@@ -12,13 +12,12 @@ Documento de handoff entre sesiones. Última actualización: **2026-08-03**.
 
 ## Estado actual
 
-**Última migración aplicada**: `210_ci_ventana_coherente_con_la_duracion.sql`
+**Última migración aplicada**: `212_limpia_duplicados_de_aeropuerto.sql`
 (2026-08-03). Ver `PLAN_MAESTRO.md` para el detalle de las cuatro rondas de
-revisión adversarial y qué cerró cada migración de la serie 183–210.
+revisión adversarial y qué cerró cada migración de la serie 183–212.
 
-**Pendiente inmediato**: desplegar el frontend con los fixes de cliente de la
-última tanda (lease global del latido + `latidoDelegado`). Las migraciones ya
-están todas en producción.
+**Todo desplegado**: migraciones 200-212 en producción y el frontend publicado
+en GitHub Pages y Vercel (commit `5c78539`).
 
 Antecedentes que siguen vigentes: `pricing_observations` está particionada por
 mes (migs 168-169), sus políticas RLS fueron rediseñadas para performance
@@ -225,7 +224,7 @@ src/
 ├── App.jsx, main.jsx      # react-router-dom real, providers incl. ConfigProvider
 
 supabase/
-└── 001..210_*.sql         # próxima migración libre: 211
+└── 001..212_*.sql         # próxima migración libre: 213
 
 scripts/
 ├── test-*.mjs             # 24 scripts, correr vía `npm run test:*` o test:all
@@ -251,7 +250,7 @@ CLAUDE.md                  # reglas obligatorias — leer antes de codear
 
 ### Para nuevas migraciones DB
 
-- Numerar correlativamente — próxima es `211_...`. Espejo OBLIGATORIO en
+- Numerar correlativamente — próxima es `213_...`. Espejo OBLIGATORIO en
   `supabase/migrations/` (la CLI solo aplica esos); `npm run check:migration-collisions`.
 - Header en comentario con CONTEXTO + APPROACH + VERIFICACIÓN.
 - RPCs nuevas con `require_country_access` al inicio si aplica.

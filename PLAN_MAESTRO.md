@@ -2,13 +2,28 @@
 
 > **Actualizado 2026-08-03 (tarde) — cuarta ronda cerrada.**
 >
-> **✅ EN PRODUCCIÓN:** migraciones **200–210** y el frontend.
-> Las 206/207/208/209 se aplicaron con autorización explícita una por una, en el
-> orden 208 (P0) → 209 → 207 → 206, y la **210** cerró el último P1 abierto.
+> **✅ EN PRODUCCIÓN:** migraciones **200–212** y el frontend (GitHub Pages y
+> Vercel, commit `5c78539`). No queda nada esperando autorización ni deploy.
 >
-> **No queda ninguna migración esperando autorización.** Sí queda pendiente
-> **desplegar el frontend** con los dos fixes de cliente de esta tanda (el lease
-> global del latido y `latidoDelegado`).
+> ### 🔴 Hallazgo del chequeo post-deploy: el guardado duplicaba en Aeropuerto
+>
+> Revisando que los hubs siguieran trabajando bien apareció un bug **crónico**,
+> no una regresión de esta tanda: `save_ci_batch` borraba por la zona CRUDA
+> (`p_zone = NULL` en Aeropuerto) y el trigger de la mig 180 guardaba
+> `'Airport_A'` — el DELETE nunca encontraba nada y **cada re-guardado
+> acumulaba una copia entera de la grilla**.
+>
+> Es la misma clase de bug que la 209 (ahí la ciudad, acá la zona): el
+> predicado mira el valor pre-trigger y las filas viven en el post-trigger.
+> **Ya van tres.** La causa de fondo es la que CLAUDE.md §4 nombra: la regla de
+> normalización vivía en un solo lado. La **211** la extrae a
+> `ci_zona_efectiva()`, que ahora usan el trigger que la escribe Y el borrado
+> que la busca.
+>
+> La **212** limpió 10.080 copias — y **no** las otras 17.374: el 63% de esos
+> grupos tiene precios distintos entre copias, o sea que son observaciones
+> plausiblemente legítimas y borrarlas habría destruido datos reales. Quedan
+> documentadas para su propio diagnóstico, no barridas.
 >
 > ### Correcciones a lo que este mismo documento afirmaba
 >
