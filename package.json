@@ -62,7 +62,8 @@
     "test:effective-price": "node scripts/test-effective-price.mjs",
     "simulate:rpcs-lectura": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-rpcs-lectura-cruzada.sql",
     "simulate:reasignar": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-reasignar-destino.sql",
-    "test:i18n-parity": "node scripts/test-i18n-parity.mjs"
+    "test:i18n-parity": "node scripts/test-i18n-parity.mjs",
+    "simulate:save-ci-batch": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-save-ci-batch-definer.sql"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
