@@ -1,5 +1,17 @@
 # Despliegue pendiente — orden de migraciones
 
+> ## ⚠️ ESTE ARCHIVO ES HISTÓRICO — 2026-08-03
+>
+> **Todo lo que describe abajo YA ESTÁ EN PRODUCCIÓN**, junto con las migraciones
+> 193–210. No queda ninguna migración esperando autorización.
+>
+> Lo único pendiente hoy es **desplegar el frontend** con los fixes de cliente de
+> la última tanda (lease global del latido + `latidoDelegado`).
+>
+> El estado real vive en `PLAN_MAESTRO.md`. Este archivo se conserva porque el
+> razonamiento de por qué la 186 y la 194 tenían que ir ANTES del deploy sigue
+> siendo el ejemplo canónico de acoplamiento migración↔bundle en este repo.
+
 Estado al **2026-08-01**. Todo lo de acá está aplicado y validado en **local**;
 **nada** está en producción. Cada migración necesita tu autorización explícita
 nombrándola (CLAUDE.md §3), aunque hayas dado un OK general antes.

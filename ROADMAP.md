@@ -1,6 +1,6 @@
 # ROADMAP — Pricing CI Dashboard
 
-Documento de handoff entre sesiones. Última actualización: **2026-07-31**.
+Documento de handoff entre sesiones. Última actualización: **2026-08-03**.
 
 > Regla de mantenimiento: este archivo se queda obsoleto rápido si no se toca.
 > La versión anterior quedó **296 commits y ~2 meses atrás** sin actualizarse.
@@ -12,11 +12,18 @@ Documento de handoff entre sesiones. Última actualización: **2026-07-31**.
 
 ## Estado actual
 
-**Última migración aplicada**: `177_rls_on_pricing_observations_partitions.sql`
-(2026-07-31). `pricing_observations` está particionada por mes (migs 168-169),
-sus políticas RLS fueron rediseñadas para performance (migs 175-176: SELECT
-16.5s → 39-60ms) y las particiones tienen RLS propio como defensa en
-profundidad (mig 177).
+**Última migración aplicada**: `210_ci_ventana_coherente_con_la_duracion.sql`
+(2026-08-03). Ver `PLAN_MAESTRO.md` para el detalle de las cuatro rondas de
+revisión adversarial y qué cerró cada migración de la serie 183–210.
+
+**Pendiente inmediato**: desplegar el frontend con los fixes de cliente de la
+última tanda (lease global del latido + `latidoDelegado`). Las migraciones ya
+están todas en producción.
+
+Antecedentes que siguen vigentes: `pricing_observations` está particionada por
+mes (migs 168-169), sus políticas RLS fueron rediseñadas para performance
+(migs 175-176: SELECT 16.5s → 39-60ms) y las particiones tienen RLS propio como
+defensa en profundidad (mig 177).
 
 **Working directory canónico**: `~/Projects/pricing-ci-dashboard` (esta carpeta).
 La copia previa en ProtonDrive quedó obsoleta — ProtonDrive no preserva exec
@@ -28,7 +35,7 @@ con Speed Insights activo).
 
 **Reglas de implementación obligatorias**: ver `CLAUDE.md` (creado 2026-07-25).
 Es de cumplimiento estricto, no opcional — cada regla ahí nació de un bug real
-ya ocurrido. Este ROADMAP es sobre *qué* falta; `CLAUDE.md` es sobre *cómo* se
+ya ocurrido. Este ROADMAP es sobre _qué_ falta; `CLAUDE.md` es sobre _cómo_ se
 implementa sin romper nada.
 
 ---
@@ -137,11 +144,17 @@ sin datos, error boundary por sub-tab en Config, PAGE_SIZE de RawData
 1. **Tailwind + shadcn/ui SÍ**. Look "Linear/Vercel" — componentes en
    `src/components/ui/shadcn/`. La Fase 2 (arriba) extendió esto a casi
    toda la UI con `<Button>` compartido.
-2. **NO responsive design**. Hubs trabajan desde PC de escritorio.
+2. ~~**NO responsive design**~~ — **REVISADO 2026-07-31, ver `CLAUDE.md` §1.**
+   El alcance es ACOTADO, no un "no": Proyectos, Monitoreo, Dashboard y toda
+   vista nueva de lectura entran (objetivo 390px). Quedan fuera a propósito la
+   grilla de Ingresar CI y Upload. `CLAUDE.md` manda sobre este archivo.
 3. **NO dark mode**.
-4. **NO tests E2E de navegador todavía**. Esperar a tener 2+ devs. Sí hay
-   24 scripts `test:*` de lógica pura (parseo/normalización/cálculo) — correr
-   `npm run test:all` antes de cerrar cambios que toquen esa capa.
+4. ~~**NO tests E2E**~~ — **REVISADO, ver `CLAUDE.md` §1.** Dejó de ser un "no"
+   desde que `supabase start` funciona: es pendiente de adopción. La clase de
+   bug más cara del proyecto (supervivencia a un F5 real, guards
+   anti-resurrección, sesiones compartidas) es justo la que un E2E caza y un
+   test unitario no. Hoy son 37 scripts `test:*` de lógica pura + 10
+   simulaciones SQL — correr `npm run test:all` antes de cerrar.
 5. **NO migrar a TypeScript**. JSDoc en `lib/`/`algorithms/` alcanza.
 6. **NO refactor de URL hash vs FilterContext**. Funciona, hash share-link es
    feature útil.
@@ -212,7 +225,7 @@ src/
 ├── App.jsx, main.jsx      # react-router-dom real, providers incl. ConfigProvider
 
 supabase/
-└── 001..177_*.sql         # próxima migración libre: 178
+└── 001..210_*.sql         # próxima migración libre: 211
 
 scripts/
 ├── test-*.mjs             # 24 scripts, correr vía `npm run test:*` o test:all
@@ -238,7 +251,8 @@ CLAUDE.md                  # reglas obligatorias — leer antes de codear
 
 ### Para nuevas migraciones DB
 
-- Numerar correlativamente — próxima es `178_...`.
+- Numerar correlativamente — próxima es `211_...`. Espejo OBLIGATORIO en
+  `supabase/migrations/` (la CLI solo aplica esos); `npm run check:migration-collisions`.
 - Header en comentario con CONTEXTO + APPROACH + VERIFICACIÓN.
 - RPCs nuevas con `require_country_access` al inicio si aplica.
 - `SET search_path = public, pg_temp` para toda función `SECURITY DEFINER`.

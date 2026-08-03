@@ -1,35 +1,46 @@
 # Plan maestro — todo lo encontrado, y en qué orden se arregla
 
-> **Actualizado 2026-08-03, cuarta ronda adversarial.**
+> **Actualizado 2026-08-03 (tarde) — cuarta ronda cerrada.**
 >
-> **✅ EN PRODUCCIÓN:** migraciones 200–205 y el frontend
-> (`builtAt 2026-08-03T11:35:08Z`).
+> **✅ EN PRODUCCIÓN:** migraciones **200–210** y el frontend.
+> Las 206/207/208/209 se aplicaron con autorización explícita una por una, en el
+> orden 208 (P0) → 209 → 207 → 206, y la **210** cerró el último P1 abierto.
 >
-> **⛔ ESPERANDO TU AUTORIZACIÓN, UNA POR UNA (CLAUDE.md §3):** migraciones
-> **206, 207, 208 y 209**. Están aplicadas y verificadas en LOCAL.
-> La **208 es un P0 que arregla un defecto que la 203 dejó ARMADO en producción**
-> — hoy no hizo daño porque no hubo sesiones después del deploy, pero se dispara
-> con el primer hub que guarde sobre una fecha con filas del Excel o del bot.
+> **No queda ninguna migración esperando autorización.** Sí queda pendiente
+> **desplegar el frontend** con los dos fixes de cliente de esta tanda (el lease
+> global del latido y `latidoDelegado`).
+>
+> ### Correcciones a lo que este mismo documento afirmaba
+>
+> Dos cosas que decía y el dato desmintió. Van arriba porque el patrón —dar por
+> buena una conclusión sin volver a medirla— es el que más caro sale acá:
+>
+> - **"La 208 no hizo daño porque no hubo sesiones después del deploy."** Falso al
+>   momento de aplicarla: había **3 hubs trabajando en vivo**. El daño medido igual
+>   era cero (0 grupos con la firma del bug), así que el fix llegó antes que el
+>   daño — pero por suerte, no porque no hubiera sesiones.
+> - **"El piso de plausibilidad solo defiende el lado bajo; falta un techo."** El
+>   diagnóstico estaba **al revés**: no hay duraciones infladas. Ver la 210 abajo.
 
 ## Cuarta ronda — qué encontró
 
 4 finders + panel de escépticos, todo reproducido contra Supabase local con roles
 reales. **13 hallazgos, 12 sobrevivieron al panel, 1 refutado.**
 
-| #      | Qué                                                                                                | Estado                             |
-| ------ | -------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| **P0** | La mig 203 rompió el reclamo de filas legacy de `save_ci_batch`: el hub duplica filas, en silencio | ✅ mig **208**                     |
-| P1     | Re-subir un Excel de aeropuerto duplica: el DELETE mira la ciudad de antes del trigger             | ✅ mig **209**                     |
-| P1     | Ver Datos: borrar y editar fallaban en silencio (HTTP 204 sin error)                               | ✅ `useRawDataMutations`           |
-| P1     | `toISODate` corría la fecha un día al este de Greenwich                                            | ✅ `dateUtils` + test en 5 husos   |
-| P1     | `\|\| DEFAULT_WEIGHTS` era código muerto (`{}` es truthy)                                          | ✅ `useRentabilidadPrices`         |
-| P1     | `handleFinishSession` hacía `setUiCity` con un bucketKey                                           | ✅ (6.4, unificado a bucketKey)    |
-| P2     | `pricing_wa_frozen` sin paginar contra el tope de 1.000                                            | ✅ `tablaCompleta`                 |
-| P2     | El panel de outliers congelaba el lote y destildar una hoja no tenía efecto                        | ✅ `invalidarLoteCongelado`        |
-| P2     | `simulate-durability` pasaba con los fixes arrancados                                              | ✅ invariantes de forma + mutación |
-| P1     | El piso de plausibilidad solo defiende el lado bajo                                                | ⛔ **abierto**                     |
-| P2     | El candado de pestañas no cubre el latido                                                          | ⛔ **abierto**                     |
-| —      | `upload_pricing_batch` contra el statement_timeout                                                 | ❌ refutado por el panel           |
+| #      | Qué                                                                                                | Estado                                                     |
+| ------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **P0** | La mig 203 rompió el reclamo de filas legacy de `save_ci_batch`: el hub duplica filas, en silencio | ✅ mig **208**                                             |
+| P1     | Re-subir un Excel de aeropuerto duplica: el DELETE mira la ciudad de antes del trigger             | ✅ mig **209**                                             |
+| P1     | Ver Datos: borrar y editar fallaban en silencio (HTTP 204 sin error)                               | ✅ `useRawDataMutations`                                   |
+| P1     | `toISODate` corría la fecha un día al este de Greenwich                                            | ✅ `dateUtils` + test en 5 husos                           |
+| P1     | `\|\| DEFAULT_WEIGHTS` era código muerto (`{}` es truthy)                                          | ✅ `useRentabilidadPrices`                                 |
+| P1     | `handleFinishSession` hacía `setUiCity` con un bucketKey                                           | ✅ (6.4, unificado a bucketKey)                            |
+| P2     | `pricing_wa_frozen` sin paginar contra el tope de 1.000                                            | ✅ `tablaCompleta`                                         |
+| P2     | El panel de outliers congelaba el lote y destildar una hoja no tenía efecto                        | ✅ `invalidarLoteCongelado`                                |
+| P2     | `simulate-durability` pasaba con los fixes arrancados                                              | ✅ invariantes de forma + mutación                         |
+| P1     | El piso de plausibilidad solo defiende el lado bajo                                                | ✅ mig **210** (ver abajo: el diagnóstico estaba al revés) |
+| P2     | El candado de pestañas no cubre el latido                                                          | ✅ `heartbeatLeaseKey` + `latidoDelegado`                  |
+| —      | `upload_pricing_batch` contra el statement_timeout                                                 | ❌ refutado por el panel                                   |
 
 ### Lo que la consolidación corrigió de mi propio trabajo
 
@@ -49,23 +60,51 @@ arregladas, pero vale dejarlas escritas porque el patrón se repite:
 Y una corrección a este propio repo: **`npm run lint` SÍ está en CI** desde el
 2026-08-01 (`deploy.yml`). CLAUDE.md §9 decía lo contrario; ya está corregido.
 
-### Lo que sigue abierto, y por qué importa
+### Los dos que estaban abiertos — cerrados, y qué se aprendió
 
-**El piso de plausibilidad solo defiende por abajo.** La mig 201 puso un piso de
-1 minuto, pero no hay techo: una duración inventada de, digamos, 400 minutos
-entra marcada como `duration_confiable = true`. La invariante que la propia
-migración declara —"la duración no puede exceder su propia ventana"— ejecutada
-da 2 casos, no 0. Es el reporte de productividad de la gente.
+**El "techo" de plausibilidad: el diagnóstico estaba al revés (mig 210).**
+Este documento pedía un TECHO que le sacara la confianza a una duración
+demasiado grande. Se miró el dato antes de escribirlo y era lo contrario: la
+duración está bien y lo que está mal es la ventana. El caso peor —211.0 minutos
+declarados en una ventana de 13 segundos— tiene `turno_timings` que suman
+**exactamente 211.0** (113.4 + 44.0 + 53.6). Un techo habría tirado a la basura
+**19 mediciones legítimas**, que son justo el reporte de productividad que se
+quería proteger. Es el mismo error que ya se cometió con el piso (mig 201 §3),
+en la otra dirección.
 
-**El candado de pestañas no cubre el latido.** El lease se disputa por
-`draftKey` (país + vista + fecha), así que dos pestañas del mismo hub en vistas o
-fechas distintas son dueñas cada una del suyo y las dos laten sobre la única fila
-de `ci_active_sessions` (PK `user_email`). Es el caso MÁS probable, no el raro:
-el hub abre una segunda pestaña justamente porque está en otro frente.
-_Al implementarlo:_ un lease global deja a la pestaña que no late sin ack nunca,
-y el indicador de "confirmado en servidor" le va a mentir al hub. Hay que
-distinguir "no soy la pestaña que late" de "el servidor no responde", o se cambia
-un bug silencioso por una alarma falsa.
+La causa real: el cliente viejo tomaba `started_at` del reloj de pared en el
+instante del cierre, y en una sesión multi-frente cada cierre reseteaba el reloj
+— el `started_at` de cada frente terminaba siendo el `ended_at` del anterior. Y
+**no era un bug vivo, era residuo**: PRE-deploy 14 de 65 filas violan, bundle
+intermedio 5 de 19, **POST-deploy 0 de 4**. `sessionDuration.js` ya lo había
+arreglado; la mig 196 backfilleó `duration_minutes` y se olvidó de la ventana
+que lo tiene que contener. La 210 backfillea la ventana (19 → 0) y pone un
+guard en los dos triggers. `LEAST`, nunca asignación directa: la ventana solo
+se ensancha, porque un hub que abrió la sesión 40 min antes de su primera celda
+tiene una ventana legítimamente más ancha.
+
+**El candado de pestañas y el latido: `heartbeatLeaseKey` + `latidoDelegado`.**
+El lease de borrador protege el recurso correcto con el alcance correcto; el
+latido escribe OTRO recurso —`ci_active_sessions`, PK `user_email`— y por eso
+necesita su propio lease, global por hub. El latido ahora exige los dos.
+
+Dos cosas que no eran obvias al implementarlo:
+
+- **El empate.** El lease global se disputa SOLO entre pestañas que ya son
+  dueñas de su borrador. Sin esa precondición, A podía ganar el latido y A' el
+  borrador del mismo bucket, y entonces ninguna late: el hub desaparece de
+  "en vivo".
+- **La alarma falsa que este documento anticipaba, y tenía razón.** La pestaña
+  que delega nunca recibe un `lastHeartbeatOkAt`, así que el cartel de "sin
+  contacto con el servidor" quedaría encendido para siempre con la conexión
+  sana. Se resolvió por el lado honesto: una pestaña sin sonda de vida propia
+  **no puede afirmar** que el servidor no responde, así que se calla sobre la
+  conexión y muestra los estados de guardado, que sí son ciertos. El aviso no
+  desaparece del sistema — lo da la pestaña que sí late, y hay una sola por hub.
+
+Probado A/B en navegador con 2 pestañas reales y dos sesiones activas en buckets
+distintos: con el gate desarmado la fila queda en el bucket de la pestaña que NO
+tiene el candado; con el fix, en el del dueño legítimo y estable.
 
 **El modelo de `simulate-durability` es PRE-fix y se contradice con sus propias
 invariantes.** Endurecí las invariantes (ahora exigen la forma de la cuenta, no
