@@ -72,6 +72,35 @@ agujeros) y el flujo normal del hub se probó entero: batch de 200 filas,
 
 ---
 
+## Tercera ronda (workflow) — qué agregó
+
+Cuatro finders en paralelo + panel de escépticos. **25 hallazgos crudos, 16
+P0/P1, todos con repro ejecutado.** El workflow se cortó por límite de sesión
+antes de terminar de refutar y de consolidar, así que los veredictos del panel
+están incompletos — lo que sigue son los hallazgos crudos, ya verificados por
+quien los encontró pero sin la segunda opinión.
+
+Dos apuntaban a arreglos que yo había hecho **esa misma tarde**, y tenían razón:
+
+- **El piso de plausibilidad descartaba una medición legítima.** Ponía el valor
+  en NULL y caía al reloj del latido: 45 segundos reales de trabajo se
+  guardaban como **360 minutos** si el latido venía viejo. Cambiar un número
+  chico y honesto por uno grande e inventado es peor que el problema original.
+  _Corregido:_ el valor medido se conserva y solo pierde la marca de confianza.
+- **El piso solo existía en el cierre del admin.** El camino normal —el hub
+  apretando Terminar— entra por `close_ci_session` y toma `duration_confiable`
+  del cliente, que no tiene piso. La invariante que yo mismo declaré en la
+  migración era falsa para la puerta más transitada. _Corregido:_ el piso vive
+  ahora en el trigger, que corre en todo INSERT a `ci_sessions` sin importar
+  quién lo haga.
+
+Queda pendiente de la misma familia: **`validate_country_setup` sigue filtrando
+entre países** con el gate por sección que le puse, y el motivo que escribí para
+omitir el chequeo de país es discutible. Hay que decidir si un rol con `config`
+de Perú debe ver el diagnóstico de Colombia.
+
+---
+
 ## BLOQUE 2 — Los tres agujeros de escritura que quedan abiertos
 
 **Por qué acá:** son pérdida o corrupción de datos, alcanzables desde la UI, y

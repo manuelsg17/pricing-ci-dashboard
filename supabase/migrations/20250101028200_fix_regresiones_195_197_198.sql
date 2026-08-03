@@ -314,6 +314,7 @@ DECLARE
   v_hay_latido     boolean;
   v_medida         numeric;   -- duración salida de los turnos (o NULL)
   v_piso           boolean := false;  -- se disparó el piso de plausibilidad
+  v_now_fila       timestamptz;       -- ended_at coherente con la duración
 BEGIN
   IF NOT is_admin() THEN
     RAISE EXCEPTION 'Solo un administrador puede cerrar una sesión ajena';
@@ -376,9 +377,16 @@ BEGIN
   -- los turnos juntos no es una medición corta: es una grilla que llegó
   -- completa de un saque, o timings estampados en el mismo instante. Se trata
   -- igual que la ausencia de medición y se cae al reloj, marcado.
+  -- OJO: NO se descarta la medición. La primera versión de este piso la ponía
+  -- en NULL y caía al reloj del latido, y eso EMPEORABA el dato: 45 segundos
+  -- reales de trabajo se guardaban como 360 minutos si el latido venía viejo.
+  -- Cambiar un número chico y honesto por uno grande e inventado es peor que
+  -- el problema original.
+  --
+  -- Se conserva el valor medido —que sí describe la ventana— y solo se le
+  -- quita la marca de confianza, que es lo que lo saca de los promedios.
   IF v_medida IS NOT NULL AND v_medida < 1.0 THEN
-    v_medida := NULL;
-    v_piso   := true;
+    v_piso := true;
   END IF;
 
   v_duracion := COALESCE(
@@ -402,16 +410,20 @@ BEGIN
   ELSE
     v_inicio := COALESCE(v_started_at, ci_started_from_timings(v_turno_timings), v_now);
   END IF;
+  -- Cuando el piso se disparó, la duración sigue siendo la medida, así que la
+  -- ventana tiene que terminar donde termina esa medición, no en `now()`.
+  IF v_piso THEN v_now_fila := v_inicio + (v_medida || ' minutes')::interval;
+  ELSE          v_now_fila := v_now; END IF;
 
   v_motivo := ci_duration_quality_from_timings(v_turno_timings, v_now);
   -- Si la duración NO salió de los turnos, la fila no es confiable aunque la
   -- calidad de los timings diera NULL.
   IF v_medida IS NULL THEN
-    v_motivo := COALESCE(v_motivo, CASE WHEN v_piso THEN 'duracion_de_juguete' ELSE 'reloj_latido' END);
-    -- El piso es más específico que "los turnos se veían bien": si se disparó,
-    -- gana él, para que una auditoría pueda encontrar estas filas por motivo.
-    IF v_piso THEN v_motivo := 'duracion_de_juguete'; END IF;
+    v_motivo := COALESCE(v_motivo, 'reloj_latido');
   END IF;
+  -- El piso gana sobre cualquier otro motivo: es el más específico y permite
+  -- encontrar estas filas por `duration_motivo` en una auditoría.
+  IF v_piso THEN v_motivo := 'duracion_de_juguete'; END IF;
 
   INSERT INTO ci_sessions (
     country, city, zone, observed_date, user_email,
@@ -419,7 +431,7 @@ BEGIN
     turno_timings, closed_by, duration_confiable, duration_motivo
   ) VALUES (
     p_country, p_city, p_zone, p_observed_date, p_user_email,
-    v_inicio, v_now, v_duracion,
+    v_inicio, v_now_fila, v_duracion,
     COALESCE(v_rows_saved, 0), v_total_expected,
     v_turno_timings, v_admin,
     (v_motivo IS NULL), v_motivo
@@ -444,6 +456,55 @@ REVOKE ALL ON FUNCTION public.ci_hub_daily_minutes(text, date, date) FROM PUBLIC
 GRANT EXECUTE ON FUNCTION public.ci_hub_daily_minutes(text, date, date) TO authenticated;
 REVOKE ALL ON FUNCTION public.ci_turno_minutes(text, date, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.ci_turno_minutes(text, date, date) TO authenticated;
+
+-- ── 4 · El piso vale para los DOS caminos, no solo para el admin ────────
+-- El piso de arriba vive en `admin_close_ci_session`. Pero el camino NORMAL
+-- —el hub apretando Terminar— entra por `close_ci_session`, que toma
+-- `duration_confiable` del payload del cliente, y `src/lib/sessionDuration.js`
+-- no tiene piso: un turno de 4 segundos sigue llegando como 0.1 CONFIABLE.
+--
+-- O sea que el fix anterior tapaba la puerta menos transitada. La invariante
+-- que este mismo archivo declara —"cero filas confiables con menos de 1
+-- minuto"— era falsa para el camino principal.
+--
+-- Se resuelve en el TRIGGER, que corre en todo INSERT a ci_sessions sin
+-- importar quién lo haga: cliente nuevo, cliente viejo, RPC o admin. Es el
+-- único punto por el que pasan todos.
+--
+-- Ojo con el orden: este trigger DEGRADA una marca que el cliente ya mandó, así
+-- que no puede quedarse en el `IF NEW.duration_confiable IS NULL` de la mig
+-- 199 — tiene que correr siempre.
+CREATE OR REPLACE FUNCTION public.ci_close_fill_quality()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  -- Completar lo que el cliente no mandó (mig 195/199).
+  IF NEW.duration_confiable IS NULL THEN
+    NEW.duration_motivo :=
+      ci_duration_quality_from_timings(NEW.turno_timings, NEW.ended_at);
+    NEW.duration_confiable := (NEW.duration_motivo IS NULL);
+  END IF;
+
+  -- PISO DE PLAUSIBILIDAD, para todos por igual. Un corte son 36-108 celdas:
+  -- menos de un minuto no es una medición corta, es una grilla que llegó
+  -- completa de un saque o timings estampados en el mismo instante.
+  --
+  -- NO se toca `duration_minutes`: el número sigue describiendo su ventana. Lo
+  -- que se le quita es la marca de confianza, que es lo que lo excluye de
+  -- `ci_turno_minutes` y de cualquier promedio.
+  IF NEW.duration_minutes IS NOT NULL AND NEW.duration_minutes < 1 THEN
+    NEW.duration_confiable := false;
+    NEW.duration_motivo    := 'duracion_de_juguete';
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.ci_close_fill_quality() FROM PUBLIC, anon, authenticated;
 
 COMMIT;
 
