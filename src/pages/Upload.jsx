@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { humanizeError } from '../lib/humanizeError'
 import { ClipboardList, Bot, RefreshCw, Plug, Check, X, AlertTriangle } from 'lucide-react'
 // xlsx (475 KB) se carga dinámicamente solo cuando el usuario arrastra
 // un archivo. Sin esto, todo visitante a /upload baja el chunk vendor-xlsx
@@ -339,54 +340,51 @@ export default function Upload() {
       return row
     })
 
-    // ── Paso 3: DELETE por ciudad+rango de fechas ─────────────────────────
-    // ACOTADO al Excel (uploaded_by IS NULL): así este import NO borra lo que
-    // cargaron los hubs a mano en "Ingresar CI" (esas filas llevan
-    // uploaded_by = email del hub, mig 139). El Excel solo reemplaza sus
-    // propias filas previas (y las legacy sin dueño, mayormente de Excel).
-    // Excel y hub comparten data_source='manual' y se fusionan como muestras
-    // en la MV (agrupa por data_source, no por uploaded_by) → el Excel aparece
-    // como una muestra adicional junto a la del hub, sin pisarla.
+    // ── Paso 3: DELETE + INSERT, por ciudad y EN UNA TRANSACCIÓN ──────────
+    //
+    // Antes esto eran dos cosas separadas: un bucle de DELETE por ciudad y
+    // después un bucle de INSERT por lotes, cada uno en su propia llamada HTTP.
+    // Sin transacción. Si un INSERT fallaba —una fila envenenada, un trigger,
+    // una constraint— el rango YA estaba borrado y no volvía: el usuario veía
+    // un error después de que los datos habían desaparecido.
+    //
+    // Caminos alcanzables desde esta misma pantalla que lo disparaban: cambiar
+    // el desplegable de ciudad a Corp (que reescribe `city` sin volver a correr
+    // el filtro anti-Yango y hace saltar tg_guard_corp_competitor), o una fecha
+    // imposible que los parsers dejaron pasar.
+    //
+    // `upload_pricing_batch` (mig 204) hace las dos cosas adentro de una
+    // función, o sea en UNA transacción: o queda todo, o no se toca nada. Es el
+    // mismo patrón que `save_ci_batch` usa para el camino del hub, y el que
+    // CLAUDE.md §1 nombra como canónico.
+    //
+    // El lote se manda por CIUDAD porque el rango de fechas se calcula por
+    // ciudad. La RPC rechaza un lote vacío en vez de borrar sin insertar.
+    let insertadas = 0
+
     for (const [city, { min, max }] of Object.entries(cityDateRanges)) {
-      const { error: delErr } = await sb
-        .from('pricing_observations')
-        .delete()
-        .eq('country', country)
-        .eq('city', city)
-        .eq('data_source', 'manual')
-        .is('uploaded_by', null)
-        .gte('observed_date', min)
-        .lte('observed_date', max)
-      if (delErr) {
-        setProgress((p) => ({ ...p, error: delErr.message, done: false }))
-        return
-      }
-    }
+      const filasCiudad = finalRows.filter((r) => r.city === city)
+      if (!filasCiudad.length) continue
 
-    // ── Paso 4: INSERT en lotes (Supabase aplica DEFAULT del id en la BD) ─
-    const BATCH_SIZE = 2000
-
-    for (let i = 0; i < finalRows.length; i += BATCH_SIZE) {
-      const chunk = finalRows.slice(i, i + BATCH_SIZE)
-
-      const { error } = await sb.from('pricing_observations').insert(chunk)
+      const { data, error } = await sb.rpc('upload_pricing_batch', {
+        p_country: country,
+        p_city: city,
+        p_from: min,
+        p_to: max,
+        p_rows: filasCiudad,
+      })
 
       if (error) {
-        setProgress((p) => ({ ...p, error: error.message, done: false }))
+        // Con la RPC, un error acá significa que esta ciudad quedó INTACTA.
+        setProgress((p) => ({ ...p, error: humanizeError(error), done: false }))
         return
       }
 
-      setProgress((p) => ({
-        ...p,
-        current: Math.min(i + BATCH_SIZE, finalRows.length),
-      }))
-
-      if (i + BATCH_SIZE < finalRows.length) {
-        await new Promise((r) => setTimeout(r, 150))
-      }
+      insertadas += data?.inserted ?? filasCiudad.length
+      setProgress((p) => ({ ...p, current: insertadas }))
     }
 
-    setProgress({ current: finalRows.length, total: finalRows.length, done: true, error: null })
+    setProgress({ current: insertadas, total: finalRows.length, done: true, error: null })
   }
 
   const handleClear = () => {
