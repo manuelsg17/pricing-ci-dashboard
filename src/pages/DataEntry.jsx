@@ -3277,7 +3277,22 @@ export default function DataEntry() {
       if (!silent || !actual || actual.size === 0) return { ...prev, [bucket]: newNa }
       return { ...prev, [bucket]: new Set([...newNa, ...actual]) }
     })
-    setSurgeByCity((prev) => ({ ...prev, [bucket]: newSurge }))
+    // Mismo criterio que `conservarTecleado` y que la unión de `naKeys`: un
+    // auto-load silencioso NO puede pisar una acción explícita y reciente del
+    // hub (CLAUDE.md §2). Esta línea se había quedado afuera del fix de P2-12.
+    //
+    // Importa más de lo que parece: el hub entra a una ciudad+fecha sin
+    // borrador, prende el switch de SURGE y empieza a teclear; la query resuelve
+    // 1-2 s después, las celdas se conservan pero `surge` vuelve al valor del
+    // servidor. Al guardar, TODAS las filas se estampan con surge=false, y el
+    // propio código documenta que corromper ese campo rompe en silencio el
+    // filtro SURGE del dashboard.
+    //
+    // Solo protege el `true`: si el hub lo prendió, gana él. Un "Abrir" del
+    // historial (silent=false) sigue mandando.
+    setSurgeByCity((prev) =>
+      silent && prev[bucket] === true ? prev : { ...prev, [bucket]: newSurge }
+    )
     setLoadedCombosByCity((prev) => ({ ...prev, [bucket]: combos.size ? combos : null }))
     setErrorKeysByCity((prev) => ({ ...prev, [bucket]: new Set() }))
     // En el auto-cargado silencioso (ver hidratación arriba) no hay nada que

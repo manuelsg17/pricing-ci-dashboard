@@ -16,6 +16,11 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 4px;
+  /* Sin esto, a 390px el título y los controles de semana se salían del
+     borde derecho: medido en 419px de desborde. Monitoreo entra en el alcance
+     responsive (CLAUDE.md §1). */
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .mon-panel__head h2 {
   font-size: 15px;
@@ -301,6 +306,10 @@
   font-size: 11px;
   color: var(--color-muted);
   margin-top: 3px;
+  /* La ruta es una URL con hash y sin puntos de corte: medía 666px y llevaba
+     el scrollWidth de la página a 705. `flex-wrap` en el contenedor no alcanza
+     si el hijo es indivisible. */
+  min-width: 0;
 }
 .cerr__dev {
   font-style: italic;
@@ -415,4 +424,13 @@
   .turnos__tabla td:nth-child(4) {
     display: none;
   }
+}
+
+/* El texto de la ruta en la bitácora de errores: una URL larga no puede
+   empujar la página. `.cerr__stack` ya tenía este word-break; le faltaba al
+   hermano que de hecho desbordaba. */
+.cerr__meta > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }

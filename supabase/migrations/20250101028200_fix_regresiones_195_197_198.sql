@@ -506,6 +506,50 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.ci_close_fill_quality() FROM PUBLIC, anon, authenticated;
 
+-- ── 5 · La marca de confianza también tiene que seguir al UPDATE ────────
+-- El piso del punto 4 corre BEFORE INSERT. Pero el backfill de la mig 196
+-- REESCRIBE `duration_minutes` con un UPDATE, y ahí la marca quedaba vieja: una
+-- fila que entró con 0.1 (marcada `duracion_de_juguete`, correcto) y que el
+-- backfill recalculó a 60 minutos REALES desde sus turnos seguía figurando como
+-- no confiable. El dato mejoraba y la marca no se enteraba.
+--
+-- La invariante que se quiere es una sola: `duration_confiable` describe el
+-- `duration_minutes` que la fila tiene AHORA. Así que se recalcula cuando ese
+-- valor cambia.
+--
+-- Va en un trigger aparte y no en el de INSERT porque el criterio es distinto:
+-- en el INSERT hay que RESPETAR lo que mandó el cliente (salvo el piso), y en
+-- el UPDATE no hay cliente — el único que reescribe la duración es el backfill.
+CREATE OR REPLACE FUNCTION public.ci_update_refresh_quality()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  NEW.duration_motivo :=
+    ci_duration_quality_from_timings(NEW.turno_timings, NEW.ended_at);
+  NEW.duration_confiable := (NEW.duration_motivo IS NULL);
+
+  -- El mismo piso que en el INSERT: menos de un minuto no es una medición.
+  IF NEW.duration_minutes IS NOT NULL AND NEW.duration_minutes < 1 THEN
+    NEW.duration_confiable := false;
+    NEW.duration_motivo    := 'duracion_de_juguete';
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.ci_update_refresh_quality() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_ci_update_refresh_quality ON public.ci_sessions;
+CREATE TRIGGER trg_ci_update_refresh_quality
+  BEFORE UPDATE OF duration_minutes ON public.ci_sessions
+  FOR EACH ROW
+  WHEN (OLD.duration_minutes IS DISTINCT FROM NEW.duration_minutes)
+  EXECUTE FUNCTION public.ci_update_refresh_quality();
+
 COMMIT;
 
 -- ── VERIFICACIÓN ──────────────────────────────────────────────────────
