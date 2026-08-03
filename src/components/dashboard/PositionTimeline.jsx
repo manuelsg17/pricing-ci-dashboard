@@ -21,16 +21,22 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { useI18n } from '../../context/LanguageContext'
+import { rivalsOf } from '../../lib/normalize'
 
 export default function PositionTimeline({ priceMatrix, periods, competitors, compareVs }) {
   const { t } = useI18n()
   const data = useMemo(() => {
     if (!priceMatrix || !periods?.length) return []
     const yangoComp = compareVs
+    // Sin esto, la "posición de Yango" contaba a YangoComfort como un rival más:
+    // un puesto de más en el total y, si la sub-marca era más barata, un puesto
+    // peor para Yango contra sí misma. Ver `rivalsOf` en lib/normalize.
+    const universo = new Set([yangoComp, ...rivalsOf(competitors, yangoComp)])
 
     return periods.map((p) => {
       // Para cada período, ordenamos competidores por WA
       const ranked = competitors
+        .filter((c) => universo.has(c))
         .map((c) => ({ comp: c, wa: priceMatrix[c]?.[p.key]?.['_wa'] }))
         .filter((x) => x.wa != null && x.wa > 0)
         .sort((a, b) => a.wa - b.wa)

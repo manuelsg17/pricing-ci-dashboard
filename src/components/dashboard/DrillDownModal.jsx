@@ -4,6 +4,7 @@ import { useFilterContext } from '../../context/FilterContext'
 import { useI18n } from '../../context/LanguageContext'
 import { formatCurrency } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
+import { computeEffectivePrice } from '../../algorithms/indrive'
 import { Button } from '../ui/shadcn/button'
 
 function getWeekDateRange(periodKey) {
@@ -48,19 +49,42 @@ export default function DrillDownModal({
     setLoading(true)
 
     async function load() {
-      // InDrive guarda precio en recommended_price; los demás en price_without_discount.
-      const priceField = comp === 'InDrive' ? 'recommended_price' : 'price_without_discount'
+      // ── QUÉ FILAS ENTRAN ────────────────────────────────────────────────
+      // La celda del dashboard sale de v_bracket_weekly_avg_mv, que agrega
+      // `v_effective_price` con un solo predicado:
+      //
+      //     WHERE effective_price IS NOT NULL AND effective_price > 0
+      //
+      // Este modal filtraba por otra cosa: `recommended_price NOT NULL` para
+      // InDrive y `price_without_discount NOT NULL` para el resto. Las dos
+      // divergen y en direcciones opuestas:
+      //
+      //   · InDrive con bids cargados y recommended_price nulo → la celda la
+      //     cuenta (el efectivo es el promedio de bids), el modal la escondía.
+      //   · Cualquier competidor con solo recommended_price → idem: la celda la
+      //     cuenta por el COALESCE, el modal la escondía.
+      //
+      // Acá se replica el predicado de la vista con PostgREST. `computeEffectivePrice`
+      // (algorithms/indrive.js) es el espejo en JS de la misma vista y decide qué
+      // precio se MUESTRA, así que la fila y el número que la explica salen de la
+      // misma regla.
+      const coalescePositivo =
+        'price_without_discount.gt.0,and(price_without_discount.is.null,recommended_price.gt.0)'
+      const predicado =
+        comp === 'InDrive'
+          ? `bid_1.gt.0,bid_2.gt.0,bid_3.gt.0,bid_4.gt.0,bid_5.gt.0,${coalescePositivo}`
+          : coalescePositivo
       let query = sb
         .from('pricing_observations')
         .select(
-          'observed_date, observed_time, distance_bracket, price_without_discount, price_with_discount, recommended_price, minimal_bid, surge, data_source, time_of_day',
+          'competition_name, observed_date, observed_time, distance_bracket, price_without_discount, price_with_discount, recommended_price, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, surge, data_source, time_of_day',
           { count: 'exact' }
         )
         .eq('country', filters.country)
         .eq('city', filters.dbCity)
         .eq('category', filters.dbCategory)
         .eq('competition_name', comp)
-        .not(priceField, 'is', null)
+        .or(predicado)
         .order('observed_date')
         .order('observed_time')
         .limit(500)
@@ -231,8 +255,10 @@ export default function DrillDownModal({
               </span>
               <span>
                 {(() => {
+                  // El mismo precio efectivo que agregó la celda — no el campo
+                  // crudo, que para InDrive no es el que se promedió.
                   const prices = rows
-                    .map((r) => Number(r.price_without_discount ?? r.recommended_price))
+                    .map((r) => Number(computeEffectivePrice(r)))
                     .filter((p) => !isNaN(p) && p > 0)
                   if (!prices.length) return null
                   const avg = prices.reduce((a, b) => a + b, 0) / prices.length
@@ -308,7 +334,7 @@ export default function DrillDownModal({
                       }}
                     >
                       {(() => {
-                        const p = r.price_without_discount ?? r.recommended_price
+                        const p = computeEffectivePrice(r)
                         return p != null ? formatCurrency(p, currency) : '—'
                       })()}
                     </td>

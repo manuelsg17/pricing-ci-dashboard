@@ -18,7 +18,7 @@ import BotCoverageCard from '../components/dashboard/BotCoverageCard'
 import RepresentativityCard from '../components/dashboard/RepresentativityCard'
 import WhatIfSimulator from '../components/dashboard/WhatIfSimulator'
 import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
-import { prettyCompetitor } from '../lib/normalize'
+import { prettyCompetitor, rivalsOf } from '../lib/normalize'
 import { useI18n } from '../context/LanguageContext'
 import { useFilterContext } from '../context/FilterContext'
 import { useConfigContext } from '../context/ConfigProvider'
@@ -309,7 +309,17 @@ function DashboardContent() {
       }
     }
 
+    // El universo de la comparación: la base + sus rivales REALES.
+    //
+    // `rivalsOf` saca del set a las otras marcas Yango cuando la base es Yango
+    // (mismo criterio que la base con `!~~* 'Yango%'`, mig 163). Antes acá se
+    // filtraba solo `!== compareVs`, así que 'YangoComfort' entraba como rival:
+    // Yango podía perder el "Líder de mercado" contra sí misma, el ranking
+    // contaba una posición de más, y el promedio de la competencia quedaba
+    // contaminado con el precio de una marca propia.
+    const rivales = new Set(rivalsOf(filters.competitors, yangoComp))
     const compPrices = filters.competitors
+      .filter((c) => c === yangoComp || rivales.has(c))
       .map((c) => ({ comp: c, wa: priceMatrix[c]?.[latestKey]?.['_wa'] ?? null }))
       .filter((x) => x.wa != null)
       .sort((a, b) => a.wa - b.wa)
@@ -345,7 +355,7 @@ function DashboardContent() {
       const yWa = priceMatrix[yangoComp]?.[p.key]?.['_wa']
       if (yWa == null) continue
       const others = filters.competitors
-        .filter((c) => c !== yangoComp)
+        .filter((c) => rivales.has(c))
         .map((c) => priceMatrix[c]?.[p.key]?.['_wa'])
         .filter((v) => v != null)
       if (!others.length) continue

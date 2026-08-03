@@ -575,6 +575,31 @@ export default function DataEntry() {
     return clusters
   }, [uiCities, countryConfig])
 
+  // uiCity → bucketKey. Para toda vista que no sea TukTuk, `bucketKey` es el
+  // dbCity (ver su definición arriba), y el dbCity NO siempre es igual al uiCity:
+  // 'Bogotá' ↔ 'Bogota', y un aeropuerto nuevo con acento tendría el mismo
+  // desfasaje.
+  //
+  // POR QUÉ EXISTE: el alcance de la sesión (`pendingScopeMembers`) se PRODUCÍA
+  // en espacio uiCity y se CONSUMÍA en espacio bucketKey. Hoy no se nota porque
+  // en el catálogo actual los aeropuertos tienen uiCity === dbCity
+  // ('Lima_Airport_A'), pero el día que se onboardee un aeropuerto cuyo nombre
+  // visible no coincida con el de BD, "Ambos" declararía dos frentes que
+  // `handleFinishSession` no va a reconocer al cerrarlos: la sesión no cerraría
+  // nunca y el hub quedaría con un pendiente fantasma.
+  const uiCityToBucketKey = useMemo(() => {
+    const m = {}
+    for (const c of uiCities) {
+      const cats = countryConfig.categoriesByCity[c] || []
+      const { dbCity: dc } = resolveDbParams(c, cats[0] || '', null, country, dbConfigs)
+      m[c] = dc || c
+    }
+    return m
+  }, [uiCities, countryConfig, country, dbConfigs])
+
+  // Traduce en los dos sentidos sin romperse si el mapa todavía no cargó.
+  const bucketKeyOf = useCallback((ui) => uiCityToBucketKey[ui] ?? ui, [uiCityToBucketKey])
+
   const activeAirportMembers = useMemo(() => {
     if (isTukTuk) return null
     for (const cl of cityClusters)
@@ -589,9 +614,15 @@ export default function DataEntry() {
   // vista actual, igual que antes de este cambio.
   const resolvedStartMembers = activeAirportMembers
     ? scopeChoice === 'both'
-      ? activeAirportMembers.map((m) => m.uiCity)
+      ? // `bucketKeyOf`, no `m.uiCity` a secas: TODO el alcance vive en espacio
+        // bucketKey, que es contra lo que compara `handleFinishSession`
+        // (`pendingScopeMembers.filter((m) => m !== bucketKey)`) y también
+        // `isDeclaredMember` y los efectos de registro de frentes. Con el
+        // catálogo de hoy es la identidad; el día que deje de serlo, esta línea
+        // es la diferencia entre una sesión que cierra y una que no.
+        activeAirportMembers.map((m) => bucketKeyOf(m.uiCity))
       : scopeChoice
-        ? [scopeChoice]
+        ? [bucketKeyOf(scopeChoice)]
         : null
     : // Espacio bucketKey, NO uiCity (bug real hallado en revisión adversarial
       // 2026-07-24): en TukTuk el uiCity es la ciudad BASE ('Lima'), la misma
@@ -2965,8 +2996,13 @@ export default function DataEntry() {
       // "siguiente" obvio (no es A→B) — se deja que el hub elija a qué
       // distrito ir; el aviso de abajo (`pendingExtraFronts.length > 0`)
       // se lo recuerda.
-      const nextUi = remainingAfterThis[0]
-      setUiCity(nextUi)
+      // `remainingAfterThis` sale de `pendingScopeMembers`, que está en espacio
+      // bucketKey; `setUiCity` espera un uiCity. Pasarle el bucketKey directo
+      // dejaba la app en una "ciudad" que no existe en el catálogo: grilla
+      // vacía, y el latido reportando a Monitoreo una ciudad inventada.
+      // Invisible hoy porque para los aeropuertos actuales los dos coinciden.
+      const nextBucket = remainingAfterThis[0]
+      setUiCity(dbCityToUiCity[nextBucket] ?? nextBucket)
       setActiveTukTuk(null)
     }
   }
@@ -3482,7 +3518,7 @@ export default function DataEntry() {
   const scopeLabel =
     activeAirportMembers && pendingScopeMembers.length
       ? activeAirportMembers
-          .filter((m) => pendingScopeMembers.includes(m.uiCity))
+          .filter((m) => pendingScopeMembers.includes(bucketKeyOf(m.uiCity)))
           .map((m) => m.side)
           .join('+')
       : null
@@ -3815,8 +3851,9 @@ export default function DataEntry() {
                         // Punto B estaba bloqueado por su propio candado.
                         setUiCity(
                           (
-                            tb.members.find((m) => pendingScopeMembers.includes(m.uiCity)) ||
-                            tb.members[0]
+                            tb.members.find((m) =>
+                              pendingScopeMembers.includes(bucketKeyOf(m.uiCity))
+                            ) || tb.members[0]
                           ).uiCity
                         )
                         setActiveTukTuk(null)
@@ -3868,10 +3905,12 @@ export default function DataEntry() {
             {activeAirportMembers.map((m) => {
               const n = countAllFilled(entriesByCity[m.uiCity], indriveByCity[m.uiCity])
               const scopeOwnsThisCluster = activeAirportMembers.some((mm) =>
-                pendingScopeMembers.includes(mm.uiCity)
+                pendingScopeMembers.includes(bucketKeyOf(mm.uiCity))
               )
               const locked =
-                sessionActive && scopeOwnsThisCluster && !pendingScopeMembers.includes(m.uiCity)
+                sessionActive &&
+                scopeOwnsThisCluster &&
+                !pendingScopeMembers.includes(bucketKeyOf(m.uiCity))
               const here = presenceFor(m.uiCity, null)
               return (
                 <button
@@ -3912,8 +3951,12 @@ export default function DataEntry() {
                 arriba, mismo browser-test). */}
             {sessionActive &&
               pendingScopeMembers.length === 1 &&
-              activeAirportMembers.some((m) => pendingScopeMembers.includes(m.uiCity)) &&
-              activeAirportMembers.some((m) => !pendingScopeMembers.includes(m.uiCity)) && (
+              activeAirportMembers.some((m) =>
+                pendingScopeMembers.includes(bucketKeyOf(m.uiCity))
+              ) &&
+              activeAirportMembers.some(
+                (m) => !pendingScopeMembers.includes(bucketKeyOf(m.uiCity))
+              ) && (
                 <button
                   type="button"
                   className="de-scope-expand"

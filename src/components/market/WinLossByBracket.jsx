@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import { rivalsOf } from '../../lib/normalize'
 
 export default function WinLossByBracket({
   priceMatrix = {},
@@ -11,12 +12,18 @@ export default function WinLossByBracket({
   const { t } = useI18n()
   const grid = useMemo(() => {
     if (!periods?.length || !competitors?.length) return []
+    // Un bracket donde la más barata era 'YangoComfort' se contaba como DERROTA
+    // de Yango. Perder contra una marca propia no es perder: `rivalsOf` deja
+    // afuera a las sub-marcas cuando la base es Yango (mismo criterio que la
+    // base, mig 163).
+    const universo = new Set([compareVs, ...rivalsOf(competitors, compareVs)])
     return periods.map((p) => {
       const wins = {}
       let totalChecked = 0
       let totalWon = 0
       for (const b of BRACKETS) {
         const arr = competitors
+          .filter((c) => universo.has(c))
           .map((c) => ({ comp: c, price: priceMatrix?.[c]?.[p.key]?.[b] }))
           .filter((x) => x.price != null)
         if (arr.length < 2) {

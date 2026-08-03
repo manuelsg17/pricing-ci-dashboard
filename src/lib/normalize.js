@@ -20,7 +20,10 @@
  */
 export function toSnakeCase(input) {
   if (input == null) return ''
-  return String(input).trim().toLowerCase().replace(/[\s-]+/g, '_')
+  return String(input)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
 }
 
 /**
@@ -32,7 +35,9 @@ export function toSnakeCase(input) {
  */
 export function stripAccents(input) {
   if (input == null) return ''
-  return String(input).normalize('NFD').replace(/\p{Mn}/gu, '')
+  return String(input)
+    .normalize('NFD')
+    .replace(/\p{Mn}/gu, '')
 }
 
 /**
@@ -83,11 +88,11 @@ export function normalizeBracket(input) {
 // porque el canónico de Yango en Economy/Comfort es 'Yango'; las variantes
 // como 'YangoComfort' nunca llegan en minúsculas a este diccionario.
 const UNIVERSAL_CASING = {
-  uber:    'Uber',
-  yango:   'Yango',
-  didi:    'Didi',
+  uber: 'Uber',
+  yango: 'Yango',
+  didi: 'Didi',
   indrive: 'InDrive',
-  cabify:  'Cabify',
+  cabify: 'Cabify',
 }
 
 // Aliases válidos sólo para city='Corp'. Las claves son la versión
@@ -100,33 +105,33 @@ const UNIVERSAL_CASING = {
 // Para mostrar "Yango Premier" con espacio en la UI, usar
 // prettyCompetitor() — separa storage canónico de presentación.
 const CORP_ALIAS_FINGERPRINTS = {
-  yangoeconomy:           'YangoEconomy',
-  yangocomfort:           'YangoComfort',
-  'yangocomfort+':        'YangoComfort+',
-  yangocomfortplus:       'YangoComfort+',
+  yangoeconomy: 'YangoEconomy',
+  yangocomfort: 'YangoComfort',
+  'yangocomfort+': 'YangoComfort+',
+  yangocomfortplus: 'YangoComfort+',
   // Mig 97 (2026-05-27): stakeholder confirma que YangoPlus es producto
   // independiente, NO alias de Comfort+. Ahora se preserva su identidad.
-  yangoplus:              'YangoPlus',
-  yangopremier:           'YangoPremier',
-  yangoxl:                'YangoXL',
-  cabifylite:             'CabifyLite',
-  cabifyextracomfort:     'CabifyExtraComfort',
-  cabifyxl:               'CabifyXL',
+  yangoplus: 'YangoPlus',
+  yangopremier: 'YangoPremier',
+  yangoxl: 'YangoXL',
+  cabifylite: 'CabifyLite',
+  cabifyextracomfort: 'CabifyExtraComfort',
+  cabifyxl: 'CabifyXL',
 }
 
 // Mapeo inverso: canónico pegado → display con espacios. Sólo para
 // renderizado (headers, leyendas, tooltips, PDF). NUNCA persistir.
 const CORP_DISPLAY_NAMES = {
-  YangoEconomy:        'Yango Economy',
-  YangoComfort:        'Yango Comfort',
-  'YangoComfort+':     'Yango Comfort+',
-  YangoPremier:        'Yango Premier',
-  YangoXL:             'Yango XL',
-  YangoPlus:           'Yango Plus',
-  Cabify:              'Cabify',
-  CabifyLite:          'Cabify Lite',
-  CabifyExtraComfort:  'Cabify Extra Comfort',
-  CabifyXL:            'Cabify XL',
+  YangoEconomy: 'Yango Economy',
+  YangoComfort: 'Yango Comfort',
+  'YangoComfort+': 'Yango Comfort+',
+  YangoPremier: 'Yango Premier',
+  YangoXL: 'Yango XL',
+  YangoPlus: 'Yango Plus',
+  Cabify: 'Cabify',
+  CabifyLite: 'Cabify Lite',
+  CabifyExtraComfort: 'Cabify Extra Comfort',
+  CabifyXL: 'Cabify XL',
 }
 
 /**
@@ -155,6 +160,56 @@ export function prettyCompetitor(comp) {
  */
 function fingerprint(s) {
   return String(s).toLowerCase().replace(/\s+/g, '').trim()
+}
+
+/**
+ * ¿Este competition_name es una marca Yango (cualquier sub-marca) o un rival?
+ *
+ * Espejo EXACTO del predicado que usa la base para armar el lado rival de los
+ * agregados (mig 163, `v_yango_rival_diff`):
+ *
+ *     WHERE v.competition_name !~~* 'Yango%'
+ *
+ * `!~~*` es `NOT ILIKE`, o sea prefijo 'yango' sin distinguir mayúsculas. Cubre
+ * las dos convenciones que conviven en la tabla: la pegada de Economy/Comfort
+ * ('YangoComfort', 'YangoPlus', 'YangoXL') y la separada de Corp
+ * ('Yango Comfort', 'Yango Premier').
+ *
+ * POR QUÉ EXISTE, en una línea: el cliente comparaba contra `compareVs` a secas,
+ * así que 'YangoComfort' entraba al promedio de la competencia, al ranking y al
+ * "líder de mercado" — Yango compitiendo contra sí misma. La base nunca lo hizo;
+ * la divergencia era solo del lado del dashboard.
+ *
+ * OJO: esto NO reemplaza a `compareVs`. Un usuario puede elegir deliberadamente
+ * a Uber como base de comparación, y en ese caso las marcas Yango sí son sus
+ * rivales. Ver `rivalsOf()`.
+ *
+ *   isYangoBrand('Yango')          === true
+ *   isYangoBrand('YangoComfort')   === true
+ *   isYangoBrand('Yango Comfort')  === true
+ *   isYangoBrand('yangoplus')      === true
+ *   isYangoBrand('Uber')           === false
+ *   isYangoBrand(null)             === false
+ */
+export function isYangoBrand(comp) {
+  if (comp == null) return false
+  return String(comp).trim().toLowerCase().startsWith('yango')
+}
+
+/**
+ * El set rival de una base de comparación, con el mismo criterio que la base.
+ *
+ * Si la base es una marca Yango, ninguna otra marca Yango es rival (es la misma
+ * empresa). Si la base es un competidor real, se excluye solo a sí misma — un
+ * análisis "Uber vs el resto" sí tiene que ver a Yango del otro lado.
+ *
+ *   rivalsOf(['Yango','YangoComfort','Uber','Didi'], 'Yango') → ['Uber','Didi']
+ *   rivalsOf(['Yango','YangoComfort','Uber','Didi'], 'Uber')  → ['Yango','YangoComfort','Didi']
+ */
+export function rivalsOf(competitors, base) {
+  if (!Array.isArray(competitors)) return []
+  const baseEsYango = isYangoBrand(base)
+  return competitors.filter((c) => c !== base && !(baseEsYango && isYangoBrand(c)))
 }
 
 /**

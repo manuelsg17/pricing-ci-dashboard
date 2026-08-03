@@ -46,6 +46,10 @@ export default function TurnoTimesPanel() {
     if (!country) return
     setLoading(true)
     setFailed(false)
+    // Sin este reset, cambiar el rango de 30 a 7 días y que la consulta falle
+    // dejaba en pantalla el número de excluidas del rango ANTERIOR, atribuido
+    // al nuevo. Un dato viejo con etiqueta nueva es peor que ningún dato.
+    setExcluidas(null)
 
     const hasta = new Date()
     const desde = new Date(hasta.getTime() - dias * 86400000)
@@ -69,7 +73,11 @@ export default function TurnoTimesPanel() {
       setFilas([])
     } else {
       setFilas(turnos.data || [])
-      setExcluidas(calidad.error ? null : (calidad.count ?? 0))
+      // `false` ≠ `null`: si el conteo falla, la tabla de arriba SIGUE mostrando
+      // medianas y promedios, así que callarse cuántas sesiones quedaron afuera
+      // es justo lo contrario de lo que este panel promete. Se distingue
+      // "no se pudo calcular" de "todavía no cargó".
+      setExcluidas(calidad.error ? false : (calidad.count ?? 0))
     }
     setLoading(false)
   }, [country, dias])
@@ -133,10 +141,13 @@ export default function TurnoTimesPanel() {
         </table>
       )}
 
-      {/* Lo excluido se dice SIEMPRE, incluso cuando es 0. Es la diferencia
-          entre "confiá en este número" y "confiá en este número y acá está
-          por qué". */}
-      {excluidas != null && (
+      {/* Lo excluido se dice SIEMPRE, incluso cuando es 0 y cuando no se pudo
+          contar. Es la diferencia entre "confiá en este número" y "confiá en
+          este número y acá está por qué". */}
+      {excluidas === false && (
+        <p className="turnos__excluidas is-warn">{t('turnos.excluded_unknown')}</p>
+      )}
+      {typeof excluidas === 'number' && (
         <p className={`turnos__excluidas${excluidas > 0 ? ' is-warn' : ''}`}>
           {excluidas > 0 ? t('turnos.excluded', { n: excluidas }) : t('turnos.none_excluded')}
         </p>

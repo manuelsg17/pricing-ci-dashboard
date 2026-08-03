@@ -98,7 +98,16 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
     })
     if (error) {
       setReassigningKey(null)
-      window.alert(t('monitoring.reassign_error'))
+      // La mig 207 rechaza destinos que no existen, están dados de baja, o no
+      // tienen el país. Ese caso NO es un fallo del sistema sino un dato mal
+      // tipeado, y decirlo así es la diferencia entre corregir la letra y
+      // llamar a soporte. El mensaje genérico queda para todo lo demás.
+      const esDestinoInvalido = /invalid_input/.test(String(error.message || ''))
+      window.alert(
+        esDestinoInvalido
+          ? t('monitoring.reassign_invalid_target', { to })
+          : t('monitoring.reassign_error')
+      )
       return
     }
     setClosedKeys((prev) => new Set(prev).add(key))

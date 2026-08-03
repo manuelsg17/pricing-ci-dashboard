@@ -394,6 +394,8 @@ export const TRANSLATIONS = {
     'monitoring.reassign_confirm':
       '¿Reasignar el trabajo guardado de {from} a {to}? Se transfiere lo ya guardado y, si {from} seguía con la sesión activa, se cierra.',
     'monitoring.reassign_error': 'No se pudo reasignar. Revisá el email o probá de nuevo.',
+    'monitoring.reassign_invalid_target':
+      '{to} no es un hub activo con acceso a este país. Revisá el email en Accesos — no se movió ninguna fila.',
     'monitoring.reassign_success': 'Reasignado a {to}.',
     'monitoring.col_zone': 'Distrito',
     'monitoring.freshness_title': 'Última sesión',
@@ -664,6 +666,8 @@ export const TRANSLATIONS = {
     'turnos.excluded':
       '{n} sesión(es) quedaron fuera del cálculo porque no se pudieron medir bien (turno sin cerrar, o más de 4h seguidas).',
     'turnos.none_excluded': 'Todas las sesiones del período se pudieron medir bien.',
+    'turnos.excluded_unknown':
+      'No se pudo contar cuántas sesiones quedaron fuera del cálculo — los números de arriba pueden estar apoyados en menos muestras de las que parece.',
     'turnos.failed': 'No se pudo calcular el tiempo por turno.',
     // ── Errores del cliente (mig 185) ──────────────────────────────
     'errors.title': 'Errores detectados',
@@ -2745,6 +2749,8 @@ export const TRANSLATIONS = {
     'monitoring.reassign_confirm':
       "Reassign {from}'s saved work to {to}? What's already saved gets transferred, and if {from} still had an active session, it gets closed.",
     'monitoring.reassign_error': "Couldn't reassign. Check the email or try again.",
+    'monitoring.reassign_invalid_target':
+      '{to} is not an active hub with access to this country. Check the email in Access — no rows were moved.',
     'monitoring.reassign_success': 'Reassigned to {to}.',
     'monitoring.col_zone': 'District',
     'monitoring.freshness_title': 'Last session',
@@ -3010,6 +3016,8 @@ export const TRANSLATIONS = {
     'turnos.excluded':
       '{n} session(s) were left out because they could not be measured properly (shift left open, or over 4h straight).',
     'turnos.none_excluded': 'Every session in this period could be measured properly.',
+    'turnos.excluded_unknown':
+      "Couldn't count how many sessions were left out of the calculation — the numbers above may rest on fewer samples than they look.",
     'turnos.failed': 'Could not compute time per shift.',
     // ── Client errors (mig 185) ────────────────────────────────────
     'errors.title': 'Errors detected',
@@ -5072,6 +5080,8 @@ export const TRANSLATIONS = {
       'Переназначить сохранённую работу {from} на {to}? Уже сохранённое передаётся, и если у {from} сессия ещё активна — она закроется.',
     'monitoring.reassign_error':
       'Не удалось переназначить. Проверьте email или попробуйте ещё раз.',
+    'monitoring.reassign_invalid_target':
+      '{to} — не активный хаб с доступом к этой стране. Проверьте email в разделе «Доступы»: ни одна строка не перенесена.',
     'monitoring.reassign_success': 'Переназначено на {to}.',
     'monitoring.col_zone': 'Район',
     'monitoring.freshness_title': 'Последняя сессия',
@@ -5337,6 +5347,8 @@ export const TRANSLATIONS = {
     'turnos.excluded':
       '{n} сессий не вошли в расчёт: их не удалось корректно измерить (смена не закрыта или более 4 ч подряд).',
     'turnos.none_excluded': 'Все сессии периода удалось корректно измерить.',
+    'turnos.excluded_unknown':
+      'Не удалось подсчитать, сколько сессий не вошло в расчёт — цифры выше могут опираться на меньшее число наблюдений, чем кажется.',
     'turnos.failed': 'Не удалось рассчитать время по сменам.',
     // ── Ошибки клиента (mig 185) ───────────────────────────────────
     'errors.title': 'Обнаружены ошибки',

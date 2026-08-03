@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
+import { rivalsOf } from '../../lib/normalize'
 
 // z-score sobre rolling mean. Devuelve top N anomalías.
 export default function AnomalyDigest({
@@ -55,8 +56,16 @@ export default function AnomalyDigest({
     // detectar pérdida/ganancia de rank (Yango)
     if (lastIdx >= 1) {
       const prevPeriod = periods[lastIdx - 1]
+      // El ranking va contra los rivales REALES. Con las sub-marcas Yango
+      // adentro, un movimiento de precio de YangoComfort se reportaba como
+      // "Yango perdió una posición" (ver `rivalsOf` en lib/normalize).
+      // El barrido de anomalías de precio de arriba SÍ recorre todas las
+      // marcas: una anomalía en el precio de una sub-marca propia igual
+      // interesa, lo que no corresponde es contarla como rival en el ranking.
+      const universo = new Set([compareVs, ...rivalsOf(competitors, compareVs)])
       const rankAt = (key) => {
         const arr = competitors
+          .filter((c) => universo.has(c))
           .map((c) => ({ comp: c, wa: priceMatrix?.[c]?.[key]?.['_wa'] }))
           .filter((x) => x.wa != null)
           .sort((a, b) => a.wa - b.wa)
