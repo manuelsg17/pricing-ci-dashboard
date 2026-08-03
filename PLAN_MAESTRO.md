@@ -5,8 +5,9 @@
 > es el **Bloque 1**: aplicar a producción exige tu autorización explícita para
 > cada migración (CLAUDE.md §3), y una instrucción general no la cubre.
 >
-> **Migraciones escritas y probadas en local, esperando tu OK: 200, 201, 202,
-> 203, 204.**
+> **✅ APLICADO A PRODUCCIÓN el 2026-08-03: migraciones 200, 201, 202, 203, 204
+> y 205, más el merge del frontend a `main` (deploy publicado
+> `builtAt 2026-08-03T11:35:08Z`).** El orden fue base primero, cliente después.
 
 ## Lo implementado en la corrida nocturna
 
