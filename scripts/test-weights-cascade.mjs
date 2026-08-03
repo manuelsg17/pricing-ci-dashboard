@@ -101,6 +101,51 @@ const dbWeights = [
   assert(typeof m2 === 'object' && Object.keys(m2).length === 0, 'undefined tolerado')
 }
 
+
+// ── El país tiene que filtrar ANTES que la cascada ───────────────────────
+//
+// ConfigProvider trae bracket_weights de los 6 países sin .eq('country') y sin
+// ORDER BY. Sin filtrar por país, la cascada caía al nivel ('all','all') —que
+// matchea en TODOS a la vez— y el reduce se quedaba con el ÚLTIMO que
+// devolviera Postgres. O sea que Colombia usaba los pesos de otro país, y de
+// forma no determinística. Medido: 4,02% de diferencia.
+console.log('\n[país] la cascada no puede mezclar países')
+{
+  const mezcla = [
+    { country: 'Peru', city: 'all', category: 'all', bracket: 'very_short', weight: 0.0983 },
+    { country: 'Peru', city: 'all', category: 'all', bracket: 'short', weight: 0.1967 },
+    { country: 'Colombia', city: 'all', category: 'all', bracket: 'very_short', weight: 0.1 },
+    { country: 'Colombia', city: 'all', category: 'all', bracket: 'short', weight: 0.2 },
+  ]
+  const co = buildWeightsMap(mezcla, 'Bogota', 'all', 'Colombia')
+  assert(co.very_short === 0.1, 'Colombia usa SUS pesos, no los de Perú')
+  assert(co.short === 0.2, 'Colombia usa sus pesos también en short')
+
+  const pe = buildWeightsMap(mezcla, 'Lima', 'all', 'Peru')
+  assert(pe.very_short === 0.0983, 'Perú sigue usando los suyos')
+
+  // El orden del array no puede cambiar el resultado: antes sí lo hacía.
+  const alReves = [...mezcla].reverse()
+  const co2 = buildWeightsMap(alReves, 'Bogota', 'all', 'Colombia')
+  assert(co2.very_short === 0.1, 'el resultado no depende del orden de las filas')
+
+  // Un país sin pesos propios NO hereda los de otro.
+  const vacio = buildWeightsMap(mezcla, 'La Paz', 'all', 'Bolivia')
+  assert(Object.keys(vacio).length === 0, 'un país sin pesos propios devuelve {} y cae al DEFAULT')
+
+  // Retrocompat: las filas sin `country` (LEGACY_WEIGHTS_PE) siguen entrando.
+  const legacy = [{ city: 'all', category: 'all', bracket: 'very_short', weight: 0.5 }]
+  assert(
+    buildWeightsMap(legacy, 'Lima', 'all', 'Peru').very_short === 0.5,
+    'las filas sin country se aceptan siempre (arreglos hardcodeados)'
+  )
+  // Y sin pasar country, el comportamiento viejo no cambia.
+  assert(
+    buildWeightsMap(mezcla, 'Bogota', 'all').very_short !== undefined,
+    'sin country se conserva el comportamiento anterior'
+  )
+}
+
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)
 if (fail > 0) {
   console.log('\nFallidos:')

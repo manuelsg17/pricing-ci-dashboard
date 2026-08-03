@@ -45,6 +45,8 @@ Tres cosas que conviene tener presentes antes de leer el resto:
 | `check:rls-drift` ciego a `FOR ALL`                                      | `check-rls-policy-drift.sql`                 |
 | Detector nuevo de RPCs alcanzables por anon                              | `check:anon-rpcs`                            |
 | Simulaciones que validaban la fuga                                       | `simulate-adversarial`, `simulate-hub-daily` |
+| **Bloque 3 entero** — los 4 defectos de Upload                           | migs **203/204** + `uploadParsers.js`        |
+| **Bloque 4.1 y 4.2** — tope de 1.000 filas y pesos por país              | `usePricingData.js`, `weightedAverage.js`    |
 | Un hub sin secciones borraba los ~150.000 registros del bot              | mig **203**                                  |
 | La clave cruda `dashboard.chart.week` mostrada al usuario                | `i18n.js`, 3 locales                         |
 
@@ -136,7 +138,7 @@ la 201: los emails ya eran visibles por diseño. Decidir si es intencional.
 
 ---
 
-## BLOQUE 3 — Upload: el camino que puede destruir datos sin avisar
+## BLOQUE 3 — ✅ RESUELTO (migs 203/204 + parsers)
 
 **Por qué acá:** es el único camino de escritura masiva que **no** usa RPC, y
 por lo tanto el único sin transacción. Cuatro defectos que se componen.
@@ -156,13 +158,13 @@ transaccional, como ya hace `save_ci_batch`. Es el patrón canónico del repo
 
 ## BLOQUE 4 — El Dashboard muestra números equivocados
 
-### 4.1 · La vista Histórica pierde competidores enteros
+### 4.1 · ✅ RESUELTO — paginación de RPC
 
 3.120 filas pedidas contra el tope de 1.000 de PostgREST, sin paginar. Yango no
 entra. Los KPIs muestran `—` o el líder equivocado, indistinguible de "no hay
 datos". El repo **ya tiene** el patrón correcto en `fetchAllObservations.js`.
 
-### 4.2 · Todo país que no sea Perú usa los pesos de otro país
+### 4.2 · ✅ RESUELTO — `buildWeightsMap` filtra por país
 
 `buildWeightsMap` no recibe `country` y `ConfigProvider` trae los pesos de los 6
 países sin filtrar ni ordenar. Gana el último que devuelva Postgres. **4,02% de
