@@ -218,15 +218,15 @@ dato de negocio**.
 god-component de 4.200 líneas y cada cambio ahí arriesga los fixes de re-render
 ya hechos (§5). Merecen una sesión propia, con verificación en navegador.
 
-| #   | Qué pasa                                                                                                                                                                                                                   |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.1 | **El candado de pestañas queda degradado para siempre** si el hub hace alt-tab al simulador del competidor. Sin autosave, sin flush: lo que teclee se pierde. Hay banner, pero el trabajo ya no está en disco.             |
-| 6.2 | **La traza de actividad no sobrevive al F5** y todo lo anterior se reporta como ocio, marcado como medición buena. Un F5 a las 12:30 de 3 horas escribe `active=30 / idle=150`.                                            |
-| 6.3 | **`discardDraft` filtra por `uiCity`** donde el alcance vive en `bucketKey`. Rompe TukTuk y toda ciudad con `uiName ≠ dbName` (Bogotá). La sesión no cierra nunca. _Aeropuerto funciona_ — corrección a un reporte previo. |
-| 6.4 | **`handleFinishSession` hace `setUiCity` con un `bucketKey`** → grilla vacía y una ciudad inexistente escrita en el latido.                                                                                                |
-| 6.5 | **`resolvedStartMembers` declara el alcance en `uiCity`** y se cierra en `bucketKey`. Latente hoy; P1 el día que se onboardee un aeropuerto con acento.                                                                    |
-| 6.6 | **El auto-load pisa el flag `surge`** del hub — el mismo P2-12 arreglado para las celdas, sin arreglar para `surge`.                                                                                                       |
-| 6.7 | **P1-9**: el auto-reload por deploy a los 60s. La mitad grave ya la cubre el fix del F5; queda la molestia.                                                                                                                |
+| #   | Qué pasa                                                                                                                                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 6.1 | ✅ RESUELTO — **El candado de pestañas quedaba degradado para siempre** si el hub hace alt-tab al simulador del competidor. Sin autosave, sin flush: lo que teclee se pierde. Hay banner, pero el trabajo ya no está en disco.             |
+| 6.2 | ✅ RESUELTO — **La traza de actividad no sobrevivía al F5** y todo lo anterior se reporta como ocio, marcado como medición buena. Un F5 a las 12:30 de 3 horas escribe `active=30 / idle=150`.                                             |
+| 6.3 | ✅ RESUELTO — **`discardDraft` filtraba por `uiCity`** donde el alcance vive en `bucketKey`. Rompe TukTuk y toda ciudad con `uiName ≠ dbName` (Bogotá). La sesión no cierra nunca. _Aeropuerto funciona_ — corrección a un reporte previo. |
+| 6.4 | **`handleFinishSession` hace `setUiCity` con un `bucketKey`** → grilla vacía y una ciudad inexistente escrita en el latido.                                                                                                                |
+| 6.5 | **`resolvedStartMembers` declara el alcance en `uiCity`** y se cierra en `bucketKey`. Latente hoy; P1 el día que se onboardee un aeropuerto con acento.                                                                                    |
+| 6.6 | **El auto-load pisa el flag `surge`** del hub — el mismo P2-12 arreglado para las celdas, sin arreglar para `surge`.                                                                                                                       |
+| 6.7 | **P1-9**: el auto-reload por deploy a los 60s. La mitad grave ya la cubre el fix del F5; queda la molestia.                                                                                                                                |
 
 ---
 
