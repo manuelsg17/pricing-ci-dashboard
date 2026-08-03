@@ -63,7 +63,8 @@
     "simulate:rpcs-lectura": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-rpcs-lectura-cruzada.sql",
     "simulate:reasignar": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-reasignar-destino.sql",
     "test:i18n-parity": "node scripts/test-i18n-parity.mjs",
-    "simulate:save-ci-batch": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-save-ci-batch-definer.sql"
+    "simulate:save-ci-batch": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-save-ci-batch-definer.sql",
+    "simulate:upload-aeropuerto": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-upload-aeropuerto.sql"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

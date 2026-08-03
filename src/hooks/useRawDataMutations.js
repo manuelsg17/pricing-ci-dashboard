@@ -39,14 +39,31 @@ export function useRawDataMutations({
       confirmText: t('app.delete'),
     })
     if (!ok) return
-    const { error: delErr } = await sb.from('pricing_observations').delete().eq('id', id)
-    if (!delErr) {
-      setRows((prev) => prev.filter((r) => r.id !== id))
-      setTotal((prev) => prev - 1)
-      toast.ok(t('rawdata.deleted_toast'))
-    } else {
+    // `.select()` NO es decorativo acá: sin él, un DELETE que RLS filtra vuelve
+    // como 204 sin error y sin filas, y `if (!delErr)` lo leía como éxito —
+    // la fila desaparecía de la pantalla, el total bajaba, salía el toast verde,
+    // y en la base seguía intacta. Reaparecía al recargar, sin explicación.
+    //
+    // Dejó de ser un caso raro con la mig 203: las filas `uploaded_by IS NULL`
+    // (el bot y el histórico) ahora exigen la sección `upload`, y esta pantalla
+    // no es adminOnly. Un hub sin esa sección ve el fallo como éxito en cada
+    // borrado de una fila del bot.
+    const { data: borradas, error: delErr } = await sb
+      .from('pricing_observations')
+      .delete()
+      .eq('id', id)
+      .select('id')
+    if (delErr) {
       toast.err(t('rawdata.delete_error', { msg: delErr.message }))
+      return
     }
+    if (!borradas || borradas.length === 0) {
+      toast.err(t('rawdata.delete_denied'))
+      return
+    }
+    setRows((prev) => prev.filter((r) => r.id !== id))
+    setTotal((prev) => prev - 1)
+    toast.ok(t('rawdata.deleted_toast'))
   }
 
   const startEdit = (id, field, value) => {
@@ -63,19 +80,25 @@ export function useRawDataMutations({
     } else if (e.key === 'Enter') {
       const parsed = parseFloat(editValue)
       const finalVal = isNaN(parsed) ? null : parsed
-      const { error: updErr } = await sb
+      // Mismo motivo que en handleDelete: sin `.select()`, un UPDATE que RLS
+      // filtra vuelve 204 sin error y la grilla mostraba el valor nuevo sobre
+      // una fila que en la base nunca cambió.
+      const { data: actualizadas, error: updErr } = await sb
         .from('pricing_observations')
         .update({ [field]: finalVal })
         .eq('id', id)
+        .select('id')
 
-      if (!updErr) {
+      if (updErr) {
+        toast.err(t('rawdata.update_error', { msg: updErr.message }))
+      } else if (!actualizadas || actualizadas.length === 0) {
+        toast.err(t('rawdata.update_denied'))
+      } else {
         // Inmutable: setRows en lugar de mutar el array directamente.
         // La mutación directa no dispara re-render y produce
         // inconsistencias visuales.
         setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: finalVal } : r)))
         toast.ok(t('rawdata.value_updated_toast'))
-      } else {
-        toast.err(t('rawdata.update_error', { msg: updErr.message }))
       }
       setEditingId(null)
     }

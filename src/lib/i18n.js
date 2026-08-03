@@ -1344,6 +1344,10 @@ export const TRANSLATIONS = {
     'rawdata.delete_confirm_message':
       '¿Eliminar esta observación? Esta acción no se puede deshacer.',
     'rawdata.deleted_toast': 'Observación eliminada.',
+    'rawdata.delete_denied':
+      'No se pudo borrar: no tenés permiso sobre esa fila. Nada cambió en la base.',
+    'rawdata.update_denied':
+      'No se pudo guardar: no tenés permiso sobre esa fila. El valor anterior sigue en la base.',
     'rawdata.delete_error': 'Error al eliminar: {msg}',
     'rawdata.value_updated_toast': 'Valor actualizado.',
     'rawdata.update_error': 'Error actualizando: {msg}',
@@ -3748,6 +3752,10 @@ export const TRANSLATIONS = {
     'rawdata.delete_confirm_title': 'Delete observation',
     'rawdata.delete_confirm_message': 'Delete this observation? This action cannot be undone.',
     'rawdata.deleted_toast': 'Observation deleted.',
+    'rawdata.delete_denied':
+      "Couldn't delete: you don't have permission on that row. Nothing changed in the database.",
+    'rawdata.update_denied':
+      "Couldn't save: you don't have permission on that row. The previous value is still in the database.",
     'rawdata.delete_error': 'Delete error: {msg}',
     'rawdata.value_updated_toast': 'Value updated.',
     'rawdata.update_error': 'Update error: {msg}',
@@ -6171,6 +6179,10 @@ export const TRANSLATIONS = {
     'rawdata.delete_confirm_title': 'Удалить наблюдение',
     'rawdata.delete_confirm_message': 'Удалить это наблюдение? Это действие нельзя отменить.',
     'rawdata.deleted_toast': 'Наблюдение удалено.',
+    'rawdata.delete_denied':
+      'Не удалось удалить: нет прав на эту строку. В базе ничего не изменилось.',
+    'rawdata.update_denied':
+      'Не удалось сохранить: нет прав на эту строку. В базе осталось прежнее значение.',
     'rawdata.delete_error': 'Ошибка удаления: {msg}',
     'rawdata.value_updated_toast': 'Значение обновлено.',
     'rawdata.update_error': 'Ошибка обновления: {msg}',
