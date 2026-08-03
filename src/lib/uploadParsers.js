@@ -113,13 +113,35 @@ export function excelSerialToDate(serial) {
   return date.toISOString().slice(0, 10)
 }
 
+// Un serial de Excel solo se acepta si cae en [2000-01-01, 2100-01-01). Fuera
+// de ahí es casi seguro otra cosa —un año, un id, un teléfono— y devolver null
+// es mejor que devolver 1905.
+const SERIAL_MIN = 36526 // 2000-01-01
+const SERIAL_MAX = 73050 // 2100-01-01
+
+function serialEnRangoODeNull(serial) {
+  if (!Number.isFinite(serial) || serial < SERIAL_MIN || serial > SERIAL_MAX) return null
+  return excelSerialToDate(serial)
+}
+
 export function parseExcelDate(val) {
   if (val === null || val === undefined || val === '') return null
 
   // Número serial de Excel (como número o como string numérico puro, ej: "45659")
-  if (typeof val === 'number') return excelSerialToDate(Math.floor(val))
-  if (typeof val === 'string' && /^\d{4,6}$/.test(val.trim())) {
-    return excelSerialToDate(parseInt(val.trim(), 10))
+  //
+  // El rango importa. La regex vieja era /^\d{4,6}$/ y se tragaba un AÑO
+  // suelto: "2026" → serial 2026 → 1905-07-18. Y eso no queda en una fila fea,
+  // porque Upload calcula el rango del DELETE con el min/max de TODAS las
+  // filas: una sola celda con el año suelto convertía el borrado de esa ciudad
+  // en 1905-07-18 → hoy, o sea toda su historia de Excel.
+  //
+  // Los seriales que interesan viven en otro orden de magnitud: 1970-01-01 es
+  // 25569 y 2026-01-01 es 46023. Se exige 5-6 dígitos Y que la fecha resultante
+  // caiga en una ventana defendible; cualquier otra cosa devuelve null y la
+  // fila se descarta ruidosamente en vez de inventar 1905.
+  if (typeof val === 'number') return serialEnRangoODeNull(Math.floor(val))
+  if (typeof val === 'string' && /^\d{5,6}$/.test(val.trim())) {
+    return serialEnRangoODeNull(parseInt(val.trim(), 10))
   }
 
   if (typeof val === 'string') {
@@ -186,17 +208,65 @@ export const INT_COLS = new Set(['year', 'week'])
 // Columnas de fecha/hora — necesitan el valor RAW (no convertido a string)
 export const RAW_COLS = new Set(['observed_date', 'observed_time'])
 
+// Separador decimal vs separador de miles. UN SOLO criterio para TODOS los
+// caminos de entrada (CLAUDE.md §4: ninguna normalización puede vivir en un
+// solo lugar si el dato entra por varios).
+//
+// Antes había dos criterios OPUESTOS y el mismo string daba distinto según por
+// dónde entrara:
+//   uploadParsers.toNumeric  →  .replace(',', '.')   (solo la PRIMERA coma)
+//   botMapping.parsePrice    →  .replace(/,/g, '')   (todas las comas)
+//
+//   "1,234.50"  → Excel: 1.234        · bot: 1234.5   ← precios divididos por 1000
+//   "1.234,50"  → Excel: 1.234        · bot: 1.23450
+//
+// Y no saltaba ningún outlier, porque el umbral solo mira el techo.
+//
+// LA REGLA, que resuelve los dos formatos sin adivinar:
+//   · Si aparecen los DOS separadores, el ÚLTIMO es el decimal. "1,234.50" y
+//     "1.234,50" son los dos 1234.50.
+//   · Si aparece uno solo: más de una vez → es de miles ("1.234.567").
+//     Una sola vez → decide la cantidad de dígitos que le siguen. Exactamente
+//     3 y con parte entera → miles (Colombia escribe COP 15.000). Cualquier
+//     otra cantidad → decimal ("13,2" y "9.00").
+//
+// El caso ambiguo real es "1.234": puede ser mil doscientos treinta y cuatro o
+// uno coma dos tres cuatro. Se elige MILES porque en COP es lo abrumadoramente
+// frecuente y porque el error en esa dirección es visible (un precio 1000x más
+// chico se nota; uno 1000x más grande dispara el control de outliers).
+export function normalizarNumero(texto) {
+  const limpio = String(texto)
+    .trim()
+    .replace(/[\s\u00a0]/g, '')
+    .replace(/^[^\d-]+/, '')
+  if (!limpio) return null
+
+  const iComa = limpio.lastIndexOf(',')
+  const iPunto = limpio.lastIndexOf('.')
+  let sinMiles
+
+  if (iComa >= 0 && iPunto >= 0) {
+    const decimal = iComa > iPunto ? ',' : '.'
+    const miles = decimal === ',' ? '.' : ','
+    sinMiles = limpio.split(miles).join('').replace(decimal, '.')
+  } else if (iComa >= 0 || iPunto >= 0) {
+    const sep = iComa >= 0 ? ',' : '.'
+    const partes = limpio.split(sep)
+    const cola = partes[partes.length - 1]
+    const esMiles = partes.length > 2 || (cola.length === 3 && partes[0].replace('-', '') !== '')
+    sinMiles = esMiles ? partes.join('') : partes.join('.')
+  } else {
+    sinMiles = limpio
+  }
+
+  const n = parseFloat(sinMiles)
+  return isNaN(n) ? null : n
+}
+
 export function toNumeric(val) {
   if (val === null || val === undefined || val === '') return null
   if (typeof val === 'number') return isNaN(val) ? null : val
-  // Quitar prefijo de moneda (ej: "S/.9.00" → "9.00", "$8.50" → "8.50")
-  // y normalizar coma decimal ("13,2" → "13.2")
-  const s = String(val)
-    .trim()
-    .replace(/^[^\d-]+/, '')
-    .replace(',', '.')
-  const n = parseFloat(s)
-  return isNaN(n) ? null : n
+  return normalizarNumero(val)
 }
 
 export function toInt(val) {

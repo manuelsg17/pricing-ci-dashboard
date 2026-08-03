@@ -16,6 +16,7 @@ import {
   parseExcelDate,
   parseExcelTime,
   toNumeric,
+  normalizarNumero,
   toInt,
   parseBool,
   cleanStr,
@@ -316,6 +317,54 @@ console.log('\n══ uploadParsers tests ══')
   const r = parseRows(hoja, 'Lima')
   assert(r.rows[0].year === undefined, 'Year del Excel NO se mapea')
   assert(r.rows[0].week === undefined, 'Week del Excel NO se mapea')
+}
+
+// ── Separador decimal vs miles — UN SOLO criterio para todos los caminos ──
+//
+// Antes había dos OPUESTOS: uploadParsers hacía .replace(',', '.') (solo la
+// PRIMERA coma) y botMapping .replace(/,/g, '') (todas). El mismo string daba
+// distinto según entrara por Excel o por el bot, y "1,234.50" se guardaba como
+// 1.234 — el precio dividido por mil, sin error y sin outlier, porque el
+// umbral de outliers solo mira el techo.
+console.log('\n[toNumeric] separador decimal vs miles')
+{
+  const casos = [
+    ['1,234.50', 1234.5, 'miles con coma, decimal con punto'],
+    ['1.234,50', 1234.5, 'miles con punto, decimal con coma'],
+    ['1 234,50', 1234.5, 'miles con espacio'],
+    ['1.234.567', 1234567, 'dos separadores de miles'],
+    ['13,2', 13.2, 'coma decimal simple'],
+    ['9.00', 9, 'punto decimal simple'],
+    ['15.000', 15000, 'COP: 3 dígitos tras el punto = miles'],
+    ['S/.9.00', 9, 'prefijo de moneda con punto'],
+    ['S/ 26,50', 26.5, 'prefijo con espacio'],
+    ['$8.50', 8.5, 'prefijo dólar'],
+    ['-5', -5, 'negativo'],
+    ['', null, 'vacío'],
+    ['abc', null, 'no numérico'],
+  ]
+  for (const [entrada, esperado, etiqueta] of casos) {
+    assert(toNumeric(entrada) === esperado, `toNumeric(${JSON.stringify(entrada)}) = ${esperado} — ${etiqueta}`)
+  }
+  assert(toNumeric(42) === 42, 'un número pasa tal cual')
+  assert(normalizarNumero('1,234.50') === 1234.5, 'normalizarNumero está exportada para el bot')
+}
+
+// ── parseExcelDate: un AÑO suelto no es un serial de Excel ────────────────
+//
+// La regex vieja era /^\d{4,6}$/ y convertía "2026" en el serial 2026 →
+// 1905-07-18. Y no quedaba en una fila fea: Upload calcula el rango del DELETE
+// con el min/max de TODAS las filas, así que una sola celda con el año suelto
+// convertía el borrado de esa ciudad en 1905 → hoy. Toda su historia de Excel.
+console.log('\n[parseExcelDate] rango de seriales')
+{
+  assert(parseExcelDate('2026') === null, 'un año suelto NO es un serial')
+  assert(parseExcelDate('1999') === null, 'otro año suelto tampoco')
+  assert(parseExcelDate('999999') === null, 'un serial fuera de rango → null')
+  assert(parseExcelDate('45659') === '2025-01-02', 'un serial real sí se convierte')
+  assert(parseExcelDate(45659) === '2025-01-02', 'y como número también')
+  assert(parseExcelDate('3/7/2026') === '2026-07-03', 'dd/mm/yyyy sigue igual')
+  assert(parseExcelDate('') === null, 'vacío → null')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

@@ -38,6 +38,10 @@ export default function Upload() {
   const [parsing, setParsing] = useState(null)
   const [uploadTab, setUploadTab] = useState('manual')
   const [suspects, setSuspects] = useState(null) // null | array de filas sospechosas
+  // Las filas que el saneamiento ACEPTÓ — son sobre las que checkOutliers
+  // calculó sus índices. Sin guardarlas, handleOutlierConfirm mapeaba sobre
+  // `allRows` (el array PRE-descarte) y los índices no correspondían.
+  const [filasAceptadas, setFilasAceptadas] = useState(null)
   const [, setSanitizationStats] = useState(null)
 
   const { checkOutliers, rules, rulesLoaded } = usePriceRules(country)
@@ -212,6 +216,7 @@ export default function Upload() {
     // Paso 2: outliers (mismo flujo que ya existía).
     const { suspects: found } = checkOutliers(accepted)
     if (found.length > 0) {
+      setFilasAceptadas(accepted) // los índices de `found` apuntan acá
       setSuspects(found) // muestra el panel de revisión
     } else {
       handleIngest(accepted)
@@ -221,7 +226,20 @@ export default function Upload() {
   // Llamado desde OutlierReview cuando el usuario confirma
   const handleOutlierConfirm = (corrections) => {
     const currentSuspects = suspects
-    const finalRows = allRows
+    // `filasAceptadas`, NO `allRows`. Dos bugs en uno:
+    //
+    //   1. `checkOutliers` calcula sus `idx` sobre lo que devuelve
+    //      `sanitizeBatch`, que ya descartó las filas incompletas o sin precio.
+    //      Mapear sobre `allRows` desalineaba los índices: con UNA sola fila
+    //      descartada antes del outlier, la corrección caía en la fila de al
+    //      lado y el outlier real entraba intacto.
+    //   2. Construir el resultado desde `allRows` REINYECTABA las filas que el
+    //      saneamiento había frenado — entraban con precio null.
+    //
+    // Se disparaba siempre que hubiera ≥1 fila descartada, aunque el usuario no
+    // editara nada.
+    const base = filasAceptadas ?? allRows
+    const finalRows = base
       .map((row, idx) => {
         const corr = corrections[idx]
         if (!corr) return row
@@ -236,6 +254,7 @@ export default function Upload() {
       })
       .filter(Boolean)
     setSuspects(null)
+    setFilasAceptadas(null)
     handleIngest(finalRows)
   }
 
