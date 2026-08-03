@@ -45,6 +45,8 @@ Tres cosas que conviene tener presentes antes de leer el resto:
 | `check:rls-drift` ciego a `FOR ALL`                                      | `check-rls-policy-drift.sql`                 |
 | Detector nuevo de RPCs alcanzables por anon                              | `check:anon-rpcs`                            |
 | Simulaciones que validaban la fuga                                       | `simulate-adversarial`, `simulate-hub-daily` |
+| Un hub sin secciones borraba los ~150.000 registros del bot              | mig **203**                                  |
+| La clave cruda `dashboard.chart.week` mostrada al usuario                | `i18n.js`, 3 locales                         |
 
 **Las migs 200/201/202 están aplicadas en LOCAL, no en producción.**
 
@@ -106,7 +108,7 @@ de Perú debe ver el diagnóstico de Colombia.
 **Por qué acá:** son pérdida o corrupción de datos, alcanzables desde la UI, y
 el fix es de una sola clase (políticas RLS + un guard de sección).
 
-### 2.1 · Un hub sin ninguna sección borra todos los datos del bot de su país
+### 2.1 · ✅ RESUELTO — mig 203
 
 `pricing_observations` permite `UPDATE` y `DELETE` sobre filas con
 `uploaded_by IS NULL` a cualquiera que tenga el país. **Verificado: el DELETE
