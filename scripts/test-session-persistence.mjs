@@ -404,6 +404,94 @@ ok(
 
 
 
+// ── [N] La pestaña que NO late no puede gritar "sin conexión" ─────────
+// El lease del latido es global por hub (heartbeatLeaseKey): una sola pestaña
+// escribe `ci_active_sessions`. Las demás nunca reciben un `lastHeartbeatOkAt`
+// — se queda en null PARA SIEMPRE. Sin el flag, el cartel de "sin contacto con
+// el servidor" queda encendido de manera permanente con la conexión perfecta,
+// y un cartel que siempre miente enseña al hub a ignorarlo. Sería cambiar un
+// bug silencioso por una alarma falsa.
+console.log('\n[N] latidoDelegado: la pestaña que no late se calla sobre la conexión')
+
+// El caso exacto: dos pestañas, la segunda delega y nunca guardó nada.
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: null,
+    lastHeartbeatOkAt: null,
+    latidoDelegado: true,
+    now: T0,
+  }).kind,
+  'nada_guardado',
+  'delegando y sin latido propio → NO dice "sin conexión", dice la verdad de guardado'
+)
+
+// Y con trabajo guardado, el estado de guardado sigue siendo el correcto.
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 5_000,
+    lastHeartbeatOkAt: null,
+    latidoDelegado: true,
+    now: T0,
+  }).kind,
+  'guardado',
+  'delegando y con todo guardado → "guardado", no una alarma'
+)
+
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 5_000,
+    lastHeartbeatOkAt: null,
+    latidoDelegado: true,
+    hayCambiosSinGuardar: true,
+    now: T0,
+  }).kind,
+  'sin_guardar',
+  'delegando y con cambios pendientes → sigue avisando lo que sí sabe'
+)
+
+// La contracara, que es la que hace que el fix no tape un problema real: la
+// pestaña que SÍ late conserva el aviso intacto. El aviso no desaparece del
+// sistema, cambia de lugar — y hay exactamente una pestaña que lo muestra.
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 1000,
+    lastHeartbeatOkAt: null,
+    latidoDelegado: false,
+    now: T0,
+  }).kind,
+  'sin_conexion',
+  'la pestaña que late SÍ avisa (el fix no tapa la caída real)'
+)
+
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 1000,
+    lastHeartbeatOkAt: T0 - (SERVIDOR_STALE_MS + 60_000),
+    latidoDelegado: false,
+    now: T0,
+  }).kind,
+  'sin_conexion',
+  'y con el latido vencido también, como antes'
+)
+
+// Default: sin pasar el flag, el comportamiento es EXACTAMENTE el de antes.
+// Es lo que garantiza que este parámetro no cambió nada para quien no lo usa.
+eq(
+  estadoDeServidor({
+    sessionActive: true,
+    lastSaveOkAt: T0 - 1000,
+    lastHeartbeatOkAt: null,
+    now: T0,
+  }).kind,
+  'sin_conexion',
+  'sin el flag, el contrato viejo queda intacto'
+)
+
 // ── Resultado ─────────────────────────────────────────────────────────
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} pasaron, ${fail} fallaron`)
 if (fail) console.error('Fallaron:\n  - ' + fallos.join('\n  - '))

@@ -16,6 +16,7 @@ import {
   evaluateLease,
   parseLease,
   leaseKey,
+  heartbeatLeaseKey,
   makeLease,
   serializeLease,
   ownsLease,
@@ -526,6 +527,50 @@ eq(
   0,
   'el módulo no exporta ninguna función de fusión de borradores'
 )
+
+// ── [10] El lease del LATIDO es global por hub ────────────────────────
+// El de borrador lleva la vista y la fecha adentro, así que dos pestañas del
+// mismo hub en frentes distintos son dueñas cada una del suyo. Eso está bien
+// para el borrador (claves de localStorage distintas, no se pisan) y está MAL
+// para el latido, que escribe `ci_active_sessions` — PK `user_email`, una sola
+// fila por hub. Ese es el bug que este lease cierra.
+console.log('\n[10] lease del latido: global por hub, no por frente')
+
+const HUB = 'hub@yango.com'
+const draftA = `de:draft:${HUB}:Peru:Lima_TukTuk_SJL:2026-08-03`
+const draftB = `de:draft:${HUB}:Peru:Lima_TukTuk_Comas:2026-08-03`
+
+ok(leaseKey(draftA) !== leaseKey(draftB), 'dos frentes → DOS leases de borrador distintos')
+eq(
+  heartbeatLeaseKey(HUB),
+  heartbeatLeaseKey(HUB),
+  'el mismo hub en dos frentes → UN SOLO lease de latido'
+)
+ok(
+  heartbeatLeaseKey(HUB) !== heartbeatLeaseKey('otro@yango.com'),
+  'dos hubs distintos → leases de latido distintos'
+)
+ok(
+  !heartbeatLeaseKey(HUB).startsWith('de:draft:'),
+  'no usa el prefijo de borrador (contaría contra el tope de MAX_DRAFTS)'
+)
+ok(
+  heartbeatLeaseKey(HUB) !== leaseKey(draftA),
+  'y no colisiona con el lease de borrador del mismo hub'
+)
+eq(heartbeatLeaseKey(''), null, 'sin email no hay lease de latido')
+eq(heartbeatLeaseKey(null), null, 'null no rompe')
+eq(heartbeatLeaseKey(undefined), null, 'undefined no rompe')
+
+// Dos pestañas del mismo hub compitiendo por el latido: una sola gana, y la
+// que ya lo tiene se lo queda (mismo first-writer-wins del borrador).
+{
+  const raw = serializeLease({ sid: 'tabA', now: T0, engaged: true })
+  const vistoPorB = evaluateLease({ raw, mySid: 'tabB', now: T0 + 1000, myEngaged: true })
+  eq(vistoPorB.action, 'demote', 'la segunda pestaña NO late aunque esté en otro frente')
+  const vistoPorA = evaluateLease({ raw, mySid: 'tabA', now: T0 + 1000, myEngaged: true })
+  ok(vistoPorA.action !== 'demote', 'la dueña renueva y sigue latiendo')
+}
 
 // ── Resultado ─────────────────────────────────────────────────────────
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} pasaron, ${fail} fallaron`)

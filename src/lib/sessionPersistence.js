@@ -72,6 +72,24 @@ export function estadoDeGuardado({
  * `lastSaveOkAt` y `lastHeartbeatOkAt` son deliberadamente DOS parámetros
  * distintos: mezclarlos era el bug P2-14.
  *
+ * `latidoDelegado` = esta pestaña NO es la que late (otra pestaña del mismo hub
+ * tiene el lease del latido, ver `heartbeatLeaseKey`). Sin este parámetro,
+ * `lastHeartbeatOkAt` se queda en null PARA SIEMPRE en esa pestaña y el cartel
+ * grita "sin contacto con el servidor" aunque la conexión esté perfecta: se
+ * cambiaría un bug silencioso por una alarma falsa, que es peor porque enseña
+ * al hub a ignorar el cartel.
+ *
+ * Una pestaña que delega no tiene sonda de vida propia, así que NO PUEDE
+ * afirmar que el servidor no responde — afirmarlo sería inventar. Se calla
+ * sobre la conexión y cae a los estados de guardado, que sí son ciertos. La
+ * pestaña que SÍ late es la que muestra el aviso real si el servidor se cae, y
+ * es una sola por hub, así que el aviso no desaparece: cambia de lugar.
+ *
+ * Ojo: NO se usa `lastSaveOkAt` como sustituto del latido acá. El contrato de
+ * abajo es deliberado y tiene test propio — un guardado exitoso reciente NO
+ * cancela el aviso si el latido venció, porque los dos van al mismo servidor y
+ * que uno ande y el otro no es en sí mismo una señal de que algo está mal.
+ *
  * Devuelve null cuando no hay nada útil que decir (sin sesión).
  */
 export function estadoDeServidor({
@@ -80,6 +98,7 @@ export function estadoDeServidor({
   lastHeartbeatOkAt = null,
   hayCambiosSinGuardar = false,
   soloLocal = 0,
+  latidoDelegado = false,
   now = Date.now(),
   staleMs = LIVE_STALE_MS,
 } = {}) {
@@ -87,8 +106,11 @@ export function estadoDeServidor({
 
   // La conexión gana sobre todo lo demás: si no hay contacto con el servidor,
   // cualquier otro mensaje ("todo guardado") sería viejo y engañoso.
+  //
+  // Salvo que esta pestaña no sea la que late: entonces no hay nada que
+  // vencer, y el silencio es la única respuesta honesta.
   const latidoVencido = lastHeartbeatOkAt == null || now - lastHeartbeatOkAt > staleMs
-  if (latidoVencido) {
+  if (latidoVencido && !latidoDelegado) {
     const desde = lastHeartbeatOkAt ?? lastSaveOkAt
     return {
       kind: 'sin_conexion',

@@ -66,6 +66,10 @@ export function SaveStatusIndicators({
   lastDraftSavedAt,
   lastSaveOkAt,
   lastHeartbeatOkAt,
+  // true = otra pestaña del mismo hub es la que late (lease global del
+  // latido). Sin esto, esta pestaña nunca vería un `lastHeartbeatOkAt` y el
+  // cartel gritaría "sin contacto con el servidor" con la conexión sana.
+  latidoDelegado = false,
   filledCount = 0,
   savableCount = 0,
   bucketKey,
@@ -99,6 +103,7 @@ export function SaveStatusIndicators({
     sessionActive,
     lastSaveOkAt,
     lastHeartbeatOkAt,
+    latidoDelegado,
     hayCambiosSinGuardar: guardado.hayCambiosSinGuardar,
     soloLocal: guardado.soloLocal,
     now: nowTick,

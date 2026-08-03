@@ -91,6 +91,43 @@ export function leaseKey(draftKey) {
 }
 
 /**
+ * Clave del lease del LATIDO. Por USUARIO, no por borrador.
+ *
+ * POR QUÉ HACE FALTA UN SEGUNDO LEASE
+ * `leaseKey` protege el borrador, y su alcance —(usuario, país, vista, fecha)—
+ * es el correcto PARA ESO: dos pestañas en frentes distintos escriben claves de
+ * localStorage distintas y no se pisan, así que degradar una sería quitarle el
+ * autosave sin motivo.
+ *
+ * Pero el latido no escribe el borrador: escribe `ci_active_sessions`, que
+ * tiene **PK `user_email`** — UNA sola fila por hub, sin importar cuántos
+ * frentes tenga abiertos. Dos pestañas en frentes distintos son dueñas cada una
+ * de SU borrador, las dos pasan el guard del lease de borrador, y las dos
+ * laten sobre la misma fila: se pisan el bucket y corrompen `started_at`, que
+ * es el respaldo del que sale la duración cuando no hay `turno_timings`.
+ *
+ * Y no es el caso raro: el hub abre una segunda pestaña JUSTAMENTE porque está
+ * en otro frente. En producción los hubs cierran entre 2 y 9 frentes por día,
+ * en 2-3 ciudades.
+ *
+ * Recurso distinto → alcance distinto. Este lease es global por hub.
+ *
+ * OJO AL EMPATE (el motivo de que esto no sea una sola línea): este lease NO
+ * se disputa entre todas las pestañas, sino solo entre las que YA son dueñas de
+ * su borrador. Si se disputara libremente, la pestaña A podía ganar el latido y
+ * la A' el borrador del mismo bucket, y entonces A no late (no es dueña del
+ * borrador) y A' tampoco (no es dueña del latido): nadie late y el hub
+ * desaparece de "en vivo". La condición previa lo hace imposible.
+ *
+ * @param {string} userEmail
+ * @returns {string|null} null si el email no es utilizable.
+ */
+export function heartbeatLeaseKey(userEmail) {
+  if (typeof userEmail !== 'string' || userEmail === '') return null
+  return `de:hblease:${userEmail}`
+}
+
+/**
  * Lee un lease crudo de localStorage. NUNCA lanza.
  *
  * localStorage es texto que puede haber escrito una versión vieja de la app,

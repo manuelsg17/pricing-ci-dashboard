@@ -2,7 +2,14 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { sb, SESSION_ID } from '../lib/supabase'
 import { debeReanudarTramo, debeHidratarBorrador } from '../lib/sessionPersistence'
-import { evaluateLease, serializeLease, ownsLease, leaseKey, LEASE_RENEW_MS } from '../lib/tabLease'
+import {
+  evaluateLease,
+  serializeLease,
+  ownsLease,
+  leaseKey,
+  heartbeatLeaseKey,
+  LEASE_RENEW_MS,
+} from '../lib/tabLease'
 import { duracionDeSesion } from '../lib/sessionDuration'
 import { duracionActiva, registrarActividad, normalizarActividad } from '../lib/idleDetection'
 import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
@@ -2219,6 +2226,92 @@ export default function DataEntry() {
     }
   }, [draftKey, leaseEngaged])
 
+  // ── Lease del LATIDO, global por hub ──────────────────────────────────
+  // El lease de arriba protege el BORRADOR y su alcance —(usuario, país,
+  // vista, fecha)— es el correcto para eso. El latido escribe otra cosa:
+  // `ci_active_sessions`, con PK `user_email`, UNA fila por hub. Dos pestañas
+  // en frentes distintos son dueñas cada una de su borrador, las dos pasan el
+  // guard de arriba, y las dos laten sobre esa única fila: se pisan el bucket
+  // y corrompen `started_at`. Y es el caso MÁS probable, no el raro — el hub
+  // abre la segunda pestaña justamente porque está en otro frente.
+  //
+  // Recurso distinto, alcance distinto. Ver `heartbeatLeaseKey` para por qué
+  // esto se disputa SOLO entre pestañas que ya son dueñas de su borrador (si
+  // no, hay un empate en el que nadie late y el hub desaparece de "en vivo").
+  const [hbLeaseOwner, setHbLeaseOwner] = useState(true)
+  const hbLeaseOwnerRef = useRef(true)
+  hbLeaseOwnerRef.current = hbLeaseOwner
+
+  useEffect(() => {
+    const hbKey = heartbeatLeaseKey(userEmail)
+    // Sin email todavía no hay a quién atribuirle el latido; `sendHeartbeat`
+    // igual no manda nada sin `sessionActive`.
+    if (!hbKey) return
+    // No soy dueño de mi propio borrador: no compito por el latido. Es la
+    // precondición que evita el empate en el que nadie late.
+    if (!leaseOwner) {
+      setHbLeaseOwner(false)
+      return
+    }
+
+    let vivo = true
+    const tick = () => {
+      if (!vivo) return
+      let raw = null
+      try {
+        raw = localStorage.getItem(hbKey)
+      } catch {
+        // Mismo criterio que el lease de borrador: sin localStorage no hay
+        // candado posible, y degradar dejaría al hub sin latido — o sea,
+        // invisible en Monitoreo. Se sigue como dueño.
+        setHbLeaseOwner(true)
+        return
+      }
+
+      const { action } = evaluateLease({
+        raw,
+        mySid: SESSION_ID,
+        now: Date.now(),
+        // Para el latido, "engaged" es tener la sesión activa: una pestaña sin
+        // sesión no tiene nada que reportar y le cede el turno a la que sí.
+        myEngaged: sessionActive,
+      })
+      if (action === 'demote') {
+        setHbLeaseOwner(false)
+        return
+      }
+      try {
+        localStorage.setItem(
+          hbKey,
+          serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: sessionActive })
+        )
+        // Misma relectura obligatoria que arriba: dos pestañas restauradas en
+        // el mismo tick leen la clave vacía las dos y escriben las dos.
+        setHbLeaseOwner(ownsLease(localStorage.getItem(hbKey), SESSION_ID))
+      } catch {
+        setHbLeaseOwner(true)
+      }
+    }
+
+    tick()
+    const id = setInterval(tick, LEASE_RENEW_MS)
+    const onStorage = (e) => {
+      if (e.key === hbKey) tick()
+    }
+    window.addEventListener('storage', onStorage)
+
+    return () => {
+      vivo = false
+      clearInterval(id)
+      window.removeEventListener('storage', onStorage)
+      try {
+        if (ownsLease(localStorage.getItem(hbKey), SESSION_ID)) localStorage.removeItem(hbKey)
+      } catch {
+        /* sin storage no hay nada que liberar */
+      }
+    }
+  }, [userEmail, leaseOwner, sessionActive])
+
   // Progreso POR TURNO (Mañana/Tarde/Noche) — para el header colapsable de
   // cada TurnoSection. Mismo criterio que filledCount/countAllFilled de
   // arriba, pero separado por el 3er segmento de la key (tsLabel) en vez de
@@ -3626,7 +3719,12 @@ export default function DataEntry() {
     //
     // Se corta el ENVÍO, NO se borra la fila: borrarla al degradarse repetiría
     // el bug P1-4 (el hub desaparece de "en vivo" y se pierde el inicio real).
-    if (!leaseOwnerRef.current) return
+    //
+    // DOS candados, porque el de borrador NO alcanza: su alcance incluye la
+    // vista y la fecha, así que dos pestañas del mismo hub en frentes
+    // distintos lo pasan las dos. El del latido es global por hub, que es el
+    // alcance de la fila que se está por escribir.
+    if (!leaseOwnerRef.current || !hbLeaseOwnerRef.current) return
     const p = heartbeatRef.current
     if (!p || !p.city) return
     try {
@@ -4075,6 +4173,10 @@ export default function DataEntry() {
             lastDraftSavedAt={lastDraftSavedAt}
             lastSaveOkAt={lastSaveOkAt}
             lastHeartbeatOkAt={lastHeartbeatOkAt}
+            // Otra pestaña del mismo hub tiene el lease del latido: esta nunca
+            // va a recibir un `lastHeartbeatOkAt`, y sin avisarlo el cartel
+            // diría "sin contacto con el servidor" con la conexión perfecta.
+            latidoDelegado={!hbLeaseOwner}
             filledCount={filledCount}
             savableCount={savableCount}
             bucketKey={bucketKey}
