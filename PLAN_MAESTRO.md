@@ -183,7 +183,17 @@ Para InDrive la MV usa el promedio de bids y el modal usa `recommended_price`.
 
 ---
 
-## BLOQUE 5 — Monitoreo: fallos que se leen como diagnósticos
+## BLOQUE 5 — ✅ RESUELTO en su mayor parte
+
+Arreglados: el `error` de `ci_sessions` que no se destructuraba (un fallo de red
+se pintaba como "ningún hub terminó nunca"), el truncado silencioso en 300
+sesiones (ahora dice cuántas hay y sugiere acotar el rango), y la
+`RepresentativityCard` que desaparecía cuando fallaba en vez de decirlo.
+
+Queda pendiente de este bloque: la validación del email al reasignar, y que
+`TurnoTimesPanel` esconde la línea de "sesiones excluidas" si el count falla.
+
+### Detalle original
 
 Todos comparten una causa: **un error de infraestructura se renderiza como un
 dato de negocio**.

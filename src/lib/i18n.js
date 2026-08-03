@@ -376,6 +376,10 @@ export const TRANSLATIONS = {
       '¿Cerrar esta sesión de {hub}? Lo ya guardado no se toca — solo se marca la sesión como cerrada por vos.',
     'dashboard.chart.period': 'Período',
     'dashboard.chart.week': 'Semana',
+    'dashboard.repr.failed':
+      'No se pudo calcular la representatividad. El número de arriba puede no estar completo.',
+    'monitoring.sessions_truncated':
+      'Mostrando las {shown} más recientes de {total}. Acotá el rango de fechas para verlas todas.',
     'monitoring.close_session_error': 'No se pudo cerrar la sesión. Probá de nuevo.',
     'monitoring.close_session_already':
       'Esta sesión ya estaba cerrada (registro #{id}). No se creó ninguna fila nueva.',
@@ -2723,6 +2727,10 @@ export const TRANSLATIONS = {
       "Close this session for {hub}? What's already saved is untouched — this only marks the session as closed by you.",
     'dashboard.chart.period': 'Period',
     'dashboard.chart.week': 'Week',
+    'dashboard.repr.failed':
+      "Couldn't compute representativity. The number above may be incomplete.",
+    'monitoring.sessions_truncated':
+      'Showing the {shown} most recent of {total}. Narrow the date range to see them all.',
     'monitoring.close_session_error': "Couldn't close the session. Try again.",
     'monitoring.close_session_already':
       'This session was already closed (record #{id}). No new row was created.',
@@ -5045,6 +5053,10 @@ export const TRANSLATIONS = {
       'Завершить эту сессию для {hub}? Сохранённые данные не тронуты — это только отмечает сессию как закрытую вами.',
     'dashboard.chart.period': 'Период',
     'dashboard.chart.week': 'Неделя',
+    'dashboard.repr.failed':
+      'Не удалось рассчитать репрезентативность. Число выше может быть неполным.',
+    'monitoring.sessions_truncated':
+      'Показаны {shown} последних из {total}. Сузьте диапазон дат, чтобы увидеть все.',
     'monitoring.close_session_error': 'Не удалось завершить сессию. Попробуйте ещё раз.',
     'monitoring.close_session_already':
       'Эта сессия уже была закрыта (запись #{id}). Новая строка не создана.',

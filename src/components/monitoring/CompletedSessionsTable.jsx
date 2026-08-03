@@ -5,7 +5,7 @@ import { useI18n } from '../../context/LanguageContext'
 // Sesiones completadas (ci_sessions) — restyle de la tabla que ya existía en
 // Monitoring.jsx, ahora mostrando el distrito TukTuk cuando aplica (columna
 // `zone`, mig 144).
-export default function CompletedSessionsTable({ sessions }) {
+export default function CompletedSessionsTable({ sessions, total }) {
   const { t, locale } = useI18n()
   const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString(locale) : '—')
   // Fecha corta + hora (no solo hora, pedido real 2026-07-25): la tabla ya
@@ -74,6 +74,15 @@ export default function CompletedSessionsTable({ sessions }) {
           </tbody>
         </table>
       </div>
+      {/* Truncado EXPLÍCITO (CLAUDE.md §5). El .limit(300) del hook cortaba la
+          lista sin decirlo: con 90 días de rango, un hub de bajo volumen cuya
+          única sesión quedó fuera del top-300 aparecía con Frescura "nunca" —
+          un corte de paginación leído como un diagnóstico de gestión. */}
+      {typeof total === 'number' && total > sessions.length && (
+        <p className="mon-panel__note is-warn">
+          {t('monitoring.sessions_truncated', { shown: sessions.length, total })}
+        </p>
+      )}
     </div>
   )
 }

@@ -58,7 +58,19 @@ export default function RepresentativityCard() {
     return () => clearInterval(iv)
   }, [load])
 
-  if (failed || !rows || rows.length === 0) return null
+  // `failed` se calculaba y NUNCA se renderizaba: era estado muerto. La tarjeta
+  // que responde "¿puedo confiar en este número?" se esfumaba cuando la RPC
+  // fallaba, y desaparecer es indistinguible de "esta semana no hay datos".
+  // Es el mismo bug que el repo ya arregló en usePriceComplianceAlerts y que
+  // acá sobrevivió.
+  if (failed) {
+    return (
+      <section className="mon-panel">
+        <div className="de-msg de-msg--err">{t('dashboard.repr.failed')}</div>
+      </section>
+    )
+  }
+  if (!rows || rows.length === 0) return null
 
   const s = computeRepresentativity(rows)
   const colors = LEVEL_COLORS[s.level]
