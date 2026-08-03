@@ -1,13 +1,51 @@
 # Plan maestro — todo lo encontrado, y en qué orden se arregla
 
-> **Actualizado 2026-08-02, corrida nocturna.** Bloques 3, 4 (parcial), 5 y 6
-> (parcial) implementados y validados. Lo único que NO se puede avanzar sin vos
-> es el **Bloque 1**: aplicar a producción exige tu autorización explícita para
-> cada migración (CLAUDE.md §3), y una instrucción general no la cubre.
+> **Actualizado 2026-08-03, cuarta ronda adversarial.**
 >
-> **✅ APLICADO A PRODUCCIÓN el 2026-08-03: migraciones 200, 201, 202, 203, 204
-> y 205, más el merge del frontend a `main` (deploy publicado
-> `builtAt 2026-08-03T11:35:08Z`).** El orden fue base primero, cliente después.
+> **✅ EN PRODUCCIÓN:** migraciones 200–205 y el frontend
+> (`builtAt 2026-08-03T11:35:08Z`).
+>
+> **⛔ ESPERANDO TU AUTORIZACIÓN, UNA POR UNA (CLAUDE.md §3):** migraciones
+> **206, 207, 208 y 209**. Están aplicadas y verificadas en LOCAL.
+> La **208 es un P0 que arregla un defecto que la 203 dejó ARMADO en producción**
+> — hoy no hizo daño porque no hubo sesiones después del deploy, pero se dispara
+> con el primer hub que guarde sobre una fecha con filas del Excel o del bot.
+
+## Cuarta ronda — qué encontró
+
+4 finders + panel de escépticos, todo reproducido contra Supabase local con roles
+reales. **13 hallazgos, 12 sobrevivieron al panel, 1 refutado.**
+
+| #      | Qué                                                                                                | Estado                             |
+| ------ | -------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **P0** | La mig 203 rompió el reclamo de filas legacy de `save_ci_batch`: el hub duplica filas, en silencio | ✅ mig **208**                     |
+| P1     | Re-subir un Excel de aeropuerto duplica: el DELETE mira la ciudad de antes del trigger             | ✅ mig **209**                     |
+| P1     | Ver Datos: borrar y editar fallaban en silencio (HTTP 204 sin error)                               | ✅ `useRawDataMutations`           |
+| P1     | `toISODate` corría la fecha un día al este de Greenwich                                            | ✅ `dateUtils` + test en 5 husos   |
+| P1     | `\|\| DEFAULT_WEIGHTS` era código muerto (`{}` es truthy)                                          | ✅ `useRentabilidadPrices`         |
+| P1     | `handleFinishSession` hacía `setUiCity` con un bucketKey                                           | ✅ (6.4, unificado a bucketKey)    |
+| P2     | `pricing_wa_frozen` sin paginar contra el tope de 1.000                                            | ✅ `tablaCompleta`                 |
+| P2     | El panel de outliers congelaba el lote y destildar una hoja no tenía efecto                        | ✅ `invalidarLoteCongelado`        |
+| P2     | `simulate-durability` pasaba con los fixes arrancados                                              | ✅ invariantes de forma + mutación |
+| P1     | El piso de plausibilidad solo defiende el lado bajo                                                | ⛔ **abierto**                     |
+| P2     | El candado de pestañas no cubre el latido                                                          | ⛔ **abierto**                     |
+| —      | `upload_pricing_batch` contra el statement_timeout                                                 | ❌ refutado por el panel           |
+
+### Lo que sigue abierto, y por qué importa
+
+**El piso de plausibilidad solo defiende por abajo.** La mig 201 puso un piso de
+1 minuto, pero no hay techo: una duración inventada de, digamos, 400 minutos
+entra marcada como `duration_confiable = true`. La invariante que la propia
+migración declara —"la duración no puede exceder su propia ventana"— ejecutada
+da 2 casos, no 0. Es el reporte de productividad de la gente.
+
+**El candado de pestañas no cubre el latido.** El lease se disputa por
+`draftKey` (país + vista + fecha), así que dos pestañas del mismo hub en vistas o
+fechas distintas son dueñas cada una del suyo y las dos laten sobre la única fila
+de `ci_active_sessions` (PK `user_email`). Es el caso MÁS probable, no el raro:
+el hub abre una segunda pestaña justamente porque está en otro frente.
+
+---
 
 ## Lo implementado en la corrida nocturna
 

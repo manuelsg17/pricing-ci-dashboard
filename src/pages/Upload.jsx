@@ -167,7 +167,26 @@ export default function Upload() {
     )
   }
 
+  // Cualquier cambio de hojas invalida el lote congelado del panel de outliers.
+  //
+  // REGRESIÓN PROPIA (fix del 2026-08-02): `handleOutlierConfirm` pasó a mapear
+  // sobre `filasAceptadas` —un snapshot tomado cuando corrió el chequeo— para
+  // que los índices de los sospechosos cuadraran. Correcto, pero el snapshot
+  // queda congelado y la tabla de hojas sigue en pantalla y sigue siendo
+  // editable: destildar una hoja, o cambiarle la ciudad, no tenía ningún efecto
+  // y la hoja excluida se subía igual. Se cambió un desalineo de índices por
+  // otro problema, más silencioso.
+  //
+  // Se resuelve invalidando: si cambian las hojas, el lote y sus sospechosos
+  // dejan de valer y el usuario vuelve a apretar "Insertar" para recalcularlos
+  // sobre lo que realmente eligió.
+  const invalidarLoteCongelado = () => {
+    setFilasAceptadas(null)
+    setSuspects(null)
+  }
+
   const updateSheetCity = (idx, newCity) => {
+    invalidarLoteCongelado()
     setSheets((prev) => {
       const updated = prev.map((s, i) =>
         i === idx ? { ...s, city: newCity, rows: s.rows.map((r) => ({ ...r, city: newCity })) } : s
@@ -178,6 +197,7 @@ export default function Upload() {
   }
 
   const toggleSheetIncluded = (idx) => {
+    invalidarLoteCongelado()
     setSheets((prev) => {
       const updated = prev.map((s, i) => (i === idx ? { ...s, included: s.included === false } : s))
       syncFromSheets(updated)
@@ -186,6 +206,7 @@ export default function Upload() {
   }
 
   const setAllSheetsIncluded = (included) => {
+    invalidarLoteCongelado()
     setSheets((prev) => {
       const updated = prev.map((s) => ({ ...s, included }))
       syncFromSheets(updated)
@@ -622,7 +643,7 @@ export default function Upload() {
             <OutlierReview
               suspects={suspects}
               onConfirm={handleOutlierConfirm}
-              onCancel={() => setSuspects(null)}
+              onCancel={invalidarLoteCongelado}
             />
           )}
 

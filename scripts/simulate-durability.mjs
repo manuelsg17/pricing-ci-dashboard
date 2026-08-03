@@ -516,6 +516,34 @@ ok(
   /TECHO_BORRADOR_MS = 3000/.test(bAutosave),
   'el techo es de 3000ms (si cambia, actualizar el peor caso de [4] APAGÓN)'
 )
+
+// ── Que la constante EXISTA no es que HAGA algo ────────────────────────
+// La cuarta ronda adversarial (2026-08-03) construyó una mutación LINT-CLEAN
+// que revertía R1 por completo —el techo declarado pero sin usar, y la espera
+// vuelta un 1500 fijo— y ESTE archivo seguía en verde. Las aserciones de
+// arriba son grep de identificadores: prueban que el texto está, no que el
+// timer se acorte.
+//
+// Estas tres cierran esa mutación exigiendo la FORMA de la cuenta:
+//   · un Math.min entre el debounce y lo que queda del techo
+//   · el ancla temporal del techo (pendienteDesdeRef) leída en esa cuenta
+//   · y el ancla reseteada cuando el flush efectivamente corre — sin eso el
+//     techo se agota una vez y no vuelve nunca, que es un debounce puro con
+//     pasos extra
+ok(
+  /Math\.min\(\s*DEBOUNCE_BORRADOR_MS,\s*TECHO_BORRADOR_MS - \(Date\.now\(\) - pendienteDesdeRef\.current\)/.test(
+    bAutosave
+  ),
+  'la espera se CALCULA con el techo, no solo lo declara'
+)
+ok(
+  /pendienteDesdeRef\.current == null\) pendienteDesdeRef\.current = Date\.now\(\)/.test(bAutosave),
+  'el ancla del techo se estampa en el primer cambio pendiente'
+)
+ok(
+  /pendienteDesdeRef\.current = null/.test(bAutosave),
+  'y se resetea al escribir: sin esto el techo se agota una sola vez'
+)
 ok(/clearTimeout\(id\)/.test(bAutosave), 'el cleanup del autosave sigue cancelando el timer')
 
 // 2. El flush del cleanup sigue mergeando sobre lo ya escrito (fix P0-2).
