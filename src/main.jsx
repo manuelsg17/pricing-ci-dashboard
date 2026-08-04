@@ -11,7 +11,8 @@ import { ConfigProvider } from './context/ConfigProvider'
 import { ToastProvider } from './components/ui/Toast'
 import { ConfirmProvider } from './components/ui/ConfirmDialog'
 import ErrorBoundary from './components/ui/ErrorBoundary'
-import { installGlobalErrorHandlers } from './lib/errorLog'
+import { installGlobalErrorHandlers, reportError } from './lib/errorLog'
+import { reportarChunkFallido } from './lib/lazyConReintento'
 // Sprint 2.1: Tailwind ANTES de global.css. tailwind.css agrega utility
 // classes; global.css define tokens y overrides — el orden permite a
 // global.css ganar en caso de conflicto. Sin preflight (ver tailwind.config.js)
@@ -81,6 +82,12 @@ const queryClient = new QueryClient({
 // deja al hub mirando una pantalla que no responde— seguiría sin registrarse.
 // Se instala antes del render para no perder los errores del arranque.
 installGlobalErrorHandlers()
+
+// Si la carga anterior murió por un chunk viejo tras un deploy, `lazyConReintento`
+// recargó y dejó una miga. Se reporta ACÁ y no allá porque `location.reload()`
+// cancela cualquier fetch en vuelo: reportarlo antes de recargar lo perdería
+// justo en el caso que interesa medir.
+reportarChunkFallido(reportError)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

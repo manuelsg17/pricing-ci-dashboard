@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from 'react'
+import { useEffect, Suspense } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './lib/auth'
 import { useAccessControl } from './hooks/useAccessControl'
@@ -10,23 +10,30 @@ import LoginScreen from './components/layout/LoginScreen'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { SkeletonDashboard } from './components/ui/Skeleton'
 import { Button } from './components/ui/shadcn/button'
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const Config = lazy(() => import('./pages/Config'))
-const Upload = lazy(() => import('./pages/Upload'))
-const DistanceRefs = lazy(() => import('./pages/DistanceRefs'))
-const RawData = lazy(() => import('./pages/RawData'))
-const DataEntry = lazy(() => import('./pages/DataEntry'))
-const Projects = lazy(() => import('./pages/Projects'))
-const DriverEarnings = lazy(() => import('./pages/DriverEarnings'))
-const Rentabilidad = lazy(() => import('./pages/Rentabilidad'))
-const WeeklyReport = lazy(() => import('./pages/WeeklyReport'))
-const MarketEvents = lazy(() => import('./pages/MarketEvents'))
-const AccessManagement = lazy(() => import('./pages/AccessManagement'))
-const BotVsHubs = lazy(() => import('./pages/BotVsHubs'))
-const Market = lazy(() => import('./pages/Market'))
-const Coverage = lazy(() => import('./pages/Coverage'))
-const Competitividad = lazy(() => import('./pages/Competitividad'))
-const Monitoring = lazy(() => import('./pages/Monitoring'))
+// Un deploy borra los chunks con hash viejo: una pestaña abierta desde antes
+// pide un archivo que ya no existe y el import rechaza. Evidencia real en
+// client_errors (2026-08-03 14:29 UTC). Ver src/lib/lazyConReintento.js.
+import { lazyConReintento } from './lib/lazyConReintento'
+const Dashboard = lazyConReintento(() => import('./pages/Dashboard'), 'dashboard')
+const Config = lazyConReintento(() => import('./pages/Config'), 'config')
+const Upload = lazyConReintento(() => import('./pages/Upload'), 'upload')
+const DistanceRefs = lazyConReintento(() => import('./pages/DistanceRefs'), 'distancerefs')
+const RawData = lazyConReintento(() => import('./pages/RawData'), 'rawdata')
+const DataEntry = lazyConReintento(() => import('./pages/DataEntry'), 'dataentry')
+const Projects = lazyConReintento(() => import('./pages/Projects'), 'projects')
+const DriverEarnings = lazyConReintento(() => import('./pages/DriverEarnings'), 'driverearnings')
+const Rentabilidad = lazyConReintento(() => import('./pages/Rentabilidad'), 'rentabilidad')
+const WeeklyReport = lazyConReintento(() => import('./pages/WeeklyReport'), 'weeklyreport')
+const MarketEvents = lazyConReintento(() => import('./pages/MarketEvents'), 'marketevents')
+const AccessManagement = lazyConReintento(
+  () => import('./pages/AccessManagement'),
+  'accessmanagement'
+)
+const BotVsHubs = lazyConReintento(() => import('./pages/BotVsHubs'), 'botvshubs')
+const Market = lazyConReintento(() => import('./pages/Market'), 'market')
+const Coverage = lazyConReintento(() => import('./pages/Coverage'), 'coverage')
+const Competitividad = lazyConReintento(() => import('./pages/Competitividad'), 'competitividad')
+const Monitoring = lazyConReintento(() => import('./pages/Monitoring'), 'monitoring')
 
 // Tabla ruta → componente + sección de permisos requerida. Reemplaza la
 // cadena de `activeTab === 'x' && canAccess('x') && <X/>` que había antes —
