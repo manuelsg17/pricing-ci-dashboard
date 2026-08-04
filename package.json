@@ -70,7 +70,8 @@
     "simulate:zona-aeropuerto": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-zona-aeropuerto.sql",
     "simulate:limpieza-duplicados": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-limpieza-duplicados.sql",
     "test:chunk-retry": "node scripts/test-chunk-retry.mjs",
-    "simulate:bot-nulls": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-bot-nulls-not-distinct.sql"
+    "simulate:bot-nulls": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-bot-nulls-not-distinct.sql",
+    "simulate:assignable-users": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-assignable-users.sql"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

@@ -25,12 +25,12 @@ const GROUPS = [
 
 export default function MyTasksView({ data, userEmail, riskThreshold, onChanged }) {
   const { t } = useI18n()
-  const { tasks, projectNameById, lastCommentByTask, today, lastSeen } = data
+  const { tasks, projectNameById, lastCommentByTask, today, lastSeen, timezone } = data
 
   const mine = useMemo(() => tasks.filter((x) => x.owner_email === userEmail), [tasks, userEmail])
   const groups = useMemo(
-    () => groupByUrgency(mine, today, projectNameById),
-    [mine, today, projectNameById]
+    () => groupByUrgency(mine, today, projectNameById, timezone),
+    [mine, today, projectNameById, timezone]
   )
 
   // "Tareas nuevas desde tu última visita" (§15.4): hasta que exista Telegram,

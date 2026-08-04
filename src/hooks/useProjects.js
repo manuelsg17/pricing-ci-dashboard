@@ -127,6 +127,10 @@ export function useProjectsData({ country, timezone, windowPreset = 'auto' }) {
     activeTaskIds,
     lastSeen,
     today,
+    // La zona viaja CON `today`: comparar un timestamp del servidor (UTC)
+    // contra un `today` local sin ella hacía desaparecer la tarea recién
+    // completada al final de la jornada. Ver fechaLocalDe() en projectTasks.js.
+    timezone,
     window: window_,
     loading,
     error,

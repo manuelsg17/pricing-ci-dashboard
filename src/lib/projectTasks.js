@@ -182,19 +182,55 @@ export function sortTasks(tasks, projectNameById = {}) {
 }
 
 /**
+ * La fecha LOCAL de un timestamp del servidor, como 'YYYY-MM-DD'.
+ *
+ * POR QUÉ EXISTE (bug real, medido)
+ * `updated_at` llega de PostgREST en UTC. Compararlo con `slice(0,10)` contra
+ * un "hoy" que se calculó en la zona del país hacía DESAPARECER la tarea:
+ * a las 19:00 de Lima ya es el día siguiente en UTC, el string no matcheaba, y
+ * como la rama de `done` hace `continue`, la tarea se iba de "Mis tareas"
+ * entera — no solo de "Completadas hoy".
+ *
+ * Afectaba a Perú y Colombia de 19:00 a 23:59, a Bolivia desde las 20:00, y a
+ * Nepal al revés (antes de las 5:45). O sea: justo al final de la jornada, que
+ * es cuando el hub cierra el día y mira lo que hizo.
+ *
+ * Es el §13.4 del diseño ("vence hoy depende de la zona horaria") entrando por
+ * el flanco de `updated_at`, que se había dado por cerrado.
+ *
+ * Se apoya en `todayInTimezone`, que ya acepta un instante: la regla de oro del
+ * archivo sigue intacta —una sola función toca zonas horarias— y no se agrega
+ * un segundo lugar donde la conversión pueda divergir.
+ */
+export function fechaLocalDe(timestamp, timeZone) {
+  if (!timestamp) return null
+  const d = new Date(timestamp)
+  if (Number.isNaN(d.getTime())) return null
+  // Sin zona no se puede convertir: se conserva el comportamiento viejo (la
+  // fecha UTC del string) en vez de inventar una zona. Los llamadores REALES
+  // siempre la pasan; esto cubre un test o un llamador viejo.
+  if (!timeZone) return String(timestamp).slice(0, 10)
+  return todayInTimezone(timeZone, d)
+}
+
+/**
  * Agrupa las tareas del hub por urgencia, en el orden en que se muestran.
  *
  * Devuelve SIEMPRE las mismas claves aunque estén vacías: la UI decide qué
  * mostrar, pero ninguna categoría puede desaparecer por omisión.
+ *
+ * `timeZone` es la del país (country_config). Sin ella, "completada hoy" se
+ * evalúa en UTC y la tarea desaparece al final de la jornada — ver
+ * `fechaLocalDe`.
  */
-export function groupByUrgency(tasks, today, projectNameById = {}) {
+export function groupByUrgency(tasks, today, projectNameById = {}, timeZone = null) {
   const groups = { overdue: [], today: [], week: [], later: [], none: [], doneToday: [] }
   for (const t of tasks) {
     // Las completadas se quedan visibles el resto del día: el hub cierra la
     // jornada viendo lo que logró (lo que sostiene el hábito) y puede deshacer
     // un clic equivocado (§15.3).
     if (t.status === 'done') {
-      if (t.updated_at?.slice(0, 10) === today) groups.doneToday.push(t)
+      if (fechaLocalDe(t.updated_at, timeZone) === today) groups.doneToday.push(t)
       continue
     }
     groups[taskUrgency(t, today)].push(t)

@@ -504,10 +504,32 @@ function collect(entryFile) {
 function readRoutes() {
   const src = readFileSync(APP_JSX, 'utf8')
   const lazyPaths = {}
+  // `lazy(` o `lazyConReintento(` (mig del 2026-08-04: los 17 imports se
+  // envolvieron para curar una pestaña vieja tras un deploy). El wrapper lleva
+  // un SEGUNDO argumento, así que el cierre no puede exigirse pegado al
+  // `import(...)`.
+  //
+  // ⚠️ ESTE REGEX SE ROMPIÓ UNA VEZ Y EL CHEQUEO QUEDÓ CIEGO UNA SEMANA.
+  // Al renombrar o envolver los imports de App.jsx, actualizarlo ACÁ. El guard
+  // de abajo existe para que ese olvido no vuelva a pasar en silencio.
   for (const m of src.matchAll(
-    /const\s+(\w+)\s*=\s*lazy\(\s*\(\)\s*=>\s*import\(\s*['"]([^'"]+)['"]\s*\)\s*\)/g
+    /const\s+(\w+)\s*=\s*lazy(?:ConReintento)?\(\s*\(\)\s*=>\s*import\(\s*['"]([^'"]+)['"]\s*\)/g
   ))
     lazyPaths[m[1]] = m[2]
+
+  // Si el parser no encontró NINGUNA página, el problema es el parser, no los
+  // datos. Sin esto, el script moría más adelante con "No pude resolver la
+  // página de la ruta 'dashboard'" — un mensaje que manda a buscar al lado
+  // equivocado y que ocultó durante una semana que el gate obligatorio de
+  // CLAUDE.md §7.4b no estaba validando nada.
+  if (Object.keys(lazyPaths).length === 0) {
+    console.error(
+      '\n  ✗ El parser de App.jsx no encontró ningún import perezoso.\n' +
+        '    NO es un problema de permisos: es que este script quedó desactualizado\n' +
+        `    respecto de ${APP_JSX}. Revisar el regex de readRoutes().\n`
+    )
+    process.exit(2)
+  }
 
   const block = src.match(/const ROUTES = \[([\s\S]*?)\n\]/)
   if (!block) {

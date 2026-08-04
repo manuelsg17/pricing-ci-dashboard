@@ -22,7 +22,13 @@ const BUCKETS = [
   { key: 'activity', labelKey: 'projects.today.activity', tone: 'ok' },
 ]
 
-export default function TodayView({ data, riskThreshold, ownerFilter, onChanged }) {
+export default function TodayView({
+  data,
+  riskThreshold,
+  ownerFilter,
+  onChanged,
+  canEdit = false,
+}) {
   const { t } = useI18n()
   const { tasks, projectNameById, lastCommentByTask, activeTaskIds, today, window: win } = data
 
@@ -127,7 +133,7 @@ export default function TodayView({ data, riskThreshold, ownerFilter, onChanged 
                       projectName={projectNameById[task.project_id]}
                       lastComment={lastCommentByTask[task.id]}
                       today={today}
-                      canEdit
+                      canEdit={canEdit}
                       riskThreshold={riskThreshold}
                       onChanged={onChanged}
                     />

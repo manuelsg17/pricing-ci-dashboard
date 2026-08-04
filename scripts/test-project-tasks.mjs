@@ -22,6 +22,7 @@ import {
   blockedDays,
   sortTasks,
   groupByUrgency,
+  fechaLocalDe,
   validateTaskDates,
   projectMatchesCity,
   taskMatchesCity,
@@ -181,6 +182,52 @@ console.log('\n══ projectTasks tests ══')
   assert(g.week.length === 1, '1 esta semana')
   assert(g.later.length === 1, '1 más adelante')
   assert(g.none.length === 1, '1 sin fecha — con su propia sección, no escondida')
+
+// ── La tarea que desaparecía al final de la jornada ───────────────────
+// BUG REAL (2026-08-04): `updated_at` llega de PostgREST en UTC y se comparaba
+// con `slice(0,10)` contra un "hoy" calculado en la zona del país. A las 19:00
+// de Lima ya es el día siguiente en UTC → no matcheaba → y como la rama de
+// `done` hace `continue`, la tarea se iba de "Mis tareas" ENTERA, no solo de
+// "Completadas hoy". Justo cuando el hub cierra el día y mira lo que hizo.
+console.log('\n[N] Completadas hoy: la zona horaria del país, no la del servidor')
+{
+  const LIMA = 'America/Lima'
+  // 19:30 de Lima del 4 de agosto = 00:30 UTC del 5. El caso exacto.
+  const tardeEnLima = [
+    { id: 'x', status: 'done', updated_at: '2026-08-05T00:30:00.000Z', due_date: null },
+  ]
+  const g1 = groupByUrgency(tardeEnLima, '2026-08-04', {}, LIMA)
+  assert(g1.doneToday.length === 1,
+    'marcada Lista a las 19:30 de Lima SIGUE visible en "Completadas hoy"')
+
+  // Y lo que importa de verdad: que no se pierda de la pantalla.
+  const visibles = Object.values(g1).reduce((n, arr) => n + arr.length, 0)
+  assert(visibles === 1, 'y no desaparece de "Mis tareas" (era 0 antes del fix)')
+
+  // Contraste: la MISMA hora UTC evaluada en UTC sí caía fuera — es la prueba
+  // de que el parámetro es lo que cambia el resultado, no otra cosa.
+  const gUtc = groupByUrgency(tardeEnLima, '2026-08-04', {}, 'UTC')
+  assert(gUtc.doneToday.length === 0,
+    'en UTC esa misma tarea cae al día siguiente (así se veía el bug)')
+
+  // Lo de ayer no debe colarse en "hoy".
+  const ayer = [{ id: 'y', status: 'done', updated_at: '2026-08-03T15:00:00.000Z', due_date: null }]
+  assert(groupByUrgency(ayer, '2026-08-04', {}, LIMA).doneToday.length === 0,
+    'una completada ayer NO aparece en "Completadas hoy"')
+
+  // Nepal (UTC+5:45) rompe por el otro lado: de madrugada, UTC va ATRASADO.
+  const madrugadaNepal = [
+    { id: 'z', status: 'done', updated_at: '2026-08-03T22:00:00.000Z', due_date: null },
+  ]
+  assert(groupByUrgency(madrugadaNepal, '2026-08-04', {}, 'Asia/Kathmandu').doneToday.length === 1,
+    'Nepal a las 03:45 locales: la completada de hoy también se ve')
+
+  // Sin zona: comportamiento viejo, para no romper un llamador que no la pase.
+  assert(fechaLocalDe('2026-08-05T00:30:00.000Z', null) === '2026-08-05',
+    'sin zona cae al string UTC (no inventa una zona)')
+  assert(fechaLocalDe(null, LIMA) === null, 'un updated_at nulo no rompe')
+  assert(fechaLocalDe('no-es-fecha', LIMA) === null, 'una fecha corrupta no rompe')
+}
   assert(g.doneToday.length === 1, 'la completada HOY sigue visible')
   assert(g.doneToday[0].id === '6', 'y es la correcta')
   assert(

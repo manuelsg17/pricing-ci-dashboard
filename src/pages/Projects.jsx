@@ -139,6 +139,11 @@ export default function Projects() {
           data={data}
           riskThreshold={RISK_THRESHOLD_DAYS}
           ownerFilter={ownerFilter}
+          // En la pestaña "Equipo" un hub VE las tareas de sus compañeros
+          // —esa es la feature— pero no puede tocarlas: las RPCs exigen ser
+          // dueño o admin. Sin esto veía 4 botones de estado que siempre
+          // rebotaban con un error, que es peor que no verlos.
+          canEdit={isAdmin}
           onChanged={() => data.reload({ silent: true })}
         />
       )}
