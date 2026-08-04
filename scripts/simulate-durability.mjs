@@ -59,6 +59,7 @@ function eq(a, b, label) {
 
 // ── Constantes del modelo (deben espejar DataEntry.jsx) ───────────────
 const DEBOUNCE_MS = 1500 // autosave del borrador
+const TECHO_MS = 3000 // techo del debounce (R1, 2026-08-01) — DataEntry.jsx:1396
 const HEARTBEAT_MS = 25_000 // latido: manda CONTEO, nunca los valores
 
 // ════════════════════════════════════════════════════════════════════════
@@ -86,6 +87,7 @@ function crearMaquina({ almacenamiento = 'ok' } = {}) {
     escriturasBorrador: 0,
     // sessionStorage — sobrevive un F5, muere con la pestaña.
     idPestaña: 'tab-1', // SESSION_ID (src/lib/supabase.js)
+    pendienteDesde: null, // ancla del techo del debounce (pendienteDesdeRef)
     marcaSync: null, // de:seq:<país>|<ciudad>|<zona>|<fecha>
     // ci_bucket_writes (mig 191)
     seqServidor: 0,
@@ -93,13 +95,25 @@ function crearMaquina({ almacenamiento = 'ok' } = {}) {
   }
 }
 
-// Un tecleo: entra en memoria y REINICIA el debounce. No hay maxWait: el
-// temporizador se reinicia entero en cada cambio, así que tipear sin pausas
-// de 1,5s posterga la escritura del borrador indefinidamente.
+// Un tecleo: entra en memoria y reinicia el debounce, PERO CON TECHO.
+//
+// CORREGIDO 2026-08-03. Este modelo era PRE-R1: reiniciaba el timer entero en
+// cada tecleo, sin maxWait, y por eso afirmaba en verde pérdidas de 60 y 30
+// celdas donde el código real deja 0-2. El archivo se contradecía consigo
+// mismo — sus propias aserciones de abajo (línea ~500) exigen que el fuente
+// TENGA techo desde el 2026-08-01.
+//
+// Ahora replica DataEntry.jsx:1399-1407: el ancla se estampa en el primer
+// cambio pendiente y la espera es
+//     min(DEBOUNCE, TECHO - (ahora - ancla))
+// acotada a 0. El ancla se limpia cuando el timer DISPARA (en `avanzar`), no
+// acá — esa ubicación es justamente la que MUT B mueve, y por eso el modelo
+// tiene que respetarla para seguir describiendo el código real.
 function tipear(m, celda, meta = null) {
   m.memoria.add(celda)
   if (meta) m.meta = { ...m.meta, ...meta }
-  m.timer = m.t + DEBOUNCE_MS
+  if (m.pendienteDesde == null) m.pendienteDesde = m.t
+  m.timer = m.t + Math.max(0, Math.min(DEBOUNCE_MS, TECHO_MS - (m.t - m.pendienteDesde)))
 }
 
 function escribirBorrador(m) {
@@ -117,6 +131,7 @@ function avanzar(m, ms) {
       restante -= m.timer - m.t
       m.t = m.timer
       m.timer = null
+      m.pendienteDesde = null
       escribirBorrador(m)
     } else {
       m.t += restante
@@ -138,16 +153,39 @@ function flushPorDesmontaje(m) {
   return true
 }
 
-// Descarga REAL de la página. React no corre cleanups: el timer pendiente
-// muere sin escribir y el flush nunca ocurre.
-function descargarPagina(m, { muereSessionStorage }) {
+// Descarga de la página. React NO corre cleanups acá — pero desde R2 sí hay
+// un handler de `pagehide`/`visibilitychange` que persiste el borrador.
+//
+// CORREGIDO 2026-08-03: antes había UNA sola función que nunca persistía, y se
+// usaba tanto para un F5 (donde `pagehide` SÍ dispara) como para un apagón
+// (donde no dispara nada). Por eso el modelo afirmaba pérdidas en cierres
+// ordenados que el código real ya cubre. Ahora son dos, y cada escenario usa
+// la que le corresponde.
+function descargar(m, { muereSessionStorage }) {
   m.timer = null
+  m.pendienteDesde = null
   m.memoria = new Set()
   m.meta = {}
   if (muereSessionStorage) {
     m.idPestaña = 'tab-2'
     m.marcaSync = null
   }
+}
+
+// F5, cerrar la pestaña, cerrar el navegador, auto-reload por deploy: el
+// navegador dispara `pagehide` y el handler persiste antes de irse (R2).
+function cierreOrdenado(m, opts) {
+  if (m.almacenamiento === 'ok') {
+    const previo = m.borrador ?? { celdas: new Set(), meta: {} }
+    m.borrador = { celdas: new Set(m.memoria), meta: { ...previo.meta, ...m.meta }, savedAt: m.t }
+    m.escriturasBorrador++
+  }
+  descargar(m, opts)
+}
+
+// Apagón, kill -9, crash del navegador: no corre NADA. Lo pendiente muere.
+function apagon(m, opts) {
+  descargar(m, opts)
 }
 
 // Al volver a montar: si hay borrador, se restaura y NO se consulta el
@@ -193,10 +231,15 @@ function perdidas(memoriaPrevia, m) {
 // ════════════════════════════════════════════════════════════════════════
 // [1] La ventana del debounce: cuánto trabajo vive SOLO en React
 // ════════════════════════════════════════════════════════════════════════
-console.log('[1] Ventana del debounce (trailing sin maxWait)')
+console.log('[1] Ventana del debounce (trailing CON techo de 3s)')
 
-// Cadencia realista tecleando una celda: 4 pulsaciones + Tab. Si entre
-// pulsación y pulsación pasan menos de 1,5s, el autosave NUNCA dispara.
+// Cadencia realista tecleando una celda: 4 pulsaciones + Tab.
+//
+// CORREGIDO 2026-08-03: este bloque afirmaba que tecleando sin pausas el
+// borrador NUNCA se escribe y que un apagón se lleva las 60 celdas. Eso
+// describía el código PRE-R1. Con el techo de 3s, la escritura se fuerza
+// aunque el hub no pare nunca — y las cifras de abajo son las que MIDE el
+// modelo corregido, no estimaciones.
 function tipeoContinuo(cadenciaMs, celdas) {
   const m = crearMaquina()
   for (let i = 0; i < celdas; i++) {
@@ -207,15 +250,19 @@ function tipeoContinuo(cadenciaMs, celdas) {
 }
 
 const rapido = tipeoContinuo(900, 60) // un hub en ritmo: 54s seguidos
-eq(rapido.escriturasBorrador, 0, 'tecleando cada 900ms el borrador NUNCA se escribe')
+eq(
+  rapido.escriturasBorrador,
+  15,
+  'tecleando cada 900ms el techo fuerza la escritura ~cada 3,6s (15 en 54s)'
+)
 {
   const previa = new Set(rapido.memoria)
-  descargarPagina(rapido, { muereSessionStorage: true })
+  apagon(rapido, { muereSessionStorage: true })
   hidratar(rapido)
   eq(
     perdidas(previa, rapido).length,
-    60,
-    'un apagón tras 54s de tipeo sin pausas se lleva las 60 celdas'
+    0,
+    'y un apagón tras 54s de tipeo sin pausas ya NO pierde ninguna celda (antes: 60)'
   )
 }
 
@@ -223,20 +270,28 @@ const pausado = tipeoContinuo(2500, 60) // con pausas > debounce
 ok(pausado.escriturasBorrador >= 59, 'con pausas de 2,5s el borrador se escribe casi por celda')
 {
   const previa = new Set(pausado.memoria)
-  descargarPagina(pausado, { muereSessionStorage: true })
+  apagon(pausado, { muereSessionStorage: true })
   hidratar(pausado)
   eq(perdidas(previa, pausado).length, 0, 'con pausas > 1,5s un apagón no pierde ninguna celda')
 }
 
-// El peor caso NO está acotado por el debounce: está acotado por cuánto
-// aguanta el hub sin hacer una pausa de 1,5s.
+// El peor caso YA está acotado, y ese es el punto de R1: por más que el hub
+// no haga NUNCA una pausa de 1,5s, el techo escribe igual.
 {
   const m = crearMaquina()
   for (let i = 0; i < 400; i++) {
     tipear(m, `c${i}`)
     avanzar(m, 1499)
   }
-  eq(m.escriturasBorrador, 0, 'el debounce no tiene techo: 10 min de tipeo, 0 escrituras')
+  eq(m.escriturasBorrador, 133, 'el debounce TIENE techo: 10 min de tipeo continuo, 133 escrituras')
+  const previa = new Set(m.memoria)
+  apagon(m, { muereSessionStorage: true })
+  hidratar(m)
+  eq(
+    perdidas(previa, m).length,
+    1,
+    'y el apagón en el peor caso se lleva 1 celda, no las 400 (esta es la ganancia de R1)'
+  )
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -251,17 +306,27 @@ console.log('[2] A · F5')
   avanzar(m, 500)
   const previa = new Set(m.memoria)
 
-  descargarPagina(m, { muereSessionStorage: false }) // F5: sessionStorage vive
+  cierreOrdenado(m, { muereSessionStorage: false }) // F5: pagehide dispara (R2)
   eq(hidratar(m), 'borrador', 'tras un F5 se restaura desde el borrador, no desde el servidor')
-  eq(perdidas(previa, m), ['c2'], 'un F5 pierde exactamente lo tecleado dentro de la ventana')
+  // CORREGIDO 2026-08-03: era ['c2']. Desde R2, `pagehide` persiste el
+  // borrador antes de que la página se vaya, así que un F5 ORDENADO no
+  // pierde nada. Lo que sí pierde es un crash — ver el bloque [3].
+  eq(perdidas(previa, m), [], 'un F5 ordenado ya NO pierde nada: pagehide persiste antes (R2)')
   eq(m.idPestaña, 'tab-1', 'un F5 conserva SESSION_ID (sessionStorage)')
   ok(guardDeEscritura(m), 'tras un F5 el guard de concurrencia NO da falso conflicto')
 }
 
 // ════════════════════════════════════════════════════════════════════════
-// [3] B/C/E — cerrar pestaña, cerrar navegador, crash
+// [3] E — CRASH del navegador (no corre pagehide)
+//
+// CORREGIDO 2026-08-03: el título decía "B/C/E — cerrar pestaña, cerrar
+// navegador, crash" y modelaba los tres como si ninguno persistiera. Desde R2
+// eso es falso para B y C: cerrar la pestaña o el navegador dispara `pagehide`
+// y el borrador se escribe antes de irse — ese caso ya está cubierto en [2],
+// que ahora afirma 0 pérdidas. Acá queda SOLO el crash, que es el único de los
+// tres donde de verdad no corre nada.
 // ════════════════════════════════════════════════════════════════════════
-console.log('[3] B/C/E · cerrar pestaña, cerrar navegador, crash')
+console.log('[3] E · crash del navegador (pagehide NO dispara)')
 {
   const m = crearMaquina()
   tipear(m, 'c1')
@@ -273,9 +338,9 @@ console.log('[3] B/C/E · cerrar pestaña, cerrar navegador, crash')
   avanzar(m, 400)
   const previa = new Set(m.memoria)
 
-  descargarPagina(m, { muereSessionStorage: true }) // la pestaña muere
+  apagon(m, { muereSessionStorage: true }) // la pestaña muere
   eq(hidratar(m), 'borrador', 'al reabrir se restaura el borrador')
-  eq(perdidas(previa, m), ['c3'], 'se pierde solo lo de la ventana del debounce')
+  eq(perdidas(previa, m), ['c3'], 'un CRASH sí pierde la ventana del techo (a diferencia del F5)')
 
   // Y acá aparece el efecto colateral: la marca de agua vive en
   // sessionStorage y murió con la pestaña; el borrador restaurado hace que
@@ -322,14 +387,17 @@ console.log('[4] D · apagón')
   const previa = new Set(m.memoria)
   const cortado = perdidas(previa, { ...m, borrador: m.borrador, servidor: m.servidor })
 
-  descargarPagina(m, { muereSessionStorage: true })
+  apagon(m, { muereSessionStorage: true })
   hidratar(m)
+  // CORREGIDO 2026-08-03: eran 30 con el modelo PRE-R1. Con el techo de 3s,
+  // un apagón tras 24s de tipeo continuo se lleva SOLO las 2 últimas celdas
+  // (c128 y c129) — la ventana del techo, no toda la racha.
   eq(
     perdidas(previa, m).length,
-    30,
-    'apagón tras 24s de tipeo continuo: se pierden las 30 celdas de esa racha'
+    2,
+    'apagón tras 24s de tipeo continuo: se pierden 2 celdas, no las 30 de la racha'
   )
-  eq(cortado.length, 30, 'el conteo es el mismo antes y después: nada más se pierde')
+  eq(cortado.length, 2, 'el conteo es el mismo antes y después: nada más se pierde')
   ok(m.borrador.celdas.has('c99'), 'las 100 primeras sobreviven en el borrador')
   ok(
     m.borrador.celdas.has('c85') && !m.servidor.has('c85'),
@@ -357,9 +425,12 @@ console.log('[5] F · auto-reload por deploy')
   tipear(m, 'c2')
   avanzar(m, 1000) // llega el reload a los 60s del toast
   const previa = new Set(m.memoria)
-  descargarPagina(m, { muereSessionStorage: false }) // reload = F5
+  cierreOrdenado(m, { muereSessionStorage: false }) // auto-reload: pagehide dispara
   hidratar(m)
-  eq(perdidas(previa, m), ['c2'], 'el auto-reload pierde la misma ventana que un F5')
+  // CORREGIDO 2026-08-03, mismo motivo que [2]: el auto-reload por deploy es
+  // un cierre ORDENADO. Esto es justamente lo que baja la gravedad de P1-9 a
+  // una molestia de experiencia y no una pérdida de datos.
+  eq(perdidas(previa, m), [], 'el auto-reload tampoco pierde nada (cierre ordenado, igual que el F5)')
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -403,7 +474,7 @@ console.log('[7] H · localStorage lleno')
   eq(m.borrador.savedAt, 1500, 'el borrador queda congelado en la última escritura buena')
 
   const previa = new Set(m.memoria)
-  descargarPagina(m, { muereSessionStorage: true })
+  apagon(m, { muereSessionStorage: true })
   hidratar(m)
   eq(
     perdidas(previa, m).length,
@@ -429,7 +500,7 @@ console.log('[8] I · localStorage deshabilitado')
   eq(m.escriturasBorrador, 0, 'ninguna escritura del autosave prospera')
 
   const previa = new Set(m.memoria)
-  descargarPagina(m, { muereSessionStorage: false })
+  apagon(m, { muereSessionStorage: false })
   hidratar(m)
   eq(perdidas(previa, m).length, 200, 'cualquier recarga pierde la sesión entera')
 
@@ -438,7 +509,7 @@ console.log('[8] I · localStorage deshabilitado')
   for (let i = 0; i < 200; i++) tipear(m2, `c${i}`)
   guardar(m2, { celdasCompletas: Array.from({ length: 160 }, (_, i) => `c${i}`) })
   const previa2 = new Set(m2.memoria)
-  descargarPagina(m2, { muereSessionStorage: false })
+  apagon(m2, { muereSessionStorage: false })
   hidratar(m2)
   eq(
     perdidas(previa2, m2).length,
@@ -540,9 +611,15 @@ ok(
   /pendienteDesdeRef\.current == null\) pendienteDesdeRef\.current = Date\.now\(\)/.test(bAutosave),
   'el ancla del techo se estampa en el primer cambio pendiente'
 )
+// MUT B (cerrada 2026-08-03): la aserción anterior solo exigía que el reset
+// EXISTIERA en algún lugar del bloque. Mover `pendienteDesdeRef.current = null`
+// del callback del timer al CUERPO del efecto la dejaba en verde — y con el
+// reset ahí, el ancla se limpia en cada render, `Date.now() - ancla` es
+// siempre ~0, y la espera vuelve a ser un 1500 fijo: R1 revertido por
+// completo, en verde. Lo que importa no es que el reset exista, es DÓNDE está.
 ok(
-  /pendienteDesdeRef\.current = null/.test(bAutosave),
-  'y se resetea al escribir: sin esto el techo se agota una sola vez'
+  /setTimeout\(\(\) => \{\s*pendienteDesdeRef\.current = null/.test(bAutosave),
+  'el ancla del techo se resetea al DISPARAR el timer, no en el cuerpo del efecto'
 )
 ok(/clearTimeout\(id\)/.test(bAutosave), 'el cleanup del autosave sigue cancelando el timer')
 
@@ -561,9 +638,29 @@ ok(
   'el beforeunload sigue sin persistir nada (correcto: para eso está pagehide)'
 )
 // 3b. Y AHORA sí hay persistencia en pagehide/visibilitychange (R2).
+//
+// MUT A (cerrada 2026-08-03): la aserción anterior era
+//   /addEventListener\('pagehide'/.test(src) && /persistirBorrador/.test(src)
+// — dos greps INDEPENDIENTES sobre el archivo ENTERO. Vaciar el handler de
+// pagehide dejando solo la marca del candado ocioso la dejaba en verde,
+// porque `persistirBorrador` se sigue nombrando en otros cinco lugares del
+// componente. O sea: se podía revertir R2 —la persistencia al cerrar la
+// pestaña, un fix P0 de pérdida de datos— sin que este archivo dijera nada.
+//
+// Ahora se ancla al CUERPO del handler: lo que se exige es que ESE handler
+// llame a persistirBorrador, no que la palabra aparezca en el archivo.
+const bPageHide = bloque(
+  'const onPageHide = () => {',
+  "window.addEventListener('pagehide'",
+  'pagehide'
+)
 ok(
-  /addEventListener\('pagehide'/.test(src) && /persistirBorrador/.test(src),
-  'pagehide persiste el borrador (cierre de pestaña/navegador)'
+  /addEventListener\('pagehide'/.test(src),
+  'sigue habiendo un listener de pagehide registrado'
+)
+ok(
+  /persistirBorrador\(/.test(bPageHide),
+  'el handler de pagehide PERSISTE el borrador (no solo marca el candado ocioso)'
 )
 ok(
   /visibilitychange/.test(src),
