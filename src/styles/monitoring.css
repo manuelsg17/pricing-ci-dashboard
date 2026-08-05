@@ -434,3 +434,56 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* ── Panel "Tareas en riesgo" (mig 216) ─────────────────────────────────
+   Reutiliza los tokens del semáforo, igual que el resto del módulo de
+   Proyectos: rojo = detenido o pasado de fecha, ámbar = va camino a serlo. */
+.mon-tasks {
+  margin-top: 10px;
+}
+.mon-tasks h3 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mon-tasks h3 span {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-panel);
+  font-size: 10px;
+  color: var(--color-text);
+}
+.mon-tasks--danger h3 {
+  color: var(--sem-red-fg, #b02a37);
+}
+.mon-tasks--warn h3 {
+  color: var(--sem-yellow-fg, #997404);
+}
+.mon-tasks ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.mon-tasks li {
+  margin-bottom: 4px;
+  /* Un título de tarea largo no puede empujar el panel a lo ancho. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mon-tasks__meta {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.mon-tasks__reason {
+  display: block;
+  margin-left: 0;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text);
+}

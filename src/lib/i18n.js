@@ -378,6 +378,19 @@ export const TRANSLATIONS = {
     'monitoring.coverage_col_type': 'Ciudad / tipo de CI',
     'monitoring.coverage_airport_a': 'Aeropuerto A',
     'monitoring.coverage_airport_b': 'Aeropuerto B',
+    'monitoring.tasks_title': 'Tareas en riesgo',
+    'monitoring.tasks_subtitle':
+      'Tareas de proyectos activos que necesitan una decisión hoy. Si no hay ninguna, este panel no aparece.',
+    'monitoring.tasks_failed': 'No se pudieron cargar las alertas de tareas.',
+    'monitoring.tasks_blocked': 'Trabadas',
+    'monitoring.tasks_blocked_for': 'trabada hace {n} día(s)',
+    'monitoring.tasks_overdue': 'Vencidas',
+    'monitoring.tasks_overdue_for': 'venció hace {n} día(s)',
+    'monitoring.tasks_at_risk': 'En riesgo',
+    'monitoring.tasks_due_in': 'vence en {n} día(s)',
+    'monitoring.tasks_silent': 'Sin novedades',
+    'monitoring.tasks_silent_for': 'sin comentarios hace {n} día(s)',
+    'monitoring.tasks_orphan': 'Asignadas a usuarios inactivos',
     'monitoring.price_alerts_title': '⚠ Cumplimiento de precio',
     'monitoring.price_alerts_subtitle':
       'Pares configurados en Competitividad que están por debajo del 30% dentro de banda esta semana.',
@@ -2410,6 +2423,12 @@ export const TRANSLATIONS = {
       'PEN/COP/BOB/VES/NPR/ZMW/USD ajustan defaults de outlier y max_price automáticamente',
     'config.countries_config.outlier_label': 'Umbral outlier',
     'config.countries_config.max_price_label': 'Precio máx.',
+    'config.countries_config.timezone_label': 'Zona horaria',
+    'config.countries_config.timezone_tooltip':
+      'Zona horaria IANA (ej. America/Lima). Define qué día es "hoy" para los vencimientos de Proyectos: sin ella, a las 19:00 el sistema ya cree que es mañana.',
+    'config.countries_config.risk_days_label': 'Días "en riesgo"',
+    'config.countries_config.risk_days_tooltip':
+      'Con cuántos días de anticipación una tarea se marca en riesgo en Proyectos y en Monitoreo. Entre 1 y 30.',
     'config.countries_config.status_label': 'Estado',
     'config.countries_config.status_tooltip':
       'Draft: solo scaffolding, no aparece en el selector de país ni el bot lo sincroniza. Active: visible en el dashboard y el job de sync (bot-sync.yml) lo incluye.',
@@ -2827,6 +2846,19 @@ export const TRANSLATIONS = {
     'monitoring.coverage_col_type': 'City / CI type',
     'monitoring.coverage_airport_a': 'Airport A',
     'monitoring.coverage_airport_b': 'Airport B',
+    'monitoring.tasks_title': 'Tasks at risk',
+    'monitoring.tasks_subtitle':
+      'Tasks in active projects that need a decision today. If there are none, this panel does not appear.',
+    'monitoring.tasks_failed': 'Could not load task alerts.',
+    'monitoring.tasks_blocked': 'Blocked',
+    'monitoring.tasks_blocked_for': 'blocked for {n} day(s)',
+    'monitoring.tasks_overdue': 'Overdue',
+    'monitoring.tasks_overdue_for': 'overdue by {n} day(s)',
+    'monitoring.tasks_at_risk': 'At risk',
+    'monitoring.tasks_due_in': 'due in {n} day(s)',
+    'monitoring.tasks_silent': 'No updates',
+    'monitoring.tasks_silent_for': 'no comments for {n} day(s)',
+    'monitoring.tasks_orphan': 'Assigned to inactive users',
     'monitoring.price_alerts_title': '⚠ Price compliance',
     'monitoring.price_alerts_subtitle':
       'Pairs configured in Competitiveness that are below 30% within band this week.',
@@ -4826,6 +4858,12 @@ export const TRANSLATIONS = {
       'PEN/COP/BOB/VES/NPR/ZMW/USD auto-adjust outlier and max_price defaults',
     'config.countries_config.outlier_label': 'Outlier threshold',
     'config.countries_config.max_price_label': 'Max price',
+    'config.countries_config.timezone_label': 'Time zone',
+    'config.countries_config.timezone_tooltip':
+      'IANA time zone (e.g. America/Lima). Defines what day "today" is for Project due dates: without it, at 7pm the system already thinks it is tomorrow.',
+    'config.countries_config.risk_days_label': '"At risk" days',
+    'config.countries_config.risk_days_tooltip':
+      'How many days ahead a task is flagged as at risk in Projects and Monitoring. Between 1 and 30.',
     'config.countries_config.status_label': 'Status',
     'config.countries_config.status_tooltip':
       "Draft: scaffolding only, doesn't appear in the country selector and the bot doesn't sync it. Active: visible in the dashboard and included by the sync job (bot-sync.yml).",
@@ -5249,6 +5287,19 @@ export const TRANSLATIONS = {
     'monitoring.coverage_col_type': 'Город / тип CI',
     'monitoring.coverage_airport_a': 'Аэропорт А',
     'monitoring.coverage_airport_b': 'Аэропорт Б',
+    'monitoring.tasks_title': 'Задачи под риском',
+    'monitoring.tasks_subtitle':
+      'Задачи активных проектов, требующие решения сегодня. Если их нет, панель не отображается.',
+    'monitoring.tasks_failed': 'Не удалось загрузить оповещения по задачам.',
+    'monitoring.tasks_blocked': 'Заблокированы',
+    'monitoring.tasks_blocked_for': 'заблокирована {n} дн.',
+    'monitoring.tasks_overdue': 'Просрочены',
+    'monitoring.tasks_overdue_for': 'просрочена на {n} дн.',
+    'monitoring.tasks_at_risk': 'Под риском',
+    'monitoring.tasks_due_in': 'срок через {n} дн.',
+    'monitoring.tasks_silent': 'Без новостей',
+    'monitoring.tasks_silent_for': 'без комментариев {n} дн.',
+    'monitoring.tasks_orphan': 'Назначены неактивным пользователям',
     'monitoring.price_alerts_title': '⚠ Соответствие цены',
     'monitoring.price_alerts_subtitle':
       'Пары, настроенные в разделе Конкурентоспособность, у которых меньше 30% попаданий в диапазон на этой неделе.',
@@ -7306,6 +7357,12 @@ export const TRANSLATIONS = {
       'PEN/COP/BOB/VES/NPR/ZMW/USD автоматически подстраивают значения outlier и max_price по умолчанию',
     'config.countries_config.outlier_label': 'Порог выброса',
     'config.countries_config.max_price_label': 'Макс. цена',
+    'config.countries_config.timezone_label': 'Часовой пояс',
+    'config.countries_config.timezone_tooltip':
+      'Часовой пояс IANA (например, America/Lima). Определяет, какой день считается «сегодня» для сроков в Проектах: без него в 19:00 система уже считает, что наступил следующий день.',
+    'config.countries_config.risk_days_label': 'Дней «под риском»',
+    'config.countries_config.risk_days_tooltip':
+      'За сколько дней задача помечается как рискованная в Проектах и Мониторинге. От 1 до 30.',
     'config.countries_config.status_label': 'Статус',
     'config.countries_config.status_tooltip':
       'Draft: только каркас, не появляется в селекторе страны и бот её не синхронизирует. Active: видна на дашборде и включена в job синхронизации (bot-sync.yml).',

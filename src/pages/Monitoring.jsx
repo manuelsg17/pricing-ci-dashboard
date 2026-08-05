@@ -5,6 +5,7 @@ import { useLiveSessions } from '../hooks/useLiveSessions'
 import { useMonitoringData } from '../hooks/useMonitoringData'
 import { useWeeklyCoverage } from '../hooks/useWeeklyCoverage'
 import { usePriceComplianceAlerts } from '../hooks/usePriceComplianceAlerts'
+import { useProjectTaskAlerts } from '../hooks/useProjectTaskAlerts'
 import RepresentativityCard from '../components/dashboard/RepresentativityCard'
 import LiveSessionsPanel from '../components/monitoring/LiveSessionsPanel'
 import UnfinishedSessionsPanel from '../components/monitoring/UnfinishedSessionsPanel'
@@ -14,6 +15,7 @@ import CompletedSessionsTable from '../components/monitoring/CompletedSessionsTa
 import WeeklyCoveragePanel from '../components/monitoring/WeeklyCoveragePanel'
 import PriceComplianceAlerts from '../components/monitoring/PriceComplianceAlerts'
 import ClientErrorsPanel from '../components/monitoring/ClientErrorsPanel'
+import ProjectTasksPanel from '../components/monitoring/ProjectTasksPanel'
 import TurnoTimesPanel from '../components/monitoring/TurnoTimesPanel'
 import '../styles/data-entry.css'
 import '../styles/monitoring.css'
@@ -46,6 +48,7 @@ export default function Monitoring() {
   } = useMonitoringData(country)
   const coverage = useWeeklyCoverage(country)
   const priceAlerts = usePriceComplianceAlerts(country)
+  const taskAlerts = useProjectTaskAlerts(country)
 
   return (
     <div className="de-page">
@@ -63,6 +66,15 @@ export default function Monitoring() {
           porque responde una pregunta de gestión —"¿cuánto le lleva a mi
           equipo?"— y no de calidad del dato. */}
       <TurnoTimesPanel />
+
+      {/* Tareas trabadas, vencidas o mudas (mig 216). Va antes de las métricas
+          de calidad del dato por lo mismo que TurnoTimesPanel: responde una
+          pregunta de gestión —"¿quién está frenado?"— y eso se atiende hoy. */}
+      <ProjectTasksPanel
+        alerts={taskAlerts.alerts}
+        loading={taskAlerts.loading}
+        failed={taskAlerts.failed}
+      />
 
       <RepresentativityCard />
 

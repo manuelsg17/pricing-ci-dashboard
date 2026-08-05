@@ -22,7 +22,9 @@ import '../styles/projects.css'
 //   · admin → "Hoy": qué se movió, qué vence, quién está trabado.
 //   · hub   → "Mis tareas": qué tengo que hacer.
 
-const RISK_THRESHOLD_DAYS = 2
+// Umbral de "en riesgo". Sale de Config → Países (country_config, mig 216); el
+// 2 es solo el piso para el caso de un país todavía sin fila de configuración.
+const RISK_THRESHOLD_FALLBACK = 2
 
 export default function Projects() {
   const { country, countryConfig } = useCountry()
@@ -59,6 +61,7 @@ export default function Projects() {
   }, [userEmail])
 
   const cities = useMemo(() => countryConfig?.dbCities || [], [countryConfig])
+  const riskThreshold = countryConfig?.projectsRiskDays ?? RISK_THRESHOLD_FALLBACK
 
   const TABS = useMemo(
     () =>
@@ -165,7 +168,7 @@ export default function Projects() {
       {!data.loading && view === 'today' && (
         <TodayView
           data={dataFiltrada}
-          riskThreshold={RISK_THRESHOLD_DAYS}
+          riskThreshold={riskThreshold}
           // En la pestaña "Equipo" un hub VE las tareas de sus compañeros
           // —esa es la feature— pero no puede tocarlas: las RPCs exigen ser
           // dueño o admin. Sin esto veía 4 botones de estado que siempre
@@ -179,7 +182,7 @@ export default function Projects() {
         <MyTasksView
           data={dataFiltrada}
           userEmail={userEmail}
-          riskThreshold={RISK_THRESHOLD_DAYS}
+          riskThreshold={riskThreshold}
           onChanged={() => data.reload({ silent: true })}
         />
       )}
@@ -189,7 +192,7 @@ export default function Projects() {
           data={dataFiltrada}
           userEmail={userEmail}
           isAdmin={isAdmin}
-          riskThreshold={RISK_THRESHOLD_DAYS}
+          riskThreshold={riskThreshold}
           onChanged={() => data.reload({ silent: true })}
         />
       )}

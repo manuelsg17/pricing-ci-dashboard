@@ -789,6 +789,10 @@ export function dbConfigToInternal(row) {
     weightCities: ['all', ...dbCities],
     outlierThreshold: Number(row.outlier_threshold ?? 100),
     maxPrice: Number(row.max_price ?? 1000),
+    // Días de anticipación con los que una tarea se marca "en riesgo" en
+    // Proyectos y en Monitoreo (mig 216). Estaba clavado en 2 en el cliente;
+    // PROYECTOS_DESIGN.md §7 lo pedía configurable desde el principio.
+    projectsRiskDays: Number(row.projects_risk_days ?? 2),
     botCityMap,
     botRules,
   }

@@ -204,6 +204,11 @@ export default function CountriesConfig() {
       'status',
       'bot_rules',
       'airport_subcategories_by_city',
+      // Mig 183 agregó `timezone` y la 216 `projects_risk_days`, pero ninguna
+      // llegó a esta lista: editarlas no encendía el botón Guardar y el cambio
+      // se perdía sin que la pantalla dijera nada.
+      'timezone',
+      'projects_risk_days',
     ]
     return FIELDS.some((f) => JSON.stringify(draft[key][f]) !== JSON.stringify(dbRow[f]))
   }
@@ -273,6 +278,8 @@ export default function CountriesConfig() {
       locale: 'en-US',
       outlier_threshold: 100,
       max_price: 1000,
+      timezone: 'UTC',
+      projects_risk_days: 2,
       sort_order: dbRows.length,
       cities: [],
     }
@@ -400,6 +407,13 @@ export default function CountriesConfig() {
       status: row.status || 'active',
       outlier_threshold: Number(row.outlier_threshold),
       max_price: Number(row.max_price),
+      // Las dos son nuevas en el payload. Un upsert de PostgREST no pisa las
+      // columnas que no manda, así que hasta ahora simplemente NO había forma
+      // de cambiarlas desde la app: quedaban en el valor que les puso la
+      // migración, y un país creado por el wizard se quedaba en 'UTC' para
+      // siempre — con "vence hoy" desfasado un día (§13.4).
+      timezone: (row.timezone || 'UTC').trim(),
+      projects_risk_days: Number(row.projects_risk_days ?? 2),
       sort_order: Number(row.sort_order ?? 0),
       cities: row.cities || [],
       // ★ Mig 58: preservar botRules y airport subcategorías si vinieron
@@ -879,6 +893,53 @@ export default function CountriesConfig() {
                     disabled={readonly}
                     value={activeRow?.max_price ?? 1000}
                     onChange={(e) => setDraftField(selectedKey, 'max_price', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Zona horaria y umbral de riesgo. Las dos columnas existían en
+                  la base (migs 183 y 216) sin forma de editarlas: un país
+                  onboardeado por el wizard quedaba en 'UTC' para siempre, y con
+                  eso "vence hoy" en Proyectos se desfasaba un día. */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.timezone_label')}{' '}
+                    <span
+                      title={t('config.countries_config.timezone_tooltip')}
+                      style={{ cursor: 'help', opacity: 0.6, textTransform: 'none' }}
+                    >
+                      ⓘ
+                    </span>
+                  </label>
+                  <input
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
+                    placeholder="America/Lima"
+                    value={activeRow?.timezone ?? 'UTC'}
+                    onChange={(e) => setDraftField(selectedKey, 'timezone', e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={fieldLabelStyle}>
+                    {t('config.countries_config.risk_days_label')}{' '}
+                    <span
+                      title={t('config.countries_config.risk_days_tooltip')}
+                      style={{ cursor: 'help', opacity: 0.6, textTransform: 'none' }}
+                    >
+                      ⓘ
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    style={inputStyle(readonly)}
+                    disabled={readonly}
+                    value={activeRow?.projects_risk_days ?? 2}
+                    onChange={(e) =>
+                      setDraftField(selectedKey, 'projects_risk_days', e.target.value)
+                    }
                   />
                 </div>
               </div>
