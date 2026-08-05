@@ -1,6 +1,7 @@
 # Diseño — Gestión de Proyectos y Tareas (Gantt + Kanban)
 
-Estado: **PLAN, sin implementar**. Escrito 2026-07-31.
+Estado: **Fase 1 y Fase 2 implementadas** (2026-08-04). Escrito 2026-07-31.
+Lo que sigue son las Fases 3 (Telegram) y 4 (plantillas, duplicar, exportar).
 Ubicación propuesta: **Gestión de Datos → Proyectos** (junto a Ingresar CI).
 
 ---
@@ -296,15 +297,16 @@ tendrá el modelo de datos listo para escribir.
 
 ## 10. Fases
 
-**Fase 1 — El núcleo (lo que hace útil el sistema)**
+**Fase 1 — El núcleo (lo que hace útil el sistema)** ✅ (migs 183-184)
 Migración con las 4 tablas + RLS + las 2 RPCs acotadas. Vistas "Hoy" y "Mis
 tareas". Alta inline de proyectos y tareas. Estados y comentarios.
 → Con esto ya podés hacer la reunión diaria. Es el corte mínimo que sirve.
 
-**Fase 2 — Las vistas visuales**
+**Fase 2 — Las vistas visuales** ✅ (migs 215-216, 2026-08-04)
 Gantt (con arrastre) y Kanban. Filtros persistentes. Panel en Monitoreo.
 → Acá entra lo "bonito de ver". Va después a propósito: si el núcleo no se
 usa, el Gantt no lo salva.
+Ver §21 para lo que se descubrió construyéndola.
 
 **Fase 3 — Telegram**
 Bot, webhook, vinculación de identidad, mensaje de cierre del día.
@@ -832,3 +834,89 @@ proyecto (§17.7) y borrado sin fricción solo para tareas sin actividad (§17.9
 
 Fuera de la Fase 1: Gantt, Kanban, panel de Monitoreo, Telegram, correr fechas
 en lote y duplicar proyecto.
+
+---
+
+## 21. Lo que apareció al construir la Fase 2 (2026-08-04)
+
+Las cuatro rondas de simulación acertaron el diseño; lo que no podían ver era
+lo que se descubre corriendo el código. Queda anotado porque tres de estos
+cinco eran huecos entre lo que el documento pedía y lo que la Fase 1 hizo, no
+ideas nuevas — y ese es el patrón a vigilar en las fases que siguen.
+
+### 21.1 — §17.6 y §13.6 estaban a medias 🔴
+
+El comentario de sistema al reasignar vivía dentro de `reassign_task`, pero la
+planilla del admin reasignaba con un UPDATE crudo: la RPC estaba exportada y no
+la llamaba nadie. Además del comentario faltante, se salteaba la validación de
+destino de la mig 207. Y el cambio de fechas no dejaba rastro por ningún camino.
+
+**Corregido (mig 215)**: la regla pasa a un trigger sobre `project_tasks`, que
+cubre los cuatro caminos de escritura —planilla, RPC, arrastre del Gantt, SQL
+directo— en vez de uno. `reassign_task` PIERDE su INSERT: con el trigger
+puesto, conservarlo daba dos comentarios y dos textos que sincronizar a mano.
+
+**Regla para adelante**: si una regla de negocio tiene más de un camino de
+entrada, va en un trigger. Es la cuarta vez que este repo paga lo mismo (migs
+209, 211, auto-tag de la 180, y ahora esta).
+
+### 21.2 — §17.3 no se había implementado 🔴
+
+"Todas las vistas filtran `projects.status = 'active'`" quedó escrito y no
+hecho: la consulta de proyectos filtraba, la de tareas no podía (no tiene la
+columna) y el recorte no lo hacía nadie. Las tareas de proyectos archivados
+seguían apareciendo en las cuatro vistas. Archivar sacaba el proyecto de la
+lista y nada más.
+
+**Corregido**: el recorte va en `useProjectsData`, una sola vez.
+
+### 21.3 — §7 pedía el umbral configurable y estaba clavado ⚠️
+
+`RISK_THRESHOLD_DAYS = 2` en el cliente. Ahora es
+`country_config.projects_risk_days`, con CHECK 1..30 en la base y editor en
+Config → Países (mig 216).
+
+De paso: `timezone` existía desde la mig 183 y tampoco tenía editor. Un país
+creado por el wizard se quedaba en `'UTC'` para siempre, con "vence hoy"
+desfasado un día — el §13.4 volviendo por la puerta de atrás.
+
+### 21.4 — El estado de React no sirve para arrastrar ⚠️
+
+Apareció dos veces, en las dos vistas nuevas. Si `dragstart`/`pointermove` y el
+`drop`/`pointerup` caen en el mismo lote de render, el estado todavía no se
+actualizó cuando el handler de soltar lo lee: **el movimiento se pierde en
+silencio**. Con un gesto lento no pasa; con uno corto y rápido, sí.
+
+**Solución**: el Kanban lee de `dataTransfer` y el Gantt de un `ref`. Las dos
+fuentes son síncronas. El estado queda solo para el resaltado.
+
+### 21.5 — El "hoy" con zona horaria también aplica del lado del servidor ⚠️
+
+La primera versión del panel de Monitoreo mostraba "trabada hace -1 días":
+comparaba `updated_at` (UTC) contra un "hoy" calculado en la zona del país. Es
+el §13.4 entrando por el flanco de los timestamps, igual que le pasó a
+`fechaLocalDe()` en el cliente.
+
+**Regla para adelante**: cualquier resta entre un `timestamptz` y el "hoy" del
+país tiene que convertir el timestamp a esa zona primero. En SQL y en JS.
+
+---
+
+## 22. Estado de implementación
+
+| Vista / pieza                                       | Estado       |
+| --------------------------------------------------- | ------------ |
+| Hoy, Mis tareas, alta inline, estados y comentarios | ✅ Fase 1    |
+| Barra de filtros común y persistente                | ✅ Fase 2    |
+| Kanban con arrastre                                 | ✅ Fase 2    |
+| Gantt con arrastre, zoom y línea de hoy             | ✅ Fase 2    |
+| Panel "Tareas en riesgo" en Monitoreo               | ✅ Fase 2    |
+| Correr fechas en lote (§15.8)                       | ⬜ pendiente |
+| Telegram                                            | ⬜ Fase 3    |
+| Plantillas, duplicar proyecto, exportar a PDF       | ⬜ Fase 4    |
+
+**Bloqueante que no es de código**: la sección `projects` tiene que concederse
+a los roles desde la pantalla de Accesos. Es un cambio de DATOS, nunca una
+migración (CLAUDE.md §3). Hasta que se haga, solo un admin puede abrir la
+sección — y con la mig 214 puesta, el desplegable de "Responsable" solo lista a
+quienes tengan la sección.
