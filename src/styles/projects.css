@@ -1253,3 +1253,51 @@
     order: 3;
   }
 }
+
+/* ── Señales de la planilla del admin ───────────────────────────────────
+   Esta planilla guarda sola, sin botón: cada campo se manda al salir o al
+   cambiar. Sin una señal de que pasó algo no hay forma de distinguir
+   "guardado" de "no hizo nada" — reportado usando la app de verdad. */
+.ptable__row.is-ok {
+  animation: ptable-ok 1.6s ease-out;
+}
+@keyframes ptable-ok {
+  0%,
+  40% {
+    background: var(--sem-green-bg, #d1e7dd);
+  }
+  100% {
+    background: transparent;
+  }
+}
+/* Fila en curso: el borrado consulta la actividad ANTES de poder preguntar,
+   así que sin esto el botón parece no responder y se aprieta de nuevo. */
+.ptable__row.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.ptable__del:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* ── Archivados ─────────────────────────────────────────────────────── */
+.pproj--archived {
+  border-style: dashed;
+}
+.pproj__archived-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+}
+.pproj__archived-row > span:first-child {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pproj__archived-row .pproj__archive {
+  margin-left: auto;
+}

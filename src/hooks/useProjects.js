@@ -224,6 +224,65 @@ export async function archiveProject(id) {
   return { error }
 }
 
+/**
+ * Los archivados, para poder verlos y devolverlos.
+ *
+ * Va aparte de `useProjectsData` a propósito: esa carga alimenta Hoy, Kanban,
+ * Gantt y Mis tareas, y §17.3 pide que ahí NUNCA aparezcan los archivados. Esto
+ * se pide solo cuando el admin abre el desplegable de archivados.
+ */
+export async function fetchArchivedProjects(country) {
+  const { data, error } = await sb
+    .from('projects')
+    .select('*')
+    .eq('country', country)
+    .eq('status', 'archived')
+    .order('updated_at', { ascending: false })
+  return { data: data || [], error }
+}
+
+/** Devuelve un proyecto archivado a la lista activa. Archivar deja de ser un
+ *  camino de una sola dirección. */
+export async function unarchiveProject(id) {
+  const { error } = await sb.from('projects').update({ status: 'active' }).eq('id', id)
+  return { error }
+}
+
+/**
+ * Cuántas personas del país NO pueden ser responsables por no tener la sección.
+ *
+ * `assignable_users` filtra por país Y por sección (mig 214), que es lo
+ * correcto: asignarle una tarea a alguien que no puede abrir Proyectos crea un
+ * agujero negro (§15.2). Pero el efecto visible es un desplegable con una sola
+ * persona y ninguna explicación — el admin concluye que la herramienta está
+ * rota, no que falta un permiso.
+ *
+ * Esto cuenta a los que quedaron afuera para poder decirlo. Solo lectura, y la
+ * pantalla ya es admin-only.
+ */
+export async function fetchOwnerGap(country) {
+  const [{ data: perfiles, error: e1 }, { data: roles, error: e2 }] = await Promise.all([
+    sb.from('user_profiles').select('email, role_id').eq('is_active', true),
+    sb.from('roles').select('id, permissions'),
+  ])
+  if (e1 || e2) return { sinSeccion: 0, error: e1 || e2 }
+
+  const porId = Object.fromEntries((roles || []).map((r) => [r.id, r.permissions || {}]))
+  const tiene = (lista, valor) =>
+    Array.isArray(lista) && (lista.includes(valor) || lista.includes('all'))
+
+  const sinSeccion = (perfiles || []).filter((u) => {
+    const perm = porId[u.role_id]
+    if (!perm) return false
+    // Solo cuentan los que SÍ tienen el país: a alguien de otro país no le
+    // falta un permiso, simplemente no es de acá.
+    if (!tiene(perm.countries, country)) return false
+    return !tiene(perm.sections, 'projects')
+  }).length
+
+  return { sinSeccion, error: null }
+}
+
 export async function createTask(payload) {
   const { data, error } = await sb.from('project_tasks').insert(payload).select().single()
   return { data, error }

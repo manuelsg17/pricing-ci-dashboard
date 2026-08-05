@@ -12,7 +12,10 @@ import {
   reassignTask,
   taskActivityCount,
   archiveProject,
+  unarchiveProject,
+  fetchArchivedProjects,
   fetchAssignableUsers,
+  fetchOwnerGap,
 } from '../../hooks/useProjects'
 
 // Vista de administración: crear proyectos y cargar sus tareas.
@@ -38,6 +41,8 @@ export default function ProjectsAdmin({
   const [openId, setOpenId] = useState(null)
   const [creating, setCreating] = useState(false)
   const [owners, setOwners] = useState([])
+  const [sinSeccion, setSinSeccion] = useState(0)
+  const [archivados, setArchivados] = useState(null) // null = todavía no se pidió
   const [err, setErr] = useState(null)
   // Sin esto, un doble clic en "Crear proyecto" o en "Archivar" dispara la
   // acción dos veces. Ver useAccionEnVuelo.
@@ -48,10 +53,38 @@ export default function ProjectsAdmin({
     fetchAssignableUsers(country).then(({ data: u }) => {
       if (!cancelled) setOwners(u || [])
     })
+    // Cuántos quedaron afuera del desplegable por no tener la sección. Sin
+    // esto, el admin ve una sola persona para asignar y no tiene forma de
+    // saber que le falta un permiso, no que la herramienta esté rota.
+    fetchOwnerGap(country).then(({ sinSeccion: n }) => {
+      if (!cancelled) setSinSeccion(n || 0)
+    })
     return () => {
       cancelled = true
     }
   }, [country])
+
+  async function verArchivados() {
+    if (archivados !== null) {
+      setArchivados(null) // segundo clic: se cierra
+      return
+    }
+    const { data, error } = await fetchArchivedProjects(country)
+    if (error) setErr(error.message)
+    else setArchivados(data)
+  }
+
+  async function onUnarchive(id) {
+    await unaVez(`desarchivar:${id}`, async () => {
+      const { error } = await unarchiveProject(id)
+      if (error) {
+        setErr(error.message)
+        return
+      }
+      setArchivados((prev) => (prev || []).filter((x) => x.id !== id))
+      onChanged?.()
+    })
+  }
 
   async function onCreateProject(e) {
     e.preventDefault()
@@ -98,7 +131,41 @@ export default function ProjectsAdmin({
         <Button size="sm" onClick={() => setCreating((v) => !v)}>
           {creating ? t('app.cancel') : t('projects.new_project')}
         </Button>
+        {/* §13.10 decía que los archivados salen de las vistas "salvo un filtro
+            explícito". Ese filtro no existía, así que archivar era un camino de
+            una sola dirección y un clic equivocado no tenía vuelta. */}
+        <button type="button" className="projects__refresh" onClick={verArchivados}>
+          {archivados === null ? t('projects.show_archived') : t('projects.hide_archived')}
+        </button>
       </div>
+
+      {sinSeccion > 0 && (
+        <div className="pview__warn">{t('projects.owner_gap', { n: sinSeccion })}</div>
+      )}
+
+      {archivados !== null && (
+        <section className="pproj pproj--archived">
+          <header className="pproj__head">
+            <strong>{t('projects.archived_title')}</strong>
+            <span className="pproj__meta">{archivados.length}</span>
+          </header>
+          {archivados.length === 0 ? (
+            <p className="pgroup__empty">{t('projects.archived_none')}</p>
+          ) : (
+            archivados.map((a) => (
+              <div key={a.id} className="pproj__archived-row">
+                <span>{a.name}</span>
+                <span className="pproj__meta">
+                  {a.cities?.length > 0 ? a.cities.join(', ') : t('projects.all_cities')}
+                </span>
+                <button type="button" className="pproj__archive" onClick={() => onUnarchive(a.id)}>
+                  {t('projects.unarchive')}
+                </button>
+              </div>
+            ))
+          )}
+        </section>
+      )}
 
       {creating && (
         <form className="pform" onSubmit={onCreateProject}>
@@ -198,12 +265,28 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
   const [draft, setDraft] = useState({ title: '', owner_email: '', due_date: '', city: '' })
   const [err, setErr] = useState(null)
   const [warn, setWarn] = useState(null)
+  // Esta planilla guarda sola, sin botón: cada campo se manda al salir o al
+  // cambiar. Sin una señal de que pasó algo, no hay forma de distinguir
+  // "guardado" de "no hizo nada" — y el usuario se queda mirando la pantalla.
+  const [ok, setOk] = useState(null) // id de fila que acaba de guardarse
+  const [ocupada, setOcupada] = useState(null) // id de fila en curso
   const titleRef = useRef(null)
+
+  function marcarGuardado(id) {
+    setOk(id)
+    setTimeout(() => setOk((v) => (v === id ? null : v)), 1600)
+  }
 
   async function addTask(e) {
     e?.preventDefault()
     const title = draft.title.trim()
-    if (!title) return
+    // Antes salía en silencio: el usuario apretaba "+" y no pasaba
+    // absolutamente nada, sin ningún mensaje. Reportado usando la app.
+    if (!title) {
+      setErr(t('projects.err_title_required'))
+      titleRef.current?.focus()
+      return
+    }
     const check = validateTaskDates(null, draft.due_date || null, today)
     if (!check.valid) {
       setErr(t('projects.err_dates'))
@@ -237,20 +320,33 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
   async function onDelete(task) {
     // Sin actividad se borra directo: el alta inline genera filas por accidente
     // y pedir confirmación ahí sería una molestia sin nada que proteger (§17.9).
-    const n = await taskActivityCount(task.id)
-    if (n > 0 && !window.confirm(t('projects.confirm_delete_task', { n }))) return
-    await unaVez(`borrar:${task.id}`, async () => {
-      const { error } = await deleteTask(task.id)
-      if (error) setErr(error.message)
-      else onChanged?.()
-    })
+    //
+    // El conteo de actividad son dos consultas ANTES de poder siquiera
+    // preguntar, así que la fila se marca ocupada desde el primer clic: sin
+    // eso el botón parece no responder y el usuario lo aprieta de nuevo.
+    setOcupada(task.id)
+    try {
+      const n = await taskActivityCount(task.id)
+      if (n > 0 && !window.confirm(t('projects.confirm_delete_task', { n }))) return
+      await unaVez(`borrar:${task.id}`, async () => {
+        const { error } = await deleteTask(task.id)
+        if (error) setErr(error.message)
+        else onChanged?.()
+      })
+    } finally {
+      setOcupada(null)
+    }
   }
 
   async function patch(task, field, value) {
     await unaVez(`patch:${task.id}:${field}`, async () => {
       const { error } = await updateTask(task.id, { [field]: value || null })
       if (error) setErr(error.message)
-      else onChanged?.()
+      else {
+        setErr(null)
+        marcarGuardado(task.id)
+        onChanged?.()
+      }
     })
   }
 
@@ -274,6 +370,7 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
       if (error) setErr(error.message)
       else {
         setErr(null)
+        marcarGuardado(task.id)
         onChanged?.()
       }
     })
@@ -312,7 +409,12 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
       </div>
 
       {tasks.map((task) => (
-        <div key={task.id} className="ptable__row">
+        <div
+          key={task.id}
+          className={`ptable__row${ok === task.id ? ' is-ok' : ''}${
+            ocupada === task.id ? ' is-busy' : ''
+          }`}
+        >
           <input
             defaultValue={task.title}
             onBlur={(e) =>
@@ -356,8 +458,15 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
               </option>
             ))}
           </select>
-          <button type="button" className="ptable__del" onClick={() => onDelete(task)}>
-            ✕
+          <button
+            type="button"
+            className="ptable__del"
+            onClick={() => onDelete(task)}
+            disabled={ocupada === task.id}
+            title={t('projects.delete_task')}
+            aria-label={t('projects.delete_task')}
+          >
+            {ocupada === task.id ? '…' : '✕'}
           </button>
         </div>
       ))}
