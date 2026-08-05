@@ -8,6 +8,7 @@ import { useProjectFilters } from '../hooks/useProjectFilters'
 import { applyTaskFilters } from '../lib/projectTasks'
 import TodayView from '../components/projects/TodayView'
 import MyTasksView from '../components/projects/MyTasksView'
+import KanbanView from '../components/projects/KanbanView'
 import ProjectsAdmin from '../components/projects/ProjectsAdmin'
 import FiltersBar from '../components/projects/FiltersBar'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
@@ -63,11 +64,13 @@ export default function Projects() {
       isAdmin
         ? [
             { key: 'today', label: t('projects.tab_today') },
+            { key: 'kanban', label: t('projects.tab_kanban') },
             { key: 'mine', label: t('projects.tab_mine') },
             { key: 'admin', label: t('projects.tab_projects') },
           ]
         : [
             { key: 'mine', label: t('projects.tab_mine') },
+            { key: 'kanban', label: t('projects.tab_kanban') },
             { key: 'today', label: t('projects.tab_team') },
           ],
     [isAdmin, t]
@@ -173,6 +176,16 @@ export default function Projects() {
         <MyTasksView
           data={dataFiltrada}
           userEmail={userEmail}
+          riskThreshold={RISK_THRESHOLD_DAYS}
+          onChanged={() => data.reload({ silent: true })}
+        />
+      )}
+
+      {!data.loading && view === 'kanban' && (
+        <KanbanView
+          data={dataFiltrada}
+          userEmail={userEmail}
+          isAdmin={isAdmin}
           riskThreshold={RISK_THRESHOLD_DAYS}
           onChanged={() => data.reload({ silent: true })}
         />
