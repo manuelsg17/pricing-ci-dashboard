@@ -1,6 +1,6 @@
 # ROADMAP — Pricing CI Dashboard
 
-Documento de handoff entre sesiones. Última actualización: **2026-08-03**.
+Documento de handoff entre sesiones. Última actualización: **2026-08-05**.
 
 > Regla de mantenimiento: este archivo se queda obsoleto rápido si no se toca.
 > La versión anterior quedó **296 commits y ~2 meses atrás** sin actualizarse.
@@ -12,11 +12,11 @@ Documento de handoff entre sesiones. Última actualización: **2026-08-03**.
 
 ## Estado actual
 
-**Última migración aplicada**: `212_limpia_duplicados_de_aeropuerto.sql`
-(2026-08-03). Ver `PLAN_MAESTRO.md` para el detalle de las cuatro rondas de
-revisión adversarial y qué cerró cada migración de la serie 183–212.
+**Última migración aplicada**: `214_assignable_users_filtra_por_seccion.sql`
+(2026-08-05). Ver `PLAN_MAESTRO.md` para el detalle de las cuatro rondas de
+revisión adversarial y qué cerró cada migración de la serie 183–214.
 
-**Todo desplegado**: migraciones 200-212 en producción y el frontend publicado
+**Todo desplegado**: migraciones 200-214 en producción y el frontend publicado
 en GitHub Pages y Vercel (commit `5c78539`).
 
 Antecedentes que siguen vigentes: `pricing_observations` está particionada por
@@ -224,7 +224,7 @@ src/
 ├── App.jsx, main.jsx      # react-router-dom real, providers incl. ConfigProvider
 
 supabase/
-└── 001..212_*.sql         # próxima migración libre: 213
+└── 001..214_*.sql         # próxima migración libre: 215
 
 scripts/
 ├── test-*.mjs             # 24 scripts, correr vía `npm run test:*` o test:all
@@ -250,7 +250,7 @@ CLAUDE.md                  # reglas obligatorias — leer antes de codear
 
 ### Para nuevas migraciones DB
 
-- Numerar correlativamente — próxima es `213_...`. Espejo OBLIGATORIO en
+- Numerar correlativamente — próxima es `215_...`. Espejo OBLIGATORIO en
   `supabase/migrations/` (la CLI solo aplica esos); `npm run check:migration-collisions`.
 - Header en comentario con CONTEXTO + APPROACH + VERIFICACIÓN.
 - RPCs nuevas con `require_country_access` al inicio si aplica.

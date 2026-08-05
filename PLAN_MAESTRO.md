@@ -2,8 +2,29 @@
 
 > **Actualizado 2026-08-03 (tarde) — cuarta ronda cerrada.**
 >
-> **✅ EN PRODUCCIÓN:** migraciones **200–212** y el frontend (GitHub Pages y
-> Vercel, commit `5c78539`). No queda nada esperando autorización ni deploy.
+> **✅ EN PRODUCCIÓN:** migraciones **200–214** y el frontend. No queda nada
+> esperando autorización ni deploy.
+>
+> ### Verificación adversarial de 12 agentes sobre toda la tanda (2026-08-05)
+>
+> **Producción salió SANA**: cero fugas, cero guardados rotos, cero problemas de
+> integridad — 1.962 filas guardadas desde la mig 208 sin un solo duplicado y
+> con la zona 100% correcta. Lo que estaba roto era otra cosa, y se cerró:
+>
+> - **El gate `check:section-grants` quedó CIEGO.** Al envolver los imports de
+>   `App.jsx` en `lazyConReintento`, su regex dejó de matchear: una semana sin
+>   validar nada, justo en la semana de 8 migraciones de permisos. Regresión
+>   propia. Arreglado + un guard que avisa que el desactualizado es el script.
+>   **Sigue sin estar en `deploy.yml`** —que corre lint/test/build pero no este
+>   chequeo—, y por eso nadie lo notó. Meterlo es el pendiente real que deja
+>   este hallazgo.
+> - **Proyectos, 3 bugs de uso:** la tarea desaparecía de "Mis tareas" al
+>   marcarla Lista después de las 19:00 (UTC vs zona del país); se podía asignar
+>   a alguien sin acceso a la pantalla y la tarea no la veía nadie (mig 214); y
+>   en la pestaña "Equipo" un hub veía 4 botones que siempre rebotaban.
+> - **Las MV estaban desactualizadas** y el arreglo de la 213 no se veía: el job
+>   diario cubre 90 días y los clones eran de abril. `refresh_ci_aggregates(130)`
+>   lo propagó — la celda del titular pasó de 102,18 al valor real, 113,88.
 >
 > ### 🔴 Hallazgo del chequeo post-deploy: el guardado duplicaba en Aeropuerto
 >
