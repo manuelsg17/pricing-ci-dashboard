@@ -153,6 +153,13 @@ $$;
 
 COMMIT;
 
+-- Deny by default (CLAUDE.md §3). PostgREST no expone funciones `RETURNS
+-- trigger` —verificado, responde PGRST202— así que este grant no era
+-- explotable, pero 14 de los 16 triggers de este repo lo arrastran por el
+-- `ALTER DEFAULT PRIVILEGES` histórico demasiado laxo y no hay motivo para
+-- sumar el decimoquinto. Solo el dueño de la tabla necesita ejecutarlo.
+REVOKE ALL ON FUNCTION public.trg_task_log_admin_changes() FROM public, anon, authenticated;
+
 -- ════════════════════════════════════════════════════════════════════════
 -- VERIFICACIÓN
 --   · El trigger existe y está acotado a las 3 columnas:

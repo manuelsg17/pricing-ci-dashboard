@@ -3,6 +3,7 @@ import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 import EmptyState from '../ui/EmptyState'
 import { validateTaskDates } from '../../lib/projectTasks'
+import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
 import {
   createProject,
   createTask,
@@ -38,6 +39,9 @@ export default function ProjectsAdmin({
   const [creating, setCreating] = useState(false)
   const [owners, setOwners] = useState([])
   const [err, setErr] = useState(null)
+  // Sin esto, un doble clic en "Crear proyecto" o en "Archivar" dispara la
+  // acción dos veces. Ver useAccionEnVuelo.
+  const unaVez = useAccionEnVuelo()
 
   useEffect(() => {
     let cancelled = false
@@ -63,23 +67,27 @@ export default function ProjectsAdmin({
       created_by: userEmail,
     }
     if (!payload.name) return
-    const { data: p, error } = await createProject(payload)
-    if (error) {
-      setErr(error.message)
-      return
-    }
-    setCreating(false)
-    setOpenId(p.id)
-    onChanged?.()
+    await unaVez('crear-proyecto', async () => {
+      const { data: p, error } = await createProject(payload)
+      if (error) {
+        setErr(error.message)
+        return
+      }
+      setCreating(false)
+      setOpenId(p.id)
+      onChanged?.()
+    })
   }
 
   async function onArchive(id) {
     // Archivar, nunca borrar: el cascade se llevaría todo el historial de
     // comentarios de los hubs sin aviso (§13.10).
     if (!window.confirm(t('projects.confirm_archive'))) return
-    const { error } = await archiveProject(id)
-    if (error) setErr(error.message)
-    else onChanged?.()
+    await unaVez(`archivar:${id}`, async () => {
+      const { error } = await archiveProject(id)
+      if (error) setErr(error.message)
+      else onChanged?.()
+    })
   }
 
   return (
@@ -186,6 +194,7 @@ export default function ProjectsAdmin({
 /** Planilla de tareas de un proyecto: editar en línea y agregar al final. */
 function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChanged }) {
   const { t } = useI18n()
+  const unaVez = useAccionEnVuelo()
   const [draft, setDraft] = useState({ title: '', owner_email: '', due_date: '', city: '' })
   const [err, setErr] = useState(null)
   const [warn, setWarn] = useState(null)
@@ -201,23 +210,28 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
       return
     }
     setWarn(check.warning === 'born_overdue' ? t('projects.warn_born_overdue') : null)
-    const { error } = await createTask({
-      project_id: project.id,
-      title,
-      owner_email: draft.owner_email || null,
-      due_date: draft.due_date || null,
-      city: draft.city || null,
-      sort_order: tasks.length,
-      created_by: userEmail,
+    // Clave por TÍTULO: dos clics sobre el mismo texto son el accidente que
+    // dejaba dos tareas idénticas con el mismo sort_order (reproducido en
+    // local). Escribir otro título y darle enter enseguida sigue funcionando.
+    await unaVez(`alta:${title}`, async () => {
+      const { error } = await createTask({
+        project_id: project.id,
+        title,
+        owner_email: draft.owner_email || null,
+        due_date: draft.due_date || null,
+        city: draft.city || null,
+        sort_order: tasks.length,
+        created_by: userEmail,
+      })
+      if (error) {
+        setErr(error.message)
+        return
+      }
+      setErr(null)
+      setDraft({ title: '', owner_email: draft.owner_email, due_date: '', city: draft.city })
+      titleRef.current?.focus()
+      onChanged?.()
     })
-    if (error) {
-      setErr(error.message)
-      return
-    }
-    setErr(null)
-    setDraft({ title: '', owner_email: draft.owner_email, due_date: '', city: draft.city })
-    titleRef.current?.focus()
-    onChanged?.()
   }
 
   async function onDelete(task) {
@@ -225,15 +239,19 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
     // y pedir confirmación ahí sería una molestia sin nada que proteger (§17.9).
     const n = await taskActivityCount(task.id)
     if (n > 0 && !window.confirm(t('projects.confirm_delete_task', { n }))) return
-    const { error } = await deleteTask(task.id)
-    if (error) setErr(error.message)
-    else onChanged?.()
+    await unaVez(`borrar:${task.id}`, async () => {
+      const { error } = await deleteTask(task.id)
+      if (error) setErr(error.message)
+      else onChanged?.()
+    })
   }
 
   async function patch(task, field, value) {
-    const { error } = await updateTask(task.id, { [field]: value || null })
-    if (error) setErr(error.message)
-    else onChanged?.()
+    await unaVez(`patch:${task.id}:${field}`, async () => {
+      const { error } = await updateTask(task.id, { [field]: value || null })
+      if (error) setErr(error.message)
+      else onChanged?.()
+    })
   }
 
   /**
@@ -251,12 +269,14 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
    */
   async function changeOwner(task, email) {
     if ((task.owner_email || '') === (email || '')) return
-    const { error } = await reassignTask(task.id, email || null)
-    if (error) setErr(error.message)
-    else {
-      setErr(null)
-      onChanged?.()
-    }
+    await unaVez(`owner:${task.id}`, async () => {
+      const { error } = await reassignTask(task.id, email || null)
+      if (error) setErr(error.message)
+      else {
+        setErr(null)
+        onChanged?.()
+      }
+    })
   }
 
   /**
@@ -344,8 +364,15 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
 
       {/* Fila de alta: Enter crea y deja el cursor listo para la siguiente. */}
       <form className="ptable__row ptable__row--new" onSubmit={addTask}>
+        {/* autoFocus: §3.1 promete que al abrir un proyecto el cursor ya está
+            en la primera fila de tarea. Sin esto, después de crear un proyecto
+            el foco quedaba en el body y había que ir a buscar el campo con el
+            mouse — justo el clic que el alta inline vino a eliminar.
+            El `focus()` de addTask cubre la segunda tarea en adelante; esto
+            cubre la primera. */}
         <input
           ref={titleRef}
+          autoFocus
           value={draft.title}
           onChange={(e) => setDraft({ ...draft, title: e.target.value })}
           placeholder={t('projects.new_task_placeholder')}

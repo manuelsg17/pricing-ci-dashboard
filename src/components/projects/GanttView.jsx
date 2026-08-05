@@ -10,6 +10,7 @@ import {
 } from '../../lib/gantt'
 import { sortTasks } from '../../lib/projectTasks'
 import { updateTask } from '../../hooks/useProjects'
+import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
 import EmptyState from '../ui/EmptyState'
 
 // Gantt — el panorama contra el calendario (§4.2).
@@ -56,6 +57,8 @@ export default function GanttView({ data, isAdmin, onChanged }) {
   const [colapsados, setColapsados] = useState(() => new Set())
   const [arrastre, setArrastre] = useState(null) // { id, modo, dias }
   const [err, setErr] = useState(null)
+  // Dos sueltas muy seguidas sobre la misma barra escribirían dos veces.
+  const unaVez = useAccionEnVuelo()
 
   const win = useMemo(() => ganttWindow(today, zoom, corrimiento), [today, zoom, corrimiento])
   const dw = ANCHO_DIA[zoom] || ANCHO_DIA.month
@@ -224,12 +227,14 @@ export default function GanttView({ data, isAdmin, onChanged }) {
                       setArrastre(null)
                       const patch = arrastrarBarra(task, modo, dias)
                       if (!patch) return
-                      const { error } = await updateTask(task.id, patch)
-                      if (error) setErr(error.message)
-                      else {
-                        setErr(null)
-                        onChanged?.()
-                      }
+                      await unaVez(`fechas:${task.id}`, async () => {
+                        const { error } = await updateTask(task.id, patch)
+                        if (error) setErr(error.message)
+                        else {
+                          setErr(null)
+                          onChanged?.()
+                        }
+                      })
                     }}
                   />
                 ))}

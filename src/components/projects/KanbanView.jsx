@@ -10,6 +10,7 @@ import {
   BLOCKED_ESCALATE_DAYS,
 } from '../../lib/projectTasks'
 import { setTaskStatus } from '../../hooks/useProjects'
+import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
 import EmptyState from '../ui/EmptyState'
 
 // Kanban — la vista de "qué sigue".
@@ -52,6 +53,9 @@ export default function KanbanView({ data, userEmail, isAdmin, riskThreshold, on
   const [motivo, setMotivo] = useState('')
   const [err, setErr] = useState(null)
   const [busy, setBusy] = useState(false)
+  // Soltar dos veces la misma tarjeta, o darle dos veces a "Trabar", dispara
+  // dos RPCs. Ver useAccionEnVuelo.
+  const unaVez = useAccionEnVuelo()
 
   const puedeMover = (task) => isAdmin || (!!userEmail && task.owner_email === userEmail)
 
@@ -80,16 +84,21 @@ export default function KanbanView({ data, userEmail, isAdmin, riskThreshold, on
   }, [tasks, groupBy, projectNameById, t])
 
   async function mover(task, estado, comentario) {
-    setBusy(true)
-    setErr(null)
-    const { error } = await setTaskStatus(task.id, estado, comentario || null)
-    setBusy(false)
-    if (error) {
-      setErr(error.message)
-      return false
-    }
-    onChanged?.()
-    return true
+    const ok = await unaVez(`estado:${task.id}`, async () => {
+      setBusy(true)
+      setErr(null)
+      const { error } = await setTaskStatus(task.id, estado, comentario || null)
+      setBusy(false)
+      if (error) {
+        setErr(error.message)
+        return false
+      }
+      onChanged?.()
+      return true
+    })
+    // `undefined` = se descartó por estar ya en vuelo: no es un éxito, así que
+    // el formulario de motivo no se cierra y el usuario no pierde el texto.
+    return ok === true
   }
 
   /**

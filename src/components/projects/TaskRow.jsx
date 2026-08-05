@@ -8,6 +8,7 @@ import {
   BLOCKED_ESCALATE_DAYS,
 } from '../../lib/projectTasks'
 import { setTaskStatus, addTaskComment } from '../../hooks/useProjects'
+import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
 
 // Fila de tarea — la usan "Mis tareas" y "Hoy".
 //
@@ -42,6 +43,10 @@ export default function TaskRow({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   const [askReason, setAskReason] = useState(false)
+  // `busy` sirve para deshabilitar los botones visualmente, pero como es
+  // estado llega un render tarde: dos clics impacientes lo ven en false los
+  // dos. El candado real es este (ver useAccionEnVuelo).
+  const unaVez = useAccionEnVuelo()
 
   const atRisk = isAtRisk(task, today, riskThreshold)
   const stalled = isStalled(task, today)
@@ -49,40 +54,44 @@ export default function TaskRow({
   const overdue = task.due_date && task.due_date < today && task.status !== 'done'
 
   async function changeStatus(next) {
-    if (!canEdit || busy || next === task.status) return
+    if (!canEdit || next === task.status) return
     // Trabar sin motivo se ataja acá para no ir al servidor a que rebote.
     if (next === 'blocked' && !comment.trim()) {
       setAskReason(true)
       setErr(t('projects.err_blocked_needs_reason'))
       return
     }
-    setBusy(true)
-    setErr(null)
-    const { error } = await setTaskStatus(task.id, next, comment.trim() || null)
-    setBusy(false)
-    if (error) {
-      setErr(error.message)
-      return
-    }
-    setComment('')
-    setAskReason(false)
-    onChanged?.()
+    await unaVez(`estado:${task.id}`, async () => {
+      setBusy(true)
+      setErr(null)
+      const { error } = await setTaskStatus(task.id, next, comment.trim() || null)
+      setBusy(false)
+      if (error) {
+        setErr(error.message)
+        return
+      }
+      setComment('')
+      setAskReason(false)
+      onChanged?.()
+    })
   }
 
   async function submitComment(e) {
     e.preventDefault()
     const body = comment.trim()
-    if (!canEdit || busy || !body) return
-    setBusy(true)
-    setErr(null)
-    const { error } = await addTaskComment(task.id, body)
-    setBusy(false)
-    if (error) {
-      setErr(error.message)
-      return
-    }
-    setComment('')
-    onChanged?.()
+    if (!canEdit || !body) return
+    await unaVez(`comentario:${task.id}`, async () => {
+      setBusy(true)
+      setErr(null)
+      const { error } = await addTaskComment(task.id, body)
+      setBusy(false)
+      if (error) {
+        setErr(error.message)
+        return
+      }
+      setComment('')
+      onChanged?.()
+    })
   }
 
   return (

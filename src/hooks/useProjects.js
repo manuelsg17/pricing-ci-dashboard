@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { todayInTimezone, activityWindow } from '../lib/projectTasks'
+import { paginarTodo } from '../lib/paginarTodo'
 
 // Capa de datos del módulo de Proyectos (mig 183/184).
 //
@@ -38,31 +39,52 @@ export function useProjectsData({ country, timezone, windowPreset = 'auto' }) {
         // madrugada del primer día del rango.
         const desde = `${window_.fromDate}T00:00:00Z`
 
-        const [pRes, tRes, cRes, sRes, seenRes] = await Promise.all([
+        // Las tres listas grandes se piden PAGINADAS. Sin eso PostgREST corta
+        // en 1000 filas y no lo dice: medido en local, un país con 1212 tareas
+        // devolvía 1000 y las otras 212 no existían para la app — ni en las
+        // vistas, ni en el conteo de "Mostrando N de M". CLAUDE.md §5.
+        //
+        // Ordenadas por `id`, que es único: paginar por `sort_order` (que
+        // arranca en 0 en cada proyecto) haría que las filas empatadas caigan
+        // en cualquier orden entre página y página, perdiendo unas y repitiendo
+        // otras. El orden de presentación lo pone sortTasks() después.
+        const [pRes, tPag, cPag, sPag, seenRes] = await Promise.all([
           sb
             .from('projects')
             .select('*')
             .eq('country', country)
             .eq('status', 'active') // §17.3: nada de proyectos archivados
             .order('created_at', { ascending: false }),
-          sb.from('project_tasks').select('*').eq('country', country).order('sort_order'),
-          sb
-            .from('task_comments')
-            .select('*')
-            .eq('country', country)
-            .gte('created_at', desde)
-            .order('created_at', { ascending: false }),
-          sb
-            .from('task_status_log')
-            .select('*')
-            .eq('country', country)
-            .gte('changed_at', desde)
-            .order('changed_at', { ascending: false }),
+          paginarTodo((d, h, pedirTotal) =>
+            sb
+              .from('project_tasks')
+              .select('*', pedirTotal ? { count: 'exact' } : {})
+              .eq('country', country)
+              .order('id')
+              .range(d, h)
+          ),
+          paginarTodo((d, h, pedirTotal) =>
+            sb
+              .from('task_comments')
+              .select('*', pedirTotal ? { count: 'exact' } : {})
+              .eq('country', country)
+              .gte('created_at', desde)
+              .order('id')
+              .range(d, h)
+          ),
+          paginarTodo((d, h, pedirTotal) =>
+            sb
+              .from('task_status_log')
+              .select('*', pedirTotal ? { count: 'exact' } : {})
+              .eq('country', country)
+              .gte('changed_at', desde)
+              .order('id')
+              .range(d, h)
+          ),
           sb.from('section_last_seen').select('seen_at').eq('section', SECTION).maybeSingle(),
         ])
 
-        const firstErr = [pRes, tRes, cRes, sRes].find((r) => r.error)?.error
-        if (firstErr) throw firstErr
+        if (pRes.error) throw pRes.error
 
         const activos = pRes.data || []
         // §17.3: TODAS las vistas trabajan solo con proyectos activos. La
@@ -76,9 +98,9 @@ export function useProjectsData({ country, timezone, windowPreset = 'auto' }) {
         // separados son cuatro lugares donde olvidarse del quinto.
         const idsActivos = new Set(activos.map((p) => p.id))
         setProjects(activos)
-        setTasks((tRes.data || []).filter((x) => idsActivos.has(x.project_id)))
-        setComments(cRes.data || [])
-        setStatusLog(sRes.data || [])
+        setTasks(tPag.filas.filter((x) => idsActivos.has(x.project_id)))
+        setComments(cPag.filas)
+        setStatusLog(sPag.filas)
         setLastSeen(seenRes.data?.seen_at || null)
       } catch (e) {
         setError(e.message)
