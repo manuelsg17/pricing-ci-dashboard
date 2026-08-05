@@ -328,12 +328,19 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
         return
       }
       setErr(null)
+      // Se recuerda el RESPONSABLE, no la ciudad.
+      //
+      // Cargando varias tareas seguidas el dueño suele repetirse, así que
+      // recordarlo ahorra clics de verdad. La ciudad no: "Consolidar informe
+      // final" heredó "Arequipa" de la tarea anterior sin que nadie lo pidiera,
+      // y la ciudad es justamente lo que usa el filtro. Un dato equivocado que
+      // se pone solo es peor que un clic de más.
       setDraft({
         title: '',
         owner_email: draft.owner_email,
         start_date: '',
         due_date: '',
-        city: draft.city,
+        city: '',
       })
       titleRef.current?.focus()
       onChanged?.()

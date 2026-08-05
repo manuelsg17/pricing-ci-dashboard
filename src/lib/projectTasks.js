@@ -333,6 +333,41 @@ export function fechaCorta(iso, locale = 'es', hoy = null) {
   }
 }
 
+/**
+ * Las ciudades DE VERDAD, sin los buckets de carga de CI.
+ *
+ * `country_config.cities` mezcla dos cosas que para Ingresar CI son lo mismo y
+ * para Proyectos no: ciudades donde pasa el trabajo (Lima, Trujillo, Arequipa)
+ * y destinos de carga de datos (`Lima_Airport_A`, `Corp`). En el alta de una
+ * tarea eso da 10 opciones de las cuales 7 no son lugares.
+ *
+ * Es el namespace `uiCity` vs `bucketKey` que CLAUDE.md §1 marca como fuente de
+ * bug real. Acá no se puede resolver unificando —Ingresar CI NECESITA los
+ * buckets— así que se separa en el punto de uso.
+ *
+ * DOS SEÑALES, LAS DOS SACADAS DE LOS DATOS, ninguna hardcodeada:
+ *   · Bucket de aeropuerto: se llama `<Ciudad>_algo` y esa `<Ciudad>` también
+ *     está en la lista. Verificado contra producción: Lima_Airport_A/B,
+ *     Trujillo_Airport_A/B, Arequipa_Airport_A/B.
+ *   · Bucket corporativo: su única categoría se llama igual que la "ciudad"
+ *     (`Corp` → ['Corp']). Una ciudad real siempre tiene varias categorías.
+ *
+ * FALLA ABIERTO a propósito: lo que no se puede clasificar se muestra. Esconder
+ * una ciudad legítima de otro país sería peor que dejar una opción de más —
+ * Colombia, por ejemplo, no tiene buckets y la regla no le saca nada.
+ */
+export function ciudadesReales(cities = [], categoriesByCity = {}) {
+  const todas = new Set(cities)
+  return cities.filter((c) => {
+    for (const otra of todas) {
+      if (otra !== c && c.startsWith(`${otra}_`)) return false
+    }
+    const cats = categoriesByCity[c]
+    if (Array.isArray(cats) && cats.length === 1 && cats[0] === c) return false
+    return true
+  })
+}
+
 /** Filtros vacíos. Identidad de módulo: se pasa como dependencia de efectos. */
 export const EMPTY_TASK_FILTERS = Object.freeze({
   projectId: '',

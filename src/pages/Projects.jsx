@@ -5,7 +5,7 @@ import { useAccessControl } from '../hooks/useAccessControl'
 import { useAuth } from '../lib/auth'
 import { useProjectsData } from '../hooks/useProjects'
 import { useProjectFilters } from '../hooks/useProjectFilters'
-import { applyTaskFilters } from '../lib/projectTasks'
+import { applyTaskFilters, ciudadesReales } from '../lib/projectTasks'
 import TodayView from '../components/projects/TodayView'
 import MyTasksView from '../components/projects/MyTasksView'
 import KanbanView from '../components/projects/KanbanView'
@@ -60,7 +60,22 @@ export default function Projects() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userEmail])
 
-  const cities = useMemo(() => countryConfig?.dbCities || [], [countryConfig])
+  // Ciudades donde pasa el trabajo, sin los buckets de carga de CI
+  // (Lima_Airport_A, Corp…). Ver ciudadesReales().
+  //
+  // A la lista se le suma cualquier ciudad que YA esté usada por una tarea,
+  // aunque hoy la regla la considere bucket: si no, el desplegable de esa fila
+  // aparecería vacío y el primer cambio de cualquier otro campo se llevaría
+  // puesto el valor guardado. Nunca esconder un dato que existe.
+  const cities = useMemo(() => {
+    const reales = ciudadesReales(
+      countryConfig?.dbCities || [],
+      countryConfig?.categoriesByCity || {}
+    )
+    const enUso = new Set(data.tasks.map((x) => x.city).filter(Boolean))
+    const extra = [...enUso].filter((c) => !reales.includes(c)).sort()
+    return extra.length ? [...reales, ...extra] : reales
+  }, [countryConfig, data.tasks])
   const riskThreshold = countryConfig?.projectsRiskDays ?? RISK_THRESHOLD_FALLBACK
   // Las fechas se muestran en el idioma del país ("6 ago"), no en ISO. El
   // resto de la app ya lo hace; solo Proyectos mostraba el crudo, y con 20

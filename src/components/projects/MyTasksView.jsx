@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useI18n } from '../../context/LanguageContext'
-import { groupByUrgency } from '../../lib/projectTasks'
+import { groupByUrgency, fechaCorta } from '../../lib/projectTasks'
 import TaskRow from './TaskRow'
 import EmptyState from '../ui/EmptyState'
 
@@ -40,6 +40,39 @@ export default function MyTasksView({ data, userEmail, riskThreshold, locale = '
     return mine.filter((x) => x.created_at > lastSeen && x.status !== 'done').length
   }, [mine, lastSeen])
 
+  /**
+   * El encabezado dice lo que hay, no siempre lo urgente.
+   *
+   * Antes era fijo: "0 para hoy · 0 vencidas · 0 trabadas". Un hub con trabajo
+   * para esta semana pero nada urgente HOY leía tres ceros, que es exactamente
+   * lo mismo que ve alguien sin ninguna tarea. El resumen decía "no pasa nada"
+   * justo cuando sí pasa algo, solo que más adelante.
+   *
+   * Con algo urgente manda lo urgente. Sin nada urgente, cuenta lo pendiente y
+   * cuándo vence lo próximo — que es la pregunta que sigue.
+   */
+  const resumen = useMemo(() => {
+    const trabadas = mine.filter((x) => x.status === 'blocked').length
+    const urgentes = groups.today.length + groups.overdue.length + trabadas
+    if (urgentes > 0) {
+      return t('projects.summary_counts', {
+        today: groups.today.length,
+        overdue: groups.overdue.length,
+        blocked: trabadas,
+      })
+    }
+    const pendientes = mine.filter((x) => x.status !== 'done')
+    if (pendientes.length === 0) return t('projects.summary_clear')
+    const conFecha = pendientes.filter((x) => x.due_date).map((x) => x.due_date)
+    const proxima = conFecha.length ? conFecha.sort()[0] : null
+    return proxima
+      ? t('projects.summary_calm', {
+          n: pendientes.length,
+          fecha: fechaCorta(proxima, locale, today),
+        })
+      : t('projects.summary_calm_nodate', { n: pendientes.length })
+  }, [mine, groups, t, locale, today])
+
   if (mine.length === 0) {
     return (
       <EmptyState
@@ -53,13 +86,7 @@ export default function MyTasksView({ data, userEmail, riskThreshold, locale = '
   return (
     <div className="pview">
       <div className="pview__summary">
-        <strong>
-          {t('projects.summary_counts', {
-            today: groups.today.length,
-            overdue: groups.overdue.length,
-            blocked: mine.filter((x) => x.status === 'blocked').length,
-          })}
-        </strong>
+        <strong>{resumen}</strong>
         {nuevas > 0 && <span className="pview__new">{t('projects.new_tasks', { n: nuevas })}</span>}
       </div>
 

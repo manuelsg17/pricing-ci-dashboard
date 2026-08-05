@@ -31,6 +31,7 @@ import {
   UNASSIGNED,
   nombreCorto,
   fechaCorta,
+  ciudadesReales,
 } from '../src/lib/projectTasks.js'
 
 let pass = 0,
@@ -338,6 +339,54 @@ console.log('\n[N] Completadas hoy: la zona horaria del país, no la del servido
   assert(fechaCorta('no-es-fecha', 'es') === 'no-es-fecha', 'basura se devuelve tal cual')
   // Un locale inválido en country_config no puede romper la pantalla.
   assert(fechaCorta('2026-08-06', 'xx-YY-zz', '2026-08-05') === '2026-08-06', 'locale inválido cae al ISO')
+}
+
+{
+  console.log('\n[15] Ciudades reales vs buckets de carga de CI')
+  // Datos calcados de producción (country_config de Perú).
+  const peru = [
+    'Lima', 'Trujillo', 'Arequipa',
+    'Lima_Airport_A', 'Lima_Airport_B',
+    'Trujillo_Airport_A', 'Trujillo_Airport_B',
+    'Arequipa_Airport_A', 'Arequipa_Airport_B',
+    'Corp',
+  ]
+  const catsPeru = {
+    Lima: ['Economy/Comfort', 'Comfort+', 'Premier', 'XL', 'TukTuk'],
+    Trujillo: ['Economy/Comfort', 'Comfort+', 'XL'],
+    Arequipa: ['Economy/Comfort', 'Comfort+', 'XL'],
+    Lima_Airport_A: ['Economy/Comfort', 'Comfort+', 'Premier', 'XL'],
+    Lima_Airport_B: ['Economy/Comfort', 'Comfort+', 'Premier', 'XL'],
+    Trujillo_Airport_A: ['Economy/Comfort', 'Viaje+', 'Comfort+', 'XL'],
+    Trujillo_Airport_B: ['Economy/Comfort', 'Viaje+', 'Comfort+', 'XL'],
+    Arequipa_Airport_A: ['Economy/Comfort', 'Económico+', 'Comfort+', 'XL'],
+    Arequipa_Airport_B: ['Economy/Comfort', 'Económico+', 'Comfort+', 'XL'],
+    Corp: ['Corp'],
+  }
+  const reales = ciudadesReales(peru, catsPeru)
+  assert(reales.join(',') === 'Lima,Trujillo,Arequipa', 'Perú: quedan las 3 ciudades de verdad')
+  assert(!reales.includes('Corp'), 'Corp es un bucket, no una ciudad')
+  assert(reales.every((c) => !c.includes('_Airport_')), 'ningún bucket de aeropuerto sobrevive')
+
+  // Colombia NO tiene buckets: la regla no puede sacarle nada.
+  const colombia = ['Bogotá', 'Cali', 'Barranquilla']
+  const catsCo = {
+    'Bogotá': ['Economy', 'Bike', 'Comfort'],
+    Cali: ['Economy', 'Bike', 'Comfort'],
+    Barranquilla: ['Economy', 'Bike', 'Comfort'],
+  }
+  assert(ciudadesReales(colombia, catsCo).length === 3, 'Colombia queda intacta')
+
+  // Falla abierto: sin información de categorías no se esconde nada salvo lo
+  // que el propio nombre delata. Esconder una ciudad legítima sería peor que
+  // dejar una opción de más.
+  assert(ciudadesReales(['Kathmandu'], {}).join(',') === 'Kathmandu', 'sin categorías no esconde')
+  assert(ciudadesReales([], {}).length === 0, 'lista vacía no rompe')
+  // Una ciudad con guion bajo que NO deriva de otra ciudad se conserva.
+  assert(
+    ciudadesReales(['Santa_Cruz', 'Lima'], {}).includes('Santa_Cruz'),
+    'un guion bajo no basta: hace falta que la raíz sea otra ciudad'
+  )
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)
