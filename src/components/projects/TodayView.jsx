@@ -51,7 +51,8 @@ export default function TodayView({
       else if (urg === 'overdue' || urg === 'today') b.due.push(task)
       else if (isAtRisk(task, today, riskThreshold)) b.risk.push(task)
       else if (isStalled(task, today)) b.stalled.push(task)
-      else if (activeTaskIds.has(task.id) && task.status !== 'done') b.activity.push(task)
+      // Incluye las que se marcaron "Lista" en la ventana: cerrar algo ES
+      // novedad para la reunión, y es lo primero que uno quiere escuchar.
       else if (activeTaskIds.has(task.id)) b.activity.push(task)
     }
     return [...map.values()].sort((a, b) => {

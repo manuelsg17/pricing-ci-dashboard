@@ -8,6 +8,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  reassignTask,
   taskActivityCount,
   archiveProject,
   fetchAssignableUsers,
@@ -235,6 +236,48 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
     else onChanged?.()
   }
 
+  /**
+   * Reasignar va por la RPC, no por un UPDATE crudo.
+   *
+   * Esta planilla escribía `owner_email` directo, y con eso se salteaba la
+   * validación de destino de la mig 207: si el desplegable quedó viejo —o la
+   * persona se dio de baja mientras la pantalla estaba abierta— la tarea
+   * terminaba asignada a alguien que RLS no deja verla. Figura asignada, y es
+   * un agujero negro (§15.2).
+   *
+   * El comentario de sistema lo escribe el trigger de la mig 215, así que sale
+   * por los dos caminos; la RPC aporta la validación, que el trigger no puede
+   * hacer.
+   */
+  async function changeOwner(task, email) {
+    if ((task.owner_email || '') === (email || '')) return
+    const { error } = await reassignTask(task.id, email || null)
+    if (error) setErr(error.message)
+    else {
+      setErr(null)
+      onChanged?.()
+    }
+  }
+
+  /**
+   * La fecha se guarda al SALIR del campo, no en cada tecla.
+   *
+   * Un `<input type="date">` dispara onChange mientras se completan los
+   * segmentos, así que escribir una fecha a mano generaba varios UPDATE — y
+   * desde la mig 215 cada uno deja su comentario de sistema. La bitácora del
+   * hub se habría llenado de "movió el vencimiento" intermedios.
+   */
+  async function patchDate(task, value) {
+    if ((task.due_date || '') === (value || '')) return
+    const check = validateTaskDates(task.start_date || null, value || null, today)
+    if (!check.valid) {
+      setErr(t('projects.err_dates'))
+      return
+    }
+    setErr(null)
+    await patch(task, 'due_date', value)
+  }
+
   return (
     <div className="ptable">
       {err && <div className="pview__err">{err}</div>}
@@ -261,7 +304,7 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
           />
           <select
             value={task.owner_email || ''}
-            onChange={(e) => patch(task, 'owner_email', e.target.value)}
+            onChange={(e) => changeOwner(task, e.target.value)}
             aria-label={t('projects.col_owner')}
           >
             <option value="">{t('projects.unassigned')}</option>
@@ -271,10 +314,14 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
               </option>
             ))}
           </select>
+          {/* No controlado + onBlur: ver patchDate(). El `key` fuerza el
+              remonte cuando el valor cambia del lado del servidor, que es lo
+              que un defaultValue solo no hace. */}
           <input
+            key={`due-${task.id}-${task.due_date || ''}`}
             type="date"
-            value={task.due_date || ''}
-            onChange={(e) => patch(task, 'due_date', e.target.value)}
+            defaultValue={task.due_date || ''}
+            onBlur={(e) => patchDate(task, e.target.value)}
             aria-label={t('projects.col_due')}
           />
           <select
