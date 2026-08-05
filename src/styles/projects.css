@@ -134,6 +134,295 @@
   color: var(--color-yango);
 }
 
+/* ── Gantt ──────────────────────────────────────────────────── */
+/* Todo el diagrama se apoya en dos variables que pone el componente en línea:
+   --gantt-dw (ancho de un día) y --gantt-dias (cuántos hay). El ancho de día
+   vive en el JS porque el arrastre lo necesita para traducir píxeles a días;
+   duplicarlo acá haría que la barra caiga en un día y se guarde otro. */
+.pgantt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pgantt__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.pgantt__zooms {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.pgantt__zooms button {
+  height: 28px;
+  padding: 0 12px;
+  border: none;
+  background: var(--color-bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.pgantt__zooms button.is-active {
+  background: var(--color-yango);
+  color: #fff;
+}
+.pgantt__nav {
+  display: flex;
+  gap: 4px;
+}
+.pgantt__nav button {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pgantt__range {
+  font-variant-numeric: tabular-nums;
+}
+.pgantt__hint {
+  margin-left: auto;
+  font-style: italic;
+}
+
+/* El diagrama puede ser más ancho que la pantalla (91 días × 12px + etiquetas).
+   Se desplaza dentro de su caja, no arrastra la página entera. */
+.pgantt__scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+}
+.pgantt__inner {
+  min-width: max-content;
+}
+.pgantt__head,
+.pgantt__row {
+  display: grid;
+  grid-template-columns: 200px calc(var(--gantt-dw) * var(--gantt-dias));
+  align-items: stretch;
+}
+.pgantt__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 8px;
+  height: 28px;
+  font-size: 11px;
+  color: var(--color-text);
+  border-right: 1px solid var(--color-border);
+  /* La columna de etiquetas queda fija al desplazar: sin esto, al mirar el
+     final de un trimestre no se sabe de qué tarea es cada barra. */
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--color-panel);
+}
+.pgantt__label--head {
+  background: var(--color-bg);
+}
+.pgantt__task {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pgantt__owner {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--color-muted);
+}
+.pgantt__toggle {
+  border: none;
+  background: var(--color-bg);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  /* La fila mide 28px fijos para alinearse con su carril. Un nombre de
+     proyecto largo se partía en tres líneas y se salía de la fila, tapando la
+     siguiente — visible a 390px con "Limpieza de datos históricos". */
+  white-space: nowrap;
+  overflow: hidden;
+}
+.pgantt__toggle > span:first-child,
+.pgantt__row--project .pgantt__toggle {
+  text-overflow: ellipsis;
+}
+.pgantt__n {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-panel);
+  font-size: 10px;
+}
+
+.pgantt__lane {
+  display: grid;
+  grid-template-columns: repeat(var(--gantt-dias), var(--gantt-dw));
+  align-items: center;
+  position: relative;
+  height: 28px;
+}
+/* Líneas verticales de fondo con un degradado repetido en vez de un div por
+   día: con 91 días × 10 filas serían ~900 nodos para dibujar rayas. */
+.pgantt__lane--fondo {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-border) 0 1px,
+    transparent 1px var(--gantt-dw)
+  );
+  border-bottom: 1px solid var(--color-bg);
+}
+.pgantt__lane--months,
+.pgantt__lane--days {
+  background: var(--color-bg);
+}
+.pgantt__month {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-muted);
+  border-left: 1px solid var(--color-border);
+}
+.pgantt__day {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--color-muted);
+  overflow: hidden;
+}
+.pgantt__day.is-weekend {
+  background: rgba(0, 0, 0, 0.04);
+}
+.pgantt__day.is-today {
+  background: var(--color-yango);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Línea de hoy: ocupa su columna entera y no intercepta el mouse, para no
+   robarle el arrastre a la barra que pase por debajo. */
+.pgantt__hoy {
+  grid-row: 1;
+  align-self: stretch;
+  border-left: 2px solid var(--color-yango);
+  pointer-events: none;
+}
+
+.pgantt__bar {
+  grid-row: 1;
+  height: 18px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 10px;
+  color: #fff;
+  overflow: hidden;
+  position: relative;
+  background: var(--color-muted);
+}
+.pgantt__bar--todo {
+  background: #adb5bd;
+}
+.pgantt__bar--doing {
+  background: var(--sem-yellow-fg, #997404);
+}
+.pgantt__bar--blocked {
+  background: var(--sem-red-fg, #b02a37);
+}
+.pgantt__bar--done {
+  background: var(--sem-green-fg, #146c43);
+}
+.pgantt__bar-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Un hito (una sola fecha) es demasiado angosto para texto: se dibuja como
+   marca. Se muestra igual — omitirlo sería esconder la tarea. */
+.pgantt__bar.is-hito {
+  border-radius: 3px;
+  padding: 0;
+  justify-content: center;
+}
+.pgantt__bar.is-hito .pgantt__bar-text {
+  display: none;
+}
+/* Borde recto del lado recortado: dice "esto sigue fuera de la ventana". */
+.pgantt__bar.is-cut-l {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.pgantt__bar.is-cut-r {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pgantt__bar.is-draggable {
+  cursor: grab;
+}
+.pgantt__bar.is-dragging {
+  cursor: grabbing;
+  opacity: 0.75;
+  box-shadow: 0 0 0 2px var(--color-yango);
+}
+.pgantt__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+.pgantt__handle--l {
+  left: 0;
+}
+.pgantt__handle--r {
+  right: 0;
+}
+
+/* Lo que la línea de tiempo no puede dibujar, listado igual (CLAUDE.md §5). */
+.pgantt__aparte {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  padding: 8px 12px;
+  font-size: 11px;
+}
+.pgantt__aparte summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.pgantt__aparte ul {
+  margin: 8px 0 0;
+  padding-left: 16px;
+}
+.pgantt__aparte li {
+  padding: 2px 0;
+  color: var(--color-text);
+}
+.pgantt__aparte li span {
+  margin-left: 6px;
+  color: var(--color-muted);
+}
+
 /* ── Kanban ─────────────────────────────────────────────────── */
 .pkanban {
   display: flex;
@@ -869,6 +1158,22 @@
      teléfono. El arrastre sigue funcionando para quien tenga mouse. */
   .pkanban__cols {
     grid-template-columns: 1fr;
+  }
+
+  /* El Gantt sí se desplaza a lo ancho —una línea de tiempo apilada no es una
+     línea de tiempo— pero la columna de etiquetas fija se achica: 200px de los
+     390 dejaban menos de la mitad de pantalla para el diagrama, que es lo que
+     uno vino a ver. */
+  .pgantt__head,
+  .pgantt__row {
+    grid-template-columns: 110px calc(var(--gantt-dw) * var(--gantt-dias));
+  }
+  .pgantt__owner {
+    display: none;
+  }
+  .pgantt__hint {
+    margin-left: 0;
+    flex: 1 1 100%;
   }
 
   /* Lo más importante del bloque: la fila de tarea deja de ser

@@ -9,6 +9,7 @@ import { applyTaskFilters } from '../lib/projectTasks'
 import TodayView from '../components/projects/TodayView'
 import MyTasksView from '../components/projects/MyTasksView'
 import KanbanView from '../components/projects/KanbanView'
+import GanttView from '../components/projects/GanttView'
 import ProjectsAdmin from '../components/projects/ProjectsAdmin'
 import FiltersBar from '../components/projects/FiltersBar'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
@@ -64,6 +65,7 @@ export default function Projects() {
       isAdmin
         ? [
             { key: 'today', label: t('projects.tab_today') },
+            { key: 'gantt', label: t('projects.tab_gantt') },
             { key: 'kanban', label: t('projects.tab_kanban') },
             { key: 'mine', label: t('projects.tab_mine') },
             { key: 'admin', label: t('projects.tab_projects') },
@@ -71,6 +73,7 @@ export default function Projects() {
         : [
             { key: 'mine', label: t('projects.tab_mine') },
             { key: 'kanban', label: t('projects.tab_kanban') },
+            { key: 'gantt', label: t('projects.tab_gantt') },
             { key: 'today', label: t('projects.tab_team') },
           ],
     [isAdmin, t]
@@ -187,6 +190,16 @@ export default function Projects() {
           userEmail={userEmail}
           isAdmin={isAdmin}
           riskThreshold={RISK_THRESHOLD_DAYS}
+          onChanged={() => data.reload({ silent: true })}
+        />
+      )}
+
+      {!data.loading && view === 'gantt' && (
+        <GanttView
+          data={dataFiltrada}
+          // Solo el admin arrastra (§4.2): un hub no puede cambiar fechas ni
+          // por RPC ni por política.
+          isAdmin={isAdmin}
           onChanged={() => data.reload({ silent: true })}
         />
       )}
