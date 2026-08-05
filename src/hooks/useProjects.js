@@ -64,8 +64,19 @@ export function useProjectsData({ country, timezone, windowPreset = 'auto' }) {
         const firstErr = [pRes, tRes, cRes, sRes].find((r) => r.error)?.error
         if (firstErr) throw firstErr
 
-        setProjects(pRes.data || [])
-        setTasks(tRes.data || [])
+        const activos = pRes.data || []
+        // §17.3: TODAS las vistas trabajan solo con proyectos activos. La
+        // consulta de proyectos ya filtra por status, pero la de tareas no
+        // puede —`project_tasks` no tiene la columna— así que el recorte se
+        // hacía en ninguna parte: las tareas de un proyecto archivado seguían
+        // apareciendo en Hoy, Mis tareas, Kanban y Gantt, encima sin nombre de
+        // proyecto porque su fila no venía. Reproducido en local, no deducido.
+        //
+        // Se recorta ACÁ y no en cada vista a propósito: cuatro filtros
+        // separados son cuatro lugares donde olvidarse del quinto.
+        const idsActivos = new Set(activos.map((p) => p.id))
+        setProjects(activos)
+        setTasks((tRes.data || []).filter((x) => idsActivos.has(x.project_id)))
         setComments(cRes.data || [])
         setStatusLog(sRes.data || [])
         setLastSeen(seenRes.data?.seen_at || null)
