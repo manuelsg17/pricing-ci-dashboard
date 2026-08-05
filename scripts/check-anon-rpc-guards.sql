@@ -49,6 +49,10 @@
 
 \pset pager off
 
+-- Sin esto psql imprime el ERROR del RAISE de abajo y SALE 0 igual: el
+-- chequeo no podría fallar nunca. Es la mitad que hace que sirva en CI.
+\set ON_ERROR_STOP on
+
 CREATE OR REPLACE FUNCTION pg_temp.tiene_guard(p_oid oid)
 RETURNS boolean LANGUAGE sql STABLE AS $$
   SELECT pg_get_functiondef(p_oid) ~* 'require_country_access|can_access_country|can_access_section|is_admin|can_edit|can_write_table|auth\.uid|auth\.email';
@@ -85,6 +89,38 @@ WHERE n.nspname = 'public'
 \echo 'No es explotable —el guard interno rechaza— pero deny by default pide sacarlo.'
 \echo 'Para listarlas y generar el REVOKE, ver el comentario al pie de este archivo.'
 \echo ''
+
+-- ── EL CHEQUEO TIENE QUE PODER FALLAR ─────────────────────────────────
+-- Agregado 2026-08-05, al meter este script al pipeline de deploy.
+--
+-- Hasta acá el archivo SELECTeaba y listo: psql sale 0 aunque el nivel 1
+-- devuelva filas. O sea que como paso de CI habría pasado SIEMPRE, incluso con
+-- una RPC entregándole datos a cualquiera sin login. Un guard que no puede
+-- fallar es peor que no tenerlo, porque además da confianza.
+--
+-- El nivel 1 ya estaba declarado BLOQUEANTE en la cabecera ("tiene que ser 0");
+-- esto lo hace cierto. El nivel 2 sigue informándose sin fallar, como dice ahí.
+DO $$
+DECLARE
+  v_n     int;
+  v_lista text;
+BEGIN
+  SELECT count(*), string_agg(p.proname, ', ' ORDER BY p.proname)
+    INTO v_n, v_lista
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.prosecdef
+    AND has_function_privilege('anon', p.oid, 'EXECUTE')
+    AND pg_get_function_result(p.oid) <> 'trigger'
+    AND NOT pg_temp.tiene_guard(p.oid);
+
+  IF v_n > 0 THEN
+    RAISE EXCEPTION E'\n  ✗ NIVEL 1: % RPC(s) le devuelven datos a un anónimo sin login: %\n    Ver "CÓMO ARREGLAR UN HALLAZGO DE NIVEL 1" al pie de este archivo.',
+      v_n, v_lista;
+  END IF;
+  RAISE NOTICE '  ✓ nivel 1 en 0 — ninguna RPC le contesta a un anónimo';
+END $$;
 
 -- ── CÓMO ARREGLAR UN HALLAZGO DE NIVEL 1 ──────────────────────────────
 --   1. ¿La llama alguien?  git log --all -S '<nombre>' -- src/

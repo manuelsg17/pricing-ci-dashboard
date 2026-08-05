@@ -60,8 +60,97 @@ jobs:
         with:
           path: dist
 
+  # ── Guards de permisos que necesitan una base ─────────────────────────
+  # POR QUÉ ESTE JOB EXISTE
+  # `check:section-grants` es OBLIGATORIO por CLAUDE.md §7.4b, pero hasta el
+  # 2026-08-05 dependía de que alguien se acordara de correrlo a mano. El
+  # 2026-08-04 una regresión propia (envolver los imports de App.jsx en
+  # `lazyConReintento`) lo dejó saliendo por error, y estuvo UNA SEMANA sin
+  # validar nada — justo la semana de 8 migraciones de permisos. Nadie lo notó
+  # porque el pipeline corría lint/test/build y no esto.
+  #
+  # Es el chequeo que, según §3, "vino a matar" el bug de que la pantalla se
+  # abre y el guardado rebota EN SILENCIO. Un guard que depende de la memoria
+  # de alguien no es un guard.
+  #
+  # VA EN UN JOB APARTE, EN PARALELO CON `build`, a propósito: levantar
+  # Supabase tarda un par de minutos y serializarlo detrás del build duplicaría
+  # el tiempo de cada deploy. Así el total es el del más lento, no la suma.
+  # `deploy` espera a los dos, así que un fallo acá igual frena la publicación.
+  permisos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase (solo la base)
+        # Todo lo que se consulta acá sale de `psql` contra el contenedor de
+        # Postgres, así que el resto de los servicios es pull de imágenes para
+        # nada. Medido en local: 33s con esta exclusión.
+        #
+        # OJO al tocar esta lista: `kong` NO se puede excluir solo — PostgREST
+        # va detrás suyo y su health check falla, y `supabase start` aborta.
+        # Van juntos los tres (kong, postgrest, postgres-meta) o ninguno.
+        # `gotrue` se DEJA a propósito: las migraciones referencian el esquema
+        # `auth`.
+        run: |
+          supabase start -x studio,imgproxy,kong,mailpit,realtime,storage-api,edge-runtime,logflare,vector,supavisor,postgrest,postgres-meta
+
+      - name: Verificar que las migraciones se aplicaron
+        # En un runner nuevo no hay volumen previo, así que `supabase start`
+        # replaya las migraciones. Si algún día eso cambia, este paso lo caza
+        # acá y no en forma de un chequeo que pasa sobre una base vacía —
+        # que sería otra vez un guard que no valida nada.
+        run: |
+          ULTIMA=$(ls supabase/migrations/*.sql | sort | tail -1 | xargs basename | cut -d_ -f1)
+          echo "Última migración del repo: $ULTIMA"
+          APLICADAS=$(docker exec supabase_db_pricing-ci-dashboard \
+            psql -U postgres -tAc \
+            "SELECT count(*) FROM supabase_migrations.schema_migrations")
+          echo "Migraciones aplicadas en la base: $APLICADAS"
+          if [ "$APLICADAS" -lt 100 ]; then
+            echo "::error::La base arrancó sin las migraciones ($APLICADAS). El chequeo de abajo no probaría nada."
+            exit 1
+          fi
+
+      - name: check:section-grants
+        # Cruza el grafo de imports de cada ruta contra `section_write_grants`
+        # y contra `pg_proc`. Falla si la app escribe algo que la base no le va
+        # a dejar escribir.
+        run: npm run check:section-grants
+
+      - name: check:rls-drift
+        # Dos políticas permisivas para el mismo comando se combinan con OR y
+        # la más laxa gana EN SILENCIO. Es el patrón que causó las fugas de las
+        # migs 60-66, 130 y 164-165 (§3).
+        run: npm run check:rls-drift
+
+      - name: check:anon-rpcs
+        # Nivel 1 = RPCs que le devuelven datos a alguien sin login. El script
+        # sale distinto de cero si encuentra una.
+        run: npm run check:anon-rpcs
+
+      - name: simulate:permissions
+        # Prueba contra RLS REAL que un rol gana y pierde permisos solo
+        # editando `roles.permissions`, sin migraciones. Revierte todo.
+        run: npm run simulate:permissions
+
   deploy:
-    needs: build
+    needs: [build, permisos]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
