@@ -6,6 +6,8 @@ import {
   isStalled,
   blockedDays,
   BLOCKED_ESCALATE_DAYS,
+  nombreCorto,
+  fechaCorta,
 } from '../../lib/projectTasks'
 import { setTaskStatus, addTaskComment } from '../../hooks/useProjects'
 import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
@@ -36,6 +38,7 @@ export default function TaskRow({
   canEdit,
   riskThreshold = 2,
   showOwner = false,
+  locale = 'es',
   onChanged,
 }) {
   const { t } = useI18n()
@@ -113,12 +116,14 @@ export default function TaskRow({
                 : atRisk
                   ? t('projects.badge_at_risk')
                   : t('projects.due_on')}{' '}
-              {task.due_date}
+              <span title={task.due_date}>{fechaCorta(task.due_date, locale, today)}</span>
             </span>
           )}
           {!task.due_date && <span className="ptask__due">{t('projects.no_due_date')}</span>}
           {showOwner && (
-            <span className="ptask__owner">{task.owner_email || t('projects.unassigned')}</span>
+            <span className="ptask__owner" title={task.owner_email || ''}>
+              {task.owner_email ? nombreCorto(task.owner_email) : t('projects.unassigned')}
+            </span>
           )}
           {/* Trabada hace N días: pasa a rojo intenso a los 3 (§17.4) */}
           {blocked !== null && (
@@ -132,7 +137,9 @@ export default function TaskRow({
 
         {lastComment && (
           <div className={`ptask__last${lastComment.kind === 'system' ? ' is-system' : ''}`}>
-            <span className="ptask__last-author">{lastComment.author_email?.split('@')[0]}:</span>{' '}
+            <span className="ptask__last-author" title={lastComment.author_email || ''}>
+              {nombreCorto(lastComment.author_email)}:
+            </span>{' '}
             {lastComment.body}
           </div>
         )}

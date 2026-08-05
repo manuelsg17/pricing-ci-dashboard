@@ -8,7 +8,7 @@ import {
   todayColumn,
   arrastrarBarra,
 } from '../../lib/gantt'
-import { sortTasks } from '../../lib/projectTasks'
+import { sortTasks, nombreCorto } from '../../lib/projectTasks'
 import { updateTask } from '../../hooks/useProjects'
 import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
 import EmptyState from '../ui/EmptyState'
@@ -361,7 +361,9 @@ function Fila({
       <div className="pgantt__label" title={task.title}>
         <span className="pgantt__task">{task.title}</span>
         {task.owner_email && (
-          <span className="pgantt__owner">{task.owner_email.split('@')[0]}</span>
+          <span className="pgantt__owner" title={task.owner_email}>
+            {nombreCorto(task.owner_email)}
+          </span>
         )}
       </div>
       <div className="pgantt__lane pgantt__lane--fondo">

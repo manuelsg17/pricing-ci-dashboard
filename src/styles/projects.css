@@ -985,7 +985,10 @@
 .ptable__head,
 .ptable__row {
   display: grid;
-  grid-template-columns: 1fr 200px 140px 140px 32px;
+  /* Título · responsable · inicio · vence · ciudad · borrar.
+     La columna de inicio se agregó al exponer start_date: sin ella toda
+     tarea era un hito de un día y el Gantt no dibujaba duraciones. */
+  grid-template-columns: 1fr 190px 130px 130px 130px 32px;
   gap: 8px;
   align-items: center;
 }
@@ -1209,20 +1212,43 @@
   .ptable__head {
     display: none;
   }
+  /* Dos columnas parejas, sin la de 32px del botón.
+     Antes eran `1fr 1fr 32px`, pensadas para CINCO campos. Al agregar la
+     columna de inicio pasaron a ser seis y la ciudad caía en la ranura de
+     32px: el desplegable quedaba ilegible ("Li⌄", "A⌄") y el botón de borrar
+     se iba a una fila propia con pinta de campo. Visto a 390px, no deducido.
+
+     Ahora el orden es explícito por posición: título · responsable ·
+     inicio | vence · ciudad · borrar. */
   .ptable__row {
-    grid-template-columns: 1fr 1fr 32px;
+    grid-template-columns: 1fr 1fr;
     gap: 6px;
     padding: 8px;
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-sm);
     margin-bottom: 8px;
   }
-  /* El título ocupa la fila completa; dueño/fecha/ciudad se reparten abajo. */
-  .ptable__row > input:first-child {
+  /* Título y responsable, una fila completa cada uno. */
+  .ptable__row > *:nth-child(1),
+  .ptable__row > *:nth-child(2) {
     grid-column: 1 / -1;
   }
-  .ptable__row > select:nth-of-type(1) {
+  /* Inicio y vence comparten fila: se leen juntos, son un rango. */
+  .ptable__row > *:nth-child(3) {
+    grid-column: 1;
+  }
+  .ptable__row > *:nth-child(4) {
+    grid-column: 2;
+  }
+  /* La ciudad necesita ancho: los nombres son largos y truncados no sirven. */
+  .ptable__row > *:nth-child(5) {
     grid-column: 1 / -1;
+  }
+  /* El borrar no es un campo y no debe parecerlo: chico y a la derecha. */
+  .ptable__row > *:nth-child(6) {
+    grid-column: 1 / -1;
+    justify-self: end;
+    width: 48px;
   }
   .ptable__row input,
   .ptable__row select {

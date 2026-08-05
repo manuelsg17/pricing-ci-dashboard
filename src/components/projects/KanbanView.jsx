@@ -8,6 +8,8 @@ import {
   isStalled,
   blockedDays,
   BLOCKED_ESCALATE_DAYS,
+  nombreCorto,
+  fechaCorta,
 } from '../../lib/projectTasks'
 import { setTaskStatus } from '../../hooks/useProjects'
 import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
@@ -42,7 +44,14 @@ const STATUS_KEYS = {
 
 const SIN_GRUPO = '__todo__'
 
-export default function KanbanView({ data, userEmail, isAdmin, riskThreshold, onChanged }) {
+export default function KanbanView({
+  data,
+  userEmail,
+  isAdmin,
+  riskThreshold,
+  locale = 'es',
+  onChanged,
+}) {
   const { t } = useI18n()
   const { tasks, projects, projectNameById, today } = data
 
@@ -77,7 +86,7 @@ export default function KanbanView({ data, userEmail, isAdmin, riskThreshold, on
             ? projectNameById[key] || key
             : key === UNASSIGNED
               ? t('projects.unassigned')
-              : key,
+              : nombreCorto(key),
         tasks: list,
       }))
       .sort((a, b) => a.label.localeCompare(b.label))
@@ -224,6 +233,7 @@ export default function KanbanView({ data, userEmail, isAdmin, riskThreshold, on
                       riskThreshold={riskThreshold}
                       projectName={groupBy === 'project' ? null : projectNameById[task.project_id]}
                       showOwner={groupBy !== 'owner'}
+                      locale={locale}
                       movible={puedeMover(task)}
                       onDragStart={(e) => {
                         e.dataTransfer.setData('text/plain', task.id)
@@ -253,6 +263,7 @@ function Card({
   projectName,
   showOwner,
   movible,
+  locale = 'es',
   onDragStart,
   onDragEnd,
 }) {
@@ -275,15 +286,18 @@ function Card({
         {projectName && <span className="pcard__chip">{projectName}</span>}
         {task.city && <span className="pcard__chip">{task.city}</span>}
         {showOwner && (
-          <span className="pcard__owner">
-            {task.owner_email ? task.owner_email.split('@')[0] : t('projects.unassigned')}
+          <span className="pcard__owner" title={task.owner_email || ''}>
+            {task.owner_email ? nombreCorto(task.owner_email) : t('projects.unassigned')}
           </span>
         )}
       </div>
       <div className="pcard__foot">
         {task.due_date ? (
-          <span className={`pcard__due${vencida ? ' is-overdue' : enRiesgo ? ' is-risk' : ''}`}>
-            {task.due_date}
+          <span
+            className={`pcard__due${vencida ? ' is-overdue' : enRiesgo ? ' is-risk' : ''}`}
+            title={task.due_date}
+          >
+            {fechaCorta(task.due_date, locale, today)}
           </span>
         ) : (
           <span className="pcard__due">{t('projects.no_due_date')}</span>

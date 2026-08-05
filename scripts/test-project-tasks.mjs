@@ -29,6 +29,8 @@ import {
   applyTaskFilters,
   EMPTY_TASK_FILTERS,
   UNASSIGNED,
+  nombreCorto,
+  fechaCorta,
 } from '../src/lib/projectTasks.js'
 
 let pass = 0,
@@ -313,6 +315,29 @@ console.log('\n[N] Completadas hoy: la zona horaria del país, no la del servido
 
   assert(ids({ projectId: 'p2', owner: 'ana@x' }) === 'd', 'los filtros se combinan con AND')
   assert(ids({ projectId: 'p1', status: 'blocked' }) === '', 'combinación sin resultados da vacío')
+}
+
+{
+  console.log('\n[14] Cómo se leen personas y fechas en pantalla')
+  // En producción los emails son largos y el dominio se repite en cada fila.
+  assert(nombreCorto('raisalopez@yandex-team.ru') === 'raisalopez', 'saca el dominio')
+  assert(nombreCorto('masantillanag@yango-team.com') === 'masantillanag', 'y del otro dominio')
+  assert(nombreCorto('') === '', 'vacío no rompe')
+  assert(nombreCorto(null) === '', 'null tampoco')
+  // Un valor sin @ se devuelve tal cual en vez de quedar vacío: perder el
+  // texto sería peor que mostrarlo raro.
+  assert(nombreCorto('sin-arroba') === 'sin-arroba', 'sin @ se muestra igual')
+
+  // Mismo año que la referencia: sin año, que solo sería ruido repetido.
+  assert(fechaCorta('2026-08-06', 'es', '2026-08-05') === '6 ago', 'día y mes corto')
+  // Otro año: el año SÍ aparece, o una tarea del año que viene se leería como
+  // si fuera de este.
+  assert(/2027/.test(fechaCorta('2027-01-15', 'es', '2026-08-05')), 'otro año lo dice')
+  assert(fechaCorta('', 'es') === '', 'vacío da vacío')
+  assert(fechaCorta(null, 'es') === '', 'null da vacío')
+  assert(fechaCorta('no-es-fecha', 'es') === 'no-es-fecha', 'basura se devuelve tal cual')
+  // Un locale inválido en country_config no puede romper la pantalla.
+  assert(fechaCorta('2026-08-06', 'xx-YY-zz', '2026-08-05') === '2026-08-06', 'locale inválido cae al ISO')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

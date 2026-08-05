@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useI18n } from '../../context/LanguageContext'
-import { isAtRisk, isStalled, taskUrgency, UNASSIGNED } from '../../lib/projectTasks'
+import { isAtRisk, isStalled, taskUrgency, UNASSIGNED, nombreCorto } from '../../lib/projectTasks'
 import TaskRow from './TaskRow'
 import EmptyState from '../ui/EmptyState'
 
@@ -22,7 +22,13 @@ const BUCKETS = [
   { key: 'activity', labelKey: 'projects.today.activity', tone: 'ok' },
 ]
 
-export default function TodayView({ data, riskThreshold, onChanged, canEdit = false }) {
+export default function TodayView({
+  data,
+  riskThreshold,
+  onChanged,
+  canEdit = false,
+  locale = 'es',
+}) {
   const { t } = useI18n()
   const { tasks, projectNameById, lastCommentByTask, activeTaskIds, today, window: win } = data
 
@@ -95,7 +101,7 @@ export default function TodayView({ data, riskThreshold, onChanged, canEdit = fa
                 href={`#hub-${encodeURIComponent(p.who)}`}
                 className="pview__index-item"
               >
-                {p.who === UNASSIGNED ? t('projects.unassigned') : p.who.split('@')[0]}
+                {p.who === UNASSIGNED ? t('projects.unassigned') : nombreCorto(p.who)}
                 <span className="pview__index-n">{n}</span>
               </a>
             )
@@ -110,8 +116,8 @@ export default function TodayView({ data, riskThreshold, onChanged, canEdit = fa
           p.blocked.length + p.due.length + p.risk.length + p.stalled.length + p.activity.length
         return (
           <section key={p.who} id={`hub-${encodeURIComponent(p.who)}`} className="phub">
-            <h3 className="phub__title">
-              {p.who === UNASSIGNED ? t('projects.unassigned') : p.who}
+            <h3 className="phub__title" title={p.who === UNASSIGNED ? '' : p.who}>
+              {p.who === UNASSIGNED ? t('projects.unassigned') : nombreCorto(p.who)}
               {n === 0 && <span className="phub__quiet">{t('projects.no_news')}</span>}
             </h3>
 
@@ -132,6 +138,7 @@ export default function TodayView({ data, riskThreshold, onChanged, canEdit = fa
                       today={today}
                       canEdit={canEdit}
                       riskThreshold={riskThreshold}
+                      locale={locale}
                       onChanged={onChanged}
                     />
                   ))}

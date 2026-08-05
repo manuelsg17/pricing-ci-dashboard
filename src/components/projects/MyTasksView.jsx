@@ -23,7 +23,7 @@ const GROUPS = [
   { key: 'doneToday', labelKey: 'projects.group.done_today', tone: 'ok' },
 ]
 
-export default function MyTasksView({ data, userEmail, riskThreshold, onChanged }) {
+export default function MyTasksView({ data, userEmail, riskThreshold, locale = 'es', onChanged }) {
   const { t } = useI18n()
   const { tasks, projectNameById, lastCommentByTask, today, lastSeen, timezone } = data
 
@@ -85,6 +85,7 @@ export default function MyTasksView({ data, userEmail, riskThreshold, onChanged 
                   today={today}
                   canEdit
                   riskThreshold={riskThreshold}
+                  locale={locale}
                   onChanged={onChanged}
                 />
               ))

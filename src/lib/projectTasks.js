@@ -287,6 +287,52 @@ export function taskMatchesCity(task, project, city) {
   return projectMatchesCity(project || {}, city)
 }
 
+/**
+ * El nombre con el que se conoce a una persona, sacado de su email.
+ *
+ * En producción los emails son `raisalopez@yandex-team.ru` o
+ * `masantillanag@yango-team.com`: 25-30 caracteres de los cuales la mitad es
+ * el dominio, repetido en cada fila. En la reunión diaria eso se recorre con
+ * la vista, y el dominio no aporta nada — el nombre corto sí.
+ *
+ * El email completo sigue disponible en el `title` de cada bloque, que es
+ * donde importa cuando hay que copiarlo o desambiguar.
+ */
+export function nombreCorto(email) {
+  if (!email) return ''
+  const arroba = email.indexOf('@')
+  return arroba > 0 ? email.slice(0, arroba) : email
+}
+
+/**
+ * Una fecha 'YYYY-MM-DD' como la lee una persona: "6 ago".
+ *
+ * El resto de la app ya muestra fechas localizadas (el Dashboard dice
+ * "27 jul. → 3 ago."); solo Proyectos mostraba el ISO crudo. Con 20 filas en
+ * pantalla, "2026-08-06" obliga a decodificar mentalmente cada una.
+ *
+ * El año se agrega SOLO cuando no es el mismo que el de referencia: repetir
+ * "2026" en cada fila es ruido, pero omitirlo siempre haría que una tarea del
+ * año que viene se lea como si fuera de este.
+ */
+export function fechaCorta(iso, locale = 'es', hoy = null) {
+  if (!iso) return ''
+  const [y, m, d] = String(iso).split('-').map(Number)
+  if (!y || !m || !d) return String(iso)
+  const mismoAno = hoy ? String(hoy).slice(0, 4) === String(y) : false
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      ...(mismoAno ? {} : { year: 'numeric' }),
+      timeZone: 'UTC',
+    }).format(new Date(Date.UTC(y, m - 1, d, 12)))
+  } catch {
+    // Locale inválido en country_config: mejor el ISO que una pantalla rota.
+    return String(iso)
+  }
+}
+
 /** Filtros vacíos. Identidad de módulo: se pasa como dependencia de efectos. */
 export const EMPTY_TASK_FILTERS = Object.freeze({
   projectId: '',

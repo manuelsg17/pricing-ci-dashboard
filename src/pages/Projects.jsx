@@ -62,6 +62,10 @@ export default function Projects() {
 
   const cities = useMemo(() => countryConfig?.dbCities || [], [countryConfig])
   const riskThreshold = countryConfig?.projectsRiskDays ?? RISK_THRESHOLD_FALLBACK
+  // Las fechas se muestran en el idioma del país ("6 ago"), no en ISO. El
+  // resto de la app ya lo hace; solo Proyectos mostraba el crudo, y con 20
+  // filas en pantalla obliga a decodificar cada una.
+  const locale = countryConfig?.locale || 'es'
 
   const TABS = useMemo(
     () =>
@@ -169,6 +173,7 @@ export default function Projects() {
         <TodayView
           data={dataFiltrada}
           riskThreshold={riskThreshold}
+          locale={locale}
           // En la pestaña "Equipo" un hub VE las tareas de sus compañeros
           // —esa es la feature— pero no puede tocarlas: las RPCs exigen ser
           // dueño o admin. Sin esto veía 4 botones de estado que siempre
@@ -183,6 +188,7 @@ export default function Projects() {
           data={dataFiltrada}
           userEmail={userEmail}
           riskThreshold={riskThreshold}
+          locale={locale}
           onChanged={() => data.reload({ silent: true })}
         />
       )}
@@ -193,6 +199,7 @@ export default function Projects() {
           userEmail={userEmail}
           isAdmin={isAdmin}
           riskThreshold={riskThreshold}
+          locale={locale}
           onChanged={() => data.reload({ silent: true })}
         />
       )}

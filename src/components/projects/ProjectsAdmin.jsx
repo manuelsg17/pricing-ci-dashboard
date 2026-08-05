@@ -139,7 +139,14 @@ export default function ProjectsAdmin({
         </button>
       </div>
 
-      {sinSeccion > 0 && (
+      {/* El aviso aparece SOLO cuando el hueco de permisos te está bloqueando
+          de verdad, o sea cuando no tenés a quién asignarle nada más que a vos
+          mismo. Medido en producción: hay 23 usuarios activos de Perú sin la
+          sección (20 analistas y 3 más) porque NO deben tener tareas — un
+          banner permanente nombrándolos sería regañar por una decisión
+          deliberada, y a la semana se ignora igual que cualquier alerta que
+          siempre está prendida. */}
+      {sinSeccion > 0 && owners.length <= 1 && (
         <div className="pview__warn">{t('projects.owner_gap', { n: sinSeccion })}</div>
       )}
 
@@ -262,7 +269,13 @@ export default function ProjectsAdmin({
 function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChanged }) {
   const { t } = useI18n()
   const unaVez = useAccionEnVuelo()
-  const [draft, setDraft] = useState({ title: '', owner_email: '', due_date: '', city: '' })
+  const [draft, setDraft] = useState({
+    title: '',
+    owner_email: '',
+    start_date: '',
+    due_date: '',
+    city: '',
+  })
   const [err, setErr] = useState(null)
   const [warn, setWarn] = useState(null)
   // Esta planilla guarda sola, sin botón: cada campo se manda al salir o al
@@ -287,7 +300,7 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
       titleRef.current?.focus()
       return
     }
-    const check = validateTaskDates(null, draft.due_date || null, today)
+    const check = validateTaskDates(draft.start_date || null, draft.due_date || null, today)
     if (!check.valid) {
       setErr(t('projects.err_dates'))
       return
@@ -301,6 +314,10 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
         project_id: project.id,
         title,
         owner_email: draft.owner_email || null,
+        // Sin fecha de inicio toda tarea es un hito de un día y el Gantt no
+        // dibuja nada: barras de 1 día en vez de duraciones. La columna existe
+        // en el modelo desde la mig 183 y la planilla nunca la expuso.
+        start_date: draft.start_date || null,
         due_date: draft.due_date || null,
         city: draft.city || null,
         sort_order: tasks.length,
@@ -311,7 +328,13 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
         return
       }
       setErr(null)
-      setDraft({ title: '', owner_email: draft.owner_email, due_date: '', city: draft.city })
+      setDraft({
+        title: '',
+        owner_email: draft.owner_email,
+        start_date: '',
+        due_date: '',
+        city: draft.city,
+      })
       titleRef.current?.focus()
       onChanged?.()
     })
@@ -384,15 +407,19 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
    * desde la mig 215 cada uno deja su comentario de sistema. La bitácora del
    * hub se habría llenado de "movió el vencimiento" intermedios.
    */
-  async function patchDate(task, value) {
-    if ((task.due_date || '') === (value || '')) return
-    const check = validateTaskDates(task.start_date || null, value || null, today)
+  async function patchDate(task, campo, value) {
+    if ((task[campo] || '') === (value || '')) return
+    const inicio = campo === 'start_date' ? value : task.start_date
+    const fin = campo === 'due_date' ? value : task.due_date
+    const check = validateTaskDates(inicio || null, fin || null, today)
     if (!check.valid) {
+      // Rechazar en el cliente evita que el CHECK de la tabla devuelva un
+      // error crudo de Postgres en la cara del usuario.
       setErr(t('projects.err_dates'))
       return
     }
     setErr(null)
-    await patch(task, 'due_date', value)
+    await patch(task, campo, value)
   }
 
   return (
@@ -403,6 +430,7 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
       <div className="ptable__head">
         <span>{t('projects.col_title')}</span>
         <span>{t('projects.col_owner')}</span>
+        <span>{t('projects.col_start')}</span>
         <span>{t('projects.col_due')}</span>
         <span>{t('projects.col_city')}</span>
         <span />
@@ -440,10 +468,17 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
               remonte cuando el valor cambia del lado del servidor, que es lo
               que un defaultValue solo no hace. */}
           <input
+            key={`ini-${task.id}-${task.start_date || ''}`}
+            type="date"
+            defaultValue={task.start_date || ''}
+            onBlur={(e) => patchDate(task, 'start_date', e.target.value)}
+            aria-label={t('projects.col_start')}
+          />
+          <input
             key={`due-${task.id}-${task.due_date || ''}`}
             type="date"
             defaultValue={task.due_date || ''}
-            onBlur={(e) => patchDate(task, e.target.value)}
+            onBlur={(e) => patchDate(task, 'due_date', e.target.value)}
             aria-label={t('projects.col_due')}
           />
           <select
@@ -499,6 +534,12 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
             </option>
           ))}
         </select>
+        <input
+          type="date"
+          value={draft.start_date}
+          onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
+          aria-label={t('projects.col_start')}
+        />
         <input
           type="date"
           value={draft.due_date}
