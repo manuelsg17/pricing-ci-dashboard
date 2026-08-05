@@ -804,6 +804,14 @@ export const TRANSLATIONS = {
     'projects.add_task': 'Agregar tarea',
     'projects.delete_task': 'Borrar tarea',
     'projects.err_title_required': 'Escribí el nombre de la tarea antes de agregarla.',
+    'projects.new_task_label': 'Nueva tarea',
+    'projects.new_task_hint':
+      'Todavía no está guardada: presioná Enter o «Agregar» para sumarla a la lista.',
+    'projects.add': 'Agregar',
+    'projects.discard': 'Descartar',
+    'projects.autosave_idle': 'Los cambios de esta lista se guardan solos',
+    'projects.autosave_saving': 'Guardando…',
+    'projects.autosave_saved': 'Guardado',
     'projects.owner_gap':
       '{n} persona(s) de este país no aparecen como responsables porque su rol todavía no tiene la sección Proyectos. Se la das desde Config → Administración → Accesos.',
     'projects.show_archived': 'Ver archivados',
@@ -3280,6 +3288,13 @@ export const TRANSLATIONS = {
     'projects.add_task': 'Add task',
     'projects.delete_task': 'Delete task',
     'projects.err_title_required': 'Type the task name before adding it.',
+    'projects.new_task_label': 'New task',
+    'projects.new_task_hint': 'Not saved yet — press Enter or “Add” to put it on the list.',
+    'projects.add': 'Add',
+    'projects.discard': 'Discard',
+    'projects.autosave_idle': 'Changes to this list save automatically',
+    'projects.autosave_saving': 'Saving…',
+    'projects.autosave_saved': 'Saved',
     'projects.owner_gap':
       '{n} person(s) in this country are not listed as owners because their role does not have the Projects section yet. Grant it from Config → Administration → Access.',
     'projects.show_archived': 'Show archived',
@@ -5740,6 +5755,14 @@ export const TRANSLATIONS = {
     'projects.add_task': 'Добавить задачу',
     'projects.delete_task': 'Удалить задачу',
     'projects.err_title_required': 'Введите название задачи перед добавлением.',
+    'projects.new_task_label': 'Новая задача',
+    'projects.new_task_hint':
+      'Ещё не сохранена — нажмите Enter или «Добавить», чтобы добавить её в список.',
+    'projects.add': 'Добавить',
+    'projects.discard': 'Отменить',
+    'projects.autosave_idle': 'Изменения в этом списке сохраняются автоматически',
+    'projects.autosave_saving': 'Сохранение…',
+    'projects.autosave_saved': 'Сохранено',
     'projects.owner_gap':
       'Людей в этой стране, не показанных как ответственные, потому что у их роли ещё нет раздела «Проекты»: {n}. Выдайте его в Config → Администрирование → Доступы.',
     'projects.show_archived': 'Показать архив',

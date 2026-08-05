@@ -265,30 +265,101 @@ export default function ProjectsAdmin({
   )
 }
 
+const DRAFT_VACIO = {
+  title: '',
+  owner_email: '',
+  start_date: '',
+  due_date: '',
+  city: '',
+}
+
 /** Planilla de tareas de un proyecto: editar en línea y agregar al final. */
 function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChanged }) {
   const { t } = useI18n()
   const unaVez = useAccionEnVuelo()
-  const [draft, setDraft] = useState({
-    title: '',
-    owner_email: '',
-    start_date: '',
-    due_date: '',
-    city: '',
-  })
+  const [draft, setDraft] = useState(DRAFT_VACIO)
   const [err, setErr] = useState(null)
   const [warn, setWarn] = useState(null)
   // Esta planilla guarda sola, sin botón: cada campo se manda al salir o al
   // cambiar. Sin una señal de que pasó algo, no hay forma de distinguir
   // "guardado" de "no hizo nada" — y el usuario se queda mirando la pantalla.
+  //
+  // La señal es DOBLE a propósito, y las dos son necesarias:
+  //   · `estado` — una línea fija arriba de la planilla ("los cambios se
+  //     guardan solos" → "Guardando…" → "Guardado"). Contesta la pregunta
+  //     ANTES de que el usuario la haga; el destello por fila solo la contesta
+  //     después, y solo si estaba mirando esa fila.
+  //   · `ok` — el destello verde, que dice CUÁL fila se guardó.
   const [ok, setOk] = useState(null) // id de fila que acaba de guardarse
+  const [estado, setEstado] = useState('idle') // idle | saving | saved
   const [ocupada, setOcupada] = useState(null) // id de fila en curso
   const titleRef = useRef(null)
+  // El destello se apaga solo; si el componente se desmonta antes (cerrar el
+  // proyecto, cambiar de pestaña) el timer tiene que morir con él.
+  const timerOk = useRef(null)
+  useEffect(() => () => clearTimeout(timerOk.current), [])
 
   function marcarGuardado(id) {
     setOk(id)
-    setTimeout(() => setOk((v) => (v === id ? null : v)), 1600)
+    // "Guardado" NO se apaga solo. Medido en local: el destello duraba 2,6
+    // segundos, que es exactamente el tiempo que tarda alguien en mirar la
+    // fila que acaba de cambiar y volver a levantar la vista — el aviso se
+    // perdía justo con el gesto que lo iba a leer. Queda fijo hasta la próxima
+    // acción, igual que el "Todos los cambios guardados" de un doc.
+    setEstado('saved')
+    // El destello de la FILA sí se apaga: dice cuál se guardó, y ese dato
+    // vence en cuanto se toca otra.
+    clearTimeout(timerOk.current)
+    timerOk.current = setTimeout(() => setOk((v) => (v === id ? null : v)), 2200)
   }
+
+  /**
+   * Toda escritura de la planilla pasa por acá.
+   *
+   * El `catch` no es decorativo: sin él, cualquier fallo que no venga como
+   * `{ error }` —una caída de red en medio del pedido, por ejemplo— dejaba
+   * "Guardando…" encendido para siempre. Es el peor estado posible de los tres,
+   * porque promete que algo está pasando cuando ya no pasa nada, y encima tapa
+   * el error. Si falla, se dice; el candado lo suelta `unaVez` en su `finally`.
+   */
+  async function escribir(clave, pedido, alGuardar) {
+    await unaVez(clave, async () => {
+      setEstado('saving')
+      try {
+        const { data, error } = await pedido()
+        if (error) {
+          setErr(error.message)
+          setEstado('idle')
+          return
+        }
+        setErr(null)
+        alGuardar?.(data)
+      } catch (e) {
+        setErr(e?.message || String(e))
+        setEstado('idle')
+      }
+    })
+  }
+
+  /**
+   * Editar el borrador limpia los avisos de la operación anterior.
+   *
+   * El error de "escribí el nombre" se quedaba fijo en pantalla hasta el
+   * siguiente alta exitosa: apretabas "+" sin título, aparecía el cartel rojo,
+   * y no había forma de sacarlo — ni escribiendo, ni tocando la X (que borra
+   * la tarea de arriba, no el cartel). Reportado usando la app.
+   */
+  function editar(parche) {
+    setDraft((d) => ({ ...d, ...parche }))
+    setErr(null)
+    setWarn(null)
+  }
+
+  // "Descartar" existe porque la fila de alta NO es un modal: no se abre ni se
+  // cierra, vive siempre al final de la planilla. Sin un botón que la vacíe, el
+  // que empezó a escribir una tarea y se arrepintió tiene que borrar campo por
+  // campo para dejarla como estaba.
+  const draftSucio = Object.values(draft).some((v) => v !== '')
 
   async function addTask(e) {
     e?.preventDefault()
@@ -309,42 +380,47 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
     // Clave por TÍTULO: dos clics sobre el mismo texto son el accidente que
     // dejaba dos tareas idénticas con el mismo sort_order (reproducido en
     // local). Escribir otro título y darle enter enseguida sigue funcionando.
-    await unaVez(`alta:${title}`, async () => {
-      const { error } = await createTask({
-        project_id: project.id,
-        title,
-        owner_email: draft.owner_email || null,
-        // Sin fecha de inicio toda tarea es un hito de un día y el Gantt no
-        // dibuja nada: barras de 1 día en vez de duraciones. La columna existe
-        // en el modelo desde la mig 183 y la planilla nunca la expuso.
-        start_date: draft.start_date || null,
-        due_date: draft.due_date || null,
-        city: draft.city || null,
-        sort_order: tasks.length,
-        created_by: userEmail,
-      })
-      if (error) {
-        setErr(error.message)
-        return
+    await escribir(
+      `alta:${title}`,
+      () =>
+        createTask({
+          project_id: project.id,
+          title,
+          owner_email: draft.owner_email || null,
+          // Sin fecha de inicio toda tarea es un hito de un día y el Gantt no
+          // dibuja nada: barras de 1 día en vez de duraciones. La columna existe
+          // en el modelo desde la mig 183 y la planilla nunca la expuso.
+          start_date: draft.start_date || null,
+          due_date: draft.due_date || null,
+          city: draft.city || null,
+          sort_order: tasks.length,
+          created_by: userEmail,
+        }),
+      (creada) => {
+        // La tarea recién creada también destella "Guardado". Sin esto el alta
+        // era el único cambio de toda la planilla que no confirmaba nada: la
+        // fila subía un renglón y quedaba idéntica a la de borrador que la
+        // originó.
+        if (creada?.id) marcarGuardado(creada.id)
+        // Se recuerda el RESPONSABLE, no la ciudad.
+        //
+        // Cargando varias tareas seguidas el dueño suele repetirse, así que
+        // recordarlo ahorra clics de verdad. La ciudad no: "Consolidar informe
+        // final" heredó "Arequipa" de la tarea anterior sin que nadie lo pidiera,
+        // y la ciudad es justamente lo que usa el filtro. Un dato equivocado que
+        // se pone solo es peor que un clic de más.
+        setDraft({ ...DRAFT_VACIO, owner_email: draft.owner_email })
+        titleRef.current?.focus()
+        onChanged?.()
       }
-      setErr(null)
-      // Se recuerda el RESPONSABLE, no la ciudad.
-      //
-      // Cargando varias tareas seguidas el dueño suele repetirse, así que
-      // recordarlo ahorra clics de verdad. La ciudad no: "Consolidar informe
-      // final" heredó "Arequipa" de la tarea anterior sin que nadie lo pidiera,
-      // y la ciudad es justamente lo que usa el filtro. Un dato equivocado que
-      // se pone solo es peor que un clic de más.
-      setDraft({
-        title: '',
-        owner_email: draft.owner_email,
-        start_date: '',
-        due_date: '',
-        city: '',
-      })
-      titleRef.current?.focus()
-      onChanged?.()
-    })
+    )
+  }
+
+  function descartarDraft() {
+    setDraft(DRAFT_VACIO)
+    setErr(null)
+    setWarn(null)
+    titleRef.current?.focus()
   }
 
   async function onDelete(task) {
@@ -369,15 +445,14 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
   }
 
   async function patch(task, field, value) {
-    await unaVez(`patch:${task.id}:${field}`, async () => {
-      const { error } = await updateTask(task.id, { [field]: value || null })
-      if (error) setErr(error.message)
-      else {
-        setErr(null)
+    await escribir(
+      `patch:${task.id}:${field}`,
+      () => updateTask(task.id, { [field]: value || null }),
+      () => {
         marcarGuardado(task.id)
         onChanged?.()
       }
-    })
+    )
   }
 
   /**
@@ -395,15 +470,14 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
    */
   async function changeOwner(task, email) {
     if ((task.owner_email || '') === (email || '')) return
-    await unaVez(`owner:${task.id}`, async () => {
-      const { error } = await reassignTask(task.id, email || null)
-      if (error) setErr(error.message)
-      else {
-        setErr(null)
+    await escribir(
+      `owner:${task.id}`,
+      () => reassignTask(task.id, email || null),
+      () => {
         marcarGuardado(task.id)
         onChanged?.()
       }
-    })
+    )
   }
 
   /**
@@ -431,8 +505,36 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
 
   return (
     <div className="ptable">
-      {err && <div className="pview__err">{err}</div>}
-      {warn && <div className="pview__warn">{warn}</div>}
+      {/* Los avisos se pueden cerrar. El único botón cercano era la ✕ de la
+          primera fila, que borra una tarea — cerrar un cartel no puede
+          compartir gesto con destruir un dato. */}
+      {err && (
+        <div className="pview__err pview__err--closable">
+          <span>{err}</span>
+          <button type="button" onClick={() => setErr(null)} aria-label={t('app.close')}>
+            ✕
+          </button>
+        </div>
+      )}
+      {warn && (
+        <div className="pview__warn pview__warn--closable">
+          <span>{warn}</span>
+          <button type="button" onClick={() => setWarn(null)} aria-label={t('app.close')}>
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* "¿Dónde está Guardar?" fue la primera pregunta de la primera persona
+          que usó esto. La respuesta tiene que estar a la vista antes de que la
+          haga, no escondida en un destello de 2 segundos. */}
+      <div className={`ptable__save ptable__save--${estado}`} role="status">
+        {estado === 'saving'
+          ? t('projects.autosave_saving')
+          : estado === 'saved'
+            ? `✓ ${t('projects.autosave_saved')}`
+            : t('projects.autosave_idle')}
+      </div>
 
       <div className="ptable__head">
         <span>{t('projects.col_title')}</span>
@@ -513,61 +615,105 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
         </div>
       ))}
 
-      {/* Fila de alta: Enter crea y deja el cursor listo para la siguiente. */}
-      <form className="ptable__row ptable__row--new" onSubmit={addTask}>
-        {/* autoFocus: §3.1 promete que al abrir un proyecto el cursor ya está
-            en la primera fila de tarea. Sin esto, después de crear un proyecto
-            el foco quedaba en el body y había que ir a buscar el campo con el
-            mouse — justo el clic que el alta inline vino a eliminar.
-            El `focus()` de addTask cubre la segunda tarea en adelante; esto
-            cubre la primera. */}
-        <input
-          ref={titleRef}
-          autoFocus
-          value={draft.title}
-          onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-          placeholder={t('projects.new_task_placeholder')}
-          aria-label={t('projects.col_title')}
-        />
-        <select
-          value={draft.owner_email}
-          onChange={(e) => setDraft({ ...draft, owner_email: e.target.value })}
-          aria-label={t('projects.col_owner')}
-        >
-          <option value="">{t('projects.unassigned')}</option>
-          {owners.map((o) => (
-            <option key={o.email} value={o.email}>
-              {o.email}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={draft.start_date}
-          onChange={(e) => setDraft({ ...draft, start_date: e.target.value })}
-          aria-label={t('projects.col_start')}
-        />
-        <input
-          type="date"
-          value={draft.due_date}
-          onChange={(e) => setDraft({ ...draft, due_date: e.target.value })}
-          aria-label={t('projects.col_due')}
-        />
-        <select
-          value={draft.city}
-          onChange={(e) => setDraft({ ...draft, city: e.target.value })}
-          aria-label={t('projects.col_city')}
-        >
-          <option value="">{t('projects.all_cities')}</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className="ptable__add" title={t('projects.add_task')}>
-          +
-        </button>
+      {/* Alta: una TARJETA aparte, no una fila más de la planilla.
+          Antes era una fila idéntica a las de arriba salvo por el fondo y por
+          el "+" en el lugar de la ✕, y eso hacía imposible contestar dos
+          preguntas básicas: qué está guardado y qué no, y qué hace ese botón.
+          Con título propio, borde punteado y las acciones ESCRITAS abajo, la
+          diferencia se lee sin tener que probarla. */}
+      <form className="ptable__new" onSubmit={addTask}>
+        <div className="ptable__new-head">
+          <strong>{t('projects.new_task_label')}</strong>
+          <span>{t('projects.new_task_hint')}</span>
+        </div>
+
+        <div className="ptable__row">
+          {/* autoFocus: §3.1 promete que al abrir un proyecto el cursor ya está
+              en la primera fila de tarea. Sin esto, después de crear un proyecto
+              el foco quedaba en el body y había que ir a buscar el campo con el
+              mouse — justo el clic que el alta inline vino a eliminar.
+              El `focus()` de addTask cubre la segunda tarea en adelante; esto
+              cubre la primera. */}
+          <input
+            ref={titleRef}
+            autoFocus
+            value={draft.title}
+            onChange={(e) => editar({ title: e.target.value })}
+            // Enter explícito, no el submit implícito del navegador.
+            //
+            // El placeholder PROMETE "presioná Enter", y esa promesa se estaba
+            // cumpliendo sola gracias a una regla del navegador (un form con un
+            // botón submit envía al apretar Enter en un campo de texto). Es una
+            // regla con letra chica —depende de que el evento traiga `code` y
+            // `keyCode`, cosa que no siempre pasa— y una promesa escrita en la
+            // pantalla no debería depender de eso. El candado por título evita
+            // el alta doble si además dispara el submit implícito.
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addTask()
+              }
+            }}
+            placeholder={t('projects.new_task_placeholder')}
+            aria-label={t('projects.col_title')}
+          />
+          <select
+            value={draft.owner_email}
+            onChange={(e) => editar({ owner_email: e.target.value })}
+            aria-label={t('projects.col_owner')}
+          >
+            <option value="">{t('projects.unassigned')}</option>
+            {owners.map((o) => (
+              <option key={o.email} value={o.email}>
+                {o.email}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={draft.start_date}
+            onChange={(e) => editar({ start_date: e.target.value })}
+            aria-label={t('projects.col_start')}
+          />
+          <input
+            type="date"
+            value={draft.due_date}
+            onChange={(e) => editar({ due_date: e.target.value })}
+            aria-label={t('projects.col_due')}
+          />
+          <select
+            value={draft.city}
+            onChange={(e) => editar({ city: e.target.value })}
+            aria-label={t('projects.col_city')}
+          >
+            <option value="">{t('projects.all_cities')}</option>
+            {cities.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          {/* Celda vacía: mantiene las 6 columnas alineadas con las filas ya
+              guardadas. Las acciones van abajo, no acá. */}
+          <span aria-hidden="true" />
+        </div>
+
+        <div className="ptable__new-actions">
+          {/* Descartar solo cuando hay algo que descartar: un botón que no
+              hace nada visible es ruido. */}
+          {draftSucio && (
+            <button type="button" className="ptable__discard" onClick={descartarDraft}>
+              {t('projects.discard')}
+            </button>
+          )}
+          <button
+            type="submit"
+            className={`ptable__add${draft.title.trim() ? ' is-ready' : ''}`}
+            title={t('projects.add_task')}
+          >
+            + {t('projects.add')}
+          </button>
+        </div>
       </form>
     </div>
   )

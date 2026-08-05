@@ -685,6 +685,31 @@
   background: var(--sem-yellow-bg);
   color: var(--sem-yellow-fg);
 }
+/* Aviso que se puede cerrar. El de "escribí el nombre de la tarea" quedaba
+   fijo hasta el siguiente alta exitosa y no había gesto para sacarlo. */
+.pview__err--closable,
+.pview__warn--closable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pview__err--closable button,
+.pview__warn--closable button {
+  flex: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  opacity: 0.7;
+}
+.pview__err--closable button:hover,
+.pview__warn--closable button:hover {
+  opacity: 1;
+}
 
 .pview__toolbar {
   display: flex;
@@ -1012,12 +1037,7 @@
   background: var(--color-bg);
   width: 100%;
 }
-.ptable__row--new input,
-.ptable__row--new select {
-  background: #fffdf5;
-}
-.ptable__del,
-.ptable__add {
+.ptable__del {
   height: 28px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -1030,9 +1050,82 @@
   border-color: var(--sem-red-fg);
   color: var(--sem-red-fg);
 }
+
+/* ── "¿Dónde está Guardar?" ─────────────────────────────────────────────
+   La planilla guarda sola. Eso hay que DECIRLO, no dejar que se deduzca. */
+.ptable__save {
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: var(--color-muted);
+  min-height: 15px;
+}
+.ptable__save--saving {
+  color: var(--color-fg);
+}
+.ptable__save--saved {
+  color: var(--sem-green-fg);
+  font-weight: 600;
+}
+
+/* ── Tarjeta de alta ────────────────────────────────────────────────────
+   Borde punteado = todavía no existe. Es la misma convención que usa
+   cualquier planilla: lo guardado tiene borde sólido, el renglón en blanco
+   no. Sin esto la fila de alta era indistinguible de una tarea real. */
+.ptable__new {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fffdf5;
+}
+.ptable__new-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.ptable__new-head strong {
+  font-size: 12px;
+}
+.ptable__new-head span {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.ptable__new .ptable__row {
+  margin-bottom: 0;
+}
+.ptable__new-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.ptable__add,
+.ptable__discard {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.ptable__discard:hover {
+  border-color: var(--sem-red-fg);
+  color: var(--sem-red-fg);
+}
 .ptable__add {
   color: var(--sem-green-fg);
   font-weight: 700;
+}
+/* Con título escrito el botón se vuelve sólido: hay algo pendiente de
+   guardar y el próximo clic es ese, no otro. */
+.ptable__add.is-ready {
+  background: var(--sem-green-fg);
+  border-color: var(--sem-green-fg);
+  color: #fff;
 }
 
 /* ── Formulario de proyecto ─────────────────────────────────── */
@@ -1250,13 +1343,28 @@
     justify-self: end;
     width: 48px;
   }
+  /* La celda vacía que alinea la tarjeta de alta con las filas guardadas solo
+     tiene sentido en la grilla de escritorio; acá dejaría un hueco de 48px. */
+  .ptable__new .ptable__row > *:nth-child(6) {
+    display: none;
+  }
+  .ptable__new .ptable__row {
+    border: 0;
+    padding: 0;
+  }
   .ptable__row input,
   .ptable__row select {
     height: 34px;
   }
   .ptable__del,
-  .ptable__add {
+  .ptable__add,
+  .ptable__discard {
     height: 34px;
+  }
+  /* Las acciones del alta ocupan el ancho: a 390px un botón de 12px de texto
+     pegado al borde derecho es un blanco difícil con el pulgar. */
+  .ptable__new-actions button {
+    flex: 1;
   }
 
   /* Formulario de proyecto nuevo: los pares de fecha dejan de ir lado a lado. */
