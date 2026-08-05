@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useI18n } from '../../context/LanguageContext'
-import { isAtRisk, isStalled, taskUrgency } from '../../lib/projectTasks'
+import { isAtRisk, isStalled, taskUrgency, UNASSIGNED } from '../../lib/projectTasks'
 import TaskRow from './TaskRow'
 import EmptyState from '../ui/EmptyState'
 
@@ -22,13 +22,7 @@ const BUCKETS = [
   { key: 'activity', labelKey: 'projects.today.activity', tone: 'ok' },
 ]
 
-export default function TodayView({
-  data,
-  riskThreshold,
-  ownerFilter,
-  onChanged,
-  canEdit = false,
-}) {
+export default function TodayView({ data, riskThreshold, onChanged, canEdit = false }) {
   const { t } = useI18n()
   const { tasks, projectNameById, lastCommentByTask, activeTaskIds, today, window: win } = data
 
@@ -36,9 +30,11 @@ export default function TodayView({
   // va uno por uno.
   const porPersona = useMemo(() => {
     const map = new Map()
+    // Ya vienen filtradas por la barra común (FiltersBar): filtrar de nuevo
+    // acá sería un segundo criterio que podría divergir del de las otras
+    // vistas.
     for (const task of tasks) {
-      if (ownerFilter && task.owner_email !== ownerFilter) continue
-      const who = task.owner_email || '__unassigned__'
+      const who = task.owner_email || UNASSIGNED
       if (!map.has(who)) {
         map.set(who, { who, blocked: [], due: [], risk: [], stalled: [], activity: [] })
       }
@@ -61,7 +57,7 @@ export default function TodayView({
       const pb = b.blocked.length ? 0 : b.due.length ? 1 : 2
       return pa - pb || a.who.localeCompare(b.who)
     })
-  }, [tasks, today, riskThreshold, activeTaskIds, ownerFilter])
+  }, [tasks, today, riskThreshold, activeTaskIds])
 
   const total = porPersona.reduce(
     (n, p) =>
@@ -99,7 +95,7 @@ export default function TodayView({
                 href={`#hub-${encodeURIComponent(p.who)}`}
                 className="pview__index-item"
               >
-                {p.who === '__unassigned__' ? t('projects.unassigned') : p.who.split('@')[0]}
+                {p.who === UNASSIGNED ? t('projects.unassigned') : p.who.split('@')[0]}
                 <span className="pview__index-n">{n}</span>
               </a>
             )
@@ -115,7 +111,7 @@ export default function TodayView({
         return (
           <section key={p.who} id={`hub-${encodeURIComponent(p.who)}`} className="phub">
             <h3 className="phub__title">
-              {p.who === '__unassigned__' ? t('projects.unassigned') : p.who}
+              {p.who === UNASSIGNED ? t('projects.unassigned') : p.who}
               {n === 0 && <span className="phub__quiet">{t('projects.no_news')}</span>}
             </h3>
 

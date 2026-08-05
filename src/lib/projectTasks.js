@@ -13,6 +13,16 @@
 /** Estados canónicos. El orden importa: define el orden del Kanban. */
 export const TASK_STATUSES = ['todo', 'doing', 'blocked', 'done']
 
+/**
+ * Clave para "sin asignar" en filtros y agrupaciones.
+ *
+ * Es un centinela y no `null` porque un `<select>` no puede tener valor null:
+ * su valor vacío significa "sin filtro". Sin distinguir los dos, filtrar por
+ * "sin asignar" mostraba TODO — que es el peor resultado posible para un
+ * filtro cuyo propósito es encontrar justamente las tareas huérfanas.
+ */
+export const UNASSIGNED = '__unassigned__'
+
 /** Días hábiles en curso a partir de los cuales una tarea se marca estancada. */
 export const STALLED_BUSINESS_DAYS = 10
 
@@ -275,4 +285,39 @@ export function taskMatchesCity(task, project, city) {
   if (!city) return true
   if (task.city) return task.city === city
   return projectMatchesCity(project || {}, city)
+}
+
+/** Filtros vacíos. Identidad de módulo: se pasa como dependencia de efectos. */
+export const EMPTY_TASK_FILTERS = Object.freeze({
+  projectId: '',
+  owner: '',
+  city: '',
+  status: '',
+})
+
+/**
+ * Aplica los filtros de la barra común a una lista de tareas.
+ *
+ * Vive acá y no en el componente para poder testearlo, y para que las cuatro
+ * vistas (Hoy, Mis tareas, Kanban, Gantt) filtren EXACTAMENTE igual: si cada
+ * una lo resolviera por su cuenta, un filtro mostraría 8 tareas en una vista y
+ * 9 en otra, y no habría forma de saber cuál miente.
+ *
+ * NO se aplica a la planilla del admin a propósito: ahí el `sort_order` de una
+ * tarea nueva sale de la cantidad de tareas del proyecto, así que trabajar
+ * sobre una lista filtrada asignaría órdenes repetidos.
+ */
+export function applyTaskFilters(tasks, filters = EMPTY_TASK_FILTERS, projectById = {}) {
+  const { projectId = '', owner = '', city = '', status = '' } = filters
+  if (!projectId && !owner && !city && !status) return tasks
+  return tasks.filter((task) => {
+    if (projectId && task.project_id !== projectId) return false
+    if (status && task.status !== status) return false
+    if (owner) {
+      const suyo = task.owner_email || UNASSIGNED
+      if (suyo !== owner) return false
+    }
+    if (city && !taskMatchesCity(task, projectById[task.project_id], city)) return false
+    return true
+  })
 }

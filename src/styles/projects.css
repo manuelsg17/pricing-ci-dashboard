@@ -82,6 +82,58 @@
   color: var(--color-yango);
 }
 
+/* ── Barra de filtros ───────────────────────────────────────── */
+.pfilters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.pfilters label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.pfilters select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 12px;
+  /* Un nombre de proyecto largo no puede estirar la barra hasta desbordarla. */
+  max-width: 180px;
+}
+/* Con filtros puestos, cuántas tareas quedaron fuera. Es lo que evita leer
+   "no hay nada" cuando en realidad hay un filtro olvidado (CLAUDE.md §5). */
+.pfilters__count {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.pfilters__clear {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.pfilters__clear:hover {
+  border-color: var(--color-yango);
+  color: var(--color-yango);
+}
+
 /* ── Vista ──────────────────────────────────────────────────── */
 .pview {
   display: flex;
@@ -614,6 +666,25 @@
   .projects__filters {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  /* A 390px los 4 filtros en fila se desbordan. Se apilan de a dos, y el
+     select ocupa lo que le queda a su etiqueta en vez de un ancho fijo. */
+  .pfilters {
+    gap: 8px 10px;
+  }
+  .pfilters label {
+    flex: 1 1 45%;
+    min-width: 0;
+  }
+  .pfilters select {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+  .pfilters__count {
+    margin-left: 0;
+    flex: 1 1 100%;
   }
 
   /* Lo más importante del bloque: la fila de tarea deja de ser

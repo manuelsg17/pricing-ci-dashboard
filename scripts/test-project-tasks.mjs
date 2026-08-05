@@ -26,6 +26,9 @@ import {
   validateTaskDates,
   projectMatchesCity,
   taskMatchesCity,
+  applyTaskFilters,
+  EMPTY_TASK_FILTERS,
+  UNASSIGNED,
 } from '../src/lib/projectTasks.js'
 
 let pass = 0,
@@ -275,6 +278,41 @@ console.log('\n[N] Completadas hoy: la zona horaria del país, no la del servido
   assert(todayInTimezone('UTC', t) === '2026-08-06', 'UTC ya pasó de día')
   assert(todayInTimezone('Asia/Kathmandu', t) === '2026-08-06', 'Nepal (UTC+5:45) también')
   assert(todayInTimezone('Zona/Inventada', t) === '2026-08-06', 'zona inválida cae a UTC sin romper')
+}
+
+{
+  console.log('\n[13] Barra de filtros — las 4 vistas tienen que filtrar igual')
+  const projectById = {
+    p1: { id: 'p1', cities: ['Lima'] },
+    p2: { id: 'p2', cities: [] }, // alcance total del país
+  }
+  const tareas = [
+    { id: 'a', project_id: 'p1', owner_email: 'ana@x', status: 'doing', city: null },
+    { id: 'b', project_id: 'p1', owner_email: 'beto@x', status: 'done', city: 'Arequipa' },
+    { id: 'c', project_id: 'p2', owner_email: null, status: 'todo', city: null },
+    { id: 'd', project_id: 'p2', owner_email: 'ana@x', status: 'blocked', city: 'Lima' },
+  ]
+  const ids = (f) =>
+    applyTaskFilters(tareas, f, projectById)
+      .map((x) => x.id)
+      .join(',')
+
+  assert(applyTaskFilters(tareas, EMPTY_TASK_FILTERS, projectById) === tareas,
+    'sin filtros devuelve el MISMO array — identidad estable para los efectos')
+  assert(ids({ projectId: 'p1' }) === 'a,b', 'filtra por proyecto')
+  assert(ids({ owner: 'ana@x' }) === 'a,d', 'filtra por responsable')
+  assert(ids({ status: 'done' }) === 'b', 'filtra por estado')
+
+  // El centinela: sin él, "sin asignar" caía en la rama de "sin filtro" y
+  // devolvía las 4 — justo lo contrario de lo que se buscaba.
+  assert(ids({ owner: UNASSIGNED }) === 'c', 'sin asignar encuentra las huérfanas')
+
+  // Ciudad: la de la tarea manda, y si no tiene hereda el alcance del proyecto.
+  assert(ids({ city: 'Lima' }) === 'a,c,d', 'Lima: a hereda p1, c hereda alcance total, d es de Lima')
+  assert(ids({ city: 'Arequipa' }) === 'b,c', 'Arequipa: b es suya, c hereda alcance total')
+
+  assert(ids({ projectId: 'p2', owner: 'ana@x' }) === 'd', 'los filtros se combinan con AND')
+  assert(ids({ projectId: 'p1', status: 'blocked' }) === '', 'combinación sin resultados da vacío')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

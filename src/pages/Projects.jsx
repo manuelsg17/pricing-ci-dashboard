@@ -4,9 +4,12 @@ import { useI18n } from '../context/LanguageContext'
 import { useAccessControl } from '../hooks/useAccessControl'
 import { useAuth } from '../lib/auth'
 import { useProjectsData } from '../hooks/useProjects'
+import { useProjectFilters } from '../hooks/useProjectFilters'
+import { applyTaskFilters } from '../lib/projectTasks'
 import TodayView from '../components/projects/TodayView'
 import MyTasksView from '../components/projects/MyTasksView'
 import ProjectsAdmin from '../components/projects/ProjectsAdmin'
+import FiltersBar from '../components/projects/FiltersBar'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
 import '../styles/projects.css'
 
@@ -26,26 +29,16 @@ export default function Projects() {
   const { session } = useAuth()
   const userEmail = session?.user?.email || ''
 
-  // `isAdmin` llega ASÍNCRONO (useAccessControl consulta user_profiles), así
-  // que en el primer render siempre es false. Con un initializer de useState
-  // el admin quedaba clavado en "Mis tareas" y nunca veía "Hoy" al entrar —
-  // detectado corriendo la app de verdad, no en las simulaciones.
-  // El efecto corrige la vista cuando el rol resuelve, pero solo si el usuario
-  // todavía no eligió pestaña a mano: si no, le estaríamos moviendo la
-  // pantalla debajo de los pies.
-  const [view, setView] = useState('mine')
-  const [viewTouched, setViewTouched] = useState(false)
-
-  useEffect(() => {
-    if (!viewTouched && isAdmin) setView('today')
-  }, [isAdmin, viewTouched])
-
-  function changeView(next) {
-    setViewTouched(true)
-    setView(next)
-  }
   const [windowPreset, setWindowPreset] = useState('auto')
-  const [ownerFilter, setOwnerFilter] = useState('')
+
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    activos,
+    view: storedView,
+    setView,
+  } = useProjectFilters(country)
 
   const data = useProjectsData({
     country,
@@ -65,21 +58,44 @@ export default function Projects() {
 
   const cities = useMemo(() => countryConfig?.dbCities || [], [countryConfig])
 
-  const owners = useMemo(() => {
-    const set = new Set(data.tasks.map((x) => x.owner_email).filter(Boolean))
-    return [...set].sort()
-  }, [data.tasks])
+  const TABS = useMemo(
+    () =>
+      isAdmin
+        ? [
+            { key: 'today', label: t('projects.tab_today') },
+            { key: 'mine', label: t('projects.tab_mine') },
+            { key: 'admin', label: t('projects.tab_projects') },
+          ]
+        : [
+            { key: 'mine', label: t('projects.tab_mine') },
+            { key: 'today', label: t('projects.tab_team') },
+          ],
+    [isAdmin, t]
+  )
 
-  const TABS = isAdmin
-    ? [
-        { key: 'today', label: t('projects.tab_today') },
-        { key: 'mine', label: t('projects.tab_mine') },
-        { key: 'admin', label: t('projects.tab_projects') },
-      ]
-    : [
-        { key: 'mine', label: t('projects.tab_mine') },
-        { key: 'today', label: t('projects.tab_team') },
-      ]
+  // La pestaña efectiva se calcula en el render en vez de guardarse en estado.
+  //
+  // `isAdmin` llega ASÍNCRONO (useAccessControl consulta user_profiles): en el
+  // primer render siempre es false. La versión anterior arrancaba en "Mis
+  // tareas" y corregía con un efecto, lo que obligaba a un flag de "el usuario
+  // ya tocó la pestaña" para no moverle la pantalla debajo de los pies.
+  //
+  // Derivándola no hace falta ninguna de las dos cosas: si el usuario eligió,
+  // manda su elección (que además sobrevive un F5, viene de localStorage); si
+  // no eligió nunca, el default se acomoda solo cuando el rol resuelve. Y una
+  // pestaña guardada que este usuario ya no puede abrir cae al default en vez
+  // de dejar la pantalla en blanco.
+  const view = TABS.some((x) => x.key === storedView) ? storedView : isAdmin ? 'today' : 'mine'
+
+  // La planilla del admin NO se filtra: el `sort_order` de una tarea nueva
+  // sale de la cantidad de tareas del proyecto, y sobre una lista filtrada
+  // asignaría órdenes repetidos.
+  const tasksFiltradas = useMemo(
+    () => applyTaskFilters(data.tasks, filters, data.projectById),
+    [data.tasks, filters, data.projectById]
+  )
+
+  const dataFiltrada = useMemo(() => ({ ...data, tasks: tasksFiltradas }), [data, tasksFiltradas])
 
   return (
     <div className="projects">
@@ -90,7 +106,7 @@ export default function Projects() {
               key={tab.key}
               type="button"
               className={view === tab.key ? 'is-active' : ''}
-              onClick={() => changeView(tab.key)}
+              onClick={() => setView(tab.key)}
             >
               {tab.label}
             </button>
@@ -99,28 +115,15 @@ export default function Projects() {
 
         <div className="projects__filters">
           {view === 'today' && (
-            <>
-              <label>
-                {t('projects.window')}
-                <select value={windowPreset} onChange={(e) => setWindowPreset(e.target.value)}>
-                  <option value="auto">{t('projects.window_auto')}</option>
-                  <option value="24h">24h</option>
-                  <option value="3d">3d</option>
-                  <option value="7d">7d</option>
-                </select>
-              </label>
-              <label>
-                {t('projects.owner')}
-                <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
-                  <option value="">{t('access.all_m')}</option>
-                  {owners.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
+            <label>
+              {t('projects.window')}
+              <select value={windowPreset} onChange={(e) => setWindowPreset(e.target.value)}>
+                <option value="auto">{t('projects.window_auto')}</option>
+                <option value="24h">24h</option>
+                <option value="3d">3d</option>
+                <option value="7d">7d</option>
+              </select>
+            </label>
           )}
           {/* Actualización MANUAL a propósito: durante la reunión, una fila que
               se reordena o desaparece mientras estás hablando de ella
@@ -131,14 +134,32 @@ export default function Projects() {
         </div>
       </div>
 
+      {/* La planilla del admin queda afuera: filtrarla rompería el sort_order
+          de las tareas nuevas. */}
+      {view !== 'admin' && (
+        <FiltersBar
+          filters={filters}
+          setFilter={setFilter}
+          clearFilters={clearFilters}
+          activos={activos}
+          projects={data.projects}
+          tasks={data.tasks}
+          cities={cities}
+          // En "Mis tareas" el responsable sos vos por definición: ofrecer el
+          // filtro sería ofrecer una forma de vaciar la propia lista.
+          showOwner={view !== 'mine'}
+          shown={tasksFiltradas.length}
+          total={data.tasks.length}
+        />
+      )}
+
       {data.error && <div className="pview__err">{data.error}</div>}
       {data.loading && data.tasks.length === 0 && <SkeletonDashboard />}
 
       {!data.loading && view === 'today' && (
         <TodayView
-          data={data}
+          data={dataFiltrada}
           riskThreshold={RISK_THRESHOLD_DAYS}
-          ownerFilter={ownerFilter}
           // En la pestaña "Equipo" un hub VE las tareas de sus compañeros
           // —esa es la feature— pero no puede tocarlas: las RPCs exigen ser
           // dueño o admin. Sin esto veía 4 botones de estado que siempre
@@ -150,7 +171,7 @@ export default function Projects() {
 
       {!data.loading && view === 'mine' && (
         <MyTasksView
-          data={data}
+          data={dataFiltrada}
           userEmail={userEmail}
           riskThreshold={RISK_THRESHOLD_DAYS}
           onChanged={() => data.reload({ silent: true })}
