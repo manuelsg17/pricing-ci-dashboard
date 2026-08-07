@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 import EmptyState from '../ui/EmptyState'
-import { validateTaskDates } from '../../lib/projectTasks'
+import {
+  validateTaskDates,
+  resumenDesplazamiento,
+  nombreDeCopia,
+  fechaCorta,
+} from '../../lib/projectTasks'
 import { useAccionEnVuelo } from '../../hooks/useAccionEnVuelo'
 import {
   createProject,
@@ -16,6 +21,8 @@ import {
   fetchArchivedProjects,
   fetchAssignableUsers,
   fetchOwnerGap,
+  shiftTaskDates,
+  duplicateProject,
 } from '../../hooks/useProjects'
 
 // Vista de administración: crear proyectos y cargar sus tareas.
@@ -34,6 +41,7 @@ export default function ProjectsAdmin({
   countryLabel,
   userEmail,
   cities,
+  locale = 'es',
   onChanged,
 }) {
   const { t } = useI18n()
@@ -43,6 +51,8 @@ export default function ProjectsAdmin({
   const [owners, setOwners] = useState([])
   const [sinSeccion, setSinSeccion] = useState(0)
   const [archivados, setArchivados] = useState(null) // null = todavía no se pidió
+  const [dupId, setDupId] = useState(null) // proyecto con el formulario de copia abierto
+  const [aviso, setAviso] = useState(null) // resultado del último duplicado
   const [err, setErr] = useState(null)
   // Sin esto, un doble clic en "Crear proyecto" o en "Archivar" dispara la
   // acción dos veces. Ver useAccionEnVuelo.
@@ -126,6 +136,26 @@ export default function ProjectsAdmin({
   return (
     <div className="pview">
       {err && <div className="pview__err">{err}</div>}
+
+      {/* El resultado de duplicar se queda hasta que lo cierres. Es el único
+          punto de todo el módulo donde una acción crea DECENAS de filas de
+          golpe, y donde algo puede haber salido distinto de lo esperado (las
+          tareas que perdieron responsable). Un aviso que se apaga solo acá
+          sería justamente el que hay que leer. */}
+      {aviso && (
+        <div
+          className={`${aviso.sinResponsable > 0 ? 'pview__warn pview__warn--closable' : 'pview__ok pview__ok--closable'}`}
+        >
+          <span>
+            {t('projects.duplicate_ok', { name: aviso.nombre, n: aviso.tareas })}
+            {aviso.sinResponsable > 0 &&
+              ` ${t('projects.duplicate_owners_cleared', { n: aviso.sinResponsable })}`}
+          </span>
+          <button type="button" onClick={() => setAviso(null)} aria-label={t('app.close')}>
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="pview__toolbar">
         <Button size="sm" onClick={() => setCreating((v) => !v)}>
@@ -242,10 +272,33 @@ export default function ProjectsAdmin({
                 {p.cities?.length > 0 && ` · ${p.cities.join(', ')}`}
                 {p.end_date && ` · ${t('projects.due_on')} ${p.end_date}`}
               </span>
+              <button
+                type="button"
+                className="pproj__archive"
+                onClick={() => setDupId(dupId === p.id ? null : p.id)}
+                aria-expanded={dupId === p.id}
+              >
+                {dupId === p.id ? t('app.cancel') : t('projects.duplicate')}
+              </button>
               <button type="button" className="pproj__archive" onClick={() => onArchive(p.id)}>
                 {t('projects.archive')}
               </button>
             </header>
+
+            {dupId === p.id && (
+              <DuplicateForm
+                project={p}
+                tareas={own.length}
+                nombresUsados={projects.map((x) => x.name)}
+                onCancel={() => setDupId(null)}
+                onDone={(res) => {
+                  setDupId(null)
+                  setAviso(res)
+                  onChanged?.()
+                }}
+                onError={setErr}
+              />
+            )}
 
             {openId === p.id && (
               <TaskEditor
@@ -255,6 +308,7 @@ export default function ProjectsAdmin({
                 cities={cities}
                 today={today}
                 userEmail={userEmail}
+                locale={locale}
                 onChanged={onChanged}
               />
             )}
@@ -262,6 +316,85 @@ export default function ProjectsAdmin({
         )
       })}
     </div>
+  )
+}
+
+/**
+ * Duplicar un proyecto con sus tareas (§15.6, Fase 4).
+ *
+ * Es la respuesta del diseño a "lo trimestral": en vez de un motor de
+ * recurrencia —un proyecto en sí mismo— se copia el anterior y se corren las
+ * fechas de una. Por eso los días de desplazamiento están en el MISMO
+ * formulario y no en un segundo paso: duplicar sin replanificar deja una copia
+ * con las fechas del trimestre pasado, o sea vencida el día que nace.
+ */
+function DuplicateForm({ project, tareas, nombresUsados, onCancel, onDone, onError }) {
+  const { t } = useI18n()
+  const unaVez = useAccionEnVuelo()
+  const [nombre, setNombre] = useState(() => nombreDeCopia(project.name, nombresUsados))
+  const [dias, setDias] = useState(0)
+  const [enCurso, setEnCurso] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    const limpio = nombre.trim()
+    if (!limpio) return
+    setEnCurso(true)
+    try {
+      await unaVez(`duplicar:${project.id}`, async () => {
+        const {
+          nuevoId,
+          tareas: copiadas,
+          sinResponsable,
+          error,
+        } = await duplicateProject(project.id, limpio, Number(dias) || 0)
+        if (error || !nuevoId) {
+          onError?.(error?.message || 'No se pudo duplicar el proyecto')
+          return
+        }
+        onDone?.({ nombre: limpio, tareas: copiadas, sinResponsable })
+      })
+    } finally {
+      setEnCurso(false)
+    }
+  }
+
+  return (
+    <form className="pdup" onSubmit={submit}>
+      <div className="pdup__row">
+        <label>
+          {t('projects.duplicate_name')}
+          <input
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            maxLength={120}
+            autoFocus
+            required
+          />
+        </label>
+        <label>
+          {t('projects.duplicate_shift')}
+          {/* Los topes son los mismos que valida la RPC. Que el input no deje
+              tipear 5000 evita que el error llegue como excepción de Postgres. */}
+          <input
+            type="number"
+            value={dias}
+            min={-3650}
+            max={3650}
+            onChange={(e) => setDias(e.target.value)}
+          />
+        </label>
+      </div>
+      <p className="pform__hint">{t('projects.duplicate_hint', { n: tareas })}</p>
+      <div className="pdup__actions">
+        <button type="button" className="ptable__discard" onClick={onCancel}>
+          {t('app.cancel')}
+        </button>
+        <Button type="submit" size="sm" disabled={enCurso || !nombre.trim()}>
+          {t('projects.duplicate')}
+        </Button>
+      </div>
+    </form>
   )
 }
 
@@ -274,10 +407,25 @@ const DRAFT_VACIO = {
 }
 
 /** Planilla de tareas de un proyecto: editar en línea y agregar al final. */
-function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChanged }) {
+function TaskEditor({
+  project,
+  tasks,
+  owners,
+  cities,
+  today,
+  userEmail,
+  locale = 'es',
+  onChanged,
+}) {
   const { t } = useI18n()
   const unaVez = useAccionEnVuelo()
   const [draft, setDraft] = useState(DRAFT_VACIO)
+  // Selección para correr fechas en lote (§15.8). Se guarda por id y NO por
+  // índice: la lista se reordena sola al cambiar una fecha, y con índices la
+  // selección terminaría apuntando a otras tareas después del primer cambio.
+  const [sel, setSel] = useState(() => new Set())
+  const [dias, setDias] = useState(7)
+  const [avisoLote, setAvisoLote] = useState(null)
   const [err, setErr] = useState(null)
   const [warn, setWarn] = useState(null)
   // Esta planilla guarda sola, sin botón: cada campo se manda al salir o al
@@ -360,6 +508,52 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
   // que empezó a escribir una tarea y se arrepintió tiene que borrar campo por
   // campo para dejarla como estaba.
   const draftSucio = Object.values(draft).some((v) => v !== '')
+
+  // Se deriva de `tasks`, no se guarda: una tarea borrada desaparece de la
+  // selección sola, sin tener que acordarse de limpiar el Set.
+  const seleccionadas = tasks.filter((x) => sel.has(x.id))
+  const previa = resumenDesplazamiento(seleccionadas, Number(dias) || 0)
+  const todasMarcadas = tasks.length > 0 && seleccionadas.length === tasks.length
+
+  function alternar(id) {
+    setSel((prev) => {
+      const s = new Set(prev)
+      if (s.has(id)) s.delete(id)
+      else s.add(id)
+      return s
+    })
+  }
+
+  function marcarTodas() {
+    setSel(todasMarcadas ? new Set() : new Set(tasks.map((x) => x.id)))
+  }
+
+  /**
+   * Correr las fechas de las seleccionadas.
+   *
+   * La selección NO se limpia al terminar, y es a propósito: si corriste para
+   * el lado equivocado, las tareas siguen marcadas y alcanza con poner el
+   * número en negativo y volver a apretar. Limpiarla obligaría a volver a
+   * marcar 15 casillas justo cuando el usuario ya se equivocó una vez.
+   */
+  async function correrFechas() {
+    const ids = seleccionadas.map((x) => x.id)
+    const n = Number(dias) || 0
+    if (ids.length === 0 || n === 0 || previa.conFecha === 0) return
+    await escribir(
+      `correr:${ids.join(',')}:${n}`,
+      () => shiftTaskDates(ids, n).then((r) => ({ data: r.movidas, error: r.error })),
+      (movidas) => {
+        setEstado('saved')
+        setWarn(null)
+        // Se informa lo que pasó DE VERDAD, no lo que se pidió: si RLS filtró
+        // alguna o varias no tenían fecha, el número no coincide y tiene que
+        // verse (CLAUDE.md §5).
+        setAvisoLote(t('projects.shift_done', { n: movidas ?? 0, dias: n }))
+        onChanged?.()
+      }
+    )
+  }
 
   async function addTask(e) {
     e?.preventDefault()
@@ -536,7 +730,80 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
             : t('projects.autosave_idle')}
       </div>
 
+      {/* ── Correr fechas en lote (§15.8) ─────────────────────────────────
+          Aparece solo con algo seleccionado. Un panel siempre visible con
+          "0 seleccionadas" es una fila de controles muertos arriba de la
+          planilla, que es donde menos lugar sobra. */}
+      {seleccionadas.length > 0 && (
+        <div className="pshift">
+          <strong>{t('projects.selected', { n: seleccionadas.length })}</strong>
+          <label className="pshift__days">
+            {t('projects.shift_days')}
+            <input
+              type="number"
+              value={dias}
+              min={-365}
+              max={365}
+              onChange={(e) => {
+                setDias(e.target.value)
+                setAvisoLote(null)
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="ptable__add is-ready"
+            onClick={correrFechas}
+            disabled={previa.conFecha === 0 || !Number(dias)}
+          >
+            {t('projects.shift_apply')}
+          </button>
+          <button type="button" className="ptable__discard" onClick={() => setSel(new Set())}>
+            {t('projects.clear_selection')}
+          </button>
+
+          {/* La vista previa es el corazón de esta función. Mover 20 fechas es
+              destructivo en el sentido que importa: nadie se acuerda de cuáles
+              eran. Con el antes y el después escritos, el error se ve antes de
+              cometerlo. */}
+          <p className="pshift__preview">
+            {previa.conFecha === 0
+              ? t('projects.shift_none')
+              : t('projects.shift_preview', {
+                  n: previa.conFecha,
+                  desde: fechaCorta(previa.desde, locale),
+                  hasta: fechaCorta(previa.hasta, locale),
+                  nuevoDesde: fechaCorta(previa.nuevoDesde, locale),
+                  nuevoHasta: fechaCorta(previa.nuevoHasta, locale),
+                })}
+            {/* Las que no se van a mover se dicen. Seleccionar 8 y que se
+                muevan 5 es correcto; que no se avise, no (CLAUDE.md §5).
+                Cuando NINGUNA tiene fecha el mensaje anterior ya lo dijo
+                entero, así que agregarlo sería decir dos veces lo mismo. */}
+            {previa.conFecha > 0 &&
+              previa.sinFecha > 0 &&
+              ` · ${t('projects.shift_no_date', { n: previa.sinFecha })}`}
+          </p>
+          {avisoLote && <p className="pshift__done">✓ {avisoLote}</p>}
+        </div>
+      )}
+
       <div className="ptable__head">
+        <span className="ptable__chk">
+          <input
+            type="checkbox"
+            checked={todasMarcadas}
+            // El estado intermedio no se puede poner por atributo, solo por
+            // propiedad del nodo. Sin esto, con 3 de 8 marcadas la casilla se
+            // ve vacía y sugiere que no hay nada seleccionado.
+            ref={(el) => {
+              if (el) el.indeterminate = seleccionadas.length > 0 && !todasMarcadas
+            }}
+            onChange={marcarTodas}
+            disabled={tasks.length === 0}
+            aria-label={t('projects.select_all')}
+          />
+        </span>
         <span>{t('projects.col_title')}</span>
         <span>{t('projects.col_owner')}</span>
         <span>{t('projects.col_start')}</span>
@@ -550,8 +817,19 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
           key={task.id}
           className={`ptable__row${ok === task.id ? ' is-ok' : ''}${
             ocupada === task.id ? ' is-busy' : ''
-          }`}
+          }${sel.has(task.id) ? ' is-sel' : ''}`}
         >
+          <span className="ptable__chk">
+            <input
+              type="checkbox"
+              checked={sel.has(task.id)}
+              onChange={() => {
+                alternar(task.id)
+                setAvisoLote(null)
+              }}
+              aria-label={t('projects.select_task')}
+            />
+          </span>
           <input
             defaultValue={task.title}
             onBlur={(e) =>
@@ -628,6 +906,11 @@ function TaskEditor({ project, tasks, owners, cities, today, userEmail, onChange
         </div>
 
         <div className="ptable__row">
+          {/* Celda vacía en el lugar de la casilla de selección: una tarea que
+              todavía no existe no se puede seleccionar para correrle fechas.
+              Está para que las columnas sigan alineadas con las filas de
+              arriba. */}
+          <span aria-hidden="true" />
           {/* autoFocus: §3.1 promete que al abrir un proyecto el cursor ya está
               en la primera fila de tarea. Sin esto, después de crear un proyecto
               el foco quedaba en el body y había que ir a buscar el campo con el

@@ -1010,10 +1010,11 @@
 .ptable__head,
 .ptable__row {
   display: grid;
-  /* Título · responsable · inicio · vence · ciudad · borrar.
+  /* Selección · título · responsable · inicio · vence · ciudad · borrar.
      La columna de inicio se agregó al exponer start_date: sin ella toda
-     tarea era un hito de un día y el Gantt no dibujaba duraciones. */
-  grid-template-columns: 1fr 190px 130px 130px 130px 32px;
+     tarea era un hito de un día y el Gantt no dibujaba duraciones. La de
+     selección, al agregar "correr fechas en lote" (§15.8). */
+  grid-template-columns: 24px 1fr 190px 130px 130px 130px 32px;
   gap: 8px;
   align-items: center;
 }
@@ -1037,6 +1038,70 @@
   background: var(--color-bg);
   width: 100%;
 }
+/* La casilla de selección va centrada en su celda y NO hereda el borde ni la
+   altura de los campos: no es un campo, es una marca. */
+.ptable__chk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+}
+.ptable__chk input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+/* Una fila seleccionada tiene que distinguirse sin depender de mirar la
+   casilla: con 20 filas, buscar cuáles están marcadas casilla por casilla es
+   exactamente el trabajo que esto vino a ahorrar. */
+.ptable__row.is-sel {
+  background: var(--sem-blue-bg, #e7f1ff);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Correr fechas en lote (§15.8) ──────────────────────────────────── */
+.pshift {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  font-size: 12px;
+}
+.pshift__days {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+}
+.pshift__days input {
+  width: 72px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--color-bg);
+}
+/* La vista previa ocupa su propio renglón completo: es el texto que decide si
+   el clic siguiente está bien, y partido en dos columnas no se lee. */
+.pshift__preview,
+.pshift__done {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.pshift__done {
+  color: var(--sem-green-fg);
+  font-weight: 600;
+}
+
 .ptable__del {
   height: 28px;
   border: 1px solid var(--color-border);
@@ -1126,6 +1191,93 @@
   background: var(--sem-green-fg);
   border-color: var(--sem-green-fg);
   color: #fff;
+}
+/* Un botón deshabilitado tiene que PARECER deshabilitado.
+   Visto a 390px: "Correr fechas" seguía sólido, verde y con cursor de mano
+   cuando ninguna de las tareas seleccionadas tenía fecha. Es el mismo defecto
+   que el "+" que no hacía nada — un control que invita al clic y no responde
+   se lee como que la herramienta está rota, no como que falta un dato. */
+.ptable__add:disabled,
+.ptable__discard:disabled,
+.ptable__add.is-ready:disabled {
+  background: var(--color-panel);
+  border-color: var(--color-border);
+  color: var(--color-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ── Duplicar proyecto (§15.6) ──────────────────────────────────────── */
+.pdup {
+  margin: 0 14px 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #fffdf5;
+}
+.pdup__row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pdup__row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+/* El nombre se lleva el espacio sobrante y los días ocupan lo justo: son un
+   número de dos o tres dígitos, un campo ancho ahí sugiere que espera otra
+   cosa. */
+.pdup__row label:first-child {
+  flex: 1 1 260px;
+}
+.pdup__row input {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--color-bg);
+}
+.pdup__row label:last-child input {
+  width: 90px;
+}
+.pdup__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Confirmación de una acción que salió bien y creó muchas filas. */
+.pview__ok {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  background: var(--sem-green-bg, #d1e7dd);
+  color: var(--sem-green-fg);
+}
+.pview__ok--closable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pview__ok--closable button {
+  flex: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  opacity: 0.7;
+}
+.pview__ok--closable button:hover {
+  opacity: 1;
 }
 
 /* ── Formulario de proyecto ─────────────────────────────────── */
@@ -1311,8 +1463,10 @@
      32px: el desplegable quedaba ilegible ("Li⌄", "A⌄") y el botón de borrar
      se iba a una fila propia con pinta de campo. Visto a 390px, no deducido.
 
-     Ahora el orden es explícito por posición: título · responsable ·
-     inicio | vence · ciudad · borrar. */
+     Ahora el orden es explícito por posición: selección · título ·
+     responsable · inicio | vence · ciudad · borrar. Al agregar la casilla de
+     selección TODO se corrió un lugar — si estas reglas quedaran en los
+     índices viejos, la ciudad volvería a caer en la ranura angosta. */
   .ptable__row {
     grid-template-columns: 1fr 1fr;
     gap: 6px;
@@ -1321,36 +1475,53 @@
     border-radius: var(--radius-sm);
     margin-bottom: 8px;
   }
+  /* La casilla comparte renglón con el botón de borrar: son las dos cosas de
+     la fila que no son un campo, y juntas ocupan un renglón en vez de dos. */
+  .ptable__row > *:nth-child(1) {
+    grid-column: 1;
+    justify-self: start;
+    height: auto;
+  }
   /* Título y responsable, una fila completa cada uno. */
-  .ptable__row > *:nth-child(1),
-  .ptable__row > *:nth-child(2) {
+  .ptable__row > *:nth-child(2),
+  .ptable__row > *:nth-child(3) {
     grid-column: 1 / -1;
   }
   /* Inicio y vence comparten fila: se leen juntos, son un rango. */
-  .ptable__row > *:nth-child(3) {
+  .ptable__row > *:nth-child(4) {
     grid-column: 1;
   }
-  .ptable__row > *:nth-child(4) {
+  .ptable__row > *:nth-child(5) {
     grid-column: 2;
   }
   /* La ciudad necesita ancho: los nombres son largos y truncados no sirven. */
-  .ptable__row > *:nth-child(5) {
+  .ptable__row > *:nth-child(6) {
     grid-column: 1 / -1;
   }
   /* El borrar no es un campo y no debe parecerlo: chico y a la derecha. */
-  .ptable__row > *:nth-child(6) {
+  .ptable__row > *:nth-child(7) {
     grid-column: 1 / -1;
     justify-self: end;
     width: 48px;
   }
-  /* La celda vacía que alinea la tarjeta de alta con las filas guardadas solo
-     tiene sentido en la grilla de escritorio; acá dejaría un hueco de 48px. */
-  .ptable__new .ptable__row > *:nth-child(6) {
+  /* Las dos celdas vacías que alinean la tarjeta de alta con las filas
+     guardadas solo tienen sentido en la grilla de escritorio; acá dejarían
+     dos huecos. */
+  .ptable__new .ptable__row > *:nth-child(1),
+  .ptable__new .ptable__row > *:nth-child(7) {
     display: none;
   }
   .ptable__new .ptable__row {
     border: 0;
     padding: 0;
+  }
+  /* El número de días y los botones del lote, a lo ancho: a 390px un campo de
+     72px pegado a dos botones es un blanco difícil con el pulgar. */
+  .pshift__days input {
+    height: 34px;
+  }
+  .pdup__row label:last-child input {
+    width: 100%;
   }
   .ptable__row input,
   .ptable__row select {

@@ -32,6 +32,8 @@ import {
   nombreCorto,
   fechaCorta,
   ciudadesReales,
+  resumenDesplazamiento,
+  nombreDeCopia,
 } from '../src/lib/projectTasks.js'
 
 let pass = 0,
@@ -387,6 +389,83 @@ console.log('\n[N] Completadas hoy: la zona horaria del país, no la del servido
     ciudadesReales(['Santa_Cruz', 'Lima'], {}).includes('Santa_Cruz'),
     'un guion bajo no basta: hace falta que la raíz sea otra ciudad'
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// [12] Correr fechas en lote (§15.8) — la vista previa antes de apretar
+// ─────────────────────────────────────────────────────────────────────
+{
+  console.log('\n[12] resumenDesplazamiento: qué se mueve y qué no')
+
+  const sel = [
+    { start_date: '2026-08-03', due_date: '2026-08-07' },
+    { start_date: null, due_date: '2026-08-20' },
+    { start_date: '2026-08-10', due_date: null },
+    { start_date: null, due_date: null }, // sin fechas: no se mueve
+  ]
+
+  const r = resumenDesplazamiento(sel, 7)
+  assert(r.total === 4, 'cuenta todas las seleccionadas')
+  assert(r.conFecha === 3, 'tres tienen al menos una fecha')
+  assert(r.sinFecha === 1, 'la que no tiene fechas se cuenta aparte, no se esconde')
+  assert(r.desde === '2026-08-03' && r.hasta === '2026-08-20', 'el rango actual sale de las dos puntas')
+  assert(r.nuevoDesde === '2026-08-10' && r.nuevoHasta === '2026-08-27', 'ambas puntas se mueven +7')
+
+  // La duración total NO cambia: es una traslación. Si esto se rompiera, el
+  // CHECK `due >= start` de la mig 183 podría violarse en el servidor.
+  assert(
+    daysBetween(r.desde, r.hasta) === daysBetween(r.nuevoDesde, r.nuevoHasta),
+    'correr fechas no estira ni encoge el plan'
+  )
+
+  const atras = resumenDesplazamiento(sel, -3)
+  assert(atras.nuevoDesde === '2026-07-31', 'hacia atrás cruza el cambio de mes')
+
+  // Cruce de año bisiesto: 2028 lo es, así que +1 día sobre el 28/2 da 29.
+  assert(
+    resumenDesplazamiento([{ start_date: '2028-02-28', due_date: '2028-02-28' }], 1).nuevoDesde ===
+      '2028-02-29',
+    'año bisiesto: 28/2/2028 + 1 = 29/2'
+  )
+
+  // Nada seleccionado, o todo sin fechas: no hay rango que mostrar y no
+  // rompe. El componente usa esto para deshabilitar el botón.
+  const vacio = resumenDesplazamiento([], 7)
+  assert(vacio.desde === null && vacio.total === 0, 'lista vacía no rompe')
+  const soloSinFecha = resumenDesplazamiento([{ start_date: null, due_date: null }], 7)
+  assert(soloSinFecha.conFecha === 0 && soloSinFecha.desde === null, 'todas sin fecha: no hay nada que mover')
+
+  // Correr 0 días es un no-op y tiene que verse como tal.
+  const cero = resumenDesplazamiento(sel, 0)
+  assert(cero.nuevoDesde === cero.desde && cero.nuevoHasta === cero.hasta, '0 días no mueve nada')
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// [13] Duplicar proyecto (§15.6) — el nombre de la copia
+// ─────────────────────────────────────────────────────────────────────
+{
+  console.log('\n[13] nombreDeCopia: dos proyectos activos no pueden llamarse igual')
+
+  assert(nombreDeCopia('Onboarding TukTuk', []) === 'Onboarding TukTuk (copia)', 'primera copia')
+  assert(
+    nombreDeCopia('Onboarding TukTuk', ['Onboarding TukTuk', 'Onboarding TukTuk (copia)']) ===
+      'Onboarding TukTuk (copia 2)',
+    'si ya hay una copia, numera'
+  )
+  assert(
+    nombreDeCopia('X', ['X (copia)', 'X (copia 2)', 'X (copia 3)']) === 'X (copia 4)',
+    'sigue numerando hasta encontrar un hueco'
+  )
+  // Comparación sin distinguir mayúsculas: "X (Copia)" y "X (copia)" se leen
+  // igual en una lista y elegir mal es el mismo error.
+  assert(nombreDeCopia('X', ['X (COPIA)']) === 'X (copia 2)', 'no distingue mayúsculas')
+  assert(nombreDeCopia('', []) === 'Proyecto (copia)', 'nombre vacío no genera " (copia)"')
+  assert(nombreDeCopia('   ', []) === 'Proyecto (copia)', 'solo espacios tampoco')
+
+  // El alta limita el nombre a 120: la copia no puede pasarse o Postgres
+  // rebota el INSERT por haber apretado "Duplicar".
+  const largo = 'A'.repeat(130)
+  assert(nombreDeCopia(largo, []).length <= 120, 'un nombre largo se recorta, no explota')
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

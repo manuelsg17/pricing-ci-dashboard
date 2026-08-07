@@ -236,6 +236,7 @@ export default function Projects() {
           countryLabel={countryConfig?.label}
           userEmail={userEmail}
           cities={cities}
+          locale={locale}
           onChanged={() => data.reload({ silent: true })}
         />
       )}

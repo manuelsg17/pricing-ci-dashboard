@@ -298,6 +298,51 @@ export async function deleteTask(id) {
   return { error }
 }
 
+/**
+ * Correr N días el inicio y el vencimiento de varias tareas (mig 218, §15.8).
+ *
+ * Va por RPC y no por N updates porque `due_date + 7` es aritmética sobre la
+ * columna, y eso PostgREST no lo sabe decir: desde acá habría que leer cada
+ * fila, calcular y reescribirla — el loop fila por fila que CLAUDE.md §4
+ * prohíbe, y encima sin atomicidad.
+ *
+ * Devuelve cuántas MOVIÓ, que puede ser menos que las que se mandaron (las que
+ * no tienen ninguna fecha no se tocan). El componente compara y lo dice.
+ */
+export async function shiftTaskDates(taskIds, days) {
+  const { data, error } = await sb.rpc('shift_task_dates', {
+    p_task_ids: taskIds,
+    p_days: days,
+  })
+  return { movidas: data ?? 0, error }
+}
+
+/**
+ * Duplicar un proyecto con sus tareas, corriendo fechas (mig 218, §15.6).
+ *
+ * La RPC devuelve UNA fila con tres datos, no solo el id: cuántas tareas se
+ * copiaron y cuántas quedaron sin responsable porque su dueño ya no puede ver
+ * el país o perdió la sección. Ese segundo número tiene que llegar a la
+ * pantalla — una tarea que figura asignada a alguien que no la ve es el
+ * agujero negro de §15.2, y descubrirlo tres semanas después es el problema.
+ */
+export async function duplicateProject(projectId, name, shiftDays = 0) {
+  const { data, error } = await sb.rpc('duplicate_project', {
+    p_project_id: projectId,
+    p_name: name,
+    p_shift_days: shiftDays,
+  })
+  // PostgREST devuelve un array para una función RETURNS TABLE, aunque tenga
+  // una sola fila.
+  const fila = Array.isArray(data) ? data[0] : data
+  return {
+    nuevoId: fila?.new_project_id ?? null,
+    tareas: fila?.tasks_copied ?? 0,
+    sinResponsable: fila?.owners_cleared ?? 0,
+    error,
+  }
+}
+
 /** ¿Tiene actividad? Decide si el borrado pide confirmación o no (§17.9). */
 export async function taskActivityCount(id) {
   const [c, s] = await Promise.all([

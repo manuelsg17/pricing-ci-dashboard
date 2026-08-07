@@ -402,3 +402,82 @@ export function applyTaskFilters(tasks, filters = EMPTY_TASK_FILTERS, projectByI
     return true
   })
 }
+
+/**
+ * Qué va a pasar si corro estas tareas N días — ANTES de correrlas.
+ *
+ * Existe para que el botón no sea un salto al vacío. Mover 20 fechas es
+ * destructivo en el sentido que importa: nadie se acuerda de cuáles eran, y
+ * "deshacer" significa volver a tipearlas una por una. Con el rango de antes y
+ * el de después a la vista, el error se ve antes de cometerlo, no después.
+ *
+ * Cuenta aparte las tareas SIN fecha porque son las que no se van a mover:
+ * seleccionar 8 y que se muevan 5 es correcto, pero tiene que decirse. Sin
+ * esto es un truncado silencioso de manual (CLAUDE.md §5).
+ *
+ * @param {Array}  tasks Tareas seleccionadas.
+ * @param {number} dias  Días a correr (negativo = hacia atrás).
+ */
+export function resumenDesplazamiento(tasks = [], dias = 0) {
+  const fechas = []
+  let sinFecha = 0
+  for (const t of tasks) {
+    const propias = [t?.start_date, t?.due_date].filter(Boolean)
+    if (propias.length === 0) sinFecha++
+    else fechas.push(...propias)
+  }
+  const conFecha = tasks.length - sinFecha
+  if (fechas.length === 0) {
+    return {
+      total: tasks.length,
+      conFecha,
+      sinFecha,
+      desde: null,
+      hasta: null,
+      nuevoDesde: null,
+      nuevoHasta: null,
+    }
+  }
+  fechas.sort()
+  const desde = fechas[0]
+  const hasta = fechas[fechas.length - 1]
+  return {
+    total: tasks.length,
+    conFecha,
+    sinFecha,
+    desde,
+    hasta,
+    // Las dos puntas se mueven lo mismo: es una traslación, no un estirón. Por
+    // eso el CHECK `due >= start` de la mig 183 no puede romperse acá.
+    nuevoDesde: addDays(desde, dias),
+    nuevoHasta: addDays(hasta, dias),
+  }
+}
+
+/**
+ * Nombre propuesto para la copia de un proyecto.
+ *
+ * Nunca devuelve el mismo nombre que el original: dos proyectos activos
+ * llamados igual en la lista del admin son indistinguibles, y el primer clic
+ * equivocado se hace sobre el proyecto viejo. Si ya existe una copia, numera.
+ */
+export function nombreDeCopia(nombre, existentes = []) {
+  const base = String(nombre || '').trim() || 'Proyecto'
+  const usados = new Set(
+    existentes.map((x) =>
+      String(x || '')
+        .trim()
+        .toLowerCase()
+    )
+  )
+  let intento = `${base} (copia)`
+  let n = 2
+  while (usados.has(intento.toLowerCase())) {
+    intento = `${base} (copia ${n})`
+    n++
+  }
+  // El nombre no puede pasarse del límite de la columna ni del maxLength del
+  // formulario de alta (120): un nombre recortado por la base sería un error
+  // de Postgres en la cara del usuario por haber apretado "Duplicar".
+  return intento.length > 120 ? `${base.slice(0, 120 - 8)} (copia)` : intento
+}
