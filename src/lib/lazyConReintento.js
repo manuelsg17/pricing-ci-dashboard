@@ -76,6 +76,35 @@ function borrar(k) {
   }
 }
 
+// Las formas en que los navegadores dicen "el chunk que pediste no cargó".
+// Cada motor lo redacta distinto y no hay código de error: el texto es lo
+// único que hay. Medidas en `client_errors` de producción: Chrome dice
+// "Failed to fetch dynamically imported module" y "Unable to preload CSS for";
+// Firefox y Safari usan las otras dos.
+const FRASES_DE_CHUNK = [
+  'failed to fetch dynamically imported module',
+  'error loading dynamically imported module',
+  'unable to preload css',
+  'importing a module script failed',
+  'failed to load module script',
+]
+
+/**
+ * ¿Este error es "tenés el bundle viejo", y no un bug de la app?
+ *
+ * Vive acá y no en el ErrorBoundary porque hay DOS lugares que necesitan la
+ * misma respuesta —el reintento automático y la pantalla de error— y son
+ * exactamente el tipo de regla que termina divergiendo si se escribe dos
+ * veces. La diferencia importa: un chunk viejo se arregla recargando y no es
+ * culpa de nadie; un error de verdad no se arregla recargando y decirle al
+ * hub que recargue lo manda a dar vueltas.
+ */
+export function esErrorDeChunk(error) {
+  const texto = String(error?.message || error || '').toLowerCase()
+  if (!texto) return false
+  return FRASES_DE_CHUNK.some((f) => texto.includes(f))
+}
+
 /**
  * Decide qué hacer cuando el import de un chunk falla. Función PURA para
  * poder testear las cuatro guardas sin navegador — el efecto (recargar) lo

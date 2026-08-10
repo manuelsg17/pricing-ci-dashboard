@@ -7,7 +7,11 @@
 // Ver la cabecera de src/lib/lazyConReintento.js.
 // ════════════════════════════════════════════════════════════════════════
 
-import { decidirReintento, reportarChunkFallido } from '../src/lib/lazyConReintento.js'
+import {
+  decidirReintento,
+  reportarChunkFallido,
+  esErrorDeChunk,
+} from '../src/lib/lazyConReintento.js'
 
 let pass = 0
 let fail = 0
@@ -126,6 +130,53 @@ console.log('\n[3] reportarChunkFallido: la miga se manda después de recargar')
   eq(reportarChunkFallido(reportar), false, 'una miga corrupta no rompe el arranque')
 
   delete globalThis.sessionStorage
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// [4] esErrorDeChunk — separar "tenés la pestaña vieja" de "se rompió algo"
+//
+// La distinción no es cosmética: decide qué le decimos al hub. Un chunk
+// viejo se arregla recargando y no es culpa suya; un bug de verdad no se
+// arregla recargando, y mandarlo a recargar lo hace dar vueltas sin salir.
+// Los mensajes de abajo son los TEXTOS REALES que quedaron registrados en
+// `client_errors` de producción entre el 3 y el 8 de agosto de 2026.
+// ─────────────────────────────────────────────────────────────────────
+{
+  console.log('\n[4] esErrorDeChunk')
+
+  const deChunk = [
+    'Failed to fetch dynamically imported module: https://x/assets/Dashboard-CQqO53v0.js',
+    'Unable to preload CSS for https://x/assets/data-entry-CAssG2ox.css',
+    'error loading dynamically imported module',            // Firefox
+    'Importing a module script failed.',                    // Safari
+    'Failed to load module script: expected a JavaScript module',
+  ]
+  for (const m of deChunk) {
+    ok(esErrorDeChunk(new Error(m)), `reconoce: ${m.slice(0, 42)}…`)
+  }
+
+  // Mayúsculas/minúsculas no pueden cambiar la respuesta: cada motor redacta
+  // distinto y no hay ningún código de error con el que razonar.
+  ok(esErrorDeChunk(new Error('FAILED TO FETCH DYNAMICALLY IMPORTED MODULE')), 'no distingue mayúsculas')
+  ok(esErrorDeChunk('Unable to preload CSS for /a.css'), 'acepta un string suelto, no solo un Error')
+
+  // Y sobre todo: NO puede tragarse errores de verdad. Un falso positivo acá
+  // le muestra al hub "la app se actualizó, recargá" ante un bug real, y el
+  // bug se vuelve invisible porque el mensaje suena a trámite.
+  const deVerdad = [
+    "Cannot read properties of undefined (reading 'map')",
+    'TypeError: x is not a function',
+    'Network request failed',
+    'Failed to fetch',                       // ojo: parecido pero NO es de chunk
+    'save_ci_batch: country, city y date son obligatorios',
+  ]
+  for (const m of deVerdad) {
+    ok(!esErrorDeChunk(new Error(m)), `NO se traga: ${m.slice(0, 42)}`)
+  }
+
+  ok(!esErrorDeChunk(null), 'null no rompe')
+  ok(!esErrorDeChunk(undefined), 'undefined tampoco')
+  ok(!esErrorDeChunk(new Error('')), 'mensaje vacío no es de chunk')
 }
 
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} pasaron, ${fail} fallaron`)

@@ -1,3 +1,22 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "$comment": [
+    "El rewrite de SPA NO puede comerse /assets/. Medido en producción el",
+    "2026-08-10: pedir /assets/Dashboard-CQqO53v0.js (un chunk que un deploy",
+    "ya borró) devolvía HTTP 200 con content-type text/html y el cuerpo de",
+    "index.html — 3285 bytes de HTML donde el navegador esperaba un módulo.",
+    "",
+    "Por qué importa y no es cosmético: un 200 con HTML es la peor respuesta",
+    "posible. El navegador no puede distinguir 'el archivo ya no existe' de",
+    "'el servidor contestó cualquier cosa', el error que llega es un 'Failed to",
+    "fetch dynamically imported module' opaco, y cualquier lógica que mire el",
+    "status code para decidir si reintentar ve un éxito.",
+    "",
+    "Con el negative lookahead, /assets/<lo-que-no-existe> devuelve un 404",
+    "honesto y el resto de las rutas sigue cayendo en index.html, que es lo que",
+    "necesita el router (F5 en /projects tiene que seguir funcionando).",
+    "",
+    "GitHub Pages no necesita esto: sirve un 404 real para lo que falta y su",
+    "fallback vive en public/404.html."
+  ],
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
 }

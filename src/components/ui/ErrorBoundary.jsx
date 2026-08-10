@@ -2,6 +2,7 @@ import { Component } from 'react'
 import { Button } from './shadcn/button'
 import { translate } from '../../lib/i18n'
 import { reportError } from '../../lib/errorLog'
+import { esErrorDeChunk } from '../../lib/lazyConReintento'
 
 // Class component: no puede usar el hook useI18n(). Lee el idioma actual
 // de localStorage (misma key que LanguageContext.jsx) directo, con
@@ -50,6 +51,17 @@ export default class ErrorBoundary extends Component {
     const lang = currentLang()
     const t = (key, vars) => translate(lang, key, vars)
 
+    // "Se te quedó vieja la pestaña" NO es "se rompió la app", y tratarlos
+    // igual sale caro de los dos lados: al hub le decimos que algo falló
+    // cuando no falló nada suyo, y la acción que lo arregla (recargar) queda
+    // como el botón secundario de un cartel que invita a pedir ayuda.
+    //
+    // Se llega acá solo cuando el reintento automático de lazyConReintento ya
+    // se rindió (una recarga por ruta). Por eso esta pantalla NO recarga sola:
+    // sería la segunda recarga automática seguida, o sea un loop. Dice qué
+    // pasó, y deja el gesto en manos del hub.
+    const porChunk = esErrorDeChunk(this.state.error)
+
     return (
       <div
         role="alert"
@@ -72,12 +84,19 @@ export default class ErrorBoundary extends Component {
             boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
           }}
         >
-          <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 8 }}>⚠</div>
-          <h2 style={{ fontSize: 18, color: '#991b1b', margin: 0, marginBottom: 8 }}>
-            {t('common.error_boundary.title')}
+          <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 8 }}>{porChunk ? '⟳' : '⚠'}</div>
+          <h2
+            style={{
+              fontSize: 18,
+              color: porChunk ? '#1e40af' : '#991b1b',
+              margin: 0,
+              marginBottom: 8,
+            }}
+          >
+            {t(porChunk ? 'common.error_boundary.stale_title' : 'common.error_boundary.title')}
           </h2>
           <p style={{ fontSize: 13, color: '#444', margin: 0, marginBottom: 12 }}>
-            {t('common.error_boundary.message')}
+            {t(porChunk ? 'common.error_boundary.stale_message' : 'common.error_boundary.message')}
           </p>
           {!isProd && this.state.error?.message && (
             <pre
@@ -98,9 +117,15 @@ export default class ErrorBoundary extends Component {
             </pre>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="outline" onClick={this.handleReset} className="border-slate-300">
-              {t('app.retry')}
-            </Button>
+            {/* "Reintentar" solo re-renderiza el mismo árbol. Contra un chunk
+                que ya no está en el servidor no puede hacer nada, y ofrecerlo
+                manda al hub a apretar dos veces para llegar al único botón que
+                sirve. */}
+            {!porChunk && (
+              <Button variant="outline" onClick={this.handleReset} className="border-slate-300">
+                {t('app.retry')}
+              </Button>
+            )}
             <Button onClick={this.handleReload} className="font-semibold">
               {t('app.reload_page')}
             </Button>

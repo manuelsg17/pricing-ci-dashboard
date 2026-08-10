@@ -92,6 +92,9 @@ export const TRANSLATIONS = {
     'common.error_boundary.title': 'Algo se rompió en esta vista',
     'common.error_boundary.message':
       'El error fue contenido — el resto del dashboard sigue funcionando. Puedes reintentar la vista o recargar la página.',
+    'common.error_boundary.stale_title': 'La app se actualizó',
+    'common.error_boundary.stale_message':
+      'Esta pestaña quedó con una versión anterior y le falta una parte que ya no está en el servidor. No se rompió nada ni se perdió nada de lo que guardaste: recargá y seguís donde estabas.',
     'common.empty_state.title': 'No hay datos',
     'common.confirm_dialog.default_title': 'Confirmar acción',
     'common.confirm_dialog.default_message': '¿Estás seguro?',
@@ -2602,6 +2605,9 @@ export const TRANSLATIONS = {
     'common.error_boundary.title': 'Something broke in this view',
     'common.error_boundary.message':
       'The error was contained — the rest of the dashboard keeps working. You can retry this view or reload the page.',
+    'common.error_boundary.stale_title': 'The app was updated',
+    'common.error_boundary.stale_message':
+      'This tab is running an older version and is missing a part that is no longer on the server. Nothing broke and nothing you saved was lost — reload and you will pick up where you left off.',
     'common.empty_state.title': 'No data',
     'common.confirm_dialog.default_title': 'Confirm action',
     'common.confirm_dialog.default_message': 'Are you sure?',
@@ -5075,6 +5081,9 @@ export const TRANSLATIONS = {
     'common.error_boundary.title': 'Что-то сломалось в этом разделе',
     'common.error_boundary.message':
       'Ошибка была изолирована — остальная часть дашборда продолжает работать. Вы можете повторить попытку или перезагрузить страницу.',
+    'common.error_boundary.stale_title': 'Приложение обновилось',
+    'common.error_boundary.stale_message':
+      'В этой вкладке осталась старая версия, и ей не хватает части, которой больше нет на сервере. Ничего не сломалось и ничего сохранённого не потерялось — перезагрузите страницу и продолжите с того же места.',
     'common.empty_state.title': 'Нет данных',
     'common.confirm_dialog.default_title': 'Подтвердить действие',
     'common.confirm_dialog.default_message': 'Вы уверены?',
