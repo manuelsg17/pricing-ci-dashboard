@@ -287,6 +287,23 @@
   width: fit-content;
 }
 
+/* Quién más está en este bucket ahora mismo.
+   Azul y NO ámbar a propósito: el banner de al lado (.de-locked-district-banner)
+   es una advertencia, y esto no lo es. Que otros dos hubs estén midiendo lo
+   mismo es lo que se busca cuando se reparte Corporativo entre tres — pintarlo
+   de amarillo diría "revisá esto", que es justo lo contrario. */
+.de-presence-banner {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+}
+
 /* Controls row */
 .de-session-controls {
   display: flex;

@@ -26,6 +26,11 @@ import { turnoBreakdownLabel } from '../lib/timing'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
 import { isTukTukDistrictEnabled, firstEnabledTukTukDistrict } from '../lib/tuktukDistricts'
+// Sale de la lib de Proyectos porque ahí nació, pero no tiene nada de
+// Proyectos: recorta un email antes del arroba. Reusarlo evita la cuarta copia
+// de la misma línea en este repo.
+import { nombreCorto } from '../lib/projectTasks'
+import { EMPTY_PRESENCE, mismaPresencia, presenciaEnBucket } from '../lib/presencia'
 import { useI18n } from '../context/LanguageContext'
 import { Button } from '../components/ui/shadcn/button'
 import { Lock, CheckCircle2, AlertTriangle } from 'lucide-react'
@@ -3588,18 +3593,29 @@ export default function DataEntry() {
   // ── Presencia: "quién más está acá ahora" (pedidos 2, 3, 4) ────────────
   // Lectura liviana vía RPC (mig 152, SECURITY DEFINER — el RLS normal de
   // ci_active_sessions solo deja ver la fila propia) para avisar, SIN
-  // bloquear nada, si otro hub está trabajando el mismo Punto de Aeropuerto
-  // o el mismo distrito de TukTuk ahora mismo. La flexibilidad de
-  // redistribuirse entre hubs es intencional (pedido 2) — esto es solo
-  // visibilidad para coordinarse, nunca un candado.
-  const [presence, setPresence] = useState([])
-  const relevantForPresence = !!activeAirportMembers || isTukTuk
+  // bloquear nada, si otro hub está trabajando el mismo bucket ahora mismo.
+  // La flexibilidad de redistribuirse entre hubs es intencional (pedido 2) —
+  // esto es solo visibilidad para coordinarse, nunca un candado.
+  //
+  // ARRANCÓ acotado a Aeropuerto y TukTuk, que eran los únicos frentes que se
+  // repartían entre varias personas. Dejó de serlo: el 2026-08-10 se puso a
+  // TRES hubs a medir Corporativo el mismo día a propósito, para triplicar la
+  // muestra. Está probado que no se pisan (scripts/simulate-corp-tres-hubs.sql)
+  // pero no se veían entre sí, que es justo lo que necesitan para repartirse
+  // los turnos y no medir los tres lo mismo a la misma hora.
+  const [presence, setPresence] = useState(EMPTY_PRESENCE)
   useEffect(() => {
-    if (!relevantForPresence || !country) return
+    if (!country) return
     let cancelled = false
     const fetchPresence = () => {
       sb.rpc('get_active_sessions_presence', { p_country: country }).then(({ data, error }) => {
-        if (!cancelled && !error) setPresence(data || [])
+        if (cancelled || error) return
+        // Compara por VALOR antes de setear. Sin esto, cada 20 segundos entra
+        // un array nuevo aunque no haya cambiado nada y la grilla entera
+        // reconcilia al pedo — y en Ingresar CI eso son 108-324 celdas sin
+        // React.memo (CLAUDE.md §5). En el caso normal, que es "no cambió
+        // nadie", ahora no hay ni un render.
+        setPresence((prev) => (mismaPresencia(prev, data) ? prev : data || EMPTY_PRESENCE))
       })
     }
     fetchPresence()
@@ -3608,12 +3624,22 @@ export default function DataEntry() {
       cancelled = true
       clearInterval(id)
     }
-  }, [relevantForPresence, country])
+  }, [country])
 
   // Hubs (≠ yo, ya excluidos por la RPC) activos ahora mismo en esa
   // ciudad/zona EXACTA — misma identidad que usa ci_active_sessions.
   const presenceFor = (city, zone) =>
     presence.filter((p) => p.city === city && (p.zone ?? null) === (zone ?? null))
+
+  // Los otros hubs en el bucket que estoy mirando AHORA. Aeropuerto y TukTuk
+  // ya lo resuelven dentro de sus propios selectores (cada fila muestra quién
+  // está en ESE punto o distrito), así que ahí este cartel sería el mismo dato
+  // dos veces; en el resto de las vistas es el único lugar donde se ve.
+  const presenciaAqui = useMemo(
+    () =>
+      activeAirportMembers || isTukTuk ? EMPTY_PRESENCE : presenciaEnBucket(presence, dbCity, zone),
+    [presence, dbCity, zone, activeAirportMembers, isTukTuk]
+  )
 
   // ── Latido de sesión activa (para Monitoreo) ───────────
   // Mientras sessionActive, avisa periódicamente "sigo acá, en tal ciudad/
@@ -3903,6 +3929,29 @@ export default function DataEntry() {
         <div className="de-locked-district-banner">
           {t('dataentry.extra_fronts_pending', {
             list: pendingExtraFronts.map(frontLabel).join(', '),
+          })}
+        </div>
+      )}
+
+      {/* ── Quién más está en ESTE bucket ahora mismo ──────────────────────
+          Aeropuerto y TukTuk ya lo mostraban dentro de su propio selector;
+          las demás vistas no tenían dónde. Con tres hubs midiendo Corp a la
+          vez, no verse es el problema: los tres pueden terminar midiendo el
+          mismo turno a la misma hora en vez de repartírselos.
+
+          Dice quién y cuánto lleva, y NADA más. No bloquea, no avisa de
+          conflicto y no sugiere que haya algo mal: los tres midiendo lo mismo
+          es exactamente lo que se busca — más muestras de la misma ruta. */}
+      {presenciaAqui.length > 0 && (
+        <div className="de-presence-banner">
+          👥{' '}
+          {/* Solo el nombre. `get_active_sessions_presence` (mig 152) devuelve
+              user_email, city, zone, scope_label y last_seen_at — el progreso
+              NO está entre sus columnas, así que mostrar "40/162" acá exigiría
+              tocar la RPC. Se deja para cuando haga falta de verdad: para
+              repartirse los turnos alcanza con saber quién está. */}
+          {t('dataentry.presence_here', {
+            who: presenciaAqui.map((p) => nombreCorto(p.user_email)).join(' · '),
           })}
         </div>
       )}
