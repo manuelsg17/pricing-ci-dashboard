@@ -1,30 +1,3 @@
 {
-  "$comment": [
-    "INTENTO FALLIDO, anotado para que nadie lo repita (2026-08-10).",
-    "",
-    "Medido contra producción: pedir /assets/<chunk-que-un-deploy-borró> NO",
-    "devuelve 404 — devuelve HTTP 200 con content-type text/html y el cuerpo",
-    "de index.html (3285 b). Por eso el error que le llega al navegador es un",
-    "'Failed to fetch dynamically imported module' opaco en vez de un 404",
-    "limpio, y cualquier lógica que mire el status para decidir si reintentar",
-    "ve un éxito.",
-    "",
-    "Se probó el idiom documentado de Vercel para excluir un prefijo:",
-    "  { source: '/((?!assets/).*)', destination: '/index.html' }",
-    "Desplegado y verificado con curl: los deep links siguieron funcionando",
-    "(/, /projects, /dataentry, /monitoring, /dashboard → 200 + html) pero",
-    "/assets/<inexistente> SIGUIÓ dando 200 + html. O sea que el lookahead no",
-    "cambió nada: algo debajo — probablemente el fallback SPA que Vercel agrega",
-    "solo por detectar Vite — atrapa igual lo que el rewrite deja pasar.",
-    "",
-    "La salida sería pasar a `routes` (legacy) con un `{ status: 404 }`",
-    "explícito para /assets/, pero eso reemplaza TODA la configuración de",
-    "ruteo y un error ahí deja a los hubs sin deep links. No se hace a las",
-    "apuradas: queda como tarea propia, para probar en un preview antes.",
-    "",
-    "Mientras tanto el hub NO ve un error críptico: el ErrorBoundary reconoce",
-    "el fallo de chunk y le dice que su pestaña quedó vieja. Esto de acá",
-    "afectaría el diagnóstico, no lo que él vive."
-  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

@@ -381,6 +381,29 @@ seguridad que existe**, así que no es opcional.
   antes de publicar (`.github/workflows/deploy.yml`). Si cualquiera falla, el deploy
   se aborta: eso es deliberado y no se saltea. `lint` entró al pipeline el
   2026-08-01; esta sección decía lo contrario hasta el 2026-08-03.
+- **Hay DOS destinos y fallan por separado: GitHub Pages y Vercel.** Los hubs usan
+  Vercel (`pricing-ci-dashboard-opsteam1.vercel.app`); GitHub Pages va por el
+  workflow de Actions. **Que Actions esté en verde NO significa que los hubs
+  tengan el código.** Verificar el destino que importa, no el que es fácil de
+  mirar: `curl` al bundle real, o
+  `gh api repos/<owner>/<repo>/deployments/<id>/statuses`.
+- **`vercel.json` no admite claves fuera del esquema — ni siquiera comentarios.**
+  Vercel lo valida estricto y aborta ANTES de compilar, así que el fallo no se
+  parece a un error de build. Un `"$comment"` con la justificación del rewrite
+  tumbó dos deploys seguidos el 2026-08-10 mientras Actions seguía verde: los
+  hubs se quedaron con el bundle de tres días antes y el síntoma visible fue
+  "el arreglo no llegó", no "el deploy falló". El porqué de una decisión de
+  ruteo va en este archivo o en un `.md`, nunca dentro del JSON.
+
+  De paso, el hallazgo que motivaba ese comentario, para que no se pierda:
+  pedir `/assets/<chunk-que-un-deploy-borró>` devuelve **HTTP 200 con
+  `text/html`** (el `index.html` entero) en vez de un 404. Por eso el error que
+  ve el navegador es un `Failed to fetch dynamically imported module` opaco.
+  Excluir `/assets/` del rewrite con el negative lookahead documentado por
+  Vercel **no lo arregla** (probado y verificado con curl). La salida sería
+  `routes` (legacy) con un `{ status: 404 }` explícito, pero eso reemplaza toda
+  la configuración de ruteo y equivocarse deja a los hubs sin deep links:
+  probarlo en un preview antes, nunca directo a producción.
 
 ---
 
