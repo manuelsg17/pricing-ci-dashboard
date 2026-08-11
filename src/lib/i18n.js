@@ -640,6 +640,24 @@ export const TRANSLATIONS = {
     'dataentry.extra_fronts_pending':
       'Además de lo que declaraste, empezaste: {list}. Cerrá cada uno con "Terminar" para poder cerrar la sesión.',
     'dataentry.presence_here': '{who} está trabajando acá ahora',
+    'dataentry.save_progress_front': 'Guardar progreso · {front}',
+    'dataentry.save_progress_hint':
+      'Guarda SOLO lo que cargaste en {front}. Lo de las otras pestañas no se toca.',
+    'dataentry.save_all': 'Guardar TODO',
+    'dataentry.save_all_hint':
+      'Recorre todas las pestañas con trabajo sin guardar y las guarda una por una, sin importar en cuál estés parado.',
+    'dataentry.save_all_running': 'Guardando todo…',
+    'dataentry.save_all_done': 'Listo: se guardaron {n} pestañas.',
+    'dataentry.save_all_done_one': 'Listo: se guardó 1 pestaña.',
+    'dataentry.save_all_done_partial':
+      'Se guardaron {n} pestañas. En {list} no había ninguna fila completa, así que quedó solo en esta computadora.',
+    'dataentry.save_all_nothing':
+      'No hay nada sin guardar: todo tu trabajo ya está en el servidor.',
+    'dataentry.unsaved_fronts_title': 'Sin guardar en otras pestañas:',
+    'dataentry.unsaved_fronts_item': '{front} · {n} celdas',
+    'dataentry.unsaved_fronts_go': 'Ir a esta pestaña',
+    'dataentry.unsaved_fronts_hint':
+      '"Guardar progreso" solo guarda la pestaña abierta — usá "Guardar TODO".',
     'dataentry.date': 'Fecha',
     'dataentry.surge': 'Surge',
     'dataentry.session_history': '📋 Historial de Sesiones',
@@ -3146,6 +3164,23 @@ export const TRANSLATIONS = {
     'dataentry.extra_fronts_pending':
       'Besides what you declared, you started: {list}. Finish each one to be able to end the session.',
     'dataentry.presence_here': '{who} is working here right now',
+    'dataentry.save_progress_front': 'Save progress · {front}',
+    'dataentry.save_progress_hint':
+      'Saves ONLY what you entered in {front}. The other tabs are left untouched.',
+    'dataentry.save_all': 'Save EVERYTHING',
+    'dataentry.save_all_hint':
+      'Goes through every tab with unsaved work and saves them one by one, no matter which one you are on.',
+    'dataentry.save_all_running': 'Saving everything…',
+    'dataentry.save_all_done': 'Done: {n} tabs saved.',
+    'dataentry.save_all_done_one': 'Done: 1 tab saved.',
+    'dataentry.save_all_done_partial':
+      '{n} tabs saved. {list} had no complete row, so it stayed on this computer only.',
+    'dataentry.save_all_nothing': 'Nothing pending: all your work is already on the server.',
+    'dataentry.unsaved_fronts_title': 'Unsaved in other tabs:',
+    'dataentry.unsaved_fronts_item': '{front} · {n} cells',
+    'dataentry.unsaved_fronts_go': 'Go to this tab',
+    'dataentry.unsaved_fronts_hint':
+      '"Save progress" only saves the open tab — use "Save EVERYTHING".',
     'dataentry.saving': 'Saving…',
     'dataentry.date': 'Date',
     'dataentry.surge': 'Surge',
@@ -5632,6 +5667,23 @@ export const TRANSLATIONS = {
     'dataentry.extra_fronts_pending':
       'Кроме заявленного, вы начали: {list}. Завершите каждый, чтобы закрыть сессию.',
     'dataentry.presence_here': '{who} сейчас работает здесь',
+    'dataentry.save_progress_front': 'Сохранить прогресс · {front}',
+    'dataentry.save_progress_hint':
+      'Сохраняет ТОЛЬКО то, что вы ввели в «{front}». Остальные вкладки не затрагиваются.',
+    'dataentry.save_all': 'Сохранить ВСЁ',
+    'dataentry.save_all_hint':
+      'Проходит по всем вкладкам с несохранённой работой и сохраняет их по очереди, независимо от того, на какой вы находитесь.',
+    'dataentry.save_all_running': 'Сохраняем всё…',
+    'dataentry.save_all_done': 'Готово: сохранено вкладок — {n}.',
+    'dataentry.save_all_done_one': 'Готово: сохранена 1 вкладка.',
+    'dataentry.save_all_done_partial':
+      'Сохранено вкладок — {n}. В «{list}» не было ни одной полной строки, поэтому данные остались только на этом компьютере.',
+    'dataentry.save_all_nothing': 'Нет несохранённого: вся ваша работа уже на сервере.',
+    'dataentry.unsaved_fronts_title': 'Не сохранено на других вкладках:',
+    'dataentry.unsaved_fronts_item': '{front} · ячеек: {n}',
+    'dataentry.unsaved_fronts_go': 'Перейти на эту вкладку',
+    'dataentry.unsaved_fronts_hint':
+      '«Сохранить прогресс» сохраняет только открытую вкладку — используйте «Сохранить ВСЁ».',
     'dataentry.saving': 'Сохранение…',
     'dataentry.date': 'Дата',
     'dataentry.surge': 'Surge',

@@ -304,6 +304,57 @@
   width: fit-content;
 }
 
+/* Trabajo sin guardar en pestañas que no estás mirando.
+   Ámbar como .de-locked-district-banner y no azul como la presencia: esto SÍ
+   es una advertencia — es data del hub que todavía no salió de su laptop. */
+.de-unsaved-fronts {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: #fef3c7;
+  color: var(--color-warning-fg);
+  border: 1px solid var(--color-warning-border);
+  font-size: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.de-unsaved-fronts__title {
+  font-weight: 700;
+}
+
+.de-unsaved-fronts__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Cada frente es un botón que te lleva ahí: enterarte de que te falta guardar
+   algo y no tener cómo llegar sería la mitad del aviso. */
+.de-unsaved-fronts__chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-warning-border);
+  background: #fffbeb;
+  color: var(--color-warning-fg);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.de-unsaved-fronts__chip:hover {
+  background: #fde68a;
+}
+
+.de-unsaved-fronts__hint {
+  font-weight: 400;
+  opacity: 0.85;
+  /* Baja de línea a 390px en vez de empujar los chips fuera de la pantalla. */
+  flex-basis: 100%;
+}
+
 /* Controls row */
 .de-session-controls {
   display: flex;

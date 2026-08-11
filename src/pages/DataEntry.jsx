@@ -17,6 +17,8 @@ import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRef
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
+import { frentesSinGuardar } from '../lib/frentesPendientes'
+import FrentesSinGuardar from '../components/dataentry/FrentesSinGuardar'
 import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
@@ -121,6 +123,7 @@ function earliestTurnoStart(timings) {
 // (si no, las deps de los effects "cambiarían" en cada render).
 const EMPTY_OBJ = {}
 const EMPTY_SET = new Set()
+const EMPTY_ARR = []
 
 // Ventana durante la cual un auto-load silencioso NO puede reactivar un
 // bucket que este hub acaba de Terminar a propósito. Ver `markBucketJustFinished`.
@@ -936,6 +939,37 @@ export default function DataEntry() {
     return null
   }, [uiCities, countryConfig, country, dbConfigs])
 
+  // ── Pararse en un frente a partir de su bucketKey ──────────────────────
+  // `bucketKey` y `uiCity` NO son el mismo espacio de nombres (CLAUDE.md §1):
+  // 'TT~Lima~Comas' y 'Lima_Airport_A' no existen en el catálogo de ciudades,
+  // así que pasárselos crudos a `setUiCity` deja la app en una "ciudad"
+  // inventada — grilla vacía y el latido reportándole a Monitoreo algo que no
+  // existe. Ese bug ya pasó, y la primera versión del fix solo tapó el caso
+  // Aeropuerto porque desarmaba el mapa en vez de la clave.
+  //
+  // Vive acá y no repetido en cada punto de uso justamente por eso: la
+  // traducción se hace UNA vez. Devuelve false si el destino no está en el
+  // catálogo — quien llama decide qué hacer, pero nadie salta a la nada.
+  const irAFrente = useCallback(
+    (bucket) => {
+      const partes = parseBucketKey(bucket)
+      if (!partes) return false
+      const target = dbCityToUiCity[partes.city] || partes.city
+      if (partes.zone) {
+        setUiCity(tukTukInfo?.baseUiCity || target)
+        setActiveTukTuk(partes.zone)
+        return true
+      }
+      if (uiCities.includes(target)) {
+        setUiCity(target)
+        setActiveTukTuk(null)
+        return true
+      }
+      return false
+    },
+    [dbCityToUiCity, tukTukInfo, uiCities]
+  )
+
   useEffect(() => {
     if (!tukTukInfo) {
       setTukTukDistricts([])
@@ -1331,6 +1365,19 @@ export default function DataEntry() {
             if (Array.isArray(parsed.pendingExtraFronts) && parsed.pendingExtraFronts.length) {
               setPendingExtraFronts((prev) => (prev.length ? prev : parsed.pendingExtraFronts))
             }
+            // Contadores de edición vs. guardado — CLAUDE.md §2: si tiene que
+            // sobrevivir un F5, no puede vivir solo en un ref. Nacen vacíos en
+            // cada montaje, y sin restaurarlos un frente YA guardado volvía a
+            // contarse como pendiente después de cada recarga. Verificado en
+            // navegador: tras F5, Trujillo estaba entero en el servidor y el
+            // aviso igual reclamaba 18 celdas sin guardar. Una alarma que
+            // suena cuando no pasa nada enseña a ignorar la que sí importa.
+            if (Number.isFinite(parsed.editSeq)) {
+              editSeqRef.current[targetCity] = parsed.editSeq
+            }
+            if (Number.isFinite(parsed.savedSeq)) {
+              savedSeqRef.current[targetCity] = parsed.savedSeq
+            }
           }
         }
         if (migratedFromLegacy && draftApplied) {
@@ -1456,6 +1503,10 @@ export default function DataEntry() {
               // active=30 / idle=150. Y `activity_trace` —el dato crudo que se
               // guarda justamente para recalibrar el umbral— viajaba truncado.
               actividad: actividadRef.current[bucketKey] || [],
+              // Ver la restauración en el efecto de hidratación: sin esto, el
+              // aviso de "sin guardar" daba falso positivo tras cada F5.
+              editSeq: editSeqRef.current[bucketKey] ?? 0,
+              savedSeq: savedSeqRef.current[bucketKey] ?? -1,
               savedAt,
             })
           )
@@ -1571,6 +1622,8 @@ export default function DataEntry() {
               // El flush cubre los ≤3 s entre el último autosave y el
               // pagehide: sin la traza acá, ese tramo final se perdía igual.
               actividad: actividadRef.current[flushCity] || previo.actividad || [],
+              editSeq: editSeqRef.current[flushCity] ?? previo.editSeq ?? 0,
+              savedSeq: savedSeqRef.current[flushCity] ?? previo.savedSeq ?? -1,
               savedAt: Date.now(),
             })
           )
@@ -2993,13 +3046,23 @@ export default function DataEntry() {
   // para terminarlas después. El re-guardado es idempotente (DELETE+INSERT por
   // categoría/franja), así que guardar seguido es seguro. Solo "Terminar
   // Sesión" exige la grilla completa/S-D.
+  /**
+   * Guarda el frente donde el hub está parado AHORA. Devuelve true solo si el
+   * servidor confirmó — "Guardar todo" recorre una cola de frentes y tiene que
+   * frenar en el primero que falle, no seguir de largo dejando atrás un frente
+   * sin guardar con un cartel de éxito al final.
+   *
+   * `forceOverwrite` llega como evento de React cuando el botón pasa esta
+   * función directo a onClick; `performSave` lo compara con `=== true`, así que
+   * un SyntheticEvent NO fuerza nada.
+   */
   async function handleSaveProgress(forceOverwrite = false) {
     // La mig 191 ya protegería la BD, pero rebotaría como conflicto y le
     // ofrecería al hub el botón de forzar — o sea, un botón para pisarle el
     // trabajo a la otra pestaña. Mejor cortar antes, con un motivo claro.
     if (!leaseOwnerRef.current) {
       setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
-      return
+      return false
     }
     // Collect all full rows
     const rowsToInsert = []
@@ -3014,9 +3077,9 @@ export default function DataEntry() {
     }
     if (!rowsToInsert.length) {
       setMsg({ type: 'err', text: t('dataentry.err_no_full') })
-      return
+      return false
     }
-    await performSave(rowsToInsert, false, true, forceOverwrite)
+    return await performSave(rowsToInsert, false, true, forceOverwrite)
   }
 
   // ── Terminar sesión ────────────────────────────────────
@@ -3106,19 +3169,11 @@ export default function DataEntry() {
       // "Ir ahí" de un borrador de otro distrito mete un segundo bucketKey en el
       // alcance). Hay que DESARMAR la clave, que es lo que ya hace
       // `openHistorySession` 45 líneas más abajo.
-      const nextBucket = remainingAfterThis[0]
-      const partes = parseBucketKey(nextBucket)
-      const targetUi = dbCityToUiCity[partes?.city ?? nextBucket] || partes?.city || nextBucket
-      if (partes?.zone) {
-        setUiCity(tukTukInfo?.baseUiCity || targetUi)
-        setActiveTukTuk(partes.zone)
-      } else if (uiCities.includes(targetUi)) {
-        setUiCity(targetUi)
-        setActiveTukTuk(null)
-      }
-      // Si no está en el catálogo no se salta a ningún lado: el aviso de frentes
-      // pendientes ya le dice al hub qué le falta, y mandarlo a una pestaña
-      // inexistente es peor que dejarlo donde está.
+      irAFrente(remainingAfterThis[0])
+      // Si no está en el catálogo no se salta a ningún lado (`irAFrente`
+      // devuelve false): el aviso de frentes pendientes ya le dice al hub qué
+      // le falta, y mandarlo a una pestaña inexistente es peor que dejarlo
+      // donde está.
     }
   }
 
@@ -3669,7 +3724,11 @@ export default function DataEntry() {
   // Frentes abiertos (mig 161) — TODOS los que el hub tiene a medias, con
   // `current` marcando dónde está parado ahora. Va en el latido para que
   // Monitoreo y la presencia dejen de ver solo la última pestaña tocada.
-  const fronts = useMemo(() => {
+  // Celdas atendidas por frente. Se extrajo del memo de `fronts` cuando el
+  // aviso de "trabajo sin guardar" pasó a necesitar el MISMO número: dos
+  // cuentas distintas de lo mismo terminan divergiendo, y acá una diría "162
+  // sin guardar" mientras la otra le reporta otra cosa a Monitoreo.
+  const llenoPorFrente = useMemo(() => {
     const all = [...pendingScopeMembers, ...pendingExtraFronts, bucketKey]
     const filledByBucket = {}
     for (const bk of all) {
@@ -3692,24 +3751,202 @@ export default function DataEntry() {
       filledByBucket[bk] =
         countAllFilled(entriesByCity[bk], indriveByCity[bk]) + (naByCity[bk]?.size || 0)
     }
+    return filledByBucket
+  }, [
+    pendingScopeMembers,
+    pendingExtraFronts,
+    bucketKey,
+    filledCount,
+    entriesByCity,
+    indriveByCity,
+    naByCity,
+  ])
+
+  const fronts = useMemo(() => {
     return buildFronts({
       scopeMembers: pendingScopeMembers,
       extraFronts: pendingExtraFronts,
       currentBucket: bucketKey,
-      filledByBucket,
+      filledByBucket: llenoPorFrente,
       totalByBucket: { ...totalByBucket, [bucketKey]: totalExpected },
     })
   }, [
     pendingScopeMembers,
     pendingExtraFronts,
     bucketKey,
-    filledCount,
+    llenoPorFrente,
     totalExpected,
     totalByBucket,
-    entriesByCity,
-    indriveByCity,
-    naByCity,
   ])
+
+  // ══ "Guardar todo" — guardar TODOS los frentes, sin importar la pestaña ══
+  //
+  // POR QUÉ EXISTE (incidente del 2026-08-11)
+  // "Guardar progreso" guarda solo el frente donde estás parado, y eso nunca
+  // se dijo en pantalla. Dos hubs midieron Corporativo, apretaron Guardar
+  // estando en la pestaña de TukTuk, y se fueron convencidas de haber
+  // guardado Corp. El guardado hizo exactamente lo que decía; el problema era
+  // que no decía qué.
+  //
+  // CÓMO FUNCIONA, Y POR QUÉ ASÍ
+  // Recorre los frentes de a uno: se PARA en cada uno y usa el mismo
+  // `handleSaveProgress` de siempre. La alternativa —armar las filas de un
+  // frente sin pararse en él— obligaba a parametrizar `buildRows`/`performSave`,
+  // que es el camino por el que pasa TODO guardado de la app y el que
+  // concentra los bugs más caros del proyecto (borrados de más, data de otro
+  // hub). Esto no toca ni una línea de ese camino: solo lo llama varias veces.
+  //
+  // El precio es que hay que esperar a que cada frente esté realmente listo
+  // (rutas cargadas + borrador hidratado) antes de guardarlo. Guardar antes de
+  // tiempo vería la grilla vacía y reportaría "no hay filas completas" sobre
+  // un frente lleno.
+  const [colaGuardarTodo, setColaGuardarTodo] = useState(EMPTY_ARR)
+  const guardandoTodo = colaGuardarTodo.length > 0
+  // Con un solo frente abierto, "Guardar todo" y "Guardar progreso" harían
+  // exactamente lo mismo. Dos botones para una acción no aclaran nada: dan a
+  // entender que uno guarda algo que el otro no.
+  // Identidad estable (CLAUDE.md §5): este array baja como prop y se usa como
+  // dependencia; recrearlo en cada render dispararía trabajo de más.
+  const frentesAbiertos = useMemo(
+    () => [...new Set([...pendingScopeMembers, ...pendingExtraFronts, bucketKey])],
+    [pendingScopeMembers, pendingExtraFronts, bucketKey]
+  )
+  const hayOtrosFrentes = frentesAbiertos.length > 1
+  // Reentrada: el efecto de abajo se re-dispara con cada tick mientras la cola
+  // avanza, y sin este candado dispararía un segundo guardado del mismo frente
+  // encima del primero.
+  const colaOcupadaRef = useRef(false)
+  // Dónde estaba parado el hub al apretar el botón, para devolverlo ahí. Que
+  // "guardar" te mueva de pestaña sola es desorientador, y peor todavía si te
+  // deja en un frente que no estabas mirando.
+  const colaOrigenRef = useRef(null)
+  const colaResultadoRef = useRef({ guardados: 0, sinFilas: [] })
+
+  // Los contadores de edición viven en refs para no re-renderizar la grilla en
+  // cada tecleo (CLAUDE.md §5), así que un cambio en ellos no despierta a
+  // React. Mientras la cola avanza hace falta un pulso propio para volver a
+  // mirar si el frente ya terminó de cargar. Solo corre mientras hay cola:
+  // es una acción deliberada de unos segundos, no un sondeo de fondo.
+  const [tickCola, setTickCola] = useState(0)
+  useEffect(() => {
+    if (!guardandoTodo) return
+    const id = setInterval(() => setTickCola((n) => n + 1), 300)
+    return () => clearInterval(id)
+  }, [guardandoTodo])
+
+  useEffect(() => {
+    if (!colaGuardarTodo.length || colaOcupadaRef.current || saving) return
+
+    const objetivo = colaGuardarTodo[0]
+    if (bucketKey !== objetivo) {
+      // Si el destino no existe en el catálogo, `irAFrente` no mueve nada: hay
+      // que sacarlo de la cola igual o se queda girando para siempre.
+      if (!irAFrente(objetivo)) setColaGuardarTodo((c) => c.slice(1))
+      return
+    }
+
+    // Parados en el objetivo, pero puede que todavía esté cargando. Los tres
+    // chequeos son distintos y los tres hacen falta: las rutas se piden por
+    // ciudad (React Query), `refsDbCity` confirma que las que hay en mano son
+    // las de ESTA ciudad y no las de la anterior, y la hidratación es la que
+    // vuelca el borrador de localStorage a la grilla.
+    if (refsLoading || refsDbCity !== dbCity) return
+    if (!hydratedCitiesRef.current.has(bucketKey)) return
+
+    colaOcupadaRef.current = true
+    ;(async () => {
+      try {
+        let ok = true
+        if (savableCount > 0) {
+          ok = await handleSaveProgress()
+          if (ok) colaResultadoRef.current.guardados += 1
+        } else {
+          // Tiene celdas cargadas pero ninguna FILA completa: "Guardar
+          // progreso" nunca manda filas a medias. No es un fallo, pero
+          // callarlo sería decirle al hub "guardé todo" sobre un frente que
+          // quedó entero en localStorage.
+          colaResultadoRef.current.sinFilas.push(bucketKey)
+        }
+        if (!ok) {
+          // Frenar en seco. Seguir con el siguiente frente terminaría en un
+          // cartel de éxito con un frente sin guardar en el medio, que es
+          // exactamente el engaño que esta función vino a eliminar. El
+          // mensaje de error de `performSave` ya está en pantalla.
+          setColaGuardarTodo(EMPTY_ARR)
+          return
+        }
+        setColaGuardarTodo((c) => c.slice(1))
+      } finally {
+        colaOcupadaRef.current = false
+      }
+    })()
+    // `handleSaveProgress` se redefine en cada render (no es useCallback) —
+    // meterlo acá re-dispararía este efecto sin parar. Se lo llama, no se lo
+    // observa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    colaGuardarTodo,
+    tickCola,
+    bucketKey,
+    saving,
+    refsLoading,
+    refsDbCity,
+    dbCity,
+    savableCount,
+    irAFrente,
+  ])
+
+  // Cierre de la cola: volver a donde estaba el hub y contarle qué pasó.
+  useEffect(() => {
+    if (guardandoTodo || !colaOrigenRef.current) return
+    const origen = colaOrigenRef.current
+    const { guardados, sinFilas } = colaResultadoRef.current
+    colaOrigenRef.current = null
+    colaResultadoRef.current = { guardados: 0, sinFilas: [] }
+    if (origen !== bucketKey) irAFrente(origen)
+    if (guardados > 0) {
+      setMsg({
+        type: 'ok',
+        emphasize: true,
+        text: sinFilas.length
+          ? t('dataentry.save_all_done_partial', {
+              n: guardados,
+              list: sinFilas.map(frontLabel).join(', '),
+            })
+          : guardados === 1
+            ? t('dataentry.save_all_done_one')
+            : t('dataentry.save_all_done', { n: guardados }),
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guardandoTodo])
+
+  /**
+   * Arma la cola con TODO lo que tenga trabajo sin asegurar. Se calcula al
+   * apretar el botón (leyendo los refs en ese instante) y no en render: el
+   * usuario tiene que guardar lo que hay AHORA, no lo que se vio hace un tick.
+   */
+  function handleGuardarTodo() {
+    const pendientes = frentesSinGuardar({
+      fronts: frentesAbiertos,
+      llenoPorFrente,
+      editSeq: editSeqRef.current,
+      savedSeq: savedSeqRef.current,
+    }).map((f) => f.bucket)
+    if (!pendientes.length) {
+      setMsg({ type: 'ok', text: t('dataentry.save_all_nothing') })
+      return
+    }
+    colaOrigenRef.current = bucketKey
+    colaResultadoRef.current = { guardados: 0, sinFilas: [] }
+    // El frente actual primero: es el que el hub está mirando, y si algo falla
+    // conviene que falle sobre lo que tiene delante.
+    setColaGuardarTodo(
+      pendientes.includes(bucketKey)
+        ? [bucketKey, ...pendientes.filter((b) => b !== bucketKey)]
+        : pendientes
+    )
+  }
 
   heartbeatRef.current = {
     country,
@@ -3905,15 +4142,31 @@ export default function DataEntry() {
             </>
           ) : (
             <>
-              <Button onClick={handleSaveProgress} disabled={saving}>
+              <Button
+                onClick={handleSaveProgress}
+                disabled={saving || guardandoTodo}
+                title={t('dataentry.save_progress_hint', { front: frontLabel(bucketKey) })}
+              >
                 {saving
                   ? t('dataentry.saving')
-                  : `${t('dataentry.save_progress')}${savableCount > 0 ? ` (${savableCount})` : ''}`}
+                  : `${t('dataentry.save_progress_front', {
+                      front: frontLabel(bucketKey),
+                    })}${savableCount > 0 ? ` (${savableCount})` : ''}`}
               </Button>
+              {hayOtrosFrentes && (
+                <Button
+                  className="bg-slate-700 hover:bg-slate-800"
+                  onClick={handleGuardarTodo}
+                  disabled={saving || guardandoTodo}
+                  title={t('dataentry.save_all_hint')}
+                >
+                  {guardandoTodo ? t('dataentry.save_all_running') : t('dataentry.save_all')}
+                </Button>
+              )}
               <Button
                 className="bg-green-800 hover:bg-green-900"
                 onClick={handleFinishSession}
-                disabled={saving}
+                disabled={saving || guardandoTodo}
               >
                 {pendingScopeMembers.length > 1 || pendingExtraFronts.length > 0
                   ? t('dataentry.end_session_point')
@@ -3931,6 +4184,21 @@ export default function DataEntry() {
             list: pendingExtraFronts.map(frontLabel).join(', '),
           })}
         </div>
+      )}
+
+      {/* Trabajo sin guardar en frentes que NO son el que estás mirando.
+          "Guardar progreso" nunca los tocó y nunca lo dijo — ver
+          frentesPendientes.js para el incidente que lo motivó. */}
+      {sessionActive && (
+        <FrentesSinGuardar
+          fronts={frentesAbiertos}
+          llenoPorFrente={llenoPorFrente}
+          editSeqRef={editSeqRef}
+          savedSeqRef={savedSeqRef}
+          bucketKey={bucketKey}
+          onIrAFrente={irAFrente}
+          t={t}
+        />
       )}
 
       {/* ── Quién más está en ESTE bucket ahora mismo ──────────────────────
@@ -4465,15 +4733,31 @@ export default function DataEntry() {
           )}
           {sessionActive ? (
             <>
-              <Button onClick={handleSaveProgress} disabled={saving}>
+              <Button
+                onClick={handleSaveProgress}
+                disabled={saving || guardandoTodo}
+                title={t('dataentry.save_progress_hint', { front: frontLabel(bucketKey) })}
+              >
                 {saving
                   ? t('dataentry.saving')
-                  : `${t('dataentry.save_progress')}${savableCount > 0 ? ` (${savableCount})` : ''}`}
+                  : `${t('dataentry.save_progress_front', {
+                      front: frontLabel(bucketKey),
+                    })}${savableCount > 0 ? ` (${savableCount})` : ''}`}
               </Button>
+              {hayOtrosFrentes && (
+                <Button
+                  className="bg-slate-700 hover:bg-slate-800"
+                  onClick={handleGuardarTodo}
+                  disabled={saving || guardandoTodo}
+                  title={t('dataentry.save_all_hint')}
+                >
+                  {guardandoTodo ? t('dataentry.save_all_running') : t('dataentry.save_all')}
+                </Button>
+              )}
               <Button
                 className="bg-green-800 hover:bg-green-900"
                 onClick={handleFinishSession}
-                disabled={saving}
+                disabled={saving || guardandoTodo}
               >
                 {pendingScopeMembers.length > 1 || pendingExtraFronts.length > 0
                   ? t('dataentry.end_session_point')
