@@ -6,7 +6,21 @@ import { Button } from '../ui/shadcn/button'
 // Custom dropdown que usa banderas SVG de flagcdn.com — así no dependemos
 // de que el sistema operativo renderice los emojis de bandera (Windows sin
 // fuente emoji muestra "PE" en vez de 🇵🇪).
-export default function CountrySelector({ country, setCountry, allowedCountries, disabled }) {
+// dbConfigs (opcional): { countryKey → internalConfig } de useCountry(). Un
+// país nuevo (creado vía CountryWizard, solo-DB) no tiene entrada en
+// COUNTRY_ISO ni en las claves i18n `country.*` — sin dbConfigs este
+// componente mostraba la CLAVE cruda ("country.Guatemala") y la bandera
+// de Perú (fallback de getCountryIso). El label chico del topbar ya
+// resolvía esto leyendo countryConfig.iso2/nativeLabel; este selector no,
+// porque nunca recibía la config por DB. Mismo criterio acá: DB primero,
+// hardcoded como fallback.
+export default function CountrySelector({
+  country,
+  setCountry,
+  allowedCountries,
+  disabled,
+  dbConfigs = {},
+}) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -24,8 +38,15 @@ export default function CountrySelector({ country, setCountry, allowedCountries,
     setOpen(false)
   }
 
-  const currentIso = getCountryIso(country)
-  const currentLabel = t(`country.${country}`) || country
+  const isoFor = (c) => (dbConfigs[c]?.iso2 || getCountryIso(c)).toLowerCase()
+  const labelFor = (c) => {
+    if (dbConfigs[c]?.nativeLabel) return dbConfigs[c].nativeLabel
+    const fromI18n = t(`country.${c}`)
+    return fromI18n === `country.${c}` ? c : fromI18n
+  }
+
+  const currentIso = isoFor(country)
+  const currentLabel = labelFor(country)
 
   return (
     <div
@@ -66,8 +87,8 @@ export default function CountrySelector({ country, setCountry, allowedCountries,
           }}
         >
           {allowedCountries.map((c) => {
-            const iso = getCountryIso(c)
-            const label = t(`country.${c}`) || c
+            const iso = isoFor(c)
+            const label = labelFor(c)
             const isActive = c === country
             return (
               <button

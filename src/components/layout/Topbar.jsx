@@ -184,7 +184,7 @@ export default function Topbar({
   // otro rol desde la UI de Roles). El resto, por canAccess.
   const canShow = (item) => (item.adminOnly ? isAdmin : canAccess(item.id))
   const { lang, setLang, languages, t } = useI18n()
-  const { country, setCountry, countryConfig } = useCountry()
+  const { country, setCountry, countryConfig, dbConfigs } = useCountry()
   // Prioridad: countryConfig.iso2 / nativeLabel (de DB) → COUNTRY_CONFIG
   // hardcoded → fallback al país literal. Esto hace que países creados
   // vía wizard tengan su bandera y label correcto desde el primer render.
@@ -258,6 +258,7 @@ export default function Topbar({
           setCountry={setCountry}
           allowedCountries={allowedCountries}
           disabled={allowedCountries.length <= 1}
+          dbConfigs={dbConfigs}
         />
 
         {/* Language selector */}
