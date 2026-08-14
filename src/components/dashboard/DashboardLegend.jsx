@@ -164,6 +164,7 @@ export default function DashboardLegend({ country, dbCity, dbCategory }) {
             ) : (
               Object.entries(categoryRules).map(([cat, rules]) => {
                 const compsInCat = config.competitorsByDbCityCategory?.[dbCity]?.[cat] || []
+                const notesInCat = config.competitorNotesByDbCityCategory?.[dbCity]?.[cat] || {}
                 // Agrupar reglas por competition_name
                 const byComp = {}
                 for (const r of rules) {
@@ -211,6 +212,25 @@ export default function DashboardLegend({ country, dbCity, dbCategory }) {
                                 <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
                                   {t('legend.manual_only')}
                                 </span>
+                              )}
+                              {/* Nota libre por competidor (Config → Países). No es un
+                                  error de carga — es texto que el admin dejó a propósito
+                                  para explicar un hueco real (ver competitorNotes). */}
+                              {notesInCat[comp] && (
+                                <div
+                                  style={{
+                                    marginTop: 2,
+                                    color: '#92400e',
+                                    background: '#fffbeb',
+                                    border: '1px solid #fde68a',
+                                    borderRadius: 4,
+                                    padding: '3px 6px',
+                                    fontSize: 11,
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  📝 {notesInCat[comp]}
+                                </div>
                               )}
                             </div>
                           </Fragment>

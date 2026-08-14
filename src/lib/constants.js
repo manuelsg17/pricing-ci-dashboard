@@ -738,14 +738,24 @@ export function dbConfigToInternal(row) {
   // el dashboard/leyendas/histórico. Lista paralela para no cambiar el shape de
   // `competitors`. Default [] = todos ofrecen (retrocompatible).
   const ciHiddenByDbCityCategory = {}
+  // Notas libres por competidor dentro de una categoría — caso real: Cabify
+  // tuvo XL en Lima_Airport_A hasta el 27-jul y dejó de actualizarse (sigue
+  // vivo en Lima_Airport_B). El competidor SIGUE listado (no es ciHidden, no
+  // se oculta de nada) — esto es solo texto explicativo para que la leyenda
+  // del dashboard aclare "no es un error" en vez de dejar la celda vacía sin
+  // contexto. Default {} = sin nota (retrocompatible).
+  const competitorNotesByDbCityCategory = {}
   cities.forEach((city) => {
     competitorsByDbCityCategory[city.dbName] = {}
     ciHiddenByDbCityCategory[city.dbName] = {}
+    competitorNotesByDbCityCategory[city.dbName] = {}
     ;(city.categories || []).forEach((cat) => {
       competitorsByDbCityCategory[city.dbName][cat.dbName] = cat.competitors || []
       ciHiddenByDbCityCategory[city.dbName][cat.dbName] = Array.isArray(cat.ciHidden)
         ? cat.ciHidden
         : []
+      competitorNotesByDbCityCategory[city.dbName][cat.dbName] =
+        cat.competitorNotes && typeof cat.competitorNotes === 'object' ? cat.competitorNotes : {}
     })
   })
 
@@ -785,6 +795,7 @@ export function dbConfigToInternal(row) {
     categoryDbMap,
     competitorsByDbCityCategory,
     ciHiddenByDbCityCategory,
+    competitorNotesByDbCityCategory,
     yangoDisplayName,
     weightCities: ['all', ...dbCities],
     outlierThreshold: Number(row.outlier_threshold ?? 100),

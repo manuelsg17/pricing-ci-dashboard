@@ -6,7 +6,7 @@ import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
 import CountryWizard from './CountryWizard'
 import { Button } from '../ui/shadcn/button'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, StickyNote } from 'lucide-react'
 import { useI18n } from '../../context/LanguageContext'
 
 const CONST_KEYS = Object.keys(COUNTRY_CONFIG)
@@ -139,6 +139,10 @@ export default function CountriesConfig() {
   const [loading, setLoading] = useState(true)
   const [selectedKey, setSelectedKey] = useState(null)
   const [selectedCityIdx, setSelectedCityIdx] = useState(null)
+  // Qué chip de competidor tiene abierto el editor de nota ahora mismo —
+  // 'catIdx|competidor' o null. Un solo campo global alcanza: nunca hay dos
+  // abiertos a la vez, y así no hace falta un mapa de estado por chip.
+  const [editingNoteFor, setEditingNoteFor] = useState(null)
   const [draft, setDraft] = useState({})
   const [savingKey, setSavingKey] = useState(null)
   const [msg, setMsg] = useState(null)
@@ -372,6 +376,9 @@ export default function CountriesConfig() {
               ...cat,
               competitors: (cat.competitors || []).filter((x) => x !== competitor),
               ciHidden: (cat.ciHidden || []).filter((x) => x !== competitor),
+              competitorNotes: Object.fromEntries(
+                Object.entries(cat.competitorNotes || {}).filter(([c]) => c !== competitor)
+              ),
             }
       )
       return { ...c, categories }
@@ -388,6 +395,20 @@ export default function CountriesConfig() {
       ? existing.filter((c) => c !== competitor)
       : [...existing, competitor]
     setCategoryField(key, cityIdx, catIdx, 'ciHidden', next)
+  }
+
+  // Nota libre por competidor dentro de una categoría (caso real: Cabify tuvo
+  // XL en Lima_Airport_A y dejó de actualizarse el 27-jul — sigue vivo en
+  // Lima_Airport_B). No oculta nada, solo explica en la leyenda del
+  // dashboard para que no se lea como un error de carga. Nota vacía = se
+  // borra la entrada entera, no se deja un '' colgando en el JSON.
+  function setCompetitorNote(key, cityIdx, catIdx, competitor, note) {
+    const row = getOrInitDraft(key)
+    const current = row.cities[cityIdx].categories[catIdx].competitorNotes || {}
+    const next = { ...current }
+    if (note && note.trim()) next[competitor] = note.trim()
+    else delete next[competitor]
+    setCategoryField(key, cityIdx, catIdx, 'competitorNotes', next)
   }
 
   // ── Save / Delete ─────────────────────────────────────────────────
@@ -1391,6 +1412,9 @@ export default function CountriesConfig() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
                     {cat.competitors.map((comp) => {
                       const hidden = (cat.ciHidden || []).includes(comp)
+                      const note = cat.competitorNotes?.[comp] || ''
+                      const noteKey = `${catIdx}|${comp}`
+                      const editingNote = editingNoteFor === noteKey
                       return (
                         <span
                           key={comp}
@@ -1433,6 +1457,24 @@ export default function CountriesConfig() {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
+                                className="ml-0.5 h-auto w-auto p-0.5 leading-none text-slate-500 hover:bg-transparent hover:text-yango"
+                                onClick={() => setEditingNoteFor(editingNote ? null : noteKey)}
+                                title={
+                                  note
+                                    ? t('config.countries_config.competitor_note_edit_title', {
+                                        comp,
+                                      })
+                                    : t('config.countries_config.competitor_note_add_title', {
+                                        comp,
+                                      })
+                                }
+                              >
+                                <StickyNote size={12} fill={note ? 'currentColor' : 'none'} />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
                                 className="ml-0.5 h-auto w-auto p-0.5 text-xs font-bold leading-none text-red-600 hover:bg-transparent"
                                 onClick={() =>
                                   removeCompetitor(selectedKey, selectedCityIdx, catIdx, comp)
@@ -1445,6 +1487,14 @@ export default function CountriesConfig() {
                               </Button>
                             </>
                           )}
+                          {!hidden && !editingNote && note && (
+                            <span
+                              title={note}
+                              style={{ marginLeft: 4, fontSize: 10, cursor: 'default' }}
+                            >
+                              📝
+                            </span>
+                          )}
                         </span>
                       )
                     })}
@@ -1456,6 +1506,48 @@ export default function CountriesConfig() {
                       />
                     )}
                   </div>
+                  {editingNoteFor?.startsWith(`${catIdx}|`) &&
+                    (() => {
+                      // split con límite 2: si el nombre del competidor tuviera un
+                      // '|' (no pasa hoy, pero no cuesta nada ser robusto) se
+                      // conserva entero en la segunda mitad.
+                      const comp = editingNoteFor.split(/\|(.*)/s)[1]
+                      return (
+                        <div
+                          style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}
+                        >
+                          <label style={{ ...fieldLabelStyle, marginBottom: 0, minWidth: 'auto' }}>
+                            {t('config.countries_config.competitor_note_label', { comp })}
+                          </label>
+                          <input
+                            autoFocus
+                            style={{ ...inputStyle(false), flex: 1 }}
+                            placeholder={t('config.countries_config.competitor_note_placeholder')}
+                            value={cat.competitorNotes?.[comp] || ''}
+                            onChange={(e) =>
+                              setCompetitorNote(
+                                selectedKey,
+                                selectedCityIdx,
+                                catIdx,
+                                comp,
+                                e.target.value
+                              )
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === 'Escape') setEditingNoteFor(null)
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingNoteFor(null)}
+                          >
+                            {t('app.close')}
+                          </Button>
+                        </div>
+                      )
+                    })()}
                   {(cat.ciHidden || []).length > 0 && (
                     <div
                       style={{ fontSize: 10, color: '#94a3b8', marginTop: 4, fontStyle: 'italic' }}

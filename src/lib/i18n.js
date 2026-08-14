@@ -2539,6 +2539,11 @@ export const TRANSLATIONS = {
     'config.countries_config.ci_hidden_tag_title':
       '{comp} no ofrece esta categoría (oculto en Ingresar CI, sigue en el dashboard)',
     'config.countries_config.ci_hidden_note': 'No ofrecen esta categoría en Ingresar CI: {list}',
+    'config.countries_config.competitor_note_add_title': 'Agregar nota sobre {comp}',
+    'config.countries_config.competitor_note_edit_title': 'Editar nota sobre {comp}',
+    'config.countries_config.competitor_note_label': 'Nota · {comp}:',
+    'config.countries_config.competitor_note_placeholder':
+      'Ej: dejó de traer XL desde el 27-jul, sigue vivo en el otro punto',
 
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -5032,6 +5037,11 @@ export const TRANSLATIONS = {
     'config.countries_config.ci_hidden_tag_title':
       "{comp} doesn't offer this category (hidden in Data Entry, still on the dashboard)",
     'config.countries_config.ci_hidden_note': "Don't offer this category in Data Entry: {list}",
+    'config.countries_config.competitor_note_add_title': 'Add a note about {comp}',
+    'config.countries_config.competitor_note_edit_title': 'Edit note about {comp}',
+    'config.countries_config.competitor_note_label': 'Note · {comp}:',
+    'config.countries_config.competitor_note_placeholder':
+      'E.g.: stopped sending XL on Jul 27, still alive at the other point',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
@@ -7592,6 +7602,11 @@ export const TRANSLATIONS = {
     'config.countries_config.ci_hidden_tag_title':
       '{comp} не предлагает эту категорию (скрыт во «Вводе CI», остаётся на дашборде)',
     'config.countries_config.ci_hidden_note': 'Не предлагают эту категорию во «Вводе CI»: {list}',
+    'config.countries_config.competitor_note_add_title': 'Добавить заметку о {comp}',
+    'config.countries_config.competitor_note_edit_title': 'Изменить заметку о {comp}',
+    'config.countries_config.competitor_note_label': 'Заметка · {comp}:',
+    'config.countries_config.competitor_note_placeholder':
+      'Напр.: перестал присылать XL с 27 июля, в другой точке всё ещё работает',
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
