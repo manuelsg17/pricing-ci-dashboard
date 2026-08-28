@@ -391,11 +391,32 @@ Deno.serve(async (req) => {
       // — sin esto, TukTuk se cuela sin zone y con brackets long/very_long
       // irreales para viajes intra-distrito.
       let zone: string | null = null
+      // .replace(/\s+/g, '') además de trim(): variantes como "Tuk Tuk" (con
+      // espacio interno) deben normalizar igual que "tuktuk". Mismo criterio
+      // que main_cat_lc en bot_sync_push.py (.replace(' ', '')) — encontrado
+      // por un test adversarial que probó "Tuk Tuk" y falló con solo trim().
+      const mainCatLc = String(raw.main_category ?? '').replace(/\s+/g, '').toLowerCase()
       if (category === 'TukTuk') {
-        const mainCatLc = String(raw.main_category ?? '').trim().toLowerCase()
-        const zoneRaw    = String(raw.zone ?? '').trim()
+        const zoneRaw = String(raw.zone ?? '').trim()
         if (mainCatLc !== 'tuktuk' || !zoneRaw) { stats.dropped++; continue }
         zone = zoneRaw
+      }
+
+      // Gate INVERSO (2026-08-28): mismo problema que en bot_sync_push.py
+      // (ver ese archivo, fix aplicado ahí primero). Una ruta diseñada para
+      // TukTuk (main_category='tuktuk') puede resolver a categoría de taxi
+      // si el simulador cotizó otro vehículo (Cabify Economy, UberX...) en
+      // esa misma ruta — la distancia/configuración es de mototaxi, el
+      // precio de taxi ahí no representa un viaje real. El gate de arriba
+      // solo cubre TukTuk sin distrito; este cubre el caso inverso, que
+      // nunca tuvo control en ningún camino de ingesta.
+      //
+      // Este Edge Function está DORMIDO en producción (sin cron activo en
+      // pg_cron, sin caller en el frontend — verificado 2026-08-28), pero
+      // si algún día se reactiva sin este gate reintroduce exactamente la
+      // contaminación que ya se limpió (58.594 filas, migs 219/220/221).
+      if (mainCatLc === 'tuktuk' && category !== 'TukTuk') {
+        stats.dropped++; continue
       }
 
       const recommended_price       = num(raw.price_recommended)
