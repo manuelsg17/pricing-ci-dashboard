@@ -245,7 +245,13 @@
   font-weight: 500;
 }
 
-@media (max-width: 1200px) {
+/* 1366 (antes 1200): a 1280 — ancho real de una MacBook Air en ventana — las
+   3 tablas lado a lado quedaban en ~400px cada una: la matriz (nowrap +
+   columna sticky) solo mostraba 3 de 8 períodos con una columna cortada a
+   la mitad asomando bajo el sparkline. Apiladas a ancho completo se leen los
+   8 períodos sin scroll interno. Verificado en navegador a 1280 y 1080
+   (2026-08-29); en monitores ≥1367 el layout de 3 columnas sigue igual. */
+@media (max-width: 1366px) {
   .bracket-section__tables {
     grid-template-columns: 1fr;
   }
@@ -451,6 +457,25 @@
   align-items: stretch;
   flex-wrap: wrap;
   padding: 0 16px 4px;
+}
+
+/* Tablet: el flex-wrap partía las 7 tarjetas KPI en 5+2 con anchos
+   dispares (las 2 huérfanas ocupaban media pantalla cada una). Grid de 4
+   columnas uniformes → 4+3, todas del mismo ancho. Verificado a 810px. */
+@media (min-width: 641px) and (max-width: 1150px) {
+  .kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .kpi-card {
+    min-width: 0;
+  }
+  /* La barra de filtros envuelve a 3-4 filas en tablet; el tope de 200px
+     (pensado para 1-2 filas de desktop) hacía que el contenido se derramara
+     por encima de las secciones de abajo. */
+  .filter-bar {
+    max-height: 340px;
+  }
 }
 
 .kpi-card {

@@ -249,8 +249,13 @@ export default function Topbar({
       </div>
 
       <div className="topbar__right">
-        {/* Bot freshness — pequeño semáforo de última sync */}
-        <BotFreshnessBadge />
+        {/* Bot freshness — pequeño semáforo de última sync. El wrapper con
+            clase existe solo para poder ocultarlo por CSS en tablet (641-
+            1150px), donde la topbar no entra en una fila de 52px sin
+            comprimir; el badge no tiene clase propia (estilos inline). */}
+        <span className="topbar__bot-badge">
+          <BotFreshnessBadge />
+        </span>
 
         {/* Country selector — custom dropdown con banderas SVG */}
         <CountrySelector

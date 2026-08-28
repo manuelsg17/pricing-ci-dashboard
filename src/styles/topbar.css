@@ -294,6 +294,60 @@
 
    No cambia nada por encima de 640px, así que la grilla de Ingresar CI (fuera
    del alcance responsive a propósito) queda intacta. */
+
+/* ── Tablet (iPad 10.2" = 810px vertical / 1080px horizontal) ─────────────
+   Verificado a 810px reales (2026-08-29): la topbar en una fila de 52px medía
+   1060px (brand 110 + tabs 4×~95 + badge bot + país + idioma + cuenta) y
+   empujaba la app entera a scroll horizontal de 250px. Este bloque COMPRIME
+   en vez de envolver: si la topbar pasara a 2 filas, el sticky de
+   .filter-bar-wrapper (top:52px, acoplado a la altura de la topbar) quedaría
+   tapado. Presupuesto de la compresión: badge bot oculto (~70px), email de
+   cuenta 160→84px, padding de tabs 16→10px, selects más compactos, gaps
+   menores — total ~300px recuperados, entra en 810px con margen. */
+@media (min-width: 641px) and (max-width: 1150px) {
+  .topbar {
+    padding: 0 12px;
+    gap: 6px;
+  }
+  .topbar__brand {
+    margin-right: 6px;
+  }
+  .topbar__tab {
+    padding: 0 8px;
+    font-size: 12.5px;
+  }
+  .topbar__bot-badge {
+    display: none;
+  }
+  /* Cuenta: solo el icono — el email completo (~120px) no entra; el menú
+     (perfil/cerrar sesión) sigue funcionando igual al hacer clic. */
+  .topbar__account-email {
+    display: none;
+  }
+  .topbar__account-trigger {
+    padding: 4px 7px;
+  }
+  .topbar__account-trigger::before {
+    content: '👤';
+    font-size: 13px;
+  }
+  /* El botón interno del CountrySelector trae min-w-[130px] por Tailwind
+     (clase arbitraria, por eso el !important): compactarlo a contenido. */
+  .country-selector button {
+    min-width: 0 !important;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+  }
+  .topbar__country-select,
+  .topbar__lang-select {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+  .topbar__right {
+    gap: 6px;
+  }
+}
+
 @media (max-width: 640px) {
   .topbar {
     height: auto;
