@@ -698,6 +698,9 @@ def main():
     #   no_timestamp — sin timestamp_utc (no se puede watermarkear)
     #   incomplete   — sin city normalizable o sin app
     #   no_rule      — (app, vc, ovc, db_city) no matchea ningún bot_rule
+    #   tuktuk_route_wrong_category — ruta diseñada para TukTuk
+    #                (main_category='tuktuk') pero la cotización resolvió a
+    #                categoría de taxi (Economy/Comfort, Uber, Cabify...)
     #   no_price     — ni price_regular_value ni price_discounted_value
     #   outlier      — supera max_price de price_validation_rules (no es dropped en stats pero lo logueamos igual)
     dropped_tracker: Counter = Counter()
@@ -839,6 +842,28 @@ def main():
             if category == 'TukTuk' and not (main_cat_lc == 'tuktuk' and zone_val):
                 stats['dropped'] += 1
                 dropped_tracker[('tuktuk_no_zone', raw_app, raw_vc, raw_ovc, db_city)] += 1
+                continue
+
+            # ── Gate INVERSO (2026-08-28) ──────────────────────────────────
+            # El gate de arriba (mig 113) solo cubre TukTuk sin distrito. El
+            # caso inverso —ruta diseñada para TukTuk (main_category='tuktuk',
+            # confirmado presente en TODAS las filas de quotes_output de esa
+            # ruta, sin importar qué vehículo cotizó el simulador ahí) pero
+            # resuelta a categoría de taxi (Economy/Comfort, Comfort+,
+            # Premier, XL, Uber, Cabify, Didi, InDrive...)— NUNCA tuvo
+            # control. Las distancias/configuración de esa ruta son de
+            # mototaxi; el precio de taxi ahí no representa un viaje real.
+            #
+            # Encontrado en producción (2026-08-28): 58.594 filas
+            # contaminadas acumuladas desde el 24-jul, 100% con este origen
+            # (bot). Se limpiaron con respaldo (pricing_observations_
+            # backup_tuktuk_taxi_20260827) y se blindó v_effective_price del
+            # lado de la BD (tabla tuktuk_routes + filtro), pero sin este
+            # gate acá la tabla cruda sigue acumulando basura indefinidamente
+            # hasta la próxima limpieza manual.
+            if main_cat_lc == 'tuktuk' and category != 'TukTuk':
+                stats['dropped'] += 1
+                dropped_tracker[('tuktuk_route_wrong_category', raw_app, raw_vc, raw_ovc, db_city)] += 1
                 continue
 
             # Precios — el bot usa price_regular_value y price_discounted_value
