@@ -18,6 +18,7 @@ import BotCoverageCard from '../components/dashboard/BotCoverageCard'
 import RepresentativityCard from '../components/dashboard/RepresentativityCard'
 import WhatIfSimulator from '../components/dashboard/WhatIfSimulator'
 import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
+import OpsAlertsPanel from '../components/dashboard/OpsAlertsPanel'
 import { prettyCompetitor, rivalsOf } from '../lib/normalize'
 import { useI18n } from '../context/LanguageContext'
 import { useFilterContext } from '../context/FilterContext'
@@ -500,6 +501,12 @@ function DashboardContent() {
 
   return (
     <div className="dashboard" ref={dashRef}>
+      {/* ── Alertas operativas del watchdog del scraper (mig 227) ──
+          Va PRIMERO: si el bot dejó de traer datos, eso invalida la lectura
+          de todo lo que viene abajo. El panel se oculta solo cuando no hay
+          alertas abiertas. */}
+      <OpsAlertsPanel />
+
       {/* ── Anomaly digest compact (link a Mercado para detalle) ── */}
       {loading ? (
         <div className="dash-banner-skel" />

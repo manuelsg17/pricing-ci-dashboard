@@ -240,3 +240,44 @@ jobs:
           else
             python bot_sync_push.py --limit "$LIMIT"
           fi
+
+  # ── Alertas operativas del watchdog (mig 227) ──────────────────────────
+  # Espeja ridehailing.ops_alerts → public.ops_alerts para el panel del
+  # Dashboard. Va acá y no dentro de `sync` porque esa tabla es GLOBAL, no
+  # por país: en la matriz de 5 países se traerían 5 veces las mismas filas.
+  #
+  # `needs: sync` + `if: always()` a propósito: corre aunque el sync de algún
+  # país haya fallado. Justamente cuando el pipeline falla es cuando más
+  # importa que las alertas del watchdog lleguen al dashboard.
+  ops-alerts:
+    needs: sync
+    if: always() && inputs.probe_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'scripts/bot-sync/requirements.txt'
+
+      - name: Install dependencies
+        run: pip install --quiet -r scripts/bot-sync/requirements.txt
+
+      - name: Sync ops_alerts
+        env:
+          LOCAL_PG_HOST:             ${{ secrets.LOCAL_PG_HOST }}
+          LOCAL_PG_PORT:             ${{ secrets.LOCAL_PG_PORT }}
+          LOCAL_PG_DATABASE:         ${{ secrets.LOCAL_PG_DATABASE }}
+          LOCAL_PG_USER:             ${{ secrets.LOCAL_PG_USER }}
+          LOCAL_PG_PASSWORD:         ${{ secrets.LOCAL_PG_PASSWORD }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          cd scripts/bot-sync
+          python ops_alerts_sync.py

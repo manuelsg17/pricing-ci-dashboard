@@ -784,3 +784,130 @@
     max-width: 100%;
   }
 }
+
+/* ── Panel de alertas operativas (mig 227) ─────────────────────────────────
+   Espejo local de ridehailing.ops_alerts. Va al tope del dashboard porque
+   una alerta del watchdog (ej. "el scraper no trae datos hace 3h") invalida
+   la lectura de todo lo que está más abajo. */
+.ops-alerts {
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.04));
+}
+
+.ops-alerts__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.ops-alerts__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--color-text, #0f172a);
+}
+
+/* Contador de 'problem'. Rojo sólido para que se lea de un vistazo desde
+   lejos (el caso de uso real es mirar el dashboard antes de una reunión). */
+.ops-alerts__badge-problem {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ops-alerts__count {
+  font-size: 11px;
+  color: var(--color-muted, #64748b);
+  font-weight: 600;
+}
+
+.ops-alerts__error {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 11.5px;
+}
+
+.ops-alerts__empty {
+  font-size: 11.5px;
+  color: var(--color-muted, #64748b);
+}
+
+.ops-alerts__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ops-alerts__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+
+.ops-alerts__body {
+  flex: 1;
+  min-width: 0; /* permite que el texto largo trunque en vez de desbordar */
+}
+
+.ops-alerts__message {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ops-alerts__meta {
+  font-size: 10.5px;
+  color: var(--color-muted, #64748b);
+  margin-top: 1px;
+}
+
+.ops-alerts__resolve {
+  flex-shrink: 0;
+  height: auto;
+  gap: 4px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Móvil (§1: el Dashboard entra en el alcance responsive). El botón baja a
+   su propia línea alineado a la derecha en vez de comprimir el mensaje a
+   dos caracteres por línea. */
+@media (max-width: 640px) {
+  .ops-alerts {
+    padding: 9px 10px;
+  }
+  .ops-alerts__item {
+    flex-wrap: wrap;
+  }
+  .ops-alerts__body {
+    flex: 1 1 calc(100% - 26px);
+  }
+  .ops-alerts__resolve {
+    margin-left: auto;
+  }
+}

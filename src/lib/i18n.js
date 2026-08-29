@@ -207,6 +207,17 @@ export const TRANSLATIONS = {
       other: '{n} atípicos esta semana:',
     },
     'dashboard.anomaly_digest.view_detail': 'Ver detalle',
+    'dashboard.ops_alerts.title': 'Alertas operativas',
+    'dashboard.ops_alerts.open_count': {
+      one: '{n} abierta',
+      other: '{n} abiertas',
+    },
+    'dashboard.ops_alerts.resolve': 'Resuelto',
+    'dashboard.ops_alerts.resolving': 'Resolviendo…',
+    'dashboard.ops_alerts.kpi_problems': {
+      one: '{n} alerta crítica',
+      other: '{n} alertas críticas',
+    },
     'dashboard.leadership.no_data':
       'Sin data suficiente para calcular liderazgo. Cargá más períodos.',
     'dashboard.leadership.conclusion_strong': 'Yango casi siempre es el más barato en {brackets}',
@@ -2744,6 +2755,17 @@ export const TRANSLATIONS = {
       other: '{n} outliers this week:',
     },
     'dashboard.anomaly_digest.view_detail': 'View detail',
+    'dashboard.ops_alerts.title': 'Operational alerts',
+    'dashboard.ops_alerts.open_count': {
+      one: '{n} open',
+      other: '{n} open',
+    },
+    'dashboard.ops_alerts.resolve': 'Resolve',
+    'dashboard.ops_alerts.resolving': 'Resolving…',
+    'dashboard.ops_alerts.kpi_problems': {
+      one: '{n} critical alert',
+      other: '{n} critical alerts',
+    },
     'dashboard.leadership.no_data': 'Not enough data to calculate leadership. Load more periods.',
     'dashboard.leadership.conclusion_strong': 'Yango is almost always the cheapest in {brackets}',
     'dashboard.leadership.conclusion_weak': 'rarely leads in {brackets}',
@@ -5248,6 +5270,21 @@ export const TRANSLATIONS = {
       other: '{n} аномалий на этой неделе:',
     },
     'dashboard.anomaly_digest.view_detail': 'Смотреть детали',
+    'dashboard.ops_alerts.title': 'Операционные алерты',
+    'dashboard.ops_alerts.open_count': {
+      one: '{n} открытый',
+      few: '{n} открытых',
+      many: '{n} открытых',
+      other: '{n} открытых',
+    },
+    'dashboard.ops_alerts.resolve': 'Решено',
+    'dashboard.ops_alerts.resolving': 'Решаем…',
+    'dashboard.ops_alerts.kpi_problems': {
+      one: '{n} критический алерт',
+      few: '{n} критических алерта',
+      many: '{n} критических алертов',
+      other: '{n} критических алертов',
+    },
     'dashboard.leadership.no_data':
       'Недостаточно данных для расчёта лидерства. Загрузите больше периодов.',
     'dashboard.leadership.conclusion_strong': 'Yango почти всегда самый дешёвый в {brackets}',
