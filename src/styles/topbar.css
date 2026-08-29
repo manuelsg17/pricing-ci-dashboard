@@ -312,12 +312,17 @@
   .topbar__brand {
     margin-right: 6px;
   }
+  /* Solo el logo "Y": el texto "Pricing CI / Perú" (~60px) es lo menos
+     informativo de la barra. El badge del bot NO se oculta — es señal
+     operativa real (un sync atrasado se detecta de un vistazo; pedido
+     explícito del user 2026-08-29 tras una primera versión que lo
+     escondía). */
+  .topbar__brand-text {
+    display: none;
+  }
   .topbar__tab {
     padding: 0 8px;
     font-size: 12.5px;
-  }
-  .topbar__bot-badge {
-    display: none;
   }
   /* Cuenta: solo el icono — el email completo (~120px) no entra; el menú
      (perfil/cerrar sesión) sigue funcionando igual al hacer clic. */

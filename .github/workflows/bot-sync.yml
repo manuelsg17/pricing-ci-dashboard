@@ -42,10 +42,21 @@
 name: Bot Sync
 on:
   schedule:
-    # Cada 60 min UTC (bajado de */30 el 2026-05-31 — helioho saturando
-    # con cron más frecuente, sumado a otros tenants del shared hosting).
-    # Si helioho mejora capacidad, volver a '*/30 * * * *'.
-    - cron: '0 * * * *'
+    # '*/20' NO significa correr cada 20 min: GitHub Actions NO garantiza los
+    # crons — los deprioriza y saltea en horas de carga. Medido 2026-08-28:
+    # con '0 * * * *' los huecos reales entre corridas fueron 2,6h / 5h /
+    # 10,7h / 10h / 9h / 12h (todas success — no fallaban, no se disparaban).
+    # Programar 3 intentos/hora es la mitigación estándar: GitHub saltea
+    # varios, pero la cadencia EFECTIVA se acerca a la horaria deseada.
+    # helioho no sufre más carga real: el grupo de concurrencia de abajo
+    # serializa (1 corriendo + a lo sumo 1 en cola; GitHub reemplaza los
+    # pendientes extra), así que sigue habiendo 1 conexión por vez, y cada
+    # corrida procesa el mismo backlog acumulado — correr más seguido no
+    # multiplica el trabajo total.
+    # Historial: '*/30' → '0 * * * *' el 2026-05-31 por saturación de
+    # helioho — pero esa saturación era por corridas SIMULTÁNEAS de países
+    # (arreglado después con max-parallel: 1), no por la frecuencia del cron.
+    - cron: '*/20 * * * *'
   # Permite disparo manual desde GitHub UI para testing
   workflow_dispatch:
     inputs:
