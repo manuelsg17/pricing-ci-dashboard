@@ -135,6 +135,7 @@ function DashboardContent() {
     periods,
     frozenWeeks,
     frozenIgnoresFilters,
+    staleWeeks,
   } = usePricingData(filters, dbWeights, locale, dbSemaforo)
 
   // ── What-if simulator: aplica un % a Yango y recalcula deltas/charts ────
@@ -327,21 +328,20 @@ function DashboardContent() {
     const leader = compPrices[0] || null
     const yangoRank = yangoWA != null ? compPrices.findIndex((x) => x.comp === yangoComp) + 1 : null
 
-    // Delta de Yango vs promedio aritmético de los competidores (último período).
-    // Excluye a Yango del promedio para que la comparación sea real.
-    // > 0 → Yango está más caro que el promedio. < 0 → Yango está más barato.
-    const competitorWAs = compPrices
-      .filter((x) => x.comp !== yangoComp && x.wa > 0)
-      .map((x) => x.wa)
-    const compAvg =
-      competitorWAs.length > 0
-        ? competitorWAs.reduce((s, v) => s + v, 0) / competitorWAs.length
-        : null
+    // Delta de Yango vs el rival más barato del período — no el promedio de
+    // todos los rivales (decisión del user 2026-08-29: "vs Top" debe medir
+    // qué tan lejos está Yango del competidor más agresivo en precio, no una
+    // foto borrosa del mercado en general). compPrices ya viene ordenado
+    // ascendente por wa, así que el primer no-Yango con precio real ES el
+    // rival más barato.
+    // > 0 → Yango está más caro que ese rival. < 0 → Yango está más barato.
+    const rivalEntries = compPrices.filter((x) => x.comp !== yangoComp && x.wa > 0)
+    const cheapestRival = rivalEntries.length > 0 ? rivalEntries[0] : null
     const yangoVsCompAvgPct =
-      yangoWA != null && compAvg != null && compAvg > 0
-        ? ((yangoWA - compAvg) / compAvg) * 100
+      yangoWA != null && cheapestRival != null && cheapestRival.wa > 0
+        ? ((yangoWA - cheapestRival.wa) / cheapestRival.wa) * 100
         : null
-    const yangoVsCompCount = competitorWAs.length
+    const yangoVsCompRivalName = cheapestRival?.comp ?? null
 
     const lastPeriodLabel = periods[periods.length - 1]?.label || '—'
     const prevKey = periods[periods.length - 2]?.key ?? null
@@ -380,8 +380,7 @@ function DashboardContent() {
       yangoCoverage,
       yangoEmptyBrackets,
       yangoVsCompAvgPct,
-      yangoVsCompCount,
-      compAvg,
+      yangoVsCompRivalName,
     }
   }, [periods, priceMatrix, sampleMatrix, filters.compareVs, filters.competitors])
 
@@ -726,8 +725,12 @@ function DashboardContent() {
                   : Math.abs(kpis.yangoVsCompAvgPct) < 0.5
                     ? t('dashboard.kpi.vs_comp_avg.aligned')
                     : kpis.yangoVsCompAvgPct > 0
-                      ? `${t('dashboard.kpi.vs_comp_avg.more_expensive')} (${kpis.yangoVsCompCount} comp.)`
-                      : `${t('dashboard.kpi.vs_comp_avg.cheaper')} (${kpis.yangoVsCompCount} comp.)`}
+                      ? t('dashboard.kpi.vs_comp_avg.more_expensive', {
+                          rival: prettyCompetitor(kpis.yangoVsCompRivalName),
+                        })
+                      : t('dashboard.kpi.vs_comp_avg.cheaper', {
+                          rival: prettyCompetitor(kpis.yangoVsCompRivalName),
+                        })}
               </div>
             </div>
             <div
@@ -950,6 +953,7 @@ function DashboardContent() {
                   events={marketEvents}
                   semaforoBands={dbSemaforo}
                   frozenWeeks={frozenWeeks}
+                  staleWeeks={staleWeeks}
                   loading={loading}
                   viewMode={filters.viewMode}
                   categoryLabel={filters.dbCategory}

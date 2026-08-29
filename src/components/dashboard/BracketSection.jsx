@@ -36,6 +36,7 @@ import {
   Pin,
   Camera,
   Lock,
+  Clock,
 } from 'lucide-react'
 
 const SAMPLE_LOW = 30
@@ -149,6 +150,7 @@ function BracketSection({
   currency = '',
   semaforoBands = [],
   frozenWeeks,
+  staleWeeks,
   loading = false,
   viewMode = 'weekly',
   categoryLabel = '',
@@ -579,6 +581,7 @@ function BracketSection({
                       {periods.map((p, i) => {
                         const isPinned = pinnedPeriods.has(p.key)
                         const isFrozen = frozenWeeks?.has(p.key)
+                        const isStale = !isFrozen && staleWeeks?.has(p.key)
                         const isSort = sortConfig?.periodKey === p.key
                         return (
                           <th
@@ -599,6 +602,7 @@ function BracketSection({
                             style={{
                               cursor: 'pointer',
                               ...(isFrozen ? { background: '#eef2ff', color: '#4338ca' } : {}),
+                              ...(isStale ? { background: '#fff7ed', color: '#c2410c' } : {}),
                               ...(isSort ? { background: '#fef3c7' } : {}),
                               ...(isPinned ? { borderBottom: '2px solid #E53935' } : {}),
                               ...(isWaCutoffCol(p, i) ? { borderLeft: '2px solid #f59e0b' } : {}),
@@ -608,7 +612,9 @@ function BracketSection({
                                 ? `Desde esta semana: Promedio Simple (antes, Ponderado)`
                                 : isFrozen
                                   ? t('dashboard.frozen_period')
-                                  : undefined
+                                  : isStale
+                                    ? t('dashboard.stale_period')
+                                    : undefined
                             }
                           >
                             <span
@@ -621,6 +627,15 @@ function BracketSection({
                             >
                               {isFrozen ? (
                                 <Lock
+                                  size={10}
+                                  style={{
+                                    display: 'inline',
+                                    verticalAlign: '-1px',
+                                    marginRight: 2,
+                                  }}
+                                />
+                              ) : isStale ? (
+                                <Clock
                                   size={10}
                                   style={{
                                     display: 'inline',

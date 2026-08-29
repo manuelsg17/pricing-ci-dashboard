@@ -280,6 +280,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     chartData,
     deltaChartData,
     periods,
+    staleWeeks,
   } = useMemo(() => {
     const empty = {
       priceMatrix: {},
@@ -290,6 +291,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       chartData: {},
       deltaChartData: {},
       periods: [],
+      staleWeeks: new Set(),
     }
     if (!rawRows.length && !frozenRows.length) {
       return empty
@@ -354,6 +356,34 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
         label: formatDayLabel(d, locale),
         date: d,
       }))
+    }
+
+    // ── Frescura de la última columna visible ───────────────────────────
+    // Con week_start_date corregido a lunes de calendario (mig 226),
+    // last_observed_date (viene del RPC) dice cuándo llegó el dato MÁS
+    // RECIENTE que compone esa celda. Solo nos importa para la ÚLTIMA
+    // columna visible: una semana pasada ya cerró, marcarla "desactualizada"
+    // no tendría sentido — el corte natural de esa semana ES su último día.
+    // Si el bot viene atrasado, es la columna vigente la que lo delata.
+    const STALE_DAYS_THRESHOLD = 4
+    const staleWeeks = new Set()
+    if (f_viewMode === 'weekly' || f_viewMode === 'historic') {
+      const lastPeriod = periods[periods.length - 1]
+      if (lastPeriod) {
+        let maxObserved = null
+        for (const row of rawRows) {
+          if (row.year !== lastPeriod.year || row.week !== lastPeriod.week) continue
+          if (row.last_observed_date && (!maxObserved || row.last_observed_date > maxObserved)) {
+            maxObserved = row.last_observed_date
+          }
+        }
+        if (maxObserved) {
+          const daysBehind = Math.round(
+            (Date.parse(toISODate(new Date())) - Date.parse(maxObserved)) / 86400000
+          )
+          if (daysBehind > STALE_DAYS_THRESHOLD) staleWeeks.add(lastPeriod.key)
+        }
+      }
     }
 
     // Agrupar: competitor → period → bracket → { avgPrice, count }
@@ -555,6 +585,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
       chartData,
       deltaChartData,
       periods,
+      staleWeeks,
     }
   }, [
     rawRows,
@@ -586,6 +617,7 @@ export function usePricingData(filters, dbWeights, locale = 'es-PE', dbSemaforo 
     chartData,
     deltaChartData,
     periods,
+    staleWeeks,
     frozenWeeks,
     frozenIgnoresFilters,
   }
