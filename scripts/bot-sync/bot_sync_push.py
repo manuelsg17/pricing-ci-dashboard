@@ -198,6 +198,8 @@ CATEGORY_NORMALIZE = {
 # tenga su propio set de reglas sin tocar este script. Ver load_bot_rules().
 # El array global se llena en main() después de leer BOT_SYNC_COUNTRY.
 BOT_RULES = []
+# None = guard de ciudad desconocida desactivado (country_config ilegible).
+KNOWN_CITIES = None
 
 # AIRPORT_MARKERS se carga desde la tabla airport_markers (mig 78). Cada
 # marker mapea (country, base_city) → (city_from, city_to, keywords[]) y
@@ -357,6 +359,48 @@ def load_airport_markers(country):
             'zone_to_value':    (r.get('zone_to_value')   or '').strip() or None,
         })
     return markers
+
+
+def load_known_cities(country):
+    """
+    Ciudades reconocidas del país según country_config.cities (dbName), más
+    los destinos de aeropuerto (city_from/city_to de airport_markers).
+
+    GUARD "ciudad desconocida" (2026-08-29): el sync NO tiene lista blanca de
+    ciudades — normalize_city() deja pasar tal cual cualquier nombre que
+    mande la fuente. Caso real: Chía acumuló ~90k filas durante 4 MESES sin
+    estar en country_config — la data entraba bien pero era invisible en el
+    dashboard (ningún selector la ofrecía) y nadie lo notó hasta una
+    auditoría manual. Este guard no la habría bloqueado (bloquear data
+    legítima sería peor), pero la habría hecho visible en bot_sync_log.notes
+    desde la primera corrida.
+
+    Devuelve None si country_config no se pudo leer (guard desactivado esa
+    corrida — mejor sin chequeo que un falso "todo desconocido").
+    """
+    try:
+        res = requests.get(
+            f'{SUPABASE_URL}/rest/v1/country_config',
+            headers=sb_headers(),
+            params={'country_key': f'eq.{country}', 'select': 'cities'},
+            timeout=20,
+        )
+        res.raise_for_status()
+        rows = res.json() or []
+    except Exception as e:
+        print(f"[load_known_cities] error: {e}", file=sys.stderr)
+        return None
+    if not rows:
+        return None
+    known = set()
+    for c in (rows[0].get('cities') or []):
+        if c.get('dbName'):
+            known.add(c['dbName'])
+    for m in AIRPORT_MARKERS:
+        for k in ('city_from', 'city_to', 'base_city'):
+            if m.get(k):
+                known.add(m[k])
+    return known or None
 
 
 def resolve_airport_route(db_city, point_a, point_b, raw_zone=None):
@@ -558,6 +602,70 @@ def _build_dropped_combos(tracker, top_n=30):
     ]
 
 
+def _detectar_escala_sospechosa(accepted, umbral=8.0, min_muestras=3):
+    """
+    GUARD "escala/moneda rota" (2026-08-29): alerta cuando el precio promedio
+    de un competidor difiere >umbral× de la mediana de su propia
+    ciudad+categoría dentro del batch.
+
+    Caso real que lo motiva: InDrive en Bogotá/Cali entró meses en una
+    escala ~1000× menor que Yango/Uber/Didi de las mismas ciudades (12.73 vs
+    17.824 — USD vs pesos, o factor /1000; la fuente nunca lo aclaró). El
+    100% de esas filas estaba roto y nadie lo notó hasta que un pct_diff de
+    1.499.004% apareció en una MV. Hubo que excluirlas a posteriori
+    (mig 223); este guard lo habría mostrado en la PRIMERA corrida.
+
+    Umbral 8×: los spreads legítimos entre competidores rondan 1.1-1.7×
+    (peor caso observado: Didi +68% vs Yango); un error de moneda/escala es
+    ≥10×. min_muestras=3 evita alertar por una cotización suelta.
+
+    SOLO OBSERVA — nunca descarta: un falso positivo que bloquee data
+    legítima es peor que una alerta de más. La fila entra igual; la alerta
+    va a bot_sync_log.notes.escala_sospechosa.
+    """
+    from statistics import median
+    por_grupo = {}
+    for row in accepted:
+        p = row.get('price_without_discount')
+        if p is None:
+            p = row.get('recommended_price')
+        if p is None or p <= 0:
+            continue
+        clave = (row['city'], row['category'])
+        por_grupo.setdefault(clave, {}).setdefault(
+            row['competition_name'], []).append(float(p))
+
+    alertas = []
+    for (city, cat), comps in por_grupo.items():
+        avgs = {c: sum(v) / len(v) for c, v in comps.items()
+                if len(v) >= min_muestras}
+        if len(avgs) < 2:
+            continue  # sin otro competidor no hay contra qué comparar
+        med = median(avgs.values())
+        if med <= 0:
+            continue
+        for comp, avg in avgs.items():
+            ratio = avg / med
+            if ratio > umbral or ratio < 1.0 / umbral:
+                # _severidad va SIN redondear: un ratio de 0.0006 (caso
+                # InDrive-Colombia real) redondeado a 2 decimales da 0.0 y
+                # 1/0 revienta el sort — bug cazado por el test sintético.
+                alertas.append({
+                    'city':           city,
+                    'category':       cat,
+                    'competitor':     comp,
+                    'avg_competidor': round(avg, 2),
+                    'mediana_ciudad': round(med, 2),
+                    'ratio':          round(ratio, 4),
+                    'n':              len(comps[comp]),
+                    '_severidad':     max(ratio, 1.0 / ratio),
+                })
+    alertas.sort(key=lambda a: a['_severidad'], reverse=True)
+    for a in alertas:
+        del a['_severidad']
+    return alertas[:10]
+
+
 def find_threshold(rules, city, category, comp):
     for r in rules:
         if r['city'] == city and r['category'] == category and r['competition'] == comp:
@@ -595,7 +703,7 @@ def main():
         time.sleep(jitter)
 
     # Cargar BOT_RULES desde Supabase (data-driven multi-país)
-    global BOT_RULES, AIRPORT_MARKERS, AIRPORT_ZONES_BY_KEY, MEDIUM_MEANS
+    global BOT_RULES, AIRPORT_MARKERS, AIRPORT_ZONES_BY_KEY, MEDIUM_MEANS, KNOWN_CITIES
 
     # 'medium' significa cosas distintas segun el simulador de cada pais —
     # ver MEDIUM_MEANS_BY_COUNTRY arriba. Se loguea para que quede en el
@@ -624,6 +732,16 @@ def main():
     print(f"✓ Loaded {len(AIRPORT_MARKERS)} airport markers for country={country} "
           f"(zonas de aeropuerto: {sorted(AIRPORT_ZONES_BY_KEY.values()) or 'ninguna'})",
           file=sys.stderr)
+
+    # Guard "ciudad desconocida" — depende de AIRPORT_MARKERS ya cargados.
+    global KNOWN_CITIES
+    KNOWN_CITIES = load_known_cities(country)
+    if KNOWN_CITIES is None:
+        print("⚠ country_config ilegible — guard de ciudad desconocida "
+              "desactivado esta corrida", file=sys.stderr)
+    else:
+        print(f"✓ {len(KNOWN_CITIES)} ciudades reconocidas para "
+              f"country={country}", file=sys.stderr)
 
     # Identificador de la conexión en pg_stat_activity del helioho — clave
     # para debug cuando hay saturación de slots.
@@ -692,6 +810,10 @@ def main():
     # ni son TukTuk. Antes se anulaban en silencio y era imposible saber si
     # el simulador no mandó nada o mandó algo mal escrito.
     zonas_desconocidas = Counter()
+    # Ciudades que la fuente manda y country_config no lista (guard Chía,
+    # 2026-08-29). La fila ENTRA igual — el problema a cazar es la
+    # invisibilidad en el dashboard, no el dato en sí.
+    ciudades_desconocidas = Counter()
     # Tracker de combos descartados: key=(reason, app, vc, ovc, db_city) → n.
     # Va a notes.dropped_combos al final para que el UI muestre QUÉ se tiró.
     # Reasons posibles:
@@ -704,6 +826,10 @@ def main():
     #   no_price     — ni price_regular_value ni price_discounted_value
     #   outlier      — supera max_price de price_validation_rules (no es dropped en stats pero lo logueamos igual)
     dropped_tracker: Counter = Counter()
+    # Inicializada ANTES del try: el camino de error también la referencia
+    # (notes.escala_sospechosa) — si el SELECT inicial revienta, un
+    # NameError acá enmascararía el error real de la corrida.
+    accepted = []
 
     try:
         # Filtros de la query: status='ok' + business_unit='ridehailing' +
@@ -811,6 +937,10 @@ def main():
             db_city = resolve_airport_route(
                 db_city, point_a, point_b, raw.get('zone')
             )
+
+            # Guard "ciudad desconocida": alerta, nunca descarta.
+            if KNOWN_CITIES is not None and db_city not in KNOWN_CITIES:
+                ciudades_desconocidas[db_city] += 1
 
             # Resolver regla del bot
             name, category = resolve_rule(
@@ -1013,6 +1143,17 @@ def main():
         notes['zonas_desconocidas'] = [
             {'zona': k, 'n': n} for k, n in zonas_desconocidas.most_common(20)
         ]
+        # Guard Chía (2026-08-29): ciudades que la fuente manda y
+        # country_config no lista. La data ENTRÓ igual — pero es invisible
+        # en el dashboard hasta que alguien la agregue a country_config.
+        notes['ciudades_desconocidas'] = [
+            {'ciudad': k, 'n': n}
+            for k, n in ciudades_desconocidas.most_common(10)
+        ]
+        # Guard InDrive-Colombia (2026-08-29): competidores cuyo precio
+        # promedio difiere >8x de la mediana de su ciudad+categoría en este
+        # batch — patrón típico de moneda/escala rota en la fuente.
+        notes['escala_sospechosa'] = _detectar_escala_sospechosa(accepted)
         update_log(log_id,
                    status='ok',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
@@ -1036,6 +1177,17 @@ def main():
         notes['zonas_desconocidas'] = [
             {'zona': k, 'n': n} for k, n in zonas_desconocidas.most_common(20)
         ]
+        # Guard Chía (2026-08-29): ciudades que la fuente manda y
+        # country_config no lista. La data ENTRÓ igual — pero es invisible
+        # en el dashboard hasta que alguien la agregue a country_config.
+        notes['ciudades_desconocidas'] = [
+            {'ciudad': k, 'n': n}
+            for k, n in ciudades_desconocidas.most_common(10)
+        ]
+        # Guard InDrive-Colombia (2026-08-29): competidores cuyo precio
+        # promedio difiere >8x de la mediana de su ciudad+categoría en este
+        # batch — patrón típico de moneda/escala rota en la fuente.
+        notes['escala_sospechosa'] = _detectar_escala_sospechosa(accepted)
         update_log(log_id,
                    status='error',
                    finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
