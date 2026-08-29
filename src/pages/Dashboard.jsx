@@ -15,7 +15,6 @@ const EMPTY_ARR = Object.freeze([])
 import DashboardLegend from '../components/dashboard/DashboardLegend'
 import WowCallouts from '../components/dashboard/WowCallouts'
 import BotCoverageCard from '../components/dashboard/BotCoverageCard'
-import RepresentativityCard from '../components/dashboard/RepresentativityCard'
 import WhatIfSimulator from '../components/dashboard/WhatIfSimulator'
 import AnomalyDigestCompact from '../components/dashboard/AnomalyDigestCompact'
 import OpsAlertsPanel from '../components/dashboard/OpsAlertsPanel'
@@ -327,7 +326,6 @@ function DashboardContent() {
       .sort((a, b) => a.wa - b.wa)
 
     const leader = compPrices[0] || null
-    const yangoRank = yangoWA != null ? compPrices.findIndex((x) => x.comp === yangoComp) + 1 : null
 
     // Delta de Yango vs el rival más barato del período — no el promedio de
     // todos los rivales (decisión del user 2026-08-29: "vs Top" debe medir
@@ -371,8 +369,6 @@ function DashboardContent() {
     return {
       yangoWA,
       leader,
-      yangoRank,
-      total: compPrices.length,
       lastPeriodLabel,
       wowDelta,
       yangoLeaderPct,
@@ -550,8 +546,10 @@ function DashboardContent() {
       {/* ── Frescura de la data del bot (semáforo + matriz ciudad×bracket) ── */}
       <BotCoverageCard />
 
-      {/* ── Representatividad de la data (muestras suficientes: bot vs apps) ── */}
-      <RepresentativityCard />
+      {/* Representatividad de la data: sacada del Dashboard el 2026-08-29 a
+          pedido del user ("no entiendo cómo usarlo, no lo uso"). NO se borró:
+          sigue viva en Monitoreo, que es donde corresponde una métrica de
+          calidad de datos — el Dashboard es la vista que se presenta. */}
 
       {/* ── Barra de herramientas (acciones) + KPI Bar ── */}
       {!loading && kpis && (
@@ -751,14 +749,10 @@ function DashboardContent() {
                 {kpis.leader ? `${currency} ${kpis.leader.wa.toFixed(2)}` : ''}
               </div>
             </div>
-            <div className="kpi-card">
-              <div className="kpi-card__label">{t('dashboard.kpi.yango_position')}</div>
-              <div className="kpi-card__value">
-                {kpis.yangoRank != null
-                  ? `${kpis.yangoRank}º ${t('dashboard.kpi.position_of')} ${kpis.total}`
-                  : '—'}
-              </div>
-            </div>
+            {/* "Posición Yango" (Nº de N) removida el 2026-08-29 a pedido del
+                user. El ranking crudo no se usaba: "% Yango líder" ya dice qué
+                tan seguido Yango es el más barato, y "Yango vs Top" por cuánto
+                queda arriba o abajo del rival más agresivo. */}
             <div className="kpi-card">
               <div className="kpi-card__label">{t('dashboard.kpi.data_as_of')}</div>
               <div className="kpi-card__value kpi-card__value--sm">{kpis.lastPeriodLabel}</div>
