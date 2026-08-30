@@ -33,6 +33,7 @@ const BotVsHubs = lazyConReintento(() => import('./pages/BotVsHubs'), 'botvshubs
 const Market = lazyConReintento(() => import('./pages/Market'), 'market')
 const Coverage = lazyConReintento(() => import('./pages/Coverage'), 'coverage')
 const Competitividad = lazyConReintento(() => import('./pages/Competitividad'), 'competitividad')
+const RouteMonitor = lazyConReintento(() => import('./pages/RouteMonitor'), 'routemonitor')
 const Monitoring = lazyConReintento(() => import('./pages/Monitoring'), 'monitoring')
 
 // Tabla ruta → componente + sección de permisos requerida. Reemplaza la
@@ -50,6 +51,10 @@ const ROUTES = [
   { path: 'market', Component: Market, section: 'market' },
   { path: 'coverage', Component: Coverage, section: 'coverage' },
   { path: 'competitividad', Component: Competitividad, section: 'competitividad' },
+  // Reusa la sección `competitividad` a propósito: es análisis competitivo, y
+  // una sección nueva obligaría al user a concederla a mano en Accesos antes
+  // de que la pantalla sirva de algo (ya pasó con `projects`).
+  { path: 'routemonitor', Component: RouteMonitor, section: 'competitividad' },
   { path: 'events', Component: MarketEvents, section: 'events' },
   { path: 'rawdata', Component: RawData, section: 'rawdata' },
   { path: 'botvshubs', Component: BotVsHubs, section: 'botvshubs' },

@@ -686,7 +686,10 @@ export default function Rentabilidad() {
       <CollapsibleSection
         id="rent-archetype"
         title={t('rentabilidad.archetype')}
-        subtitle={`${archetype.segment} · ${Math.round(archetype.sharePeak * 100)}% en pico · racha ${archetype.streakDays}/7`}
+        subtitle={`${archetype.segment} · ${t('rentabilidad.archetype_meta', {
+          peak: Math.round(archetype.sharePeak * 100),
+          streak: archetype.streakDays,
+        })}`}
         defaultOpen={false}
       >
         <div

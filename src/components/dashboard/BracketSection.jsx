@@ -621,7 +621,7 @@ function BracketSection({
                             }}
                             title={
                               isWaCutoffCol(p, i)
-                                ? `Desde esta semana: Promedio Simple (antes, Ponderado)`
+                                ? t('dashboard.wa_cutoff_tooltip')
                                 : isFrozen
                                   ? t('dashboard.frozen_period')
                                   : isStale

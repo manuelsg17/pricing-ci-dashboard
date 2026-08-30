@@ -17,6 +17,7 @@ const getNav = (t) => [
     children: [
       { id: 'market', label: t('nav.market') },
       { id: 'competitividad', label: t('nav.competitividad') },
+      { id: 'routemonitor', label: t('nav.routemonitor') },
       { id: 'earnings', label: t('nav.earnings') },
       { id: 'rentabilidad', label: t('nav.rentabilidad') },
       { id: 'report', label: t('nav.report') },
