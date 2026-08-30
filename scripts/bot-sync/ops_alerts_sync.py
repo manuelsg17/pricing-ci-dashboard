@@ -199,10 +199,75 @@ def main():
                 f'Upsert chunk {i}: HTTP {res.status_code} → {res.text[:300]}')
         upserted += len(chunk)
 
-    abiertas = sum(1 for r in payload if not r['resolved'])
-    problems = sum(1 for r in payload if not r['resolved'] and r['severity'] == 'problem')
+    # ── Supersede: el ciclo más nuevo REEMPLAZA a los anteriores ─────────
+    # El watchdog re-reporta los problemas VIGENTES en cada ciclo (verificado
+    # en prod 2026-08-29: "emulator con 173MB/178MB/179MB/182MB libres" son la
+    # MISMA condición medida en 4 ciclos distintos). Sin esto, cada ciclo
+    # suma una alerta casi idéntica y el panel se llena de duplicados
+    # (pedido del user: "que se reemplacen, no se acumulen").
+    #
+    # Regla: por cada source, toda alerta ABIERTA más vieja que el último
+    # ciclo se auto-resuelve. "Mismo ciclo" se define con una tolerancia de
+    # 5 minutos porque un ciclo inserta sus alertas con timestamps levemente
+    # distintos (observado en prod: 16s de dispersión entre 8 alertas del
+    # ciclo de las 12:57) — sin la tolerancia, la última hermana del ciclo
+    # mataría a las anteriores. Los ciclos reales van ≥30 min aparte.
+    #
+    # Solo toca filas con resolved=false (el filtro del PATCH), así que jamás
+    # pisa una resolución hecha por un usuario desde el panel.
+    #
+    # Limitación conocida y aceptada: si el watchdog pasa a estar 100% sano
+    # (deja de reportar), el último ciclo queda abierto hasta que alguien lo
+    # resuelva a mano — desde este lado no se puede distinguir "silencio
+    # porque está todo bien" de "el watchdog murió".
+    TOLERANCIA_MISMO_CICLO = dt.timedelta(minutes=5)
+    ultimo_ciclo = {}
+    for r in remote_rows:
+        ts = r.get('created_at_utc')
+        if ts is None:
+            continue
+        src = r.get('source') or ''
+        if src not in ultimo_ciclo or ts > ultimo_ciclo[src]:
+            ultimo_ciclo[src] = ts
+
+    reemplazadas = 0
+    for src, ts in ultimo_ciclo.items():
+        corte = (ts - TOLERANCIA_MISMO_CICLO).isoformat()
+        res = requests.patch(
+            f'{SUPABASE_URL}/rest/v1/ops_alerts',
+            headers=sb_headers({'Prefer': 'return=representation'}),
+            params={
+                'resolved': 'eq.false',
+                'source': f'eq.{src}',
+                'created_at_utc': f'lt.{corte}',
+                'select': 'id',
+            },
+            json={
+                'resolved': True,
+                'resolved_at': now_iso,
+                'resolved_by': 'watchdog (reemplazada por un ciclo más nuevo)',
+            },
+            timeout=30,
+        )
+        if not res.ok:
+            raise RuntimeError(
+                f'Supersede source={src}: HTTP {res.status_code} → {res.text[:300]}')
+        reemplazadas += len(res.json())
+
+    # Conteo final desde la base (no desde el payload): el supersede de arriba
+    # acaba de cerrar filas, así que el payload ya no refleja la verdad.
+    res = requests.get(
+        f'{SUPABASE_URL}/rest/v1/ops_alerts',
+        headers=sb_headers(),
+        params={'select': 'severity', 'resolved': 'eq.false'},
+        timeout=30,
+    )
+    finales = res.json() if res.ok else []
+    abiertas = len(finales)
+    problems = sum(1 for r in finales if r.get('severity') == 'problem')
     print(f'✓ ops_alerts: {upserted} sincronizadas '
-          f'({abiertas} abiertas, {problems} de severidad problem). '
+          f'({abiertas} abiertas, {problems} de severidad problem, '
+          f'{reemplazadas} reemplazadas por un ciclo más nuevo). '
           f'Remotas totales: {remote_total}.')
 
 
