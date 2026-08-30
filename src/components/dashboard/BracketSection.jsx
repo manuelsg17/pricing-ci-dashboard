@@ -151,6 +151,7 @@ function BracketSection({
   semaforoBands = [],
   frozenWeeks,
   staleWeeks,
+  incidentMarks,
   loading = false,
   viewMode = 'weekly',
   categoryLabel = '',
@@ -513,7 +514,8 @@ function BracketSection({
                 <span style={{ background: '#dcfce7', padding: '0 4px', borderRadius: 3 }}>
                   ≥{SAMPLE_MED}
                 </span>{' '}
-                {t('samples.legend_high')}
+                {t('samples.legend_high')} · <span className="cell-incident cell-incident--chip" />{' '}
+                {t('samples.legend_incident')}
               </div>
               <table className="matrix-table" style={{ fontSize: 11 }}>
                 <thead>
@@ -545,17 +547,27 @@ function BracketSection({
                       <td className="col-label">{compBadge(comp)}</td>
                       {periods.map((p) => {
                         const n = getSampleCount(comp, p.key)
+                        const incidentReason = !n && incidentMarks?.[comp]?.[p.key]
                         return (
                           <td
                             key={p.key}
                             style={{
-                              background: sampleBg(n),
+                              background: incidentReason ? undefined : sampleBg(n),
                               color: sampleColor(n),
                               fontWeight: 600,
                               textAlign: 'center',
                             }}
                           >
-                            {n || '—'}
+                            {incidentReason ? (
+                              <FastTooltip content={incidentReason}>
+                                <span
+                                  className="cell-incident"
+                                  aria-label={t('dashboard.incident_cell')}
+                                />
+                              </FastTooltip>
+                            ) : (
+                              n || '—'
+                            )}
                           </td>
                         )
                       })}
@@ -706,6 +718,16 @@ function BracketSection({
                                 </>
                               ) : loading ? (
                                 <span className="skel-cell" />
+                              ) : incidentMarks?.[comp]?.[p.key] ? (
+                                /* ▨ sin data por FALLA DEL SISTEMA (mig 229):
+                                   distinto del "—" normal a propósito — el
+                                   motivo real viene de data_incidents. */
+                                <FastTooltip content={incidentMarks[comp][p.key]}>
+                                  <span
+                                    className="cell-incident"
+                                    aria-label={t('dashboard.incident_cell')}
+                                  />
+                                </FastTooltip>
                               ) : (
                                 <FastTooltip content={t('dashboard.table.cell_no_data')}>
                                   <span className="cell-empty">—</span>

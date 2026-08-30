@@ -22,19 +22,11 @@ import { prettyCompetitor, rivalsOf } from '../lib/normalize'
 import { useI18n } from '../context/LanguageContext'
 import { useFilterContext } from '../context/FilterContext'
 import { useConfigContext } from '../context/ConfigProvider'
-import HeadToHeadView from '../components/dashboard/HeadToHeadView'
-import AdvancedAnalyticsView from '../components/dashboard/AdvancedAnalyticsView'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '../components/ui/shadcn/sheet'
 import { BRACKETS } from '../lib/constants'
 import { SIMPLE_AVG_SINCE } from '../algorithms/weightedAverage'
 import { Button } from '../components/ui/shadcn/button'
-import { isoWeekMonday } from '../lib/dateUtils'
+import { isoWeekMonday, toISODate } from '../lib/dateUtils'
+import { useDataIncidents } from '../hooks/useDataIncidents'
 import { useCountry } from '../context/CountryContext'
 import { SkeletonDashboard } from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
@@ -42,8 +34,6 @@ import SectionErrorBoundary from '../components/ui/SectionErrorBoundary'
 import { humanizeError } from '../lib/humanizeError'
 import { escapeCsvCell } from '../lib/csvSafety'
 import {
-  Swords,
-  LineChart as LineChartIcon,
   SlidersHorizontal,
   Download,
   ChevronDown,
@@ -138,15 +128,46 @@ function DashboardContent() {
     staleWeeks,
   } = usePricingData(filters, dbWeights, locale, dbSemaforo)
 
+  // ── Marcas de "sin data por falla del sistema" (mig 229) ────────────────
+  // Precalculado UNA vez acá (comp → periodKey → motivo) y pasado a los
+  // BracketSection como lookup O(1): la marca no depende del bracket, y
+  // calcularla dentro de cada tabla repetiría el cruce 18 veces (§5, la
+  // grilla es sensible a re-renders).
+  const incidents = useDataIncidents(filters.country)
+  const incidentMarks = useMemo(() => {
+    if (!incidents.length || !periods.length) return null
+    const marks = {}
+    for (const p of periods) {
+      // Rango de fechas del período: un día exacto (vista diaria) o
+      // lunes→domingo ISO (semanal/histórica).
+      let from, to
+      if (p.date) {
+        from = to = p.date
+      } else {
+        const monday = isoWeekMonday(p.year, p.week)
+        const sunday = new Date(monday)
+        sunday.setDate(monday.getDate() + 6)
+        from = toISODate(monday)
+        to = toISODate(sunday)
+      }
+      for (const inc of incidents) {
+        if (inc.city && inc.city !== filters.dbCity) continue
+        if (inc.date_from > to || inc.date_to < from) continue
+        for (const comp of filters.competitors) {
+          if (inc.competitor && inc.competitor !== comp) continue
+          if (!marks[comp]) marks[comp] = {}
+          // Si dos incidentes tocan la misma celda, gana el primero — con
+          // un solo motivo visible alcanza para explicar el hueco.
+          if (!marks[comp][p.key]) marks[comp][p.key] = inc.reason
+        }
+      }
+    }
+    return Object.keys(marks).length ? marks : null
+  }, [incidents, periods, filters.dbCity, filters.competitors])
+
   // ── What-if simulator: aplica un % a Yango y recalcula deltas/charts ────
   const [simEnabled, setSimEnabled] = useState(false)
   const [simPct, setSimPct] = useState(0)
-
-  // ── Sprint 2.5: Head-to-Head 1:1 sheet (Yango vs un competidor) ────
-  const [h2hOpen, setH2hOpen] = useState(false)
-
-  // ── Sprint 2.6: Analytics avanzados sheet (Leadership + Position) ────
-  const [analyticsOpen, setAnalyticsOpen] = useState(false)
 
   // Dropdown de exportar (PNG/CSV/PDF) en la barra de herramientas
   const [exportOpen, setExportOpen] = useState(false)
@@ -554,25 +575,12 @@ function DashboardContent() {
       {/* ── Barra de herramientas (acciones) + KPI Bar ── */}
       {!loading && kpis && (
         <>
+          {/* Head-to-Head y Analytics removidos el 2026-08-30 a pedido del
+              user ("no los uso para nada, no me dan un plus"). Los componentes
+              (HeadToHeadView/AdvancedAnalyticsView) quedan en el repo
+              desconectados — Vite no los incluye en el bundle si nadie los
+              importa, y volver a enchufarlos es revertir este commit. */}
           <div className="dash-toolbar">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-sky-200 text-sky-800 hover:bg-sky-50"
-              onClick={() => setH2hOpen(true)}
-              title={t('dashboard.h2h_tooltip')}
-            >
-              <Swords size={14} style={{ color: '#0284c7' }} /> Head-to-Head
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-green-200 text-green-700 hover:bg-green-50"
-              onClick={() => setAnalyticsOpen(true)}
-              title={t('dashboard.analytics_tooltip')}
-            >
-              <LineChartIcon size={14} style={{ color: '#16a34a' }} /> Analytics
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -955,6 +963,7 @@ function DashboardContent() {
                   semaforoBands={dbSemaforo}
                   frozenWeeks={frozenWeeks}
                   staleWeeks={staleWeeks}
+                  incidentMarks={incidentMarks}
                   loading={loading}
                   viewMode={filters.viewMode}
                   categoryLabel={filters.dbCategory}
@@ -963,53 +972,6 @@ function DashboardContent() {
             </div>
           ))}
         </div>
-      )}
-
-      {/* Sprint 2.5: Sheet de Head-to-Head 1:1. Render condicional sólo
-          cuando hay data — evita errores en mount inicial sin filtros. */}
-      {!loading && priceMatrix && periods?.length > 0 && (
-        <Sheet open={h2hOpen} onOpenChange={setH2hOpen}>
-          <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{t('dashboard.h2h_title')}</SheetTitle>
-              <SheetDescription>
-                Compará Yango vs un competidor específico bracket por bracket. Best/worst
-                auto-resaltados.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-4">
-              <HeadToHeadView
-                priceMatrix={priceMatrix}
-                periods={periods}
-                competitors={filters.competitors}
-                compareVs={filters.compareVs}
-                currency={currency}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
-      )}
-
-      {/* Sprint 2.6: Sheet de Analytics avanzados (Leadership + Position) */}
-      {!loading && priceMatrix && periods?.length > 0 && (
-        <Sheet open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
-          <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{t('dashboard.analytics_title')}</SheetTitle>
-              <SheetDescription>
-                % liderazgo de Yango por bracket y evolución del ranking en el tiempo.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-4">
-              <AdvancedAnalyticsView
-                priceMatrix={priceMatrix}
-                periods={periods}
-                competitors={filters.competitors}
-                compareVs={filters.compareVs}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
       )}
     </div>
   )

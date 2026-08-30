@@ -608,6 +608,9 @@ export const TRANSLATIONS = {
     'samples.legend_low': 'poca data',
     'samples.legend_med': 'aceptable',
     'samples.legend_high': 'buena',
+    'samples.legend_incident': 'sin data por falla del sistema',
+    'dashboard.incident_cell':
+      'Sin data por una falla del sistema — pasá el cursor para ver el motivo',
     'samples.all_brackets_suffix': 'todos los tramos de distancia',
     'dashboard.drill.all_brackets': 'todos los brackets',
 
@@ -3152,6 +3155,8 @@ export const TRANSLATIONS = {
     'samples.legend_low': 'low data',
     'samples.legend_med': 'acceptable',
     'samples.legend_high': 'good',
+    'samples.legend_incident': 'no data due to a system failure',
+    'dashboard.incident_cell': 'No data due to a system failure — hover to see the reason',
     'samples.all_brackets_suffix': 'all distance brackets',
     'dashboard.drill.all_brackets': 'all brackets',
 
@@ -5677,6 +5682,9 @@ export const TRANSLATIONS = {
     'samples.legend_low': 'мало данных',
     'samples.legend_med': 'приемлемо',
     'samples.legend_high': 'хорошо',
+    'samples.legend_incident': 'нет данных из-за сбоя системы',
+    'dashboard.incident_cell':
+      'Нет данных из-за сбоя системы — наведите курсор, чтобы увидеть причину',
     'samples.all_brackets_suffix': 'все диапазоны расстояний',
     'dashboard.drill.all_brackets': 'все диапазоны',
 

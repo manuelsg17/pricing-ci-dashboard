@@ -911,3 +911,23 @@
     margin-left: auto;
   }
 }
+
+/* ── Celda "sin data por falla del sistema" (mig 229) ──────────────────────
+   Rayado diagonal: convención de "hueco de medición" — se distingue del "—"
+   (sin data normal) a simple vista. El motivo real está en el tooltip. */
+.cell-incident {
+  display: block;
+  width: 100%;
+  min-width: 34px;
+  min-height: 15px;
+  border-radius: 3px;
+  cursor: help;
+  background: repeating-linear-gradient(45deg, #f1f5f9 0 4px, #cbd5e1 4px 8px);
+}
+.cell-incident--chip {
+  display: inline-block;
+  width: 22px;
+  min-width: 22px;
+  min-height: 11px;
+  vertical-align: -1px;
+}
