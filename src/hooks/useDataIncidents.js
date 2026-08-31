@@ -14,7 +14,9 @@ export function useDataIncidents(country) {
     queryFn: async () => {
       const { data: rows, error } = await sb
         .from('data_incidents')
-        .select('city, competitor, date_from, date_to, reason')
+        // reason_code (no `reason`): el texto libre no es traducible y el
+        // tooltip debe seguir el idioma del dashboard (mig 231).
+        .select('city, competitor, date_from, date_to, reason_code')
         .eq('country', country)
       if (error) throw error
       return rows || []

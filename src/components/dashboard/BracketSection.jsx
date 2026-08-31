@@ -57,6 +57,23 @@ function sampleColor(n) {
 
 const IMPACT_COLORS = { alto: '#dc2626', medio: '#d97706', bajo: '#94a3b8' }
 
+// Motivo del incidente (mig 231): la BD guarda un CÓDIGO de vocabulario
+// cerrado y la traducción se hace acá, para que el tooltip siga el idioma
+// del dashboard. Un CHECK en la tabla impide códigos sin traducir, pero el
+// fallback existe igual: un bundle viejo contra una BD con un código nuevo
+// no debe mostrar la clave cruda al usuario.
+const INCIDENT_REASON_CODES = new Set([
+  'bot_no_capture',
+  'db_save_failure',
+  'device_disconnected',
+  'app_blocked',
+  'other',
+])
+function incidentReasonText(t, code) {
+  const key = INCIDENT_REASON_CODES.has(code) ? code : 'other'
+  return t(`dashboard.incident_reason.${key}`)
+}
+
 // #4 — trend arrow: only in last column
 function TrendArrow({ curr, prev }) {
   if (curr == null || prev == null) return null
@@ -559,7 +576,7 @@ function BracketSection({
                             }}
                           >
                             {incidentReason ? (
-                              <FastTooltip content={incidentReason}>
+                              <FastTooltip content={incidentReasonText(t, incidentReason)}>
                                 <span
                                   className="cell-incident"
                                   aria-label={t('dashboard.incident_cell')}
@@ -720,9 +737,12 @@ function BracketSection({
                                 <span className="skel-cell" />
                               ) : incidentMarks?.[comp]?.[p.key] ? (
                                 /* ▨ sin data por FALLA DEL SISTEMA (mig 229):
-                                   distinto del "—" normal a propósito — el
-                                   motivo real viene de data_incidents. */
-                                <FastTooltip content={incidentMarks[comp][p.key]}>
+                                   distinto del "—" normal a propósito. El
+                                   motivo es un CÓDIGO traducido acá (mig 231),
+                                   no texto de la BD — así sigue el idioma. */
+                                <FastTooltip
+                                  content={incidentReasonText(t, incidentMarks[comp][p.key])}
+                                >
                                   <span
                                     className="cell-incident"
                                     aria-label={t('dashboard.incident_cell')}

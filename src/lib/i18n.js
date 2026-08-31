@@ -640,6 +640,15 @@ export const TRANSLATIONS = {
     'samples.legend_med': 'aceptable',
     'samples.legend_high': 'buena',
     'samples.legend_incident': 'sin data por falla del sistema',
+    'dashboard.incident_reason.bot_no_capture':
+      'Sin data: el simulador no logró capturar precios en esta ventana.',
+    'dashboard.incident_reason.db_save_failure':
+      'Sin data: la información no llegó a guardarse en la base de datos.',
+    'dashboard.incident_reason.device_disconnected':
+      'Sin data: el teléfono o emulador que captura esta app estuvo desconectado.',
+    'dashboard.incident_reason.app_blocked':
+      'Sin data: la app bloqueó o limitó las consultas durante esta ventana.',
+    'dashboard.incident_reason.other': 'Sin data por una falla del sistema durante esta ventana.',
     'dashboard.incident_cell':
       'Sin data por una falla del sistema — pasá el cursor para ver el motivo',
     'samples.all_brackets_suffix': 'todos los tramos de distancia',
@@ -3219,6 +3228,15 @@ export const TRANSLATIONS = {
     'samples.legend_med': 'acceptable',
     'samples.legend_high': 'good',
     'samples.legend_incident': 'no data due to a system failure',
+    'dashboard.incident_reason.bot_no_capture':
+      'No data: the simulator failed to capture prices in this window.',
+    'dashboard.incident_reason.db_save_failure':
+      'No data: the information never made it into the database.',
+    'dashboard.incident_reason.device_disconnected':
+      'No data: the phone or emulator capturing this app was disconnected.',
+    'dashboard.incident_reason.app_blocked':
+      'No data: the app blocked or throttled queries during this window.',
+    'dashboard.incident_reason.other': 'No data due to a system failure during this window.',
     'dashboard.incident_cell': 'No data due to a system failure — hover to see the reason',
     'samples.all_brackets_suffix': 'all distance brackets',
     'dashboard.drill.all_brackets': 'all brackets',
@@ -5782,6 +5800,15 @@ export const TRANSLATIONS = {
     'samples.legend_med': 'приемлемо',
     'samples.legend_high': 'хорошо',
     'samples.legend_incident': 'нет данных из-за сбоя системы',
+    'dashboard.incident_reason.bot_no_capture':
+      'Нет данных: симулятор не смог собрать цены в этом окне.',
+    'dashboard.incident_reason.db_save_failure':
+      'Нет данных: информация не сохранилась в базе данных.',
+    'dashboard.incident_reason.device_disconnected':
+      'Нет данных: телефон или эмулятор, собирающий это приложение, был отключён.',
+    'dashboard.incident_reason.app_blocked':
+      'Нет данных: приложение заблокировало или ограничило запросы в этом окне.',
+    'dashboard.incident_reason.other': 'Нет данных из-за сбоя системы в этом окне.',
     'dashboard.incident_cell':
       'Нет данных из-за сбоя системы — наведите курсор, чтобы увидеть причину',
     'samples.all_brackets_suffix': 'все диапазоны расстояний',

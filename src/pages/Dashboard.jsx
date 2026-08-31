@@ -158,7 +158,8 @@ function DashboardContent() {
           if (!marks[comp]) marks[comp] = {}
           // Si dos incidentes tocan la misma celda, gana el primero — con
           // un solo motivo visible alcanza para explicar el hueco.
-          if (!marks[comp][p.key]) marks[comp][p.key] = inc.reason
+          // Se guarda el CÓDIGO; la traducción la hace la celda con t().
+          if (!marks[comp][p.key]) marks[comp][p.key] = inc.reason_code
         }
       }
     }
