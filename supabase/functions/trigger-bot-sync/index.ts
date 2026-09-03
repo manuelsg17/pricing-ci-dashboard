@@ -36,28 +36,44 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST')    return json(405, { error: 'Method not allowed' })
 
-  // Auth: solo admins pueden disparar el sync manualmente
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const authHeader = req.headers.get('Authorization') || ''
-  const jwt = authHeader.replace('Bearer ', '').trim()
-  const { data: { user: caller }, error: callerError } = await admin.auth.getUser(jwt)
-  if (callerError || !caller) return json(401, { error: 'No autorizado' })
 
-  // El flujo automático corre cada 30 min vía GitHub cron, así que el botón
-  // manual es power-user only. Sin este check, cualquier viewer podía
-  // gastar minutos de GitHub Actions con disparos repetidos (vector de DoS).
-  const { data: profile } = await admin
-    .from('user_profiles')
-    .select('is_active, roles(name)')
-    .eq('email', (caller.email || '').toLowerCase())
-    .maybeSingle()
-  const role = (profile as any)?.roles?.name as string | undefined
-  if (!profile || !profile.is_active || role !== 'admin') {
-    return json(403, { error: 'Solo los administradores pueden disparar el sync manualmente.' })
+  // Dos llamadores legítimos:
+  //   (a) pg_cron (mig 233): respaldo del cron de GitHub. Se identifica con el
+  //       header `x-cron-secret`, cuyo valor vive SOLO en Vault; se valida
+  //       contra la base con `cron_trigger_secret_matches` (service_role).
+  //   (b) un admin desde el dashboard (botón "Sincronizar ahora").
+  let callerLabel: string
+  const cronSecret = req.headers.get('x-cron-secret')
+  if (cronSecret) {
+    const { data: matches, error: rpcError } = await admin.rpc('cron_trigger_secret_matches', {
+      p_secret: cronSecret,
+    })
+    if (rpcError || matches !== true) return json(401, { error: 'No autorizado' })
+    callerLabel = 'pg_cron'
+  } else {
+    const authHeader = req.headers.get('Authorization') || ''
+    const jwt = authHeader.replace('Bearer ', '').trim()
+    const { data: { user: caller }, error: callerError } = await admin.auth.getUser(jwt)
+    if (callerError || !caller) return json(401, { error: 'No autorizado' })
+
+    // El flujo automático corre solo, así que el botón manual es power-user
+    // only. Sin este check, cualquier viewer podía gastar minutos de GitHub
+    // Actions con disparos repetidos (vector de DoS).
+    const { data: profile } = await admin
+      .from('user_profiles')
+      .select('is_active, roles(name)')
+      .eq('email', (caller.email || '').toLowerCase())
+      .maybeSingle()
+    const role = (profile as any)?.roles?.name as string | undefined
+    if (!profile || !profile.is_active || role !== 'admin') {
+      return json(403, { error: 'Solo los administradores pueden disparar el sync manualmente.' })
+    }
+    callerLabel = caller.email || 'admin'
   }
 
   // Inputs
@@ -106,7 +122,7 @@ Deno.serve(async (req) => {
       ok: true,
       mode: probeOnly ? 'probe' : 'sync',
       limit,
-      caller: caller.email,
+      caller: callerLabel,
       message: 'Workflow disparado en GitHub Actions. La corrida aparecerá en "Últimas corridas" en ~30-60s.',
     })
   }
