@@ -80,6 +80,10 @@ export const TRANSLATIONS = {
     'common.bot_freshness.last_sync_tooltip':
       'Última sync OK del bot: {date} · {n} filas insertadas',
     'common.bot_freshness.no_runs_tooltip': 'Sin corridas exitosas del bot todavía',
+    'common.bot_freshness.failed_label': 'falló {time}',
+    'common.bot_freshness.last_failed_tooltip':
+      'La última corrida del bot falló ({date}): {error}. Última exitosa: {last_ok}.',
+    'common.bot_freshness.stuck_running': 'la corrida quedó colgada sin terminar',
     'common.bot_freshness.label': 'Bot {time}',
     'common.bot_freshness.no_runs_short': 'sin corridas',
     'common.section_error.title_named': 'Error en sección "{label}"',
@@ -2668,6 +2672,10 @@ export const TRANSLATIONS = {
     'common.bot_freshness.last_sync_tooltip':
       'Last successful bot sync: {date} · {n} rows inserted',
     'common.bot_freshness.no_runs_tooltip': 'No successful bot runs yet',
+    'common.bot_freshness.failed_label': 'failed {time}',
+    'common.bot_freshness.last_failed_tooltip':
+      'The latest bot run failed ({date}): {error}. Last successful: {last_ok}.',
+    'common.bot_freshness.stuck_running': 'the run hung without finishing',
     'common.bot_freshness.label': 'Bot {time}',
     'common.bot_freshness.no_runs_short': 'no runs',
     'common.section_error.title_named': 'Error in section "{label}"',
@@ -5218,6 +5226,10 @@ export const TRANSLATIONS = {
     'common.bot_freshness.last_sync_tooltip':
       'Последняя успешная синхронизация бота: {date} · строк добавлено: {n}',
     'common.bot_freshness.no_runs_tooltip': 'Пока нет успешных запусков бота',
+    'common.bot_freshness.failed_label': 'сбой {time}',
+    'common.bot_freshness.last_failed_tooltip':
+      'Последний запуск бота завершился ошибкой ({date}): {error}. Последний успешный: {last_ok}.',
+    'common.bot_freshness.stuck_running': 'запуск завис и не завершился',
     'common.bot_freshness.label': 'Бот {time}',
     'common.bot_freshness.no_runs_short': 'нет запусков',
     'common.section_error.title_named': 'Ошибка в разделе «{label}»',

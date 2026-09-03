@@ -113,11 +113,17 @@ jobs:
           # Desde la mig 67, Peru y Colombia viven en country_config. La
           # matriz se construye 100% desde DB — para activar/desactivar un
           # país hay que cambiar country_config.status, NO editar este YAML.
+          # Sin `|| echo '[]'` (revisión de arquitectura 2026-09-03): con ese
+          # fallback, un error de red/REST acá dejaba la matriz VACÍA y el
+          # workflow terminaba en VERDE sin sincronizar ningún país — solo un
+          # ::warning:: que nadie mira. Ahora un curl fallido tumba el job (el
+          # `set -e` de arriba), `sync` se saltea y `ops-alerts` corre igual
+          # (tiene if: always()). "Cero países activos" de verdad sigue
+          # siendo solo un warning más abajo.
           RESPONSE=$(curl -fsSL \
             -H "apikey: $SUPABASE_KEY" \
             -H "Authorization: Bearer $SUPABASE_KEY" \
-            "$SUPABASE_URL/rest/v1/country_config?select=country_key&status=eq.active&order=sort_order" \
-            || echo '[]')
+            "$SUPABASE_URL/rest/v1/country_config?select=country_key&status=eq.active&order=sort_order")
           KEYS=$(echo "$RESPONSE" | python3 -c "
           import sys, json
           db_keys = [r['country_key'] for r in json.load(sys.stdin)]

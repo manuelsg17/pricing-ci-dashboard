@@ -35,6 +35,8 @@ import psycopg2
 import psycopg2.extras
 import requests
 
+from bot_sync_core import sb_headers as _core_sb_headers, pg_connect_kwargs
+
 
 def _required(var):
     v = os.environ.get(var)
@@ -56,14 +58,7 @@ REMOTE_TABLE = os.environ.get('OPS_ALERTS_TABLE', 'ops_alerts')
 
 
 def sb_headers(extra=None):
-    h = {
-        'apikey': SUPABASE_KEY,
-        'Authorization': f'Bearer {SUPABASE_KEY}',
-        'Content-Type': 'application/json',
-    }
-    if extra:
-        h.update(extra)
-    return h
+    return _core_sb_headers(SUPABASE_KEY, extra)
 
 
 def fetch_locally_resolved_ids():
@@ -101,18 +96,8 @@ def main():
 
     fq = f'"{REMOTE_SCHEMA}"."{REMOTE_TABLE}"'
 
-    conn = psycopg2.connect(
-        host=os.environ['LOCAL_PG_HOST'],
-        port=int(os.environ.get('LOCAL_PG_PORT', '5432')),
-        dbname=os.environ['LOCAL_PG_DATABASE'],
-        user=os.environ['LOCAL_PG_USER'],
-        password=os.environ['LOCAL_PG_PASSWORD'],
-        sslmode=os.environ.get('LOCAL_PG_SSLMODE', 'require'),
-        connect_timeout=10,
-        application_name=f"ops_alerts_sync_{os.environ.get('GITHUB_RUN_ID', 'local')}",
-        options='-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000',
-        keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
-    )
+    conn = psycopg2.connect(**pg_connect_kwargs(
+        os.environ, f"ops_alerts_sync_{os.environ.get('GITHUB_RUN_ID', 'local')}"))
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     if args.probe:

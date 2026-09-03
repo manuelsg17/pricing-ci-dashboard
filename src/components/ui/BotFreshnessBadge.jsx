@@ -24,20 +24,29 @@ export default function BotFreshnessBadge({ variant = 'compact' }) {
   const { country } = useCountry()
   const { t } = useI18n()
   const [lastSync, setLastSync] = useState(null)
+  // Última corrida SIN filtrar por status. Hasta 2026-09-03 el badge solo
+  // leía status='ok': una racha de corridas fallidas (helioho caído 13 h)
+  // se veía idéntica a "todo bien pero lento" — el "hace 13h" envejecía en
+  // silencio sin decir nunca que algo estaba fallando.
+  const [lastRun, setLastRun] = useState(null)
   const [loading, setLoading] = useState(true)
   const [, force] = useState(0)
 
   const reload = useCallback(async () => {
     setLoading(true)
-    const { data } = await sb
-      .from('bot_sync_log')
-      .select('started_at, finished_at, status, inserted_count, read_count')
-      .eq('country', country)
-      .eq('status', 'ok')
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    setLastSync(data || null)
+    const base = () =>
+      sb
+        .from('bot_sync_log')
+        .select('started_at, finished_at, status, inserted_count, read_count, error_msg')
+        .eq('country', country)
+        .order('started_at', { ascending: false })
+        .limit(1)
+    const [okRes, anyRes] = await Promise.all([
+      base().eq('status', 'ok').maybeSingle(),
+      base().maybeSingle(),
+    ])
+    setLastSync(okRes.data || null)
+    setLastRun(anyRes.data || null)
     setLoading(false)
   }, [country])
 
@@ -102,13 +111,33 @@ export default function BotFreshnessBadge({ variant = 'compact' }) {
 
   const startedAt = lastSync?.started_at ? new Date(lastSync.started_at) : null
   const minutes = startedAt ? Math.floor((Date.now() - startedAt.getTime()) / 60000) : null
-  const colors = getStatusColor(minutes)
-  const tooltip = startedAt
-    ? t('common.bot_freshness.last_sync_tooltip', {
-        date: startedAt.toLocaleString(),
-        n: lastSync.inserted_count ?? 0,
+
+  // Estado de FALLA: la corrida más reciente terminó en error (y es posterior
+  // al último ok), o quedó en 'running' hace más de 20 min (el job tiene
+  // timeout de 10; 'running' viejo = murió sin cerrar el log).
+  const lastRunAt = lastRun?.started_at ? new Date(lastRun.started_at) : null
+  const runMinutes = lastRunAt ? Math.floor((Date.now() - lastRunAt.getTime()) / 60000) : null
+  const failed =
+    lastRun &&
+    (!startedAt || lastRunAt > startedAt) &&
+    (lastRun.status === 'error' || (lastRun.status === 'running' && runMinutes > 20))
+
+  const colors = failed ? getStatusColor(Infinity) : getStatusColor(minutes)
+  const tooltip = failed
+    ? t('common.bot_freshness.last_failed_tooltip', {
+        date: lastRunAt.toLocaleString(),
+        error: (lastRun.error_msg || t('common.bot_freshness.stuck_running')).slice(0, 140),
+        last_ok: startedAt ? formatRelative(t, startedAt) : '—',
       })
-    : t('common.bot_freshness.no_runs_tooltip')
+    : startedAt
+      ? t('common.bot_freshness.last_sync_tooltip', {
+          date: startedAt.toLocaleString(),
+          n: lastSync.inserted_count ?? 0,
+        })
+      : t('common.bot_freshness.no_runs_tooltip')
+  const label = failed
+    ? t('common.bot_freshness.failed_label', { time: formatRelative(t, lastRunAt) })
+    : null
 
   if (variant === 'pill') {
     return (
@@ -136,9 +165,12 @@ export default function BotFreshnessBadge({ variant = 'compact' }) {
             boxShadow: `0 0 0 2px ${colors.dot}30`,
           }}
         />
-        {t('common.bot_freshness.label', {
-          time: startedAt ? formatRelative(t, startedAt) : t('common.bot_freshness.no_runs_short'),
-        })}
+        {label ??
+          t('common.bot_freshness.label', {
+            time: startedAt
+              ? formatRelative(t, startedAt)
+              : t('common.bot_freshness.no_runs_short'),
+          })}
       </div>
     )
   }
@@ -160,7 +192,8 @@ export default function BotFreshnessBadge({ variant = 'compact' }) {
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: colors.dot }} />
-      {t('common.bot_freshness.label', { time: startedAt ? formatRelative(t, startedAt) : '—' })}
+      {label ??
+        t('common.bot_freshness.label', { time: startedAt ? formatRelative(t, startedAt) : '—' })}
     </span>
   )
 }

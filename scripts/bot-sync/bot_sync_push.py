@@ -65,6 +65,16 @@ import argparse
 import datetime as dt
 from collections import Counter
 
+# Lógica pura compartida y testeable (ver bot_sync_core.py / test_bot_sync.py).
+from bot_sync_core import (
+    is_transient_pg_error, medium_means_for, MEDIUM_MEANS_BY_COUNTRY,
+    normalize_distance_bracket as _core_normalize_bracket,
+    build_rules, resolve_rule as _core_resolve_rule, find_threshold,
+    build_dropped_combos as _build_dropped_combos,
+    detectar_escala_sospechosa as _detectar_escala_sospechosa,
+    sb_headers as _core_sb_headers, pg_connect_kwargs,
+)
+
 try:
     import psycopg2
     import psycopg2.extras
@@ -75,35 +85,8 @@ except ImportError:
 
 
 # ── Retry helper para conexión a helioho (shared hosting con max_connections bajo) ──
-# Errores transitorios: el script reintenta con exponential backoff + jitter.
-# Sin esto, un único timing colision con otro tenant (o un timeout de red)
-# tumba la corrida entera.
-#
-# Bug real (2026-09-03): helioho tuvo degradación intermitente — en una
-# misma corrida, 3 de 5 países conectaron bien y 2 fallaron con
-# "connection ... failed: timeout expired" contra las 3 IPs del host. Ese
-# mensaje NO estaba en esta lista (pensada solo para el escenario de
-# "se agotaron los slots"), así que el wrapper de 8 reintentos con backoff
-# nunca se activaba: fallaba en el primer intento sin reintentar ni una vez.
-# "timeout expired" es el mensaje real que psycopg2 da cuando el TCP connect
-# no responde a tiempo — agregado explícitamente.
-#
-# Segunda vuelta (mismo día, empeoró): con el fix de arriba ya reintentando,
-# apareció un TERCER mensaje que tampoco estaba cubierto: "FATAL: Failed to
-# connect to database: authentication did not complete within 15000ms". Es
-# el pooler de helioho (tipo pgbouncer) tan saturado que ni siquiera termina
-# el handshake de login a tiempo — sigue siendo transitorio (no es
-# "authentication FAILED", que sería credencial mala), pero al no matchear
-# ningún marcador de la lista, el wrapper se rindió en el intento 3 con 6
-# reintentos de los 8 configurados todavía sin usar.
-SLOT_EXHAUSTED_MARKERS = (
-    "remaining connection slots",
-    "too many connections",
-    "could not connect",
-    "server closed the connection",
-    "timeout expired",
-    "authentication did not complete",
-)
+# Qué se considera transitorio vive en bot_sync_core.TRANSIENT_PG_MARKERS
+# (con su historial y sus tests). Acá solo queda el backoff.
 
 
 def retry_on_pg_unavailable(retries: int = 5, base: float = 5.0, cap: float = 60.0):
@@ -119,7 +102,7 @@ def retry_on_pg_unavailable(retries: int = 5, base: float = 5.0, cap: float = 60
                     return result
                 except OperationalError as e:
                     msg = str(e).lower()
-                    transient = any(m in msg for m in SLOT_EXHAUSTED_MARKERS)
+                    transient = is_transient_pg_error(msg)
                     if not transient or attempt == retries - 1:
                         raise
                     delay = min(cap, base * (2 ** attempt))
@@ -160,44 +143,15 @@ BRACKET_NORMALIZE = {
 # (long_a, airport_short_b, median_zona_sur, *_madrid, etc.) tiene que
 # colapsar a uno de estos o a None.
 import re as _re
-_CANONICAL = {'very_short', 'short', 'median', 'average', 'long', 'very_long'}
-_SATELLITE_RE = _re.compile(r'_(madrid|funza|mosquera|cota|chia|soacha|cajica|tenjo|sopo|sibate)$')
-_ZONE_RE      = _re.compile(r'_(zona_(sur|norte|centro|este|oeste)|sur|norte|centro|este|oeste)$')
-_AB_RE        = _re.compile(r'_(a|b)$')
 
-# Qué bracket significa 'medium' según el país. NO es un typo universal: es
-# nomenclatura de cada simulador y significa cosas distintas.
-#
-#   · Perú  → 'average'. Confirmado por el dueño del simulador (2026-07-31):
-#     escribió "Medium" donde quería decir la banda `average`. Se ve en los
-#     datos: `average` tenía ~13k filas contra 22-30k de todos los demás
-#     brackets, y `median` era el más alto de todos — estaba absorbiendo lo
-#     que correspondía a `average`. El simulador se está corrigiendo para
-#     emitir "Average"; este mapeo cubre las rutas que queden sin actualizar
-#     durante la transición.
-#   · Resto → 'median' (comportamiento histórico, sin cambios).
-#     OJO: Colombia muestra la MISMA forma sospechosa (71.079 en `median`
-#     contra 1.659 en `average`), pero nadie confirmó qué significa "Medium"
-#     en ese simulador y una vez normalizado el valor crudo es
-#     irrecuperable. Cambiarlo a ciegas mandaría ~71k filas/mes al bracket
-#     equivocado, así que se deja como está hasta que alguien lo confirme.
-MEDIUM_MEANS_BY_COUNTRY = {'Peru': 'average'}
-MEDIUM_MEANS = 'median'  # se ajusta en main() según BOT_SYNC_COUNTRY
+# Qué bracket significa 'medium' según el país — tabla y motivos en
+# bot_sync_core.MEDIUM_MEANS_BY_COUNTRY. Se fija en main() por BOT_SYNC_COUNTRY.
+MEDIUM_MEANS = 'median'
 
 
 def normalize_distance_bracket(raw):
-    """Mapea variantes zone-aware del bot al canónico, o None."""
-    if not raw:
-        return None
-    s = _re.sub(r'[\s\-]+', '_', str(raw).lower())
-    s = _re.sub(r'^airport_', '', s)
-    s = _SATELLITE_RE.sub('', s)
-    s = _ZONE_RE.sub('', s)
-    s = _AB_RE.sub('', s)
-    if s == 'medium':     s = MEDIUM_MEANS   # ver MEDIUM_MEANS_BY_COUNTRY
-    if s == 'very short': s = 'very_short'
-    if s == 'very long':  s = 'very_long'
-    return s if s in _CANONICAL else None
+    """Mapea variantes zone-aware del bot al canónico, o None (core)."""
+    return _core_normalize_bracket(raw, MEDIUM_MEANS)
 
 
 # ── Reglas y diccionarios ───────────────────────────────────────────────
@@ -308,26 +262,7 @@ def load_bot_rules(country):
         print(f"[load_bot_rules] error: {e}", file=sys.stderr)
         return []
 
-    rules = []
-    for r in rows:
-        cities = set(r.get('cities') or [])
-        # ovc admite variantes separadas por coma (ej. "viaje, viajes
-        # económicos, viaje+") para que una sola regla cubra distintos
-        # labels que la misma app manda con el tiempo — se guarda como
-        # set, no como string, para no repetir el split en cada fila
-        # entrante de resolve_rule().
-        ovc_variants = frozenset(
-            v.strip() for v in (r.get('ovc') or '').lower().split(',') if v.strip()
-        )
-        rules.append((
-            (r.get('app') or '').lower(),
-            (r.get('vc') or '').lower(),
-            ovc_variants,
-            r.get('competition_name'),
-            r.get('category'),
-            cities if cities else None,
-        ))
-    return rules
+    return build_rules(rows)
 
 
 def normalize_city(c):
@@ -500,32 +435,36 @@ def looks_like_airport_without_zone(db_city, point_a, point_b, raw_zone):
 
 
 def resolve_rule(app, vc, ovc, db_city):
-    a = (app or '').lower()
-    v = (vc or '').lower()
-    o = (ovc or '').lower()
-    for r_app, r_vc, r_ovc_variants, name, category, cities in BOT_RULES:
-        if r_app != a:
-            continue
-        if r_vc != v:
-            continue
-        if '*' not in r_ovc_variants and o not in r_ovc_variants:
-            continue
-        if cities and db_city not in cities:
-            continue
-        return name, category
-    return None, None
+    """Wrapper: aplica las reglas cargadas en BOT_RULES (lógica en el core)."""
+    return _core_resolve_rule(BOT_RULES, app, vc, ovc, db_city)
 
 
 # ── Supabase REST helpers ───────────────────────────────────────────────
 def sb_headers(extra=None):
-    h = {
-        'apikey':        SUPABASE_KEY,
-        'Authorization': f'Bearer {SUPABASE_KEY}',
-        'Content-Type':  'application/json',
-    }
-    if extra:
-        h.update(extra)
-    return h
+    return _core_sb_headers(SUPABASE_KEY, extra)
+
+
+def _rest_with_retry(method, url, attempts=3, **kw):
+    """POST/PATCH a Supabase con reintento ante red caída o 5xx.
+
+    Solo para llamadas IDEMPOTENTES (upsert por clave natural, PATCH por id,
+    upsert de watermark): repetirlas no duplica nada. Un 4xx NO se reintenta
+    — es un error nuestro, no transitorio."""
+    last = None
+    for i in range(attempts):
+        try:
+            res = requests.request(method, url, **kw)
+            if res.status_code < 500:
+                return res
+            last = RuntimeError(f'HTTP {res.status_code}: {res.text[:200]}')
+        except (requests.ConnectionError, requests.Timeout) as e:
+            last = e
+        if i < attempts - 1:
+            delay = 2 * (2 ** i) + random.uniform(0, 1)
+            print(f'[bot_sync] retry REST {i+1}/{attempts-1} {method} '
+                  f'{url.rsplit("/", 1)[-1]}: {last} — sleeping {delay:.1f}s', flush=True)
+            time.sleep(delay)
+    raise last
 
 
 def get_watermark(country):
@@ -542,7 +481,8 @@ def get_watermark(country):
 
 
 def upsert_watermark(country, ts):
-    requests.post(
+    _rest_with_retry(
+        'POST',
         f'{SUPABASE_URL}/rest/v1/bot_sync_watermark',
         params={'on_conflict': 'country'},
         headers=sb_headers({'Prefer': 'resolution=merge-duplicates,return=minimal'}),
@@ -556,7 +496,8 @@ def upsert_watermark(country, ts):
 
 
 def insert_log(country, started_at, **notes):
-    res = requests.post(
+    res = _rest_with_retry(
+        'POST',
         f'{SUPABASE_URL}/rest/v1/bot_sync_log',
         headers=sb_headers({'Prefer': 'return=representation'}),
         json=[{
@@ -576,7 +517,8 @@ def insert_log(country, started_at, **notes):
 def update_log(log_id, **fields):
     if not log_id:
         return
-    requests.patch(
+    _rest_with_retry(
+        'PATCH',
         f'{SUPABASE_URL}/rest/v1/bot_sync_log',
         params={'id': f'eq.{log_id}'},
         headers=sb_headers({'Prefer': 'return=minimal'}),
@@ -598,105 +540,8 @@ def get_price_rules(country):
     return res.json() if res.ok else []
 
 
-def _build_dropped_combos(tracker, top_n=30):
-    """Convierte el Counter en la lista top-N que consume el UI.
-
-    Shape esperada por src/components/upload/BotDbSync.jsx:
-        [{ reason, app, vc, ovc, db_city, n }, ...]
-
-    El UI ya renderea esa sección amarilla cuando notes.dropped_combos
-    tiene filas, así que el user puede ver QUÉ se está descartando y
-    decidir si querer agregarlo a bot_rules. El filtro NO cambia — esto
-    es solo visibilidad.
-    """
-    return [
-        {
-            'reason':  reason,
-            'app':     app,
-            'vc':      vc,
-            'ovc':     ovc,
-            'db_city': db_city,
-            'n':       n,
-        }
-        for (reason, app, vc, ovc, db_city), n in tracker.most_common(top_n)
-    ]
-
-
-def _detectar_escala_sospechosa(accepted, umbral=8.0, min_muestras=3):
-    """
-    GUARD "escala/moneda rota" (2026-08-29): alerta cuando el precio promedio
-    de un competidor difiere >umbral× de la mediana de su propia
-    ciudad+categoría dentro del batch.
-
-    Caso real que lo motiva: InDrive en Bogotá/Cali entró meses en una
-    escala ~1000× menor que Yango/Uber/Didi de las mismas ciudades (12.73 vs
-    17.824 — USD vs pesos, o factor /1000; la fuente nunca lo aclaró). El
-    100% de esas filas estaba roto y nadie lo notó hasta que un pct_diff de
-    1.499.004% apareció en una MV. Hubo que excluirlas a posteriori
-    (mig 223); este guard lo habría mostrado en la PRIMERA corrida.
-
-    Umbral 8×: los spreads legítimos entre competidores rondan 1.1-1.7×
-    (peor caso observado: Didi +68% vs Yango); un error de moneda/escala es
-    ≥10×. min_muestras=3 evita alertar por una cotización suelta.
-
-    SOLO OBSERVA — nunca descarta: un falso positivo que bloquee data
-    legítima es peor que una alerta de más. La fila entra igual; la alerta
-    va a bot_sync_log.notes.escala_sospechosa.
-    """
-    from statistics import median
-    por_grupo = {}
-    for row in accepted:
-        p = row.get('price_without_discount')
-        if p is None:
-            p = row.get('recommended_price')
-        if p is None or p <= 0:
-            continue
-        clave = (row['city'], row['category'])
-        por_grupo.setdefault(clave, {}).setdefault(
-            row['competition_name'], []).append(float(p))
-
-    alertas = []
-    for (city, cat), comps in por_grupo.items():
-        avgs = {c: sum(v) / len(v) for c, v in comps.items()
-                if len(v) >= min_muestras}
-        if len(avgs) < 2:
-            continue  # sin otro competidor no hay contra qué comparar
-        med = median(avgs.values())
-        if med <= 0:
-            continue
-        for comp, avg in avgs.items():
-            ratio = avg / med
-            if ratio > umbral or ratio < 1.0 / umbral:
-                # _severidad va SIN redondear: un ratio de 0.0006 (caso
-                # InDrive-Colombia real) redondeado a 2 decimales da 0.0 y
-                # 1/0 revienta el sort — bug cazado por el test sintético.
-                alertas.append({
-                    'city':           city,
-                    'category':       cat,
-                    'competitor':     comp,
-                    'avg_competidor': round(avg, 2),
-                    'mediana_ciudad': round(med, 2),
-                    'ratio':          round(ratio, 4),
-                    'n':              len(comps[comp]),
-                    '_severidad':     max(ratio, 1.0 / ratio),
-                })
-    alertas.sort(key=lambda a: a['_severidad'], reverse=True)
-    for a in alertas:
-        del a['_severidad']
-    return alertas[:10]
-
-
-def find_threshold(rules, city, category, comp):
-    for r in rules:
-        if r['city'] == city and r['category'] == category and r['competition'] == comp:
-            return r['max_price']
-    for r in rules:
-        if r['city'] == city and r['category'] == category and r['competition'] == 'all':
-            return r['max_price']
-    for r in rules:
-        if r['city'] == city and r['category'] == 'all' and r['competition'] == 'all':
-            return r['max_price']
-    return None
+# _build_dropped_combos, _detectar_escala_sospechosa y find_threshold viven en
+# bot_sync_core (importados arriba) — con tests en test_bot_sync.py.
 
 
 # ── Main ────────────────────────────────────────────────────────────────
@@ -728,7 +573,7 @@ def main():
     # 'medium' significa cosas distintas segun el simulador de cada pais —
     # ver MEDIUM_MEANS_BY_COUNTRY arriba. Se loguea para que quede en el
     # output de la corrida qué interpretación se usó.
-    MEDIUM_MEANS = MEDIUM_MEANS_BY_COUNTRY.get(country, 'median')
+    MEDIUM_MEANS = medium_means_for(country)
     print(f"✓ 'medium' se interpreta como '{MEDIUM_MEANS}' para country={country}",
           file=sys.stderr)
 
@@ -778,30 +623,12 @@ def main():
 
     @retry_on_pg_unavailable(retries=retries, base=base, cap=cap)
     def _connect():
-        return psycopg2.connect(
-            host=os.environ['LOCAL_PG_HOST'],
-            port=int(os.environ.get('LOCAL_PG_PORT', '5432')),
-            dbname=os.environ['LOCAL_PG_DATABASE'],
-            user=os.environ['LOCAL_PG_USER'],
-            password=os.environ['LOCAL_PG_PASSWORD'],
-            sslmode=os.environ.get('LOCAL_PG_SSLMODE', 'require'),  # helioho exige SSL
-            connect_timeout=10,
-            application_name=app_name,
-            # statement_timeout 60s previene queries colgadas que retienen slot.
-            # idle_in_transaction 30s mata transacciones abandonadas.
-            options="-c statement_timeout=60000 -c idle_in_transaction_session_timeout=30000",
-            # TCP keepalives: detecta conexiones zombi (NAT GitHub Actions ↔ helioho).
-            keepalives=1,
-            keepalives_idle=30,
-            keepalives_interval=10,
-            keepalives_count=3,
-        )
+        return psycopg2.connect(**pg_connect_kwargs(os.environ, app_name))
 
-    conn = _connect()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-    # ── PROBE ────────────────────────────────────────────────────────
+    # ── PROBE (sin log: no es una corrida de sync) ───────────────────
     if args.probe:
+        conn = _connect()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("""
             SELECT column_name, data_type
               FROM information_schema.columns
@@ -822,7 +649,22 @@ def main():
     started_at = dt.datetime.utcnow().isoformat() + '+00:00'
     notes = {'limit': args.limit, 'date_from': args.date_from, 'date_to': args.date_to,
              'host': os.environ.get('LOCAL_PG_HOST', '?')}
+    # La fila de bot_sync_log se crea ANTES de conectar. Hasta 2026-09-03 se
+    # creaba después: si helioho estaba caído y se agotaban los reintentos,
+    # la corrida moría sin dejar NINGUNA fila — invisible para BotDbSync y
+    # para el badge del bot (que solo leía status='ok'). 13 h de datos
+    # atrasados sin que ninguna pantalla lo dijera.
     log_id = insert_log(country, started_at, **notes)
+    try:
+        conn = _connect()
+    except Exception as e:
+        update_log(log_id, status='error',
+                   finished_at=dt.datetime.utcnow().isoformat() + '+00:00',
+                   error_msg=f'sin conexión a helioho tras reintentos: {e}'[:500],
+                   notes=notes)
+        print(f'ERROR: sin conexión a helioho tras reintentos: {e}', file=sys.stderr)
+        sys.exit(1)
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     inserted = 0
     stats = {'read': 0, 'dropped': 0, 'outliers': 0, 'airport_sin_zone': 0}
@@ -854,59 +696,85 @@ def main():
     try:
         # Filtros de la query: status='ok' + business_unit='ridehailing' +
         # solo el país pedido. Los hacemos lower() para tolerar variantes.
-        if args.date_from and args.date_to:
-            # timestamp_utc >= / < (rango medio-abierto), NUNCA
-            # timestamp_utc::date BETWEEN — un cast sobre la columna hace
-            # el predicado no-sargable (Postgres no puede usar el índice de
-            # timestamp_utc, tiene que evaluar el cast fila por fila).
-            # Reproducido en vivo: un backfill de 3 meses con esa forma
-            # tiró "canceling statement due to statement timeout" (60s) en
-            # helioho — el mismo shared host que el sync incremental usa
-            # sin problema porque su WHERE timestamp_utc > %s sí es sargable.
-            cur.execute(
-                f'SELECT * FROM {fq_table} '
-                f'WHERE timestamp_utc >= %s::date '
-                f'  AND timestamp_utc < (%s::date + INTERVAL \'1 day\') '
-                f'  AND lower(status) = %s '
-                f'  AND lower(business_unit) = %s '
-                f'  AND country = %s '
-                f'ORDER BY timestamp_utc LIMIT %s',
-                (args.date_from, args.date_to, 'ok', 'ridehailing', country, args.limit),
-            )
-        else:
-            wm = get_watermark(country)
-            # MARGEN DE RE-LECTURA (lookback). No basta con `timestamp_utc >
-            # wm`: el watermark avanza al MÁXIMO timestamp_utc leído, pero el
-            # bot NO inserta en orden estricto de timestamp. Una ruta lenta de
-            # computar (ETA largo → típico en very_long, y rutas de aeropuerto)
-            # se inserta en quotes_output DESPUÉS que una ruta corta scrapeada
-            # más tarde, pero con un timestamp_utc ANTERIOR. Si el sync corrió
-            # entremedio y avanzó el watermark más allá de ese timestamp, la
-            # fila lenta cae en `timestamp_utc > wm` = falso y se pierde PARA
-            # SIEMPRE — se ve como "very_long/very_short tienen menos data que
-            # short/median" aunque el bot sí las produjo.
-            #
-            # Fix: releer una ventana hacia atrás desde el watermark. Como el
-            # insert final es un UPSERT idempotente sobre la natural key (RPC
-            # bot_upsert_observations), re-leer filas ya sincronizadas es un
-            # no-op — nunca duplica, solo rescata las que llegaron tarde. El
-            # watermark nunca retrocede (la fila que lo fijó cae dentro de la
-            # ventana y se re-lee), así que no hay riesgo de loop.
-            #
-            # LOOKBACK_HOURS configurable (default 6h): cubre de sobra el lag
-            # de inserción intra-ciclo (minutos), con cron horario. Subirlo si
-            # alguna vez se detecta que el bot inserta con >6h de atraso.
-            lookback_h = float(os.environ.get('BOT_SYNC_LOOKBACK_HOURS', '6'))
-            cur.execute(
-                f'SELECT * FROM {fq_table} '
-                f'WHERE timestamp_utc > (%s::timestamptz - (%s * INTERVAL \'1 hour\')) '
-                f'  AND lower(status) = %s '
-                f'  AND lower(business_unit) = %s '
-                f'  AND country = %s '
-                f'ORDER BY timestamp_utc LIMIT %s',
-                (wm, lookback_h, 'ok', 'ridehailing', country, args.limit),
-            )
-        rows = cur.fetchall()
+        def _read_rows(cur):
+            if args.date_from and args.date_to:
+                # timestamp_utc >= / < (rango medio-abierto), NUNCA
+                # timestamp_utc::date BETWEEN — un cast sobre la columna hace
+                # el predicado no-sargable (Postgres no puede usar el índice de
+                # timestamp_utc, tiene que evaluar el cast fila por fila).
+                # Reproducido en vivo: un backfill de 3 meses con esa forma
+                # tiró "canceling statement due to statement timeout" (60s) en
+                # helioho — el mismo shared host que el sync incremental usa
+                # sin problema porque su WHERE timestamp_utc > %s sí es sargable.
+                cur.execute(
+                    f'SELECT * FROM {fq_table} '
+                    f'WHERE timestamp_utc >= %s::date '
+                    f'  AND timestamp_utc < (%s::date + INTERVAL \'1 day\') '
+                    f'  AND lower(status) = %s '
+                    f'  AND lower(business_unit) = %s '
+                    f'  AND country = %s '
+                    f'ORDER BY timestamp_utc LIMIT %s',
+                    (args.date_from, args.date_to, 'ok', 'ridehailing', country, args.limit),
+                )
+            else:
+                wm = get_watermark(country)
+                # MARGEN DE RE-LECTURA (lookback). No basta con `timestamp_utc >
+                # wm`: el watermark avanza al MÁXIMO timestamp_utc leído, pero el
+                # bot NO inserta en orden estricto de timestamp. Una ruta lenta de
+                # computar (ETA largo → típico en very_long, y rutas de aeropuerto)
+                # se inserta en quotes_output DESPUÉS que una ruta corta scrapeada
+                # más tarde, pero con un timestamp_utc ANTERIOR. Si el sync corrió
+                # entremedio y avanzó el watermark más allá de ese timestamp, la
+                # fila lenta cae en `timestamp_utc > wm` = falso y se pierde PARA
+                # SIEMPRE — se ve como "very_long/very_short tienen menos data que
+                # short/median" aunque el bot sí las produjo.
+                #
+                # Fix: releer una ventana hacia atrás desde el watermark. Como el
+                # insert final es un UPSERT idempotente sobre la natural key (RPC
+                # bot_upsert_observations), re-leer filas ya sincronizadas es un
+                # no-op — nunca duplica, solo rescata las que llegaron tarde. El
+                # watermark nunca retrocede (la fila que lo fijó cae dentro de la
+                # ventana y se re-lee), así que no hay riesgo de loop.
+                #
+                # LOOKBACK_HOURS configurable (default 6h): cubre de sobra el lag
+                # de inserción intra-ciclo (minutos), con cron horario. Subirlo si
+                # alguna vez se detecta que el bot inserta con >6h de atraso.
+                lookback_h = float(os.environ.get('BOT_SYNC_LOOKBACK_HOURS', '6'))
+                cur.execute(
+                    f'SELECT * FROM {fq_table} '
+                    f'WHERE timestamp_utc > (%s::timestamptz - (%s * INTERVAL \'1 hour\')) '
+                    f'  AND lower(status) = %s '
+                    f'  AND lower(business_unit) = %s '
+                    f'  AND country = %s '
+                    f'ORDER BY timestamp_utc LIMIT %s',
+                    (wm, lookback_h, 'ok', 'ridehailing', country, args.limit),
+                )
+            return cur.fetchall()
+
+        # Reintento de la LECTURA. El decorador de _connect() cubre solo el
+        # connect; un statement_timeout (60 s) a mitad de la SELECT — visto
+        # en prod el 2026-09-03 con helioho saturado — tiraba la corrida entera
+        # aunque la conexión hubiera funcionado. La transacción queda abortada
+        # tras el cancel, así que se reconecta (con su propio backoff) y se
+        # vuelve a leer: la lectura es idempotente (mismo watermark).
+        rows = None
+        for intento in range(3):
+            try:
+                rows = _read_rows(cur)
+                break
+            except OperationalError as e:
+                if intento == 2 or not is_transient_pg_error(str(e)):
+                    raise
+                espera = 15 * (intento + 1) + random.uniform(0, 5)
+                print(f'[bot_sync] lectura falló ({str(e).strip()[:90]}); '
+                      f'reconecto y reintento en {espera:.0f}s', flush=True)
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                time.sleep(espera)
+                conn = _connect()
+                cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         stats['read'] = len(rows)
 
         price_rules = get_price_rules(country)
@@ -1140,7 +1008,8 @@ def main():
         BATCH = 500
         for i in range(0, len(accepted), BATCH):
             chunk = accepted[i:i + BATCH]
-            res = requests.post(
+            res = _rest_with_retry(
+                'POST',
                 f'{SUPABASE_URL}/rest/v1/rpc/bot_upsert_observations',
                 headers=sb_headers({'Prefer': 'return=minimal'}),
                 json={'p_rows': chunk},
