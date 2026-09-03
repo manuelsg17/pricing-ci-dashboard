@@ -5,9 +5,7 @@ import { useAuth } from '../lib/auth'
 // All known sections in the app
 export const ALL_SECTIONS = [
   'dashboard',
-  'earnings',
   'rentabilidad',
-  'report',
   'market',
   'competitividad',
   'dataentry',
@@ -23,9 +21,7 @@ export const ALL_SECTIONS = [
 
 export const SECTION_LABELS = {
   dashboard: '📊 Dashboard',
-  earnings: '💰 Ganancias',
   rentabilidad: '🧮 Rentabilidad',
-  report: '📄 Reporte',
   market: '🎯 Mercado',
   competitividad: '📈 Competitividad',
   dataentry: '✏️ Ingresar CI',

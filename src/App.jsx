@@ -21,9 +21,7 @@ const DistanceRefs = lazyConReintento(() => import('./pages/DistanceRefs'), 'dis
 const RawData = lazyConReintento(() => import('./pages/RawData'), 'rawdata')
 const DataEntry = lazyConReintento(() => import('./pages/DataEntry'), 'dataentry')
 const Projects = lazyConReintento(() => import('./pages/Projects'), 'projects')
-const DriverEarnings = lazyConReintento(() => import('./pages/DriverEarnings'), 'driverearnings')
 const Rentabilidad = lazyConReintento(() => import('./pages/Rentabilidad'), 'rentabilidad')
-const WeeklyReport = lazyConReintento(() => import('./pages/WeeklyReport'), 'weeklyreport')
 const MarketEvents = lazyConReintento(() => import('./pages/MarketEvents'), 'marketevents')
 const AccessManagement = lazyConReintento(
   () => import('./pages/AccessManagement'),
@@ -44,9 +42,7 @@ const ROUTES = [
   { path: 'dashboard', Component: Dashboard, section: 'dashboard' },
   { path: 'dataentry', Component: DataEntry, section: 'dataentry' },
   { path: 'projects', Component: Projects, section: 'projects' },
-  { path: 'earnings', Component: DriverEarnings, section: 'earnings' },
   { path: 'rentabilidad', Component: Rentabilidad, section: 'rentabilidad' },
-  { path: 'report', Component: WeeklyReport, section: 'report' },
   { path: 'market', Component: Market, section: 'market' },
   { path: 'coverage', Component: Coverage, section: 'coverage' },
   { path: 'competitividad', Component: Competitividad, section: 'competitividad' },
