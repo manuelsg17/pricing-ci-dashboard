@@ -75,14 +75,24 @@ except ImportError:
 
 
 # ── Retry helper para conexión a helioho (shared hosting con max_connections bajo) ──
-# Errores transitorios de exhaustion de slots: el script reintenta con
-# exponential backoff + jitter. Sin esto, un único timing colision con
-# otro tenant tumba la corrida entera.
+# Errores transitorios: el script reintenta con exponential backoff + jitter.
+# Sin esto, un único timing colision con otro tenant (o un timeout de red)
+# tumba la corrida entera.
+#
+# Bug real (2026-09-03): helioho tuvo degradación intermitente — en una
+# misma corrida, 3 de 5 países conectaron bien y 2 fallaron con
+# "connection ... failed: timeout expired" contra las 3 IPs del host. Ese
+# mensaje NO estaba en esta lista (pensada solo para el escenario de
+# "se agotaron los slots"), así que el wrapper de 8 reintentos con backoff
+# nunca se activaba: fallaba en el primer intento sin reintentar ni una vez.
+# "timeout expired" es el mensaje real que psycopg2 da cuando el TCP connect
+# no responde a tiempo — agregado explícitamente.
 SLOT_EXHAUSTED_MARKERS = (
     "remaining connection slots",
     "too many connections",
     "could not connect",
     "server closed the connection",
+    "timeout expired",
 )
 
 
