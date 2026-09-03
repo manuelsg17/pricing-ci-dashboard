@@ -29,7 +29,6 @@ const AccessManagement = lazyConReintento(
   () => import('./pages/AccessManagement'),
   'accessmanagement'
 )
-const BotVsHubs = lazyConReintento(() => import('./pages/BotVsHubs'), 'botvshubs')
 const Market = lazyConReintento(() => import('./pages/Market'), 'market')
 const Coverage = lazyConReintento(() => import('./pages/Coverage'), 'coverage')
 const Competitividad = lazyConReintento(() => import('./pages/Competitividad'), 'competitividad')
@@ -57,7 +56,6 @@ const ROUTES = [
   { path: 'routemonitor', Component: RouteMonitor, section: 'competitividad' },
   { path: 'events', Component: MarketEvents, section: 'events' },
   { path: 'rawdata', Component: RawData, section: 'rawdata' },
-  { path: 'botvshubs', Component: BotVsHubs, section: 'botvshubs' },
   { path: 'config', Component: Config, section: 'config' },
   { path: 'upload', Component: Upload, section: 'upload' },
   { path: 'distances', Component: DistanceRefs, section: 'distances' },

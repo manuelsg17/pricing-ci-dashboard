@@ -33,7 +33,6 @@ const getNav = (t) => [
       { id: 'monitoring', label: t('nav.monitoring'), adminOnly: true },
       { id: 'upload', label: t('nav.upload') },
       { id: 'rawdata', label: t('nav.rawdata') },
-      { id: 'botvshubs', label: t('nav.botvshubs') },
       { id: 'coverage', label: t('nav.coverage') },
     ],
   },
