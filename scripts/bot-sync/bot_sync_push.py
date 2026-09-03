@@ -87,12 +87,22 @@ except ImportError:
 # nunca se activaba: fallaba en el primer intento sin reintentar ni una vez.
 # "timeout expired" es el mensaje real que psycopg2 da cuando el TCP connect
 # no responde a tiempo — agregado explícitamente.
+#
+# Segunda vuelta (mismo día, empeoró): con el fix de arriba ya reintentando,
+# apareció un TERCER mensaje que tampoco estaba cubierto: "FATAL: Failed to
+# connect to database: authentication did not complete within 15000ms". Es
+# el pooler de helioho (tipo pgbouncer) tan saturado que ni siquiera termina
+# el handshake de login a tiempo — sigue siendo transitorio (no es
+# "authentication FAILED", que sería credencial mala), pero al no matchear
+# ningún marcador de la lista, el wrapper se rindió en el intento 3 con 6
+# reintentos de los 8 configurados todavía sin usar.
 SLOT_EXHAUSTED_MARKERS = (
     "remaining connection slots",
     "too many connections",
     "could not connect",
     "server closed the connection",
     "timeout expired",
+    "authentication did not complete",
 )
 
 
