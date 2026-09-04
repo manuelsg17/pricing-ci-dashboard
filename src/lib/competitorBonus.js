@@ -111,8 +111,24 @@ function segmentApplies(b, seg) {
   return !b.segment || b.segment === 'all' || b.segment === seg
 }
 
+// Vigencia (mig 237): ¿la fila rige en `asOf`? `asOf` es una fecha ISO
+// 'YYYY-MM-DD' o un rango { from, to } (ambos ISO, inclusive) — Rentabilidad
+// pasa la SEMANA completa, así un bono que arranca el jueves cuenta para esa
+// semana (revisión adversarial 2026-09-03: con solo el lunes no aparecía hasta
+// la semana siguiente). Sin asOf → no se filtra (filas viejas, tests).
+// Comparación de strings ISO: válida porque el formato es de ancho fijo.
+export function isValidOn(b, asOf) {
+  if (!asOf) return true
+  const from = typeof asOf === 'string' ? asOf : asOf.from
+  const to = typeof asOf === 'string' ? asOf : asOf.to
+  if (b.valid_from && to && String(b.valid_from) > to) return false
+  if (b.valid_to && from && String(b.valid_to) < from) return false
+  return true
+}
+
 function rowPasses(b, ctx) {
   if (b.is_active === false) return false
+  if (!isValidOn(b, ctx.asOf)) return false
   if (b.category && b.category !== ctx.dbCategory) return false
   if (!segmentApplies(b, ctx.segment)) return false
   if (b.group_key && b.is_chosen === false) return false // alternativa no elegida (Uber quests)

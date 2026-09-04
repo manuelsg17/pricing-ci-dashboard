@@ -1,29 +1,54 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../../lib/supabase'
+import { getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
+import { toISODate } from '../../lib/dateUtils'
 
 // Editor del bono Yango por % de GMV (tabla yango_gmv_tiers, mig 116).
 // Una fila = un peldaño. variant ∈ unbranded|branded|vip (VIP = Premier en Lima).
+// mig 237: cada peldaño tiene vigencia (valid_from / valid_to). Editar en el
+// lugar corrige la versión actual; "Nueva versión de la escalera" cierra la
+// vigente e inserta los peldaños que ves como versión nueva (RPC atómica).
 const VARIANTS = [
   { key: 'unbranded', labelKey: 'config.yango_gmv.variant_unbranded' },
   { key: 'branded', labelKey: 'config.yango_gmv.variant_branded' },
   { key: 'vip', labelKey: 'config.yango_gmv.variant_vip' },
 ]
-const CITIES = ['Lima', 'Trujillo', 'Arequipa']
+// Día siguiente en ISO (para el mínimo del selector "nueva versión desde").
+const nextDay = (iso) => {
+  if (!iso) return undefined
+  const d = new Date(`${iso}T00:00:00`)
+  d.setDate(d.getDate() + 1)
+  return toISODate(d)
+}
 
 export default function YangoGmvConfig({ country }) {
   const confirm = useConfirm()
   const { t } = useI18n()
+  const { dbConfigs } = useCountry()
+  // Ciudades del país (antes: Lima/Trujillo/Arequipa hardcodeadas).
+  const CITIES = useMemo(
+    () => getCountryConfig(country, dbConfigs).dbCities || [],
+    [country, dbConfigs]
+  )
   const [tiers, setTiers] = useState([])
   const [original, setOriginal] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
-  const [city, setCity] = useState('Lima')
+  const [city, setCity] = useState(CITIES[0] || 'Lima')
   const [variant, setVariant] = useState('unbranded')
+  const [showHistory, setShowHistory] = useState(false)
+  const today = toISODate(new Date()) // hora local, no UTC
+  const [ladderFrom, setLadderFrom] = useState(today)
+
+  useEffect(() => {
+    if (CITIES.length && !CITIES.includes(city)) setCity(CITIES[0])
+  }, [CITIES, city])
 
   useEffect(() => {
     load() /* eslint-disable-next-line react-hooks/exhaustive-deps */
@@ -46,13 +71,26 @@ export default function YangoGmvConfig({ country }) {
       .eq('country', country)
       .order('city')
       .order('variant')
+      .order('valid_from')
       .order('min_trips')
     setTiers(data || [])
     setOriginal((data || []).map((r) => ({ ...r })))
     setLoading(false)
   }
 
-  const rows = tiers.filter((tier) => tier.city === city && tier.variant === variant)
+  const isExpired = (r) => !!r.valid_to && String(r.valid_to) < today
+  const isFuture = (r) => !!r.valid_from && String(r.valid_from) > today
+  const allRows = tiers.filter((tier) => tier.city === city && tier.variant === variant)
+  const rows = showHistory ? allRows : allRows.filter((r) => !isExpired(r))
+  const expiredCount = allRows.length - allRows.filter((r) => !isExpired(r)).length
+  // Peldaños de la versión VIGENTE HOY (ni vencida ni futura) — son los que se
+  // copian al versionar. Antes incluía también versiones futuras: si ya había
+  // una próxima cargada, "nueva versión" mezclaba dos escaleras y la RPC
+  // rechazaba el peldaño duplicado (hallazgo #4, revisión adversarial 2026-09-03).
+  const currentValidFrom = allRows
+    .filter((r) => !isExpired(r) && !isFuture(r) && !r._new)
+    .reduce((max, r) => (r.valid_from > (max ?? '') ? r.valid_from : max), null)
+  const currentRows = allRows.filter((r) => r.valid_from === currentValidFrom)
 
   function update(id, field, val) {
     setMsg(null)
@@ -63,7 +101,18 @@ export default function YangoGmvConfig({ country }) {
     setMsg(null)
     setTiers((prev) => [
       ...prev,
-      { id: `new_${Date.now()}`, country, city, variant, min_trips: 0, pct: 0, cap: 0, _new: true },
+      {
+        id: `new_${Date.now()}`,
+        country,
+        city,
+        variant,
+        min_trips: 0,
+        pct: 0,
+        cap: 0,
+        valid_from: today,
+        valid_to: null,
+        _new: true,
+      },
     ])
   }
 
@@ -89,6 +138,10 @@ export default function YangoGmvConfig({ country }) {
       pct: Number(tier.pct) || 0,
       cap: Number(tier.cap) || 0,
     }
+    if (tier._new) {
+      payload.valid_from = tier.valid_from || today
+      payload.source_type = 'captura'
+    }
     let err
     if (tier._new) {
       ;({ error: err } = await sb.from('yango_gmv_tiers').insert(payload))
@@ -105,6 +158,39 @@ export default function YangoGmvConfig({ country }) {
           pct: payload.pct,
           cap: payload.cap,
         }),
+      })
+      await load()
+    }
+    setSaving(false)
+  }
+
+  // mig 237 — versión nueva de toda la escalera (ciudad × variante) desde ladderFrom.
+  async function newLadderVersion() {
+    if (!currentRows.length) return
+    if (ladderFrom <= currentValidFrom) {
+      setMsg({ type: 'err', text: t('config.yango_gmv.new_ladder_date_error') })
+      return
+    }
+    setSaving(true)
+    setMsg(null)
+    const { data, error } = await sb.rpc('yango_gmv_ladder_new_version', {
+      p_country: country,
+      p_city: city,
+      p_variant: variant,
+      p_valid_from: ladderFrom,
+      p_tiers: currentRows.map((r) => ({
+        min_trips: Number(r.min_trips) || 0,
+        pct: Number(r.pct) || 0,
+        cap: Number(r.cap) || 0,
+      })),
+      p_source_type: 'captura',
+    })
+    if (error) {
+      setMsg({ type: 'err', text: t('config.yango_gmv.new_ladder_error', { msg: error.message }) })
+    } else {
+      setMsg({
+        type: 'ok',
+        text: t('config.yango_gmv.new_ladder_ok', { date: ladderFrom, n: data ?? 0 }),
       })
       await load()
     }
@@ -178,6 +264,23 @@ export default function YangoGmvConfig({ country }) {
             )
           })}
         </div>
+        <label
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            color: 'var(--color-muted)',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={showHistory}
+            onChange={(e) => setShowHistory(e.target.checked)}
+            style={{ accentColor: 'var(--color-yango)' }}
+          />
+          {t('config.yango_gmv.show_history')} ({expiredCount})
+        </label>
       </div>
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
@@ -188,13 +291,14 @@ export default function YangoGmvConfig({ country }) {
             <th scope="col">{t('config.yango_gmv.col_trips')}</th>
             <th scope="col">{t('config.yango_gmv.col_pct')}</th>
             <th scope="col">{t('config.yango_gmv.col_cap')}</th>
+            <th scope="col">{t('config.yango_gmv.col_validity')}</th>
             <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={4} style={{ color: 'var(--color-muted)' }}>
+              <td colSpan={5} style={{ color: 'var(--color-muted)' }}>
                 {t('config.yango_gmv.empty', {
                   city,
                   variant: t(VARIANTS.find((v) => v.key === variant)?.labelKey),
@@ -204,8 +308,12 @@ export default function YangoGmvConfig({ country }) {
           )}
           {rows.map((tier) => {
             const dirty = isDirty(tier)
+            const expired = isExpired(tier)
             return (
-              <tr key={tier.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+              <tr
+                key={tier.id}
+                style={dirty ? { background: '#fffbeb' } : expired ? { opacity: 0.6 } : undefined}
+              >
                 <td>
                   <input
                     type="number"
@@ -233,6 +341,10 @@ export default function YangoGmvConfig({ country }) {
                     onChange={(e) => update(tier.id, 'cap', e.target.value)}
                     style={{ width: 80, ...(dirty ? dirtyCellStyle : {}) }}
                   />
+                </td>
+                <td style={{ fontSize: 11, color: expired ? '#dc2626' : 'var(--color-muted)' }}>
+                  {tier.valid_from}
+                  {tier.valid_to ? ` → ${tier.valid_to}` : ' →'}
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
                   <Button
@@ -265,15 +377,42 @@ export default function YangoGmvConfig({ country }) {
         </tbody>
       </table>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
-        onClick={addTier}
+      <div
+        style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}
       >
-        + {t('config.yango_gmv.add_btn')}
-      </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-dashed border-border text-muted hover:border-yango hover:text-yango"
+          onClick={addTier}
+        >
+          + {t('config.yango_gmv.add_btn')}
+        </Button>
+        {currentRows.length > 0 && (
+          <span
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+            title={t('config.yango_gmv.new_ladder_prompt')}
+          >
+            <input
+              type="date"
+              value={ladderFrom}
+              min={nextDay(currentValidFrom)}
+              style={{ width: 140 }}
+              onChange={(e) => setLadderFrom(e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={saving}
+              onClick={newLadderVersion}
+            >
+              {t('config.yango_gmv.new_ladder_btn')}
+            </Button>
+          </span>
+        )}
+      </div>
     </div>
   )
 }

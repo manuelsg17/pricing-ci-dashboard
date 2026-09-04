@@ -145,7 +145,9 @@ export function ConfigProvider({ children }) {
     fetcher: async () => {
       const { data, error } = await sb
         .from('yango_gmv_tiers')
-        .select('country, city, variant, min_trips, pct, cap, is_active')
+        // valid_from/valid_to (mig 237): sin ellas el cálculo no puede elegir la
+        // versión vigente y mezclaría dos escaleras (gana el peldaño más alto).
+        .select('country, city, variant, min_trips, pct, cap, is_active, valid_from, valid_to')
       // Tolerante a pre-migración (mig 116 sin aplicar) → [] y el cálculo usa
       // las tablas hardcodeadas de fallback.
       if (error) {

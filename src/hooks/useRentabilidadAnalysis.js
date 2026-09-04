@@ -35,6 +35,7 @@ export function useRentabilidadAnalysis({
   branded,
   bonusFor,
   yangoGmvTiers,
+  asOf, // ISO date: vigencia de bonos/escaleras (mig 237)
 }) {
   // data para un valor de viajes: [{ tier, [comp]: value }]
   const chartDataFor = useCallback(
@@ -179,11 +180,13 @@ export function useRentabilidadAnalysis({
         segment: archetype.segment,
         sharePeak: archetype.sharePeak,
         streakDays: archetype.streakDays,
+        asOf,
       })
       if (oneOff > 0) out.push({ comp, oneOff })
     }
     return out
   }, [
+    asOf,
     refTier,
     rivalCols,
     bonuses,
@@ -210,10 +213,11 @@ export function useRentabilidadAnalysis({
         : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
             dbCategory: refTier.dbCategory,
             segment: archetype.segment,
+            asOf,
           })
       const fareWeek = pd.avg * liveTrips * (1 - comm / 100)
       const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, refTier.dbCategory, branded, pd.avg, liveTrips, yangoGmvTiers)
+        ? yangoGmvBonus(dbCity, refTier.dbCategory, branded, pd.avg, liveTrips, yangoGmvTiers, asOf)
         : 0
       const bonusWeek = bonusFor(comp, refTier.dbCategory, liveTrips, pd.avg) + gmv
       out.push({
@@ -235,6 +239,7 @@ export function useRentabilidadAnalysis({
     }
     return out
   }, [
+    asOf,
     refTier,
     hasData,
     liveTrips,

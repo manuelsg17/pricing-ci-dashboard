@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import { COMPETITOR_COLORS, resolveDbParams } from '../lib/constants'
 import { useConfigContext } from '../context/ConfigProvider'
-import { getISOYearWeek } from '../lib/dateUtils'
+import { getISOYearWeek, isoWeekMonday, toISODate } from '../lib/dateUtils'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
 import { useCountry } from '../context/CountryContext'
@@ -101,12 +101,27 @@ export default function Rentabilidad() {
   const dbCity = catMap[0]?.dbCity || uiCity
   const dbCategories = useMemo(() => [...new Set(catMap.map((c) => c.dbCategory))], [catMap])
 
+  // Ventana de VIGENCIA de bonos y escaleras (mig 237): la semana elegida
+  // completa (lunes → domingo). Un bono rige en la semana si SOLAPA con ella,
+  // así uno cargado el jueves ya cuenta. Al mirar una semana pasada, los bonos
+  // son los que regían entonces — antes eran siempre los de hoy.
+  const asOf = useMemo(() => {
+    const monday = isoWeekMonday(refYear, refWeek)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    return { from: toISODate(monday), to: toISODate(sunday) }
+  }, [refYear, refWeek])
+
   const { commissions, allRows: commRows } = useCompetitorCommissions(dbCity, country)
   const {
     bonuses,
     allRows: bonusRows,
     loading: bonusesLoading,
-  } = useCompetitorBonuses(dbCity, country)
+  } = useCompetitorBonuses(dbCity, country, asOf)
+  const bonusCount = useMemo(
+    () => Object.values(bonuses).reduce((s, rows) => s + rows.length, 0),
+    [bonuses]
+  )
 
   const { pricesByCat, loading } = useRentabilidadPrices({
     dbCity,
@@ -152,6 +167,7 @@ export default function Rentabilidad() {
     metric,
     branded,
     yangoGmvTiers,
+    asOf,
   })
 
   const hasData = Object.keys(pricesByCat).length > 0
@@ -195,6 +211,7 @@ export default function Rentabilidad() {
     branded,
     bonusFor,
     yangoGmvTiers,
+    asOf,
   })
 
   // ── Manejo de segmentos ────────────────────────────────────────────────
@@ -311,7 +328,7 @@ export default function Rentabilidad() {
             </select>
           </Field>
 
-          <Field label={t('earnings.week')}>
+          <Field label={t('rentabilidad.week')}>
             <input
               type="number"
               value={refWeek}
@@ -324,6 +341,22 @@ export default function Rentabilidad() {
               }}
             />
           </Field>
+
+          {/* Qué bonos está usando el cálculo: los vigentes en la semana elegida (mig 237) */}
+          <div
+            style={{
+              fontSize: 11,
+              color: bonusCount === 0 && !bonusesLoading ? '#b45309' : 'var(--color-muted)',
+              alignSelf: 'flex-end',
+              paddingBottom: 6,
+            }}
+            title={t('rentabilidad.bonuses_as_of', { date: asOf.from })}
+          >
+            {t('rentabilidad.bonuses_as_of', { date: asOf.from })} ·{' '}
+            {bonusCount === 0 && !bonusesLoading
+              ? t('rentabilidad.no_bonuses_city', { city: uiCity })
+              : t('rentabilidad.bonuses_count', { n: bonusCount })}
+          </div>
 
           <Field label={t('rentabilidad.metric')}>
             <div
@@ -367,7 +400,7 @@ export default function Rentabilidad() {
               alignItems: 'flex-end',
             }}
           >
-            <Field label={t('earnings.year')}>
+            <Field label={t('rentabilidad.year')}>
               <input
                 type="number"
                 value={refYear}
@@ -380,7 +413,7 @@ export default function Rentabilidad() {
                 }}
               />
             </Field>
-            <Field label={t('earnings.hours_per_week')}>
+            <Field label={t('rentabilidad.hours_per_week')}>
               <input
                 type="number"
                 value={hoursPerWeek}
@@ -546,7 +579,7 @@ export default function Rentabilidad() {
         </div>
 
         {/* Readout del bono Yango por % de GMV (cash aditivo, no comisión) */}
-        {hasYangoGmvTable(dbCity, yangoGmvTiers) &&
+        {hasYangoGmvTable(dbCity, yangoGmvTiers, asOf) &&
           refTier &&
           (() => {
             const fare = pricesByCat[refTier.dbCategory]?.[yangoKeyFor(refTier.dbCategory)]?.avg
@@ -556,7 +589,8 @@ export default function Rentabilidad() {
               branded,
               fare,
               liveTrips,
-              yangoGmvTiers
+              yangoGmvTiers,
+              asOf
             )
             return (
               <div style={{ marginTop: 10, fontSize: 12, color: 'var(--color-muted)' }}>

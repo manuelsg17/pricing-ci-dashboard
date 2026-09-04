@@ -28,6 +28,7 @@ export function useRentabilidadEngine({
   metric,
   branded,
   yangoGmvTiers,
+  asOf, // ISO date: vigencia de bonos/escaleras (mig 237)
 }) {
   // ── Comisión total de Yango = base ciudad + partner(3%) + herramientas ──────
   // Reemplaza el % plano del DB (Yango figura 20%): el modelo real es apilable.
@@ -65,10 +66,11 @@ export function useRentabilidadEngine({
         segment: archetype.segment,
         sharePeak: archetype.sharePeak,
         streakDays: archetype.streakDays,
+        asOf,
       })
       return total
     },
-    [bonuses, hoursPerWeek, commissions, archetype]
+    [bonuses, hoursPerWeek, commissions, archetype, asOf]
   )
 
   const netFor = useCallback(
@@ -82,9 +84,10 @@ export function useRentabilidadEngine({
         : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
             dbCategory,
             segment: archetype.segment,
+            asOf,
           })
       const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers)
+        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers, asOf)
         : 0
       const week =
         pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg) + gmv
@@ -101,6 +104,7 @@ export function useRentabilidadEngine({
       dbCity,
       branded,
       yangoGmvTiers,
+      asOf,
     ]
   )
 
@@ -115,10 +119,10 @@ export function useRentabilidadEngine({
       const week =
         pd.avg * trips * (1 - commPct / 100) +
         bonusFor(yangoKey, dbCategory, trips, pd.avg) +
-        yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers)
+        yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers, asOf)
       return metric === 'trip' ? week / trips : week
     },
-    [pricesByCat, bonusFor, metric, country, dbCity, branded, yangoGmvTiers]
+    [pricesByCat, bonusFor, metric, country, dbCity, branded, yangoGmvTiers, asOf]
   )
 
   // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
@@ -137,9 +141,10 @@ export function useRentabilidadEngine({
         : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
             dbCategory,
             segment: archetype.segment,
+            asOf,
           })
       const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, n, yangoGmvTiers)
+        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, n, yangoGmvTiers, asOf)
         : 0
       return pd.avg * (1 - comm / 100) + (bonusFor(comp, dbCategory, n, pd.avg) + gmv) / n
     },
@@ -153,6 +158,7 @@ export function useRentabilidadEngine({
       dbCity,
       branded,
       yangoGmvTiers,
+      asOf,
     ]
   )
 

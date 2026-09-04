@@ -9,8 +9,16 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
+import { toISODate } from '../../lib/dateUtils'
 
 const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
+// Día siguiente en ISO (para el mínimo del selector "nueva versión desde").
+const nextDay = (iso) => {
+  if (!iso) return undefined
+  const d = new Date(`${iso}T00:00:00`)
+  d.setDate(d.getDate() + 1)
+  return toISODate(d)
+}
 const SEGMENTS = [
   { value: 'active', labelKey: 'config.bonuses_config.seg_active' },
   { value: 'new', labelKey: 'config.bonuses_config.seg_new' },
@@ -111,7 +119,10 @@ export default function BonusesConfig({ country }) {
     })),
   ]
 
-  const { allRows, loading, saveBonus, deleteBonus, addRow } = useCompetitorBonuses(null, country)
+  const { allRows, loading, saveBonus, newVersion, deleteBonus, addRow } = useCompetitorBonuses(
+    null,
+    country
+  )
   // Comisiones reales por competidor — para que el preview del wizard
   // calcule garantías con la misma comisión que usa Rentabilidad.
   const { commissions } = useCompetitorCommissions(null, country)
@@ -121,6 +132,46 @@ export default function BonusesConfig({ country }) {
   const [advOpen, setAdvOpen] = useState({})
   const [openCards, setOpenCards] = useState({})
   const [wizardOpen, setWizardOpen] = useState(false)
+  // mig 237 — historial: por defecto solo se listan las versiones vigentes o
+  // futuras; las vencidas se ven con el toggle. `versionFrom` = fecha desde la
+  // que regiría una versión nueva de cada tarjeta.
+  const [showHistory, setShowHistory] = useState(false)
+  const [versionFrom, setVersionFrom] = useState({})
+  const today = toISODate(new Date()) // hora local, no UTC
+  const isExpired = (r) => !!r.valid_to && String(r.valid_to) < today
+  const isFuture = (r) => !!r.valid_from && String(r.valid_from) > today
+  const visibleRows = showHistory ? allRows : allRows.filter((r) => !isExpired(r))
+  const SOURCE_TYPES = [
+    { value: 'informe_msye', labelKey: 'config.bonuses_config.source_informe_msye' },
+    { value: 'captura', labelKey: 'config.bonuses_config.source_captura' },
+    { value: 'estimado', labelKey: 'config.bonuses_config.source_estimado' },
+    { value: 'seed', labelKey: 'config.bonuses_config.source_seed' },
+  ]
+
+  async function handleNewVersion(row) {
+    const from = versionFrom[row.id] || today
+    setSaving(true)
+    setMsg(null)
+    const { ok, error } = await newVersion(merged(row), from)
+    if (ok) {
+      setEdits((prev) => {
+        const n = { ...prev }
+        delete n[row.id]
+        return n
+      })
+      setMsg({ type: 'ok', text: t('config.bonuses_config.new_version_ok', { date: from }) })
+    } else {
+      // Códigos propios de la RPC (mig 237) → texto traducido; el resto, crudo.
+      const msg = String(error || '')
+      const text = msg.includes('not_latest_version')
+        ? t('config.bonuses_config.new_version_not_latest')
+        : msg.includes('invalid_valid_from')
+          ? t('config.bonuses_config.new_version_invalid_from')
+          : t('config.bonuses_config.new_version_error', { msg })
+      setMsg({ type: 'err', text })
+    }
+    setSaving(false)
+  }
 
   // m = fila + ediciones sin guardar
   const merged = (row) => ({ ...row, ...(edits[row.id] || {}) })
@@ -248,7 +299,26 @@ export default function BonusesConfig({ country }) {
 
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
-      {allRows.map((row) => {
+      <label
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 12,
+          marginBottom: 10,
+          color: 'var(--color-muted)',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={showHistory}
+          onChange={(e) => setShowHistory(e.target.checked)}
+          style={{ accentColor: 'var(--color-yango)' }}
+        />
+        {t('config.bonuses_config.show_history')} ({allRows.length - visibleRows.length})
+      </label>
+
+      {visibleRows.map((row) => {
         const m = merged(row)
         const dirty = isDirty(row.id) || isNew(row)
         const mech = m.mechanism || 'flat'
@@ -297,6 +367,23 @@ export default function BonusesConfig({ country }) {
                       style={{ marginLeft: 8, fontSize: 10, color: '#b45309', fontWeight: 600 }}
                     >
                       {t('config.bonuses_config.once_badge')}
+                    </span>
+                  )}
+                  {/* Vigencia (mig 237) */}
+                  {!isNew(row) && (
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: isExpired(m) ? '#dc2626' : isFuture(m) ? '#1d4ed8' : '#15803d',
+                      }}
+                    >
+                      {isExpired(m)
+                        ? t('config.bonuses_config.status_expired', { date: m.valid_to })
+                        : isFuture(m)
+                          ? t('config.bonuses_config.status_future', { date: m.valid_from })
+                          : t('config.bonuses_config.status_current')}
                     </span>
                   )}
                 </div>
@@ -916,6 +1003,60 @@ export default function BonusesConfig({ country }) {
                   </div>
                 )}
 
+                {/* Vigencia y procedencia (mig 237) */}
+                <div style={{ ...rowStyle, marginTop: 8 }}>
+                  <Field label={t('config.bonuses_config.valid_from_label')}>
+                    <input
+                      type="date"
+                      value={m.valid_from || ''}
+                      style={{ width: 140 }}
+                      onChange={(e) => setField(row.id, 'valid_from', e.target.value)}
+                    />
+                  </Field>
+                  <Field label={t('config.bonuses_config.valid_to_label')}>
+                    <input
+                      type="date"
+                      value={m.valid_to || ''}
+                      style={{ width: 140 }}
+                      onChange={(e) => setField(row.id, 'valid_to', e.target.value || null)}
+                    />
+                  </Field>
+                  <Field label={t('config.bonuses_config.source_type_label')}>
+                    <select
+                      value={m.source_type || 'captura'}
+                      onChange={(e) => setField(row.id, 'source_type', e.target.value)}
+                    >
+                      {SOURCE_TYPES.map((s) => (
+                        // 'seed' es solo de lectura: identifica la carga inicial, no se elige.
+                        <option key={s.value} value={s.value} disabled={s.value === 'seed'}>
+                          {t(s.labelKey)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t('config.bonuses_config.source_ref_label')}>
+                    <input
+                      type="text"
+                      value={m.source_ref || ''}
+                      style={{ width: 200 }}
+                      onChange={(e) => setField(row.id, 'source_ref', e.target.value || null)}
+                    />
+                  </Field>
+                  <Field label={t('config.bonuses_config.reported_week_label')}>
+                    <input
+                      type="date"
+                      value={m.reported_week || ''}
+                      style={{ width: 140 }}
+                      onChange={(e) => setField(row.id, 'reported_week', e.target.value || null)}
+                    />
+                  </Field>
+                  {m.captured_by && (
+                    <span style={hintStyle}>
+                      {t('config.bonuses_config.captured_by', { who: m.captured_by })}
+                    </span>
+                  )}
+                </div>
+
                 {/* Footer */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
@@ -927,6 +1068,31 @@ export default function BonusesConfig({ country }) {
                     />
                     {t('config.bonuses_config.seg_active')}
                   </label>
+                  {/* Versionar (mig 237): cierra la vigente el día anterior y crea la copia editada */}
+                  {!isNew(row) && (
+                    <span
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      title={t('config.bonuses_config.new_version_prompt')}
+                    >
+                      <input
+                        type="date"
+                        value={versionFrom[row.id] || today}
+                        min={nextDay(m.valid_from)}
+                        style={{ width: 140 }}
+                        onChange={(e) =>
+                          setVersionFrom((p) => ({ ...p, [row.id]: e.target.value }))
+                        }
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => handleNewVersion(row)}
+                      >
+                        {t('config.bonuses_config.new_version_btn')}
+                      </Button>
+                    </span>
+                  )}
                   <Button
                     size="sm"
                     onClick={() => handleSave(row)}

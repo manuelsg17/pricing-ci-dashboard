@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { rowWeeklyCash, describeBonus } from '../../lib/competitorBonus'
+import { toISODate } from '../../lib/dateUtils'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
@@ -171,6 +172,12 @@ export default function BonusWizard({
     recurring: true,
     description: '',
     is_active: true,
+    // mig 237 — vigencia y procedencia (hoy en hora local, no UTC)
+    valid_from: toISODate(new Date()),
+    valid_to: null,
+    source_type: 'captura',
+    source_ref: '',
+    reported_week: null,
   })
   // Ejemplo de cálculo en vivo (paso final)
   const [exTrips, setExTrips] = useState(40)
@@ -836,6 +843,63 @@ export default function BonusWizard({
                   {t('config.bonus_wizard.surge_note')}
                 </div>
               )}
+            </div>
+
+            {/* Vigencia y procedencia (mig 237): desde cuándo rige y de dónde salió */}
+            <div
+              style={{
+                border: '1px dashed var(--color-border, #e2e8f0)',
+                borderRadius: 10,
+                padding: '12px 14px',
+                marginTop: 12,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                📅 {t('config.bonuses_config.validity_title')}
+              </div>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: 12 }}>
+                  {t('config.bonuses_config.valid_from_label')}{' '}
+                  <input
+                    type="date"
+                    style={{ ...inputStyle, width: 140 }}
+                    value={draft.valid_from || ''}
+                    onChange={(e) => set('valid_from', e.target.value)}
+                  />
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  {t('config.bonuses_config.source_type_label')}{' '}
+                  <select
+                    style={{ ...inputStyle, width: 160 }}
+                    value={draft.source_type || 'captura'}
+                    onChange={(e) => set('source_type', e.target.value)}
+                  >
+                    <option value="informe_msye">
+                      {t('config.bonuses_config.source_informe_msye')}
+                    </option>
+                    <option value="captura">{t('config.bonuses_config.source_captura')}</option>
+                    <option value="estimado">{t('config.bonuses_config.source_estimado')}</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  {t('config.bonuses_config.source_ref_label')}{' '}
+                  <input
+                    type="text"
+                    style={{ ...inputStyle, width: 200 }}
+                    value={draft.source_ref || ''}
+                    onChange={(e) => set('source_ref', e.target.value)}
+                  />
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  {t('config.bonuses_config.reported_week_label')}{' '}
+                  <input
+                    type="date"
+                    style={{ ...inputStyle, width: 140 }}
+                    value={draft.reported_week || ''}
+                    onChange={(e) => set('reported_week', e.target.value || null)}
+                  />
+                </label>
+              </div>
             </div>
           </div>
         )}

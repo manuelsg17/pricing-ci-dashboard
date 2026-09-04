@@ -186,6 +186,28 @@ console.log('\n══ competitorBonus tests ══')
   assert(effectiveCommission(20, null, 0.5) === 20, 'rows=null → no crashea, comisión sin cambios')
 }
 
+{
+  console.log('\n[16] vigencia (mig 237): asOf filtra por valid_from/valid_to; sin asOf no filtra')
+  const rows = [
+    { mechanism: 'comm_credit', bonus_amount: 10, valid_from: '2026-01-01', valid_to: '2026-06-30' },
+    { mechanism: 'comm_credit', bonus_amount: 20, valid_from: '2026-07-01', valid_to: null },
+    { mechanism: 'comm_credit', bonus_amount: 40, valid_from: '2026-12-01' },
+  ]
+  assert(resolveBonusWeekly(rows, { asOf: '2026-03-02' }).total === 10, 'marzo → solo la versión ene-jun (10)')
+  assert(resolveBonusWeekly(rows, { asOf: '2026-06-30' }).total === 10, 'último día de vigencia inclusive (10)')
+  assert(resolveBonusWeekly(rows, { asOf: '2026-07-01' }).total === 20, 'primer día de la versión nueva (20)')
+  assert(resolveBonusWeekly(rows, { asOf: '2026-09-07' }).total === 20, 'septiembre → la abierta (20), la futura no')
+  assert(resolveBonusWeekly(rows, {}).total === 70, 'sin asOf → no filtra (compatibilidad): 10+20+40')
+  // Rango semanal (lunes→domingo): un bono que arranca el jueves cuenta para esa semana.
+  const week = { from: '2026-06-29', to: '2026-07-05' }
+  assert(resolveBonusWeekly(rows, { asOf: week }).total === 30, 'semana 29-jun→5-jul solapa con la vieja (hasta 30-jun) y la nueva (desde 1-jul): 10+20')
+  assert(resolveBonusWeekly(rows, { asOf: { from: '2026-11-30', to: '2026-12-06' } }).total === 60, 'semana que pisa el 1-dic incluye la futura: 20+40')
+  assert(resolveBonusWeekly([{ mechanism: 'comm_credit', bonus_amount: 7 }], { asOf: week }).total === 7, 'fila sin columnas de vigencia → siempre vigente')
+  const disc = [{ mechanism: 'comm_discount', comm_pct: 1, valid_from: '2026-07-01', valid_to: '2026-07-31' }]
+  assert(effectiveCommission(20, disc, 0.5, { asOf: '2026-07-15' }) === 10.5, 'comm_discount vigente aplica (10.5)')
+  assert(effectiveCommission(20, disc, 0.5, { asOf: '2026-08-15' }) === 20, 'comm_discount vencido no aplica (20)')
+}
+
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)
 if (fail > 0) {
   console.log('\nFallidos:')

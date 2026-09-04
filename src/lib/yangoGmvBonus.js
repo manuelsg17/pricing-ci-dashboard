@@ -87,13 +87,27 @@ const TABLES = {
   },
 }
 
+// Vigencia (mig 237): ¿la fila rige en `asOf`? Fecha ISO o rango { from, to }
+// inclusive (Rentabilidad pasa la semana completa). Sin asOf no filtra.
+function validOn(r, asOf) {
+  if (!asOf) return true
+  const from = typeof asOf === 'string' ? asOf : asOf.from
+  const to = typeof asOf === 'string' ? asOf : asOf.to
+  if (r.valid_from && to && String(r.valid_from) > to) return false
+  if (r.valid_to && from && String(r.valid_to) < from) return false
+  return true
+}
+
 // Construye la estructura TABLES desde filas de yango_gmv_tiers (mig 116). Si no
-// hay filas (config sin cargar / test node), cae al hardcode de arriba.
-function tablesFromRows(rows) {
+// hay filas (config sin cargar / test node), cae al hardcode de arriba. Con
+// filas, solo entran las vigentes en `asOf` — una ciudad cuya escalera no rige
+// en esa fecha simplemente no aparece (bono 0), sin caer al hardcode.
+function tablesFromRows(rows, asOf) {
   if (!Array.isArray(rows) || rows.length === 0) return TABLES
   const out = {}
   for (const r of rows) {
     if (r.is_active === false) continue
+    if (!validOn(r, asOf)) continue
     if (!out[r.city]) out[r.city] = {}
     if (!out[r.city][r.variant]) out[r.city][r.variant] = []
     out[r.city][r.variant].push({ t: Number(r.min_trips), pct: Number(r.pct), cap: Number(r.cap) })
@@ -104,21 +118,21 @@ function tablesFromRows(rows) {
 }
 
 // ¿Hay tabla de bono GMV para esta ciudad? (aeropuertos/Corp → no, por ahora).
-export function hasYangoGmvTable(dbCity, rows) {
-  return !!tablesFromRows(rows)[dbCity]
+export function hasYangoGmvTable(dbCity, rows, asOf) {
+  return !!tablesFromRows(rows, asOf)[dbCity]
 }
 
-// Devuelve la escalera aplicable según ciudad/categoría/brandeo.
-function ladderFor(dbCity, dbCategory, branded, rows) {
-  const t = tablesFromRows(rows)[dbCity]
+// Devuelve la escalera aplicable según ciudad/categoría/brandeo (vigente en asOf).
+function ladderFor(dbCity, dbCategory, branded, rows, asOf) {
+  const t = tablesFromRows(rows, asOf)[dbCity]
   if (!t) return null
   if (dbCity === 'Lima' && dbCategory === 'Premier' && t.vip) return t.vip // VIP gana
   return branded ? t.branded : t.unbranded
 }
 
 // Detalle del bono GMV: { pct, cap, gmv, bono } o null si no aplica.
-export function yangoGmvDetail(dbCity, dbCategory, branded, fare, trips, rows) {
-  const ladder = ladderFor(dbCity, dbCategory, branded, rows)
+export function yangoGmvDetail(dbCity, dbCategory, branded, fare, trips, rows, asOf) {
+  const ladder = ladderFor(dbCity, dbCategory, branded, rows, asOf)
   if (!ladder || !fare || !trips || isNaN(fare)) return null
   let step = null
   for (const r of ladder) if (trips >= r.t) step = r // peldaño máximo alcanzado
@@ -129,6 +143,7 @@ export function yangoGmvDetail(dbCity, dbCategory, branded, fare, trips, rows) {
 
 // Bono GMV semanal (S/). 0 si no aplica. `rows` = filas de yango_gmv_tiers
 // (de useConfigContext); sin ellas usa las tablas hardcodeadas de fallback.
-export function yangoGmvBonus(dbCity, dbCategory, branded, fare, trips, rows) {
-  return yangoGmvDetail(dbCity, dbCategory, branded, fare, trips, rows)?.bono || 0
+// `asOf` (ISO) = fecha de referencia para la vigencia (mig 237).
+export function yangoGmvBonus(dbCity, dbCategory, branded, fare, trips, rows, asOf) {
+  return yangoGmvDetail(dbCity, dbCategory, branded, fare, trips, rows, asOf)?.bono || 0
 }

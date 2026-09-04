@@ -113,6 +113,19 @@ console.log('\n══ yangoGmvBonus tests ══')
   assert(d2.pct === 9, 'rows=null → cae al hardcode, no crashea')
 }
 
+{
+  console.log('\n[V] vigencia (mig 237): asOf elige la versión de la escalera; fuera de vigencia → sin tabla')
+  const rows = [
+    { city: 'Lima', variant: 'unbranded', min_trips: 10, pct: 9, cap: 50, valid_from: '2025-07-01', valid_to: '2026-08-31' },
+    { city: 'Lima', variant: 'unbranded', min_trips: 10, pct: 12, cap: 80, valid_from: '2026-09-01', valid_to: null },
+  ]
+  assert(yangoGmvDetail('Lima', 'Economy', false, 10, 10, rows, '2026-08-15').pct === 9, 'agosto → versión vieja (9%)')
+  assert(yangoGmvDetail('Lima', 'Economy', false, 10, 10, rows, '2026-09-01').pct === 12, '1-sep → versión nueva (12%)')
+  assert(yangoGmvDetail('Lima', 'Economy', false, 10, 10, rows, '2025-01-01') === null, 'antes de toda vigencia → null (no cae al hardcode)')
+  assert(hasYangoGmvTable('Lima', rows, '2025-01-01') === false, 'hasYangoGmvTable respeta asOf')
+  assert(yangoGmvBonus('Lima', 'Economy', false, 10, 10, rows) === 12, 'sin asOf → no filtra: gana el peldaño más alto cargado (12% de 100 = 12)')
+}
+
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)
 if (fail > 0) {
   console.log('\nFallidos:')
