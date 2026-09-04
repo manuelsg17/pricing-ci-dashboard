@@ -108,29 +108,6 @@
   gap: 8px;
 }
 
-/* ── Messages ────────────────────────────────────────────────────── */
-.am-msg {
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  margin-bottom: 12px;
-}
-.am-msg--ok {
-  background: var(--color-success-bg);
-  color: var(--color-success);
-}
-.am-msg--err {
-  background: var(--color-danger-bg);
-  color: var(--color-danger-fg);
-}
-
-/* ── Empty state ─────────────────────────────────────────────────── */
-.am-empty {
-  color: #94a3b8;
-  font-size: 13px;
-  padding: 16px 0;
-}
-
 /* ── Users table ─────────────────────────────────────────────────── */
 .am-table {
   width: 100%;

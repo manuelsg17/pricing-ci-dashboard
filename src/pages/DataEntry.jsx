@@ -1,6 +1,46 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { sb, SESSION_ID } from '../lib/supabase'
+import { SESSION_ID } from '../lib/supabase'
+import {
+  deleteActiveSession,
+  deleteActiveSessionScoped,
+  upsertActiveSession,
+  fetchPresence as fetchPresenceRpc,
+  fetchSavedObservations,
+  countSavedObservations,
+  fetchManualObservations,
+  fetchBucketWriteMark,
+  saveCiBatch,
+  closeCiSession,
+  fetchSessionHistory,
+  fetchTurnoTimings,
+  fetchTukTukZones,
+} from '../hooks/useDataEntryPersistence'
+import {
+  countFilledEntries,
+  hasMeaningfulIndriveExtra,
+  countAllFilled,
+  earliestTurnoStart,
+  countFilledByTimeslot,
+} from '../lib/dataEntry/draftCounts'
+import {
+  priceKey,
+  indKey,
+  bucketKeyFor,
+  viewIdFor,
+  draftKeyFor,
+  legacyDraftKeyFor,
+  draftKeyPrefixFor,
+  bucketFinishedLsKeyFor,
+  syncSeqKeyFor as syncSeqKey,
+} from '../lib/dataEntry/keys'
+import {
+  buildRowsForSlot,
+  buildInsertPayload as buildInsertPayloadRow,
+  collectRouteDeletes,
+  buildRoutesPayload,
+} from '../lib/dataEntry/rows'
+import { buildCityClusters, computeRevisionInfo } from '../lib/dataEntry/derived'
 import { debeReanudarTramo, debeHidratarBorrador } from '../lib/sessionPersistence'
 import {
   evaluateLease,
@@ -62,61 +102,11 @@ function todayStr() {
   return toISODate(new Date())
 }
 
-// Cuenta solo celdas con un valor numérico real — una celda tipeada y
-// después borrada de nuevo (queda como '' en `entries`) NO cuenta como
-// "dato sin guardar". Usado tanto para el borrador local propio como para
-// leer borradores de OTRAS ciudades/fechas en localStorage, así una fila
-// "fantasma" (vacía pero con claves) nunca gana contra un borrador real.
-function countFilledEntries(entries) {
-  return Object.values(entries || {}).filter((v) => v !== '' && !isNaN(parseFloat(v))).length
-}
-
-function hasMeaningfulIndriveExtra(indriveExtra) {
-  return Object.values(indriveExtra || {}).some(
-    (extra) =>
-      (extra?.bids || []).some((b) => b !== '') ||
-      (extra?.minBid || '') !== '' ||
-      (extra?.rec || '') !== ''
-  )
-}
-
-// Cuenta TODAS las celdas "llenas": las que tienen número en `entries` + las
-// celdas InDrive que solo tienen precio recomendado (viven en indriveExtra, no
-// en entries, porque sin bids el promedio queda vacío). Fuente ÚNICA de verdad
-// para el pill de progreso y para el conteo del borrador restaurado — así no
-// vuelven a divergir (la divergencia causó una pérdida silenciosa del
-// recomendado al restaurar un borrador rec-only).
-function countAllFilled(entries, indriveExtra) {
-  let n = countFilledEntries(entries)
-  for (const [k, ex] of Object.entries(indriveExtra || {})) {
-    const recOk = ex?.rec != null && ex.rec !== '' && !isNaN(parseFloat(ex.rec))
-    if (!recOk) continue
-    const avg = (entries || {})[`${k}|InDrive`]
-    const avgOk = avg != null && avg !== '' && !isNaN(parseFloat(avg))
-    if (!avgOk) n++ // recomendado sin promedio de bids → no contado por entries
-  }
-  return n
-}
-
-// Timestamp (epoch ms) del `startedAt` más antiguo entre los turnos ya
-// estampados, o null si no hay ninguno. Usado para sembrar el cronómetro de
-// SESIÓN (sessionStartRef) al retomar trabajo que ya venía en curso — mismo
-// criterio que ya usa `turnoTimings` por turno, para no falsificar el tiempo
-// real con un "ahora" cada vez que se recarga la página o se reanuda un
-// borrador (bug real 2026-07-24: sesiones de horas quedaban registradas como
-// "1 minuto" al reanudar).
-function earliestTurnoStart(timings) {
-  if (!timings || typeof timings !== 'object') return null
-  let min = null
-  for (const t of Object.values(timings)) {
-    const raw = t?.startedAt
-    if (!raw) continue
-    const ms = new Date(raw).getTime()
-    if (!Number.isFinite(ms)) continue
-    if (min === null || ms < min) min = ms
-  }
-  return min
-}
+// countFilledEntries / hasMeaningfulIndriveExtra / countAllFilled /
+// earliestTurnoStart viven en src/lib/dataEntry/draftCounts.js (puras, con
+// tests en scripts/test-data-entry-counts.mjs). Siguen siendo la fuente ÚNICA
+// de verdad para el pill de progreso, el borrador restaurado y el escaneo de
+// borradores; el porqué de cada una está documentado allá.
 
 // Rebanadas vacías compartidas (identidad estable) para el estado por-ciudad:
 // evitan crear un objeto nuevo por render cuando la ciudad activa no tiene datos
@@ -374,8 +364,8 @@ export default function DataEntry() {
   // apenas se hace click, sin esperar a la carga async.
   const isTukTuk = activeTukTuk != null
   const zone = isTukTuk ? activeTukTuk || null : null
-  const bucketKey = isTukTuk ? `TT~${dbCity}~${zone}` : dbCity
-  const viewId = isTukTuk ? `TT~${dbCity}~${zone}` : uiCity
+  const bucketKey = bucketKeyFor(dbCity, zone, isTukTuk)
+  const viewId = viewIdFor(uiCity, dbCity, zone, isTukTuk)
 
   // Rebanadas de la ciudad activa — todo el resto del componente sigue leyendo
   // `entries`/`indriveExtra`/`etaEntries`/`discEntries`/`errorKeys`/`loadedCombos`
@@ -485,7 +475,7 @@ export default function DataEntry() {
   // desmonta y remonta todo, vaciando el Map). El localStorage sí
   // sobrevive, así que es la fuente de verdad; el Map en memoria es solo
   // una lectura rápida para el caso común (sin F5 de por medio).
-  const bucketFinishedLsKey = (bk, d) => `de:finished:${userEmail}:${bk}:${d}`
+  const bucketFinishedLsKey = (bk, d) => bucketFinishedLsKeyFor(userEmail, bk, d)
 
   const markBucketJustFinished = useCallback(
     (bk, d) => {
@@ -544,51 +534,10 @@ export default function DataEntry() {
   // muestra bajo Lima porque es el corporativo de Lima; una ciudad con la
   // categoría 'TukTuk' gana una pestaña TukTuk. Países simples (una sola ciudad)
   // quedan como una pestaña suelta con el nombre de la ciudad.
-  const cityClusters = useMemo(() => {
-    const CORP_UNDER = { Corp: 'Lima' } // Perú: Corp = corporativo de Lima
-    const clusters = []
-    const byBase = {}
-    const ensure = (base) => {
-      if (!byBase[base]) {
-        byBase[base] = { base, tabs: [] }
-        clusters.push(byBase[base])
-      }
-      return byBase[base]
-    }
-    for (const c of uiCities) {
-      const am = /^(.+)_Airport_([AB])$/.exec(c)
-      if (am) {
-        const base = am[1]
-        const cl = ensure(base)
-        let ap = cl.tabs.find((tb) => tb.type === 'airport')
-        if (!ap) {
-          ap = { type: 'airport', base, members: [] }
-          cl.tabs.push(ap)
-        }
-        ap.members.push({ uiCity: c, side: am[2] })
-        continue
-      }
-      if (c === 'Corp') {
-        // Solo redirige bajo la ciudad mapeada si esa ciudad REALMENTE existe
-        // en este país — si no (país hipotético con 'Corp' pero sin 'Lima'),
-        // Corp queda como su propio cluster en vez de crear un cluster
-        // "Lima" fantasma con un único tab Corp adentro.
-        const target = CORP_UNDER[c] && uiCities.includes(CORP_UNDER[c]) ? CORP_UNDER[c] : c
-        ensure(target).tabs.push({ type: 'corp', uiCity: c })
-        continue
-      }
-      ensure(c).tabs.push({ type: 'normal', uiCity: c })
-      if ((countryConfig.categoriesByCity[c] || []).includes('TukTuk')) {
-        ensure(c).tabs.push({ type: 'tuktuk', baseUiCity: c })
-      }
-    }
-    for (const cl of clusters)
-      for (const tb of cl.tabs)
-        if (tb.type === 'airport') tb.members.sort((a, b) => a.side.localeCompare(b.side))
-    const order = { normal: 0, corp: 1, airport: 2, tuktuk: 3 }
-    for (const cl of clusters) cl.tabs.sort((a, b) => (order[a.type] ?? 9) - (order[b.type] ?? 9))
-    return clusters
-  }, [uiCities, countryConfig])
+  const cityClusters = useMemo(
+    () => buildCityClusters(uiCities, countryConfig.categoriesByCity),
+    [uiCities, countryConfig]
+  )
 
   // uiCity → bucketKey. Para toda vista que no sea TukTuk, `bucketKey` es el
   // dbCity (ver su definición arriba), y el dbCity NO siempre es igual al uiCity:
@@ -741,13 +690,10 @@ export default function DataEntry() {
     // acotar es CORRECTO — justamente se quiere descartar cualquier resto,
     // sea del bucket que sea.
     if (userEmail) {
-      sb.from('ci_active_sessions')
-        .delete()
-        .eq('user_email', userEmail)
-        .then(
-          () => {},
-          () => {}
-        )
+      deleteActiveSession(userEmail).then(
+        () => {},
+        () => {}
+      )
     }
 
     setSessionActive(true)
@@ -767,18 +713,7 @@ export default function DataEntry() {
   async function loadSavedData(isCancelled) {
     if (!userEmail || !dbCity) return
     setSavedLoading(true)
-    let q = sb
-      .from('pricing_observations')
-      .select(
-        'category, competition_name, price_without_discount, price_with_discount, observed_time, timeslot'
-      )
-      .eq('country', country)
-      .eq('city', dbCity)
-      .eq('observed_date', date)
-      .eq('uploaded_by', userEmail)
-      .eq('data_source', 'manual')
-    q = zone != null ? q.eq('zone', zone) : q.is('zone', null)
-    const { data } = await q.order('timeslot').order('category').order('competition_name')
+    const { data } = await fetchSavedObservations({ country, dbCity, date, userEmail, zone })
     // Guard: si el hub cambió de ciudad/zona/fecha (o cerró el panel) mientras
     // la consulta viajaba, una respuesta tardía no debe pisar lo que ya se ve
     // — sin esto, cambiar rápido de distrito TukTuk con el panel abierto
@@ -807,16 +742,7 @@ export default function DataEntry() {
     if (!userEmail || !dbCity || showSavedData) return
     let cancelled = false
     ;(async () => {
-      let q = sb
-        .from('pricing_observations')
-        .select('id', { count: 'exact', head: true })
-        .eq('country', country)
-        .eq('city', dbCity)
-        .eq('observed_date', date)
-        .eq('uploaded_by', userEmail)
-        .eq('data_source', 'manual')
-      q = zone != null ? q.eq('zone', zone) : q.is('zone', null)
-      const { count } = await q
+      const { count } = await countSavedObservations({ country, dbCity, date, userEmail, zone })
       if (cancelled) return
       setSavedCount(count ?? 0)
     })()
@@ -834,17 +760,7 @@ export default function DataEntry() {
   // ── Load session history ───────────────────────────────
   async function loadSessionHistory() {
     setHistLoading(true)
-    let q = sb
-      .from('ci_sessions')
-      .select('*')
-      .eq('country', country)
-      .order('started_at', { ascending: false })
-      .limit(200)
-    if (histFrom) q = q.gte('observed_date', histFrom)
-    if (histTo) q = q.lte('observed_date', histTo)
-    if (histCity) q = q.eq('city', histCity)
-    if (histEmail) q = q.ilike('user_email', `%${histEmail}%`)
-    const { data } = await q
+    const { data } = await fetchSessionHistory({ country, histFrom, histTo, histCity, histEmail })
     setSessionHistory(data || [])
     setHistLoading(false)
   }
@@ -854,20 +770,10 @@ export default function DataEntry() {
   // deja rastro crudo (2+ filas para la misma ciudad/zona/fecha). Acá solo
   // se agrega el resumen "editado N veces, último por X" sobre la fila más
   // reciente de cada grupo — sin columnas nuevas, puro cálculo en memoria.
-  const revisionInfoByHistoryId = useMemo(() => {
-    const groups = {}
-    for (const s of sessionHistory) {
-      const key = `${s.city}|${s.zone || ''}|${s.observed_date}`
-      ;(groups[key] ||= []).push(s)
-    }
-    const m = {}
-    for (const list of Object.values(groups)) {
-      if (list.length < 2) continue
-      const latest = [...list].sort((a, b) => new Date(b.started_at) - new Date(a.started_at))[0]
-      m[latest.id] = { count: list.length, lastEditor: latest.user_email }
-    }
-    return m
-  }, [sessionHistory])
+  const revisionInfoByHistoryId = useMemo(
+    () => computeRevisionInfo(sessionHistory),
+    [sessionHistory]
+  )
 
   useEffect(() => {
     if (showHistory) loadSessionHistory()
@@ -912,13 +818,10 @@ export default function DataEntry() {
       setPendingExtraFronts([])
       setTouchedFronts([])
       if (userEmailRef.current) {
-        sb.from('ci_active_sessions')
-          .delete()
-          .eq('user_email', userEmailRef.current)
-          .then(
-            () => {},
-            () => {}
-          )
+        deleteActiveSession(userEmailRef.current).then(
+          () => {},
+          () => {}
+        )
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -976,19 +879,13 @@ export default function DataEntry() {
       return
     }
     let cancelled = false
-    sb.from('distance_references')
-      .select('zone')
-      .eq('country', country)
-      .eq('city', tukTukInfo.dbCity)
-      .eq('category', 'TukTuk')
-      .not('zone', 'is', null)
-      .then(({ data }) => {
-        if (cancelled) return
-        const zones = [...new Set((data || []).map((r) => r.zone).filter(Boolean))].sort((a, b) =>
-          a.localeCompare(b)
-        )
-        setTukTukDistricts(zones)
-      })
+    fetchTukTukZones(country, tukTukInfo.dbCity).then(({ data }) => {
+      if (cancelled) return
+      const zones = [...new Set((data || []).map((r) => r.zone).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b)
+      )
+      setTukTukDistricts(zones)
+    })
     return () => {
       cancelled = true
     }
@@ -1047,8 +944,8 @@ export default function DataEntry() {
   // hub se restauraba solo como si fuera del hub que abrió sesión después,
   // sin aclarar de quién era. Ver migración de borradores viejos (sin
   // email) más abajo, para no perder trabajo en curso al desplegar esto.
-  const draftKey = `de:draft:${userEmail}:${country}:${viewId}:${date}`
-  const legacyDraftKey = `de:draft:${country}:${viewId}:${date}`
+  const draftKey = draftKeyFor(userEmail, country, viewId, date)
+  const legacyDraftKey = legacyDraftKeyFor(country, viewId, date)
   const draftHydratedRef = useRef(false)
   // Indicador "guardado hace Xs" — se lee en el header (progress pill).
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState(null)
@@ -1074,7 +971,7 @@ export default function DataEntry() {
   // se está mirando, y escribir la marca bajo la clave equivocada haría que
   // el guard avale un bucket que nunca se leyó. Es el mismo desfase de
   // namespaces que CLAUDE.md §1 marca como causa de pérdida real de trabajo.
-  const syncSeqKeyFor = useCallback((c, city, z, d) => `de:seq:${c}|${city}|${z ?? ''}|${d}`, [])
+  const syncSeqKeyFor = useCallback((c, city, z, d) => syncSeqKey(c, city, z, d), [])
   const readSyncSeq = useCallback(() => {
     try {
       const v = sessionStorage.getItem(syncSeqKeyFor(country, dbCity, zone, date))
@@ -1106,15 +1003,14 @@ export default function DataEntry() {
   const sincronizarMarcaDesdeBorrador = useCallback(
     async (city, z, d, savedAt) => {
       if (!userEmail) return
-      const { data, error } = await sb
-        .from('ci_bucket_writes')
-        .select('write_seq, last_write_at')
-        .eq('user_email', userEmail)
-        .eq('country', country)
-        .eq('city', city)
-        .eq('zone_key', z ?? '')
-        .eq('observed_date', d)
-        .maybeSingle()
+      const { data, error } = await fetchBucketWriteMark({
+        userEmail,
+        country,
+        city,
+        zone: z,
+        date: d,
+        withTime: true,
+      })
 
       // Sin fila en el servidor no hay con qué conflictuar: nada que hacer.
       if (error || !data) return
@@ -1217,13 +1113,10 @@ export default function DataEntry() {
         setSessionActive(false)
         sessionStartRef.current = null
         if (userEmail) {
-          sb.from('ci_active_sessions')
-            .delete()
-            .eq('user_email', userEmail)
-            .then(
-              () => {},
-              () => {}
-            )
+          deleteActiveSession(userEmail).then(
+            () => {},
+            () => {}
+          )
         }
       }
     }
@@ -1761,7 +1654,7 @@ export default function DataEntry() {
       setActiveDrafts([])
       return
     }
-    const prefix = `de:draft:${userEmail}:${country}:`
+    const prefix = draftKeyPrefixFor(userEmail, country)
     const list = []
     for (let i = 0; i < localStorage.length; i++) {
       // Try/catch POR CLAVE — un borrador corrupto no debe abortar el escaneo
@@ -2005,8 +1898,7 @@ export default function DataEntry() {
   )
 
   // ── Entry helpers ──────────────────────────────────────
-  const priceKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
-  const indKey = (uiCat, refId, tsLabel) => `${uiCat}|${refId}|${tsLabel}`
+  // priceKey / indKey: src/lib/dataEntry/keys.js (mismo formato de siempre).
 
   // Valor "efectivo" de una celda para decidir si está llena: el número de
   // `entries` y, para InDrive sin promedio de bids, el precio recomendado (que
@@ -2375,29 +2267,10 @@ export default function DataEntry() {
   // arriba, pero separado por el 3er segmento de la key (tsLabel) en vez de
   // sumar las 3 franjas juntas. priceKey/indKey son `uiCat|refId|tsLabel|comp`
   // y `uiCat|refId|tsLabel` respectivamente (ver definición más abajo).
-  const filledByTimeslot = useMemo(() => {
-    const m = {}
-    for (const ts of timeslots) m[ts.label] = 0
-    for (const [k, v] of Object.entries(entries)) {
-      if (v === '' || isNaN(parseFloat(v))) continue
-      const tsLabel = k.split('|')[2]
-      if (tsLabel in m) m[tsLabel]++
-    }
-    for (const [k, ex] of Object.entries(indriveExtra)) {
-      const recOk = ex?.rec != null && ex.rec !== '' && !isNaN(parseFloat(ex.rec))
-      if (!recOk) continue
-      const avg = entries[`${k}|InDrive`]
-      const avgOk = avg != null && avg !== '' && !isNaN(parseFloat(avg))
-      if (avgOk) continue // ya contado arriba vía `entries`
-      const tsLabel = k.split('|')[2]
-      if (tsLabel in m) m[tsLabel]++
-    }
-    for (const k of naKeys) {
-      const tsLabel = k.split('|')[2]
-      if (tsLabel in m) m[tsLabel]++
-    }
-    return m
-  }, [entries, indriveExtra, naKeys, timeslots])
+  const filledByTimeslot = useMemo(
+    () => countFilledByTimeslot(entries, indriveExtra, naKeys, timeslots),
+    [entries, indriveExtra, naKeys, timeslots]
+  )
 
   // Qué turnos tienen celdas marcadas en error (rojo) — para avisar en la
   // cabecera del TurnoSection cuando está COLAPSADO y esas celdas quedan
@@ -2438,130 +2311,44 @@ export default function DataEntry() {
   const blockNewSlot = atDraftCap && filledCount === 0 && !loadedCombos
 
   // ── Build rows to insert ───────────────────────────────
+  // Lógica de fila en src/lib/dataEntry/rows.js (buildRowsForSlot).
   function buildRows(uiCat, ref, ts) {
     const comps = getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)
     const { year, week } = getISOYearWeek(date)
     const rush = isRushHour(ts.start_time?.slice(0, 5), dbCity) ?? false
-    return (
-      comps
-        .map((comp) => {
-          // Celda "sin data" (S/D): fila no_data=true, sin precio ni nada más.
-          if (naKeys.has(priceKey(uiCat, ref.id, ts.label, comp))) {
-            return {
-              price: null,
-              comp,
-              ref,
-              ts,
-              uiCat,
-              rush,
-              year,
-              week,
-              bids: [],
-              minBid: null,
-              rec: null,
-              eta: null,
-              disc: null,
-              na: true,
-            }
-          }
-          const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
-          const price = parseFloat(raw)
-          const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
-          // Mig 136: pricing_observations vuelve a tener bid_1..bid_5 → hasta 5
-          // bids. Guarda por si un borrador trajera más (nunca debería).
-          const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 5) : []
-          const minBid = comp === 'InDrive' ? extra?.minBid || null : null
-          // Precio recomendado por la app de InDrive → recommended_price. NO entra
-          // al promedio de bids. Si no hay bids, el precio efectivo cae al
-          // recomendado (v_effective_price), por eso una celda solo-recomendado
-          // igual debe guardarse (ver filtro de abajo).
-          const recNum = comp === 'InDrive' ? parseFloat(extra?.rec ?? '') : NaN
-          const etaNum = parseFloat(etaEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
-          const discNum = parseFloat(discEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
-          return {
-            price: isNaN(price) ? null : price,
-            comp,
-            ref,
-            ts,
-            uiCat,
-            rush,
-            year,
-            week,
-            bids,
-            minBid,
-            rec: isNaN(recNum) ? null : recNum,
-            eta: isNaN(etaNum) ? null : etaNum,
-            disc: isNaN(discNum) ? null : discNum,
-            na: false,
-          }
-        })
-        // Se descartan las celdas sin dato. Excepciones que SÍ se guardan:
-        // InDrive con solo el recomendado (su precio efectivo es el recomendado)
-        // y las celdas marcadas "sin data" (fila no_data=true).
-        .filter((r) => r.na || r.price !== null || r.rec !== null)
-    )
+    return buildRowsForSlot({
+      comps,
+      uiCat,
+      ref,
+      ts,
+      rush,
+      year,
+      week,
+      entries,
+      indriveExtra,
+      etaEntries,
+      discEntries,
+      naKeys,
+    })
   }
 
+  // Categoría de BD de una categoría de UI en la vista actual — la usan el
+  // payload de cada fila y el acote del DELETE (misma resolución en ambos).
+  const resolveDbCategory = (uiCat) =>
+    resolveDbParams(uiCity, uiCat, null, country, dbConfigs).dbCategory
+
+  // Fila de pricing_observations: src/lib/dataEntry/rows.js. El porqué de cada
+  // columna (observed_time real vs timeslot estable, zone ''→null, dueño
+  // uploaded_by, no_data) está documentado allá; acá solo se pasa el contexto.
   function buildInsertPayload(r, capturedTime) {
-    const base = {
-      city: dbCity,
-      category: resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory,
-      // Normalización context-aware: en city='Corp' el canónico usa
-      // espacios ('Yango Comfort'), en E/C es pegado ('YangoComfort').
-      // r.comp viene del catálogo getCompetitors() que ya tiene el canónico,
-      // pero pasamos por normalize por defensa-en-profundidad (idempotente).
-      competition_name: normalizeCompetitorName(r.comp, { city: dbCity }),
-      observed_date: date,
-      // Hora REAL de captura (mig 148) — antes siempre la hora fija del
-      // turno. `timeslot` (abajo) es quien identifica el turno ahora; acá
-      // va la hora real del momento del guardado (Guardar Progreso/
-      // Terminar), una sola marca por click, igual para todas las filas de
-      // ese guardado — no por celda individual.
-      observed_time: capturedTime,
-      // Turno ESTABLE (mig 148): deriva de la hora CANÓNICA del timeslot,
-      // nunca de observed_time — así el DELETE-antes-de-INSERT y el reload
-      // (loadObservationsIntoForm) siguen encontrando la fila sin importar
-      // a qué hora real se guardó.
-      timeslot: timeslotLabel(r.ts.start_time?.slice(0, 5)),
-      rush_hour: r.rush,
+    return buildInsertPayloadRow(r, capturedTime, {
+      dbCity,
+      date,
       surge,
-      distance_bracket: r.ref.bracket,
-      distance_km: r.ref.waze_distance ?? null,
-      eta_min: r.eta ?? null,
-      point_a: r.ref.point_a ?? null,
-      point_b: r.ref.point_b ?? null,
-      // Distrito (solo TukTuk lo usa en distance_references.zone) → así la CI
-      // manual de TukTuk lleva el distrito igual que el bot y se agrega por zona
-      // en el dashboard. Para el resto de categorías la ruta no tiene zone (null).
-      // '' → null (ver comentario en el addRoute de performSave) — así las filas
-      // nuevas de Corp quedan zone=NULL, igual que las ~17k filas históricas.
-      zone: r.ref.zone || null,
-      price_without_discount: r.price,
-      price_with_discount: r.disc ?? null,
-      year: r.year,
-      week: r.week,
-      data_source: 'manual',
-      // Dueño de la fila: el hub que la cargó. Permite que dos hubs guarden la
-      // misma ciudad+fecha sin pisarse (el DELETE se acota al dueño) y atribuye
-      // cada celda para el monitoreo. Legacy = null (se reclama al re-guardar).
-      uploaded_by: userEmail || null,
-      // "Sin data" (S/D): el hub atendió la celda, no había oferta. Sin precio →
-      // no ensucia promedios; el panel de representatividad lo cuenta aparte.
-      no_data: r.na || false,
+      userEmail,
       country,
-    }
-    if (r.comp === 'InDrive') {
-      r.bids.forEach((b, i) => {
-        const n = parseFloat(b)
-        if (!isNaN(n)) base[`bid_${i + 1}`] = n
-      })
-      const mn = parseFloat(r.minBid)
-      if (!isNaN(mn)) base.minimal_bid = mn
-      // Recomendado en su columna propia (NO en un bid, para no sesgar el
-      // promedio). Si no hay bids, v_effective_price cae a recommended_price.
-      if (r.rec != null) base.recommended_price = r.rec
-    }
-    return base
+      resolveDbCategory,
+    })
   }
 
   // ── Validate rows & collect errors ─────────────────────
@@ -2638,64 +2425,20 @@ export default function DataEntry() {
     // identificando a qué turno pertenece cada fila.
     const capturedTime = new Date().toTimeString().slice(0, 5)
 
-    // Agrupar por (dbCat, franja) → set de BRACKETS que se re-insertan. El
-    // DELETE se acota a ESOS brackets (.in), no a toda la categoría/franja.
-    // Antes borraba categoría+franja entera: como varias rutas (brackets)
-    // comparten categoría+franja, borrar por combo se llevaba puesta una ruta
-    // hermana de OTRO bracket que estuviera a medias (o que no se re-guardara en
-    // este checkpoint) y solo re-insertaba las completas → esa ruta parcial ya
-    // guardada se perdía. Acotando por bracket, cada ruta solo toca sus filas.
-    // Descriptores de RUTA a limpiar: (dbCat, franja, bracket, point_a, point_b).
-    // El DELETE se acota a la RUTA EXACTA (incluidos point_a/point_b), no solo a
-    // (categoría, bracket): varias rutas pueden compartir categoría+bracket y
-    // diferir solo en los puntos (TukTuk por distrito). Si se acotara por bracket,
-    // borrar se llevaría puesta una ruta hermana del mismo bracket que estuviera a
-    // medias (o que no se re-guardara en este checkpoint) → esa ruta ya guardada
-    // se perdía. Acotando por ruta, cada una solo toca sus propias filas.
-    const SEP = '\u0001' // separador que no aparece en direcciones/coords
-    const routeDels = new Map()
-    // `timeslot` acá es la ETIQUETA estable del turno (mig 148: 'Morning'/
-    // 'Midday'/'Evening'), NO la hora real de captura — así el DELETE sigue
-    // encontrando la fila vieja sin importar a qué hora real se guardó cada
-    // vez (antes se acotaba por `observed_time`, que con hora real cambia
-    // en cada guardado y dejaría de matchear → filas duplicadas).
-    const addRoute = (uiCat, dbCat, timeslot, bracket, pa, pb, rz) => {
-      const k = [dbCat, timeslot, bracket, pa ?? '', pb ?? '', rz ?? ''].join(SEP)
-      if (!routeDels.has(k))
-        routeDels.set(k, {
-          uiCat,
-          dbCat,
-          timeslot,
-          bracket,
-          pa: pa ?? null,
-          pb: pb ?? null,
-          zone: rz ?? null,
-        })
-    }
-    for (const r of rowsToInsert) {
-      const dbCat = resolveDbParams(uiCity, r.uiCat, null, country, dbConfigs).dbCategory
-      addRoute(
-        r.uiCat,
-        dbCat,
-        timeslotLabel(r.ts.start_time?.slice(0, 5)),
-        r.ref.bracket,
-        r.ref.point_a,
-        r.ref.point_b,
-        // '' → null: algunas rutas (Corp) tienen zone='' en distance_references
-        // en vez de NULL — sin normalizar, esa cadena vacía se colaba como un
-        // valor de zona "real" en el DELETE de abajo.
-        r.ref.zone || null
-      )
-    }
-    // Solo al TERMINAR se suman las rutas cargadas del historial (para borrar las
-    // que el hub vació tras reabrir). En "Guardar progreso" NO: un checkpoint nunca
-    // borra una ruta que no se está re-guardando — si una ruta cargada quedó a
-    // medias, se conserva en BD hasta Terminar (donde ya no se permiten parciales).
-    // loadedCombos = Map de descriptores de ruta {uiCat,dbCat,timeslot,bracket,pa,pb}.
-    if (isFinish && loadedCombos) {
-      for (const c of loadedCombos.values())
-        addRoute(c.uiCat, c.dbCat, c.timeslot, c.bracket, c.pa, c.pb, c.zone ?? null)
-    }
+    // Descriptores de RUTA EXACTA a limpiar (dbCat, franja, bracket, point_a,
+    // point_b, zone) — nunca por categoría/franja completa: varias rutas
+    // comparten categoría+bracket y difieren solo en los puntos (TukTuk por
+    // distrito), y un borrado más amplio se llevaba puesta una ruta hermana a
+    // medias (CLAUDE.md §2). `timeslot` es la ETIQUETA estable del turno (mig
+    // 148), no la hora real de captura. Solo al TERMINAR se suman las rutas
+    // cargadas del historial (loadedCombos) para borrar las que el hub vació
+    // tras reabrir; "Guardar progreso" nunca borra lo que no re-guarda.
+    // Implementación en src/lib/dataEntry/rows.js.
+    const routeDels = collectRouteDeletes(rowsToInsert, {
+      isFinish,
+      loadedCombos,
+      resolveDbCategory,
+    })
 
     // DELETE + INSERT en UNA transacción del servidor (migs 182/186).
     //
@@ -2716,24 +2459,13 @@ export default function DataEntry() {
     // Los competidores VISIBLES se siguen calculando ACÁ, no en SQL: dependen
     // de la config del cliente (getCiCompetitors/ciHidden), y duplicar esa
     // lógica en la base sería exactamente el tipo de divergencia que ya causó
-    // problemas con la normalización (CLAUDE.md §4).
-    const routesPayload = Array.from(routeDels.values())
-      .map((rt) => ({
-        category: rt.dbCat,
-        timeslot: rt.timeslot,
-        bracket: rt.bracket,
-        point_a: rt.pa,
-        point_b: rt.pb,
-        // Un competidor marcado "no ofrece" (ciHidden) conserva su histórico:
-        // si no está visible, no entra en el acote y por lo tanto no se borra.
-        competitors: (rt.uiCat
-          ? getCiCompetitors(uiCity, rt.uiCat, null, country, dbConfigs)
-          : []
-        ).map((c) => normalizeCompetitorName(c, { city: dbCity })),
-      }))
-      // Sin competidores visibles no hay nada que borrar. Se filtra acá además
-      // de en SQL para no mandar ruido por la red.
-      .filter((rt) => rt.competitors.length > 0)
+    // problemas con la normalización (CLAUDE.md §4). Un competidor marcado
+    // "no ofrece" conserva su histórico: si no está visible, no entra en el
+    // acote y por lo tanto no se borra.
+    const routesPayload = buildRoutesPayload(routeDels, {
+      competitorsFor: (uiCat) => getCiCompetitors(uiCity, uiCat, null, country, dbConfigs),
+      dbCity,
+    })
 
     const payloads = rowsToInsert.map((r) => buildInsertPayload(r, capturedTime))
     // Se captura el contador de ediciones ACÁ, junto con el payload — no
@@ -2742,27 +2474,27 @@ export default function DataEntry() {
     // volver lo marcaría como guardado siendo mentira.
     const seqEnviado = editSeqRef.current[bucketKey] ?? 0
 
-    const { data: saveRes, error: saveErr } = await sb.rpc('save_ci_batch', {
-      p_country: country,
-      p_city: dbCity,
-      p_date: date,
+    const { data: saveRes, error: saveErr } = await saveCiBatch({
+      country,
+      dbCity,
+      date,
       // La zona CONSTANTE de la vista (el distrito activo en TukTuk, null en el
       // resto) — NUNCA la de la fila individual. Hay ~76k filas manuales con
       // zona no-null fuera de TukTuk (Aeropuerto por Excel) que un borrado sin
       // este acote se llevaba puestas en silencio.
-      p_zone: zone ?? null,
+      zone: zone ?? null,
       // Sin email se cae a solo-las-sin-dueño, nunca a un borrado sin predicado
       // de dueño (mig 139).
-      p_user_email: userEmail || null,
-      p_routes: routesPayload,
-      p_rows: payloads,
+      userEmail,
+      routes: routesPayload,
+      rows: payloads,
       // Guard de concurrencia (mig 191): identidad de ESTA pestaña + la marca
       // de agua con la que se sincronizó. Si otra pestaña —u otro
       // dispositivo con la misma cuenta— escribió este bucket después, el
       // servidor aborta el guardado ENTERO en vez de borrar sus filas.
-      p_session_id: SESSION_ID,
-      p_expected_seq: readSyncSeq(),
-      p_force: forceOverwrite === true,
+      sessionId: SESSION_ID,
+      expectedSeq: readSyncSeq(),
+      force: forceOverwrite === true,
     })
     if (saveErr) {
       // 55006 = otra pestaña/dispositivo escribió este bucket. El servidor NO
@@ -2840,48 +2572,45 @@ export default function DataEntry() {
       // revisiones es deliberado.
       const cierre = tokenDeCierre({ userEmail, bucketKey, fecha: date })
 
-      const { error: sessErr } = await sb.rpc('close_ci_session', {
-        p_close_token: cierre.token,
-        p_session: {
-          country,
-          city: dbCity,
-          // Distrito TukTuk (null en el resto) → el historial distingue "Lima
-          // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
-          zone,
-          observed_date: date,
-          user_email: userEmail,
-          started_at: new Date(start).toISOString(),
-          ended_at: now.toISOString(),
-          duration_minutes: dur,
-          // La marca de confianza (mig 195). `duracionDeSesion` YA la calculaba
-          // y se tiraba a la basura al escribir la fila: un número capado por el
-          // techo de 4h entraba a la base indistinguible de uno exacto, y
-          // cualquier promedio los mezclaba. Con esto, el dashboard puede
-          // promediar SOLO lo confiable y el resto queda auditable en vez de
-          // silenciosamente mal.
-          duration_confiable: medicion.confiable,
-          duration_motivo: medicion.motivo,
-          rows_saved: payloads.length,
-          // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
-          // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
-          // (mig 155) sin tener que recalcularlo del lado del servidor.
-          total_expected: totalExpected,
-          // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
-          // criterio: persistido acá para que sobreviva al DELETE del latido de
-          // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
-          // timestamps del turno actual (isFinalInScope puede cerrar solo un
-          // punto de "Ambos"; los turnos de otro miembro del alcance viven en
-          // SU PROPIO bucketKey/sesión, no se mezclan acá).
-          turno_timings: turnoTimings,
-          // NULL explícito cuando no hubo traza utilizable: "no lo pude
-          // medir" y "no trabajó" no son lo mismo, y un 0 se promedia.
-          active_minutes: actividad.actividadMedida ? actividad.minutos : null,
-          idle_minutes: actividad.actividadMedida ? actividad.descontados : null,
-          // La traza cruda se guarda para poder RECALIBRAR el umbral de 5 min
-          // contra datos reales dentro de unas semanas, sin haber perdido el
-          // detalle. Hoy es una hipótesis fundada, no una medición.
-          activity_trace: actividad.actividadMedida ? actividadRef.current[bucketKey] || [] : null,
-        },
+      const { error: sessErr } = await closeCiSession(cierre.token, {
+        country,
+        city: dbCity,
+        // Distrito TukTuk (null en el resto) → el historial distingue "Lima
+        // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
+        zone,
+        observed_date: date,
+        user_email: userEmail,
+        started_at: new Date(start).toISOString(),
+        ended_at: now.toISOString(),
+        duration_minutes: dur,
+        // La marca de confianza (mig 195). `duracionDeSesion` YA la calculaba
+        // y se tiraba a la basura al escribir la fila: un número capado por el
+        // techo de 4h entraba a la base indistinguible de uno exacto, y
+        // cualquier promedio los mezclaba. Con esto, el dashboard puede
+        // promediar SOLO lo confiable y el resto queda auditable en vez de
+        // silenciosamente mal.
+        duration_confiable: medicion.confiable,
+        duration_motivo: medicion.motivo,
+        rows_saved: payloads.length,
+        // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
+        // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
+        // (mig 155) sin tener que recalcularlo del lado del servidor.
+        total_expected: totalExpected,
+        // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
+        // criterio: persistido acá para que sobreviva al DELETE del latido de
+        // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
+        // timestamps del turno actual (isFinalInScope puede cerrar solo un
+        // punto de "Ambos"; los turnos de otro miembro del alcance viven en
+        // SU PROPIO bucketKey/sesión, no se mezclan acá).
+        turno_timings: turnoTimings,
+        // NULL explícito cuando no hubo traza utilizable: "no lo pude
+        // medir" y "no trabajó" no son lo mismo, y un 0 se promedia.
+        active_minutes: actividad.actividadMedida ? actividad.minutos : null,
+        idle_minutes: actividad.actividadMedida ? actividad.descontados : null,
+        // La traza cruda se guarda para poder RECALIBRAR el umbral de 5 min
+        // contra datos reales dentro de unas semanas, sin haber perdido el
+        // detalle. Hoy es una hipótesis fundada, no una medición.
+        activity_trace: actividad.actividadMedida ? actividadRef.current[bucketKey] || [] : null,
       })
       // supabase-js NO lanza excepción cuando un insert falla: devuelve
       // { error }. Sin este chequeo, un fallo (RLS, red, timeout) seguía de
@@ -2926,7 +2655,7 @@ export default function DataEntry() {
       // por si acaso.
       if (isFinalInScope && userEmail) {
         try {
-          await sb.from('ci_active_sessions').delete().eq('user_email', userEmail)
+          await deleteActiveSession(userEmail)
         } catch {
           /* best-effort */
         }
@@ -2940,15 +2669,13 @@ export default function DataEntry() {
         const closedZone = zone
         const closedDate = date
         setTimeout(() => {
-          let q = sb
-            .from('ci_active_sessions')
-            .delete()
-            .eq('user_email', userEmail)
-            .eq('country', closedCountry)
-            .eq('city', closedCity)
-            .eq('observed_date', closedDate)
-          q = closedZone != null ? q.eq('zone', closedZone) : q.is('zone', null)
-          q.then(
+          deleteActiveSessionScoped({
+            userEmail,
+            country: closedCountry,
+            city: closedCity,
+            zone: closedZone,
+            date: closedDate,
+          }).then(
             () => {},
             () => {}
           )
@@ -3275,15 +3002,13 @@ export default function DataEntry() {
     // en vez de dejar pasar. Un error de red nunca debe traducirse en
     // "seguí, todo bien".
     if (userEmail) {
-      const { data: wm, error: wmErr } = await sb
-        .from('ci_bucket_writes')
-        .select('write_seq')
-        .eq('user_email', userEmail)
-        .eq('country', country)
-        .eq('city', loadDbCity)
-        .eq('zone_key', loadZone ?? '')
-        .eq('observed_date', loadDate)
-        .maybeSingle()
+      const { data: wm, error: wmErr } = await fetchBucketWriteMark({
+        userEmail,
+        country,
+        city: loadDbCity,
+        zone: loadZone,
+        date: loadDate,
+      })
       writeSyncSeqFor(
         country,
         loadDbCity,
@@ -3293,25 +3018,19 @@ export default function DataEntry() {
       )
     }
 
-    let obsQuery = sb
-      .from('pricing_observations')
-      .select(
-        'category, competition_name, observed_time, timeslot, distance_bracket, point_a, point_b, zone, price_without_discount, price_with_discount, recommended_price, eta_min, minimal_bid, bid_1, bid_2, bid_3, bid_4, bid_5, no_data, surge'
-      )
-      .eq('country', country)
-      .eq('city', loadDbCity)
-      .eq('observed_date', loadDate)
-      .eq('data_source', 'manual')
     // TukTuk: acotar al distrito (zone). Vistas normales: sin filtro de zona (y
     // el guard de categorías de abajo descarta cualquier fila de TukTuk).
-    if (loadZone != null) obsQuery = obsQuery.eq('zone', loadZone)
     // Cargar solo las filas propias (+ legacy sin dueño) para editar. Si se
     // cargaran también las de otro hub, al re-guardar se insertarían como
     // propias (el DELETE no borra las del otro dueño) → duplicados (mig 139).
     // Mismo criterio simétrico que el DELETE del guardado (siempre por dueño).
-    obsQuery = userEmail
-      ? obsQuery.or(`uploaded_by.eq.${userEmail},uploaded_by.is.null`)
-      : obsQuery.is('uploaded_by', null)
+    const obsQuery = fetchManualObservations({
+      country,
+      city: loadDbCity,
+      date: loadDate,
+      zone: loadZone,
+      userEmail,
+    })
     const [{ data, error }, { data: historicTimings }] = await Promise.all([
       obsQuery,
       // Relevo entre hubs (pedido user 2026-07-24, punto 3) + caso general de
@@ -3322,12 +3041,7 @@ export default function DataEntry() {
       // más abajo SOLO si este bucket todavía no tiene timings propios (ver
       // guard `prev[bucket]`) — así nunca pisa lo que openHistorySession ya
       // seedeó con más precisión (la fila exacta que el hub clickeó "Abrir").
-      sb.rpc('get_ci_session_turno_timings', {
-        p_country: country,
-        p_city: loadDbCity,
-        p_zone: loadZone,
-        p_observed_date: loadDate,
-      }),
+      fetchTurnoTimings({ country, city: loadDbCity, zone: loadZone, date: loadDate }),
     ])
     if (error) {
       setMsg({ type: 'err', text: `${t('dataentry.err_load_session')} ${error.message}` })
@@ -3663,7 +3377,7 @@ export default function DataEntry() {
     if (!country) return
     let cancelled = false
     const fetchPresence = () => {
-      sb.rpc('get_active_sessions_presence', { p_country: country }).then(({ data, error }) => {
+      fetchPresenceRpc(country).then(({ data, error }) => {
         if (cancelled || error) return
         // Compara por VALOR antes de setear. Sin esto, cada 20 segundos entra
         // un array nuevo aunque no haya cambiado nada y la grilla entera
@@ -3992,18 +3706,7 @@ export default function DataEntry() {
     if (!p || !p.city) return
     try {
       const failures = heartbeatFailStreakRef.current
-      const { error } = await sb.rpc('upsert_ci_active_session', {
-        p_country: p.country,
-        p_city: p.city,
-        p_zone: p.zone,
-        p_observed_date: p.date,
-        p_filled_count: p.filledCount,
-        p_total_expected: p.totalExpected,
-        p_recent_failures: failures,
-        p_turno_progress: p.turnoProgress,
-        p_scope_label: p.scopeLabel,
-        p_fronts: p.fronts && p.fronts.length ? p.fronts : null,
-      })
+      const { error } = await upsertActiveSession(p, failures)
       // supabase-js NO tira excepción por un error a nivel Postgres/RPC (solo
       // por fallos de red) — sin este chequeo explícito, un error del lado del
       // servidor (RLS, función ambigua, etc.) se contaba como latido exitoso.

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
+import UnsavedChangesBanner from './UnsavedChangesBanner'
+import { dbErrorText } from '../../lib/dbErrorText'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
@@ -139,7 +141,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
       if (snapErr) {
         setSaveMsg({
           type: 'err',
-          text: t('config.thresholds.snapshot_error', { msg: snapErr.message }),
+          text: t('config.thresholds.snapshot_error', { msg: dbErrorText(t, snapErr) }),
         })
         return
       }
@@ -193,7 +195,10 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
         return next
       })
     } catch (e) {
-      setSaveMsg({ type: 'err', text: t('config.thresholds.save_error', { msg: e.message }) })
+      setSaveMsg({
+        type: 'err',
+        text: t('config.thresholds.save_error', { msg: dbErrorText(t, e) }),
+      })
     }
   }
 
@@ -231,39 +236,12 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
 
       {/* Aviso inline de cambios pendientes */}
       {hasUnsavedChanges && (
-        <div
-          style={{
-            marginTop: 8,
-            marginBottom: 12,
-            padding: '10px 14px',
-            borderRadius: 6,
-            background: '#fef3c7',
-            border: '1px solid #f59e0b',
-            color: '#78350f',
-            fontSize: 13,
-            fontWeight: 500,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          <span>
-            ⚠ {t('config.thresholds.unsaved_prefix')}{' '}
-            <strong>
-              {selectedCity} — {selectedCat}
-            </strong>
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="bg-transparent border-[#b45309] text-[#78350f]"
-            onClick={handleDiscard}
-          >
-            {t('config.discard_changes')}
-          </Button>
-        </div>
+        <UnsavedChangesBanner onDiscard={handleDiscard}>
+          {t('config.thresholds.unsaved_prefix')}{' '}
+          <strong>
+            {selectedCity} — {selectedCat}
+          </strong>
+        </UnsavedChangesBanner>
       )}
 
       <table className="config-table">
@@ -280,21 +258,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
           {BRACKETS.map((b, i) => {
             const dirty = isDirty(b)
             const err = validationErrors.find((e) => e.bracket === b)
-            const inputStyle = err
-              ? {
-                  background: '#fef2f2',
-                  borderColor: '#ef4444',
-                  fontWeight: 600,
-                  boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.2)',
-                }
-              : dirty
-                ? {
-                    background: '#fef3c7',
-                    borderColor: '#f59e0b',
-                    fontWeight: 600,
-                    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
-                  }
-                : undefined
+            const inputCls = err ? 'config-dirty--error' : dirty ? 'config-dirty' : undefined
             return (
               <tr key={b}>
                 <td>{BRACKET_LABELS[b]}</td>
@@ -306,7 +270,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
                     placeholder={i === BRACKETS.length - 1 ? '∞' : '0.00'}
                     value={getValue(b)}
                     onChange={(e) => handleChange(b, e.target.value)}
-                    style={inputStyle}
+                    className={inputCls}
                     title={
                       err
                         ? err.msg

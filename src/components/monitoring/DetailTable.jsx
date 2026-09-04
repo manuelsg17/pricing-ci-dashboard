@@ -15,7 +15,7 @@ export default function DetailTable({ detail }) {
       <div className="mon-panel__head">
         <h2>{t('monitoring.detail')}</h2>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="mon-table-scroll">
         <table className="de-history-table">
           <thead>
             <tr>

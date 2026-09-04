@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
-import { sb } from '../../lib/supabase'
+import { useBotCoverageRecent } from '../../hooks/useBotCoverage'
 import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import CollapsibleSection from '../market/CollapsibleSection'
@@ -21,31 +20,7 @@ const LEVEL_COLORS = {
 export default function BotCoverageCard() {
   const { country } = useCountry()
   const { t } = useI18n()
-  const [rows, setRows] = useState(null)
-  const [failed, setFailed] = useState(false)
-
-  const load = useCallback(async () => {
-    try {
-      const { data, error } = await sb.rpc('bot_coverage_recent', { p_country: country })
-      if (error) {
-        setFailed(true)
-        setRows(null)
-        return
-      }
-      setFailed(false)
-      setRows(Array.isArray(data) ? data : [])
-    } catch {
-      setFailed(true)
-      setRows(null)
-    }
-  }, [country])
-
-  useEffect(() => {
-    load()
-    // refresca cada 5 min mientras el dashboard está abierto
-    const iv = setInterval(load, 5 * 60_000)
-    return () => clearInterval(iv)
-  }, [load])
+  const { rows, failed } = useBotCoverageRecent(country)
 
   if (failed || !rows || rows.length === 0) return null
 

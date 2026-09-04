@@ -27,7 +27,7 @@ export default function HubSummaryTable({ byHub, totalRows }) {
       {byHub.length === 0 ? (
         <div className="mon-empty">{t('monitoring.no_data')}</div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="mon-table-scroll">
           <table className="de-history-table">
             <thead>
               <tr>

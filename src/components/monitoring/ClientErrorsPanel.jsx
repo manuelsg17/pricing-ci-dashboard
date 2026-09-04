@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useI18n } from '../../context/LanguageContext'
-import { sb } from '../../lib/supabase'
+import { useClientErrors, CLIENT_ERRORS_PAGE_SIZE } from '../../hooks/useClientErrors'
 
 // Panel de errores del cliente (mig 185) — SOLO admin, igual que el resto de
 // Monitoreo. La seguridad real está en la RLS de client_errors (SELECT solo
@@ -11,55 +11,13 @@ import { sb } from '../../lib/supabase'
 // Por eso lista SIN RESOLVER, más reciente primero, y nada más. El detalle
 // completo (stack, componente) se despliega a pedido: mostrarlo siempre
 // convertiría el panel en un muro ilegible.
-
-const PAGE_SIZE = 20
+//
+// El acceso a Supabase vive en useClientErrors.js; acá solo se pinta.
 
 export default function ClientErrorsPanel() {
   const { t } = useI18n()
-  const [rows, setRows] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
+  const { rows, loading, failed, hasMore, actionErr, load, resolve } = useClientErrors()
   const [openId, setOpenId] = useState(null)
-  const [hasMore, setHasMore] = useState(false)
-  const [actionErr, setActionErr] = useState(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setFailed(false)
-    // Se pide UNA fila de más que la página para saber si hay más sin
-    // truncar en silencio (CLAUDE.md §5: paginación sin truncado silencioso).
-    const { data, error } = await sb
-      .from('client_errors')
-      .select('*')
-      .is('resolved_at', null)
-      .order('last_seen', { ascending: false })
-      .limit(PAGE_SIZE + 1)
-
-    if (error) {
-      setFailed(true)
-      setRows([])
-    } else {
-      setHasMore((data || []).length > PAGE_SIZE)
-      setRows((data || []).slice(0, PAGE_SIZE))
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  async function resolve(id) {
-    setActionErr(null)
-    const { error } = await sb.rpc('resolve_client_error', { p_id: id })
-    if (error) {
-      // Sin esto el click no hacía NADA visible cuando fallaba — y un panel
-      // que ignora tus clics en silencio es peor que no tener panel.
-      setActionErr(error.message)
-      return
-    }
-    setRows((prev) => prev.filter((r) => r.id !== id))
-  }
 
   // El panel desaparece cuando no hay nada: un bloque vacío permanente en
   // Monitoreo es ruido que se aprende a ignorar, y justo el día que aparezca
@@ -120,7 +78,9 @@ export default function ClientErrorsPanel() {
         </article>
       ))}
 
-      {hasMore && <p className="mon-panel__more">{t('errors.more', { n: PAGE_SIZE })}</p>}
+      {hasMore && (
+        <p className="mon-panel__more">{t('errors.more', { n: CLIENT_ERRORS_PAGE_SIZE })}</p>
+      )}
     </section>
   )
 }

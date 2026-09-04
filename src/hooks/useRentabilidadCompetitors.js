@@ -19,7 +19,11 @@ export function useRentabilidadCompetitors({
   const competitors = useMemo(() => {
     const set = new Set()
     for (const { uiCat } of catMap) {
-      for (const c of getCompetitors(uiCity, uiCat, null, country, dbConfigs)) set.add(c)
+      // Canonizado como las otras dos fuentes del Set: si country_config trae
+      // un nombre con espacio ('Yango Comfort'), sin esto aparecería como un
+      // competidor distinto de 'YangoComfort' en los chips.
+      for (const c of getCompetitors(uiCity, uiCat, null, country, dbConfigs))
+        set.add(canonicalCompetitorName(c) || c)
     }
     for (const comps of Object.values(pricesByCat)) {
       for (const c of Object.keys(comps)) set.add(c)

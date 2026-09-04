@@ -803,6 +803,20 @@ export default {
   'errors.resolve': 'Marcar resuelto',
   'errors.no_stack': 'Sin stack disponible.',
   'errors.more': 'Hay más errores de los {n} mostrados. Resolvé algunos para ver el resto.',
+
+  // ── Errores de base de datos (src/lib/dbErrorText.js) ─────────────
+  'errors.db.duplicate': 'Ya existe un registro con esos mismos valores.',
+  'errors.db.reference': 'No se puede completar: hay otros registros que dependen de este.',
+  'errors.db.permission': 'No tenés permisos para esta acción en este país o sección.',
+  'errors.db.check': 'Algún valor está fuera del rango permitido.',
+  'errors.db.not_null': 'Falta un campo obligatorio.',
+  'errors.db.invalid_format': 'Formato inválido en alguno de los campos.',
+  'errors.db.not_found': 'El registro ya no existe (¿lo borró otra sesión?).',
+  'errors.db.session_expired': 'Tu sesión expiró. Recargá la página.',
+  'errors.db.network': 'Sin conexión con el servidor. Verificá tu red.',
+  'errors.db.timeout': 'La operación tardó demasiado. Probá de nuevo.',
+  'errors.db.postgrest': 'El servidor rechazó la consulta. Recargá la página y probá de nuevo.',
+  'errors.db.generic': 'Ocurrió un error inesperado. Probá de nuevo.',
   'projects.owner': 'Responsable',
   'projects.unassigned': 'Sin asignar',
   'projects.no_news': 'sin novedades',
@@ -1189,6 +1203,20 @@ export default {
   'access.deactivate': 'Desactivar',
   'access.activate': 'Activar',
   'access.no_role': '— Sin rol —',
+  // Etiquetas de sección (Accesos) — antes SECTION_LABELS hardcodeado
+  'sections.dashboard': '📊 Dashboard',
+  'sections.rentabilidad': '🧮 Rentabilidad',
+  'sections.market': '🎯 Mercado',
+  'sections.competitividad': '📈 Competitividad',
+  'sections.dataentry': '✏️ Ingresar CI',
+  'sections.projects': '🗂️ Proyectos',
+  'sections.upload': '📤 Cargar Data',
+  'sections.rawdata': '🗃 Data Raw',
+  'sections.coverage': '🛡️ Cobertura',
+  'sections.events': '📌 Eventos',
+  'sections.distances': '📍 Distancias Ref.',
+  'sections.config': '⚙️ Configuración',
+  'sections.access': '🔐 Gestión de Accesos',
   'access.sections': 'Secciones',
   'access.countries': 'Países',
   'access.all': 'Todas',
@@ -1238,7 +1266,6 @@ export default {
   'realtime.table.bot_rules': 'reglas del bot',
   'realtime.table.distance_thresholds': 'umbrales de distancia',
   'realtime.table.bracket_weights': 'pesos del promedio',
-  'realtime.table.bracket_weights_by_category': 'pesos por categoría',
   'realtime.table.semaforo_config': 'semáforo',
   'realtime.table.rush_hour_windows': 'rush hour',
   'realtime.table.price_validation_rules': 'reglas de precio',
@@ -2406,6 +2433,8 @@ export default {
   'config.country_wizard.created_toast':
     'País "{label}" creado en status=draft. Revisá el checklist abajo y activá cuando esté listo.',
   'config.country_wizard.create_error': 'Error al crear país: {error}',
+  'config.country_wizard.indrive_warning':
+    'Atención: no se pudo sembrar la configuración de InDrive; cargala a mano desde Configuración → InDrive.',
   'config.country_wizard.cancel_title': 'Cancelar wizard',
   'config.country_wizard.cancel_message':
     'Vas a descartar todos los cambios del wizard. El draft local también se borrará.',
@@ -2467,6 +2496,20 @@ export default {
   'config.country_wizard.creating_btn': 'Creando…',
   'config.country_wizard.created_btn': 'Creado',
   'config.country_wizard.create_country_btn': 'Crear país (status=draft)',
+  'config.country_wizard.created_summary':
+    'Sembrado: {thresholds} umbrales de distancia, {semaforo} bandas de semáforo, {rush} ventanas de hora pico, {rules} bot rules, {weights} pesos.',
+  'config.country_wizard.review_seeds_label': 'Se sembrará automáticamente:',
+  'config.country_wizard.review_seed_thresholds':
+    'umbrales de distancia por defecto (2 / 4 / 6 / 8 / 10 km) por ciudad y categoría',
+  'config.country_wizard.review_seed_outlier': 'regla de outlier del país (3 × max price)',
+  'config.country_wizard.review_seed_semaforo':
+    'semáforo con 5 bandas por defecto (verde 5-10 %, amarillo 1-5 % y 10-12 %, rojo el resto)',
+  'config.country_wizard.review_seed_rush':
+    'ventanas de hora pico por ciudad: {morning} (07:00-09:00) y {afternoon} (17:00-20:00)',
+  'config.country_wizard.seed_rush_morning': 'Mañana',
+  'config.country_wizard.seed_rush_afternoon': 'Tarde',
+  'config.country_wizard.review_seeds_note':
+    'Todo se guarda en una sola transacción: si algo falla, no queda nada a medias. Los valores sembrados son datos editables desde Configuración.',
 
   // ── CountriesConfig ──────────────────────────────────────────────
   'config.countries_config.add_adder_placeholder': '+ Agregar...',

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Percent, Plus, Trash2, Save } from 'lucide-react'
 import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
+import { dbErrorText } from '../../lib/dbErrorText'
 import {
   getCountryConfig,
   COMPETITOR_COLORS,
@@ -16,23 +17,6 @@ import { Button } from '../ui/shadcn/button'
 // Sin las formas legacy con espacio ('Yango Comfort'): en prod convivían con
 // 'YangoComfort' y Rentabilidad las mostraba como dos competidores (mig 239).
 const ALL_COMPETITORS = CANONICAL_COMPETITOR_NAMES
-
-const DIRTY_STYLE = {
-  background: '#fef3c7',
-  borderColor: '#f59e0b',
-  fontWeight: 600,
-  boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
-}
-
-// Variante sin boxShadow para triggers de Combobox: el boxShadow inline
-// estático taparía siempre el anillo de :focus-visible (Tailwind, también
-// box-shadow) — con esta variante el fondo/borde amarillo sigue marcando
-// "dirty" pero el foco de teclado sigue siendo visible al tabular.
-const DIRTY_TRIGGER_STYLE = {
-  background: DIRTY_STYLE.background,
-  borderColor: DIRTY_STYLE.borderColor,
-  fontWeight: DIRTY_STYLE.fontWeight,
-}
 
 export default function CommissionsConfig({ country }) {
   const { dbConfigs } = useCountry()
@@ -58,35 +42,35 @@ export default function CommissionsConfig({ country }) {
     [config, t]
   )
 
-  const { allRows, loading, saveCommission, deleteCommission, addRow } = useCompetitorCommissions(
-    null,
-    country
-  )
-  const [saving, setSaving] = useState(false)
+  // Filas, edits por fila y live-sync viven en el hook (useConfigTable):
+  // guardar una fila ya no pisa lo tipeado en otra.
+  const {
+    allRows,
+    loading,
+    error: loadError,
+    saving,
+    saveCommission,
+    deleteCommission,
+    addRow,
+    reload,
+    getField,
+    setField: setFieldRaw,
+    isDirty,
+    isNew,
+  } = useCompetitorCommissions(null, country)
   const [msg, setMsg] = useState(null)
-  const [edits, setEdits] = useState({})
 
-  function getField(row, field) {
-    return edits[row.id]?.[field] ?? row[field] ?? ''
-  }
   function setField(id, field, val) {
     setMsg(null)
-    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: val } }))
+    setFieldRaw(id, field, val)
   }
-  const isDirty = (id) => !!edits[id] && Object.keys(edits[id]).length > 0
-  const isNew = (row) => String(row.id).startsWith('new_')
 
   async function handleSave(row) {
-    setSaving(true)
     setMsg(null)
-    const merged = { ...row, ...edits[row.id] }
+    // `row` ya viene con los edits aplicados (tbl.rows).
+    const merged = row
     const { ok, code, error } = await saveCommission(merged)
     if (ok) {
-      setEdits((prev) => {
-        const n = { ...prev }
-        delete n[row.id]
-        return n
-      })
       const cityLabel = merged.city || t('config.commissions.all_cities')
       setMsg({
         type: 'ok',
@@ -104,14 +88,13 @@ export default function CommissionsConfig({ country }) {
             ? t('config.commissions.pct_range_error')
             : code === 'invalid_competitor'
               ? t('config.commissions.competitor_required_error')
-              : `${t('config.commissions.save_error')}${error ? ` — ${error}` : ''}`,
+              : `${t('config.commissions.save_error')} — ${dbErrorText(t, error)}`,
       })
     }
-    setSaving(false)
   }
 
   async function handleDelete(row) {
-    if (!String(row.id).startsWith('new_')) {
+    if (!isNew(row)) {
       const confirmed = await confirm({
         title: t('config.commissions.delete_confirm_title'),
         message: t('config.commissions.delete_confirm_message'),
@@ -122,8 +105,7 @@ export default function CommissionsConfig({ country }) {
     }
     const ok = await deleteCommission(row.id)
     if (!ok) setMsg({ type: 'err', text: t('config.commissions.delete_error') })
-    else if (!String(row.id).startsWith('new_'))
-      setMsg({ type: 'ok', text: t('config.commissions.delete_success') })
+    else if (!isNew(row)) setMsg({ type: 'ok', text: t('config.commissions.delete_success') })
   }
 
   if (loading) return <div className="config-loading">{t('config.commissions.loading')}</div>
@@ -138,6 +120,12 @@ export default function CommissionsConfig({ country }) {
         {t('config.commissions.subtitle')}
       </p>
 
+      {loadError && (
+        <SaveStatusBanner
+          status={{ type: 'err', text: t('config.load_error', { msg: dbErrorText(t, loadError) }) }}
+          onDismiss={reload}
+        />
+      )}
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
       <table className="config-table config-table--modern" style={{ marginTop: 10 }}>
@@ -151,11 +139,11 @@ export default function CommissionsConfig({ country }) {
         </thead>
         <tbody>
           {allRows.map((row) => {
-            const dirty = isDirty(row.id) || isNew(row)
-            const cellStyle = dirty ? DIRTY_STYLE : undefined
-            const triggerStyle = dirty ? DIRTY_TRIGGER_STYLE : undefined
+            const dirty = isDirty(row.id)
+            const cls = dirty ? 'config-dirty' : undefined
+            const triggerCls = dirty ? 'text-xs config-dirty--soft' : 'text-xs'
             return (
-              <tr key={row.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+              <tr key={row.id} className={dirty ? 'config-row--dirty' : undefined}>
                 <td style={{ textAlign: 'left', minWidth: 170 }}>
                   <Combobox
                     items={competitorItems}
@@ -164,8 +152,7 @@ export default function CommissionsConfig({ country }) {
                     placeholder={t('config.commissions.select_placeholder')}
                     searchPlaceholder={t('config.commissions.search_competitor')}
                     emptyText={t('config.commissions.no_results')}
-                    triggerClassName="text-xs"
-                    style={triggerStyle}
+                    triggerClassName={triggerCls}
                   />
                 </td>
                 <td style={{ textAlign: 'left', minWidth: 160 }}>
@@ -177,8 +164,7 @@ export default function CommissionsConfig({ country }) {
                     }
                     searchPlaceholder={t('config.commissions.search_city')}
                     emptyText={t('config.commissions.no_results')}
-                    triggerClassName="text-xs"
-                    style={triggerStyle}
+                    triggerClassName={triggerCls}
                   />
                 </td>
                 <td>
@@ -189,7 +175,8 @@ export default function CommissionsConfig({ country }) {
                     step="0.5"
                     value={getField(row, 'commission_pct')}
                     onChange={(e) => setField(row.id, 'commission_pct', e.target.value)}
-                    style={{ width: 80, textAlign: 'right', ...(cellStyle || {}) }}
+                    className={cls}
+                    style={{ width: 80, textAlign: 'right' }}
                   />
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
@@ -226,7 +213,10 @@ export default function CommissionsConfig({ country }) {
         variant="outline"
         size="sm"
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
-        onClick={addRow}
+        onClick={() => {
+          setMsg(null)
+          addRow()
+        }}
       >
         <Plus size={13} />
         {t('config.commissions.add_btn')}

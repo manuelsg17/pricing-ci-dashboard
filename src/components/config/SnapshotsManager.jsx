@@ -3,6 +3,7 @@ import { sb } from '../../lib/supabase'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useI18n } from '../../context/LanguageContext'
 import SaveStatusBanner from './SaveStatusBanner'
+import { dbErrorText } from '../../lib/dbErrorText'
 import { Button } from '../ui/shadcn/button'
 
 // Lista los snapshots (hard copies) creados por freeze_pricing_wa y
@@ -30,7 +31,10 @@ export default function SnapshotsManager({ country }) {
     setMsg(null)
     const { data, error } = await sb.rpc('list_pricing_wa_snapshots', { p_country: country })
     if (error) {
-      setMsg({ type: 'err', text: t('config.snapshots.load_error', { msg: error.message }) })
+      setMsg({
+        type: 'err',
+        text: t('config.snapshots.load_error', { msg: dbErrorText(t, error) }),
+      })
       setRows([])
     } else {
       setRows(data || [])
@@ -60,7 +64,7 @@ export default function SnapshotsManager({ country }) {
       p_label: snap.frozen_label,
     })
     if (error) {
-      setMsg({ type: 'err', text: t('app.error_prefix') + error.message })
+      setMsg({ type: 'err', text: t('app.error_prefix') + dbErrorText(t, error) })
     } else {
       setMsg({
         type: 'ok',

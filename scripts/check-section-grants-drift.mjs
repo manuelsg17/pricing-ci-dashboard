@@ -275,6 +275,25 @@ function analyze(file) {
         symbol: owner(m.index),
       })
   }
+  // `useConfigTable({ table: 'x', … })` (src/hooks/useConfigTable.js) escribe
+  // insert/update/delete sobre `table` de forma genérica: el `.from(table)` del
+  // hook no se puede resolver estáticamente, así que la escritura se atribuye
+  // al símbolo que lo invoca con el nombre literal.
+  // Se saltan los comentarios de línea (el propio hook documenta el uso con un
+  // ejemplo) reemplazándolos por espacios para conservar los offsets.
+  const srcNoLineComments = src.replace(/^[ \t]*\/\/[^\n]*/gm, (c) => ' '.repeat(c.length))
+  for (const m of srcNoLineComments.matchAll(
+    /\buseConfigTable\(\s*\{[^}]*?\btable:\s*['"`]([A-Za-z0-9_]+)['"`]/g
+  )) {
+    writes.push({
+      table: m[1],
+      ops: ['insert', 'update', 'delete'],
+      line: lineOf(m.index),
+      idx: m.index,
+      symbol: owner(m.index),
+      viaConfigTable: true,
+    })
+  }
   for (const m of src.matchAll(/\.rpc\(\s*['"`]([A-Za-z0-9_]+)['"`]/g)) {
     rpcs.push({ fn: m[1], line: lineOf(m.index), idx: m.index, symbol: owner(m.index) })
   }
@@ -285,6 +304,7 @@ function analyze(file) {
   // rango "pertenece" a esa propiedad; si el importador no la destructura, no
   // la puede ejecutar.
   const propRanges = new Map() // símbolo -> Map<prop, [inicio, fin]>
+  const propLocals = new Map() // símbolo -> Map<prop, nombre local (puede ser 'tbl.saveRow')>
   for (const [sym, [a, b]] of symbols) {
     const body = src.slice(a, b)
     let last = null
@@ -292,14 +312,17 @@ function analyze(file) {
     if (!last) continue
     const openIdx = a + last.index + last[0].length - 1
     const closeIdx = matchDelimiter(src, openIdx, '{', '}')
-    const objSrc = src.slice(openIdx + 1, closeIdx)
+    const objSrc = src
+      .slice(openIdx + 1, closeIdx)
+      .replace(/\/\/[^\n]*/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
     if (/\.{3}/.test(objSrc)) continue // spread: no se puede mapear, conservador
     const props = new Map()
     let mappable = true
     for (const part of objSrc.split(',')) {
       const p = part.trim()
       if (!p) continue
-      const mm = /^(\w+)\s*(?::\s*(\w+))?$/.exec(p)
+      const mm = /^(\w+)\s*(?::\s*([\w.]+))?$/.exec(p)
       if (!mm) {
         mappable = false
         break
@@ -307,9 +330,11 @@ function analyze(file) {
       props.set(mm[1], mm[2] || mm[1])
     }
     if (!mappable) continue
+    propLocals.set(sym, props)
 
     const ranges = new Map()
     for (const [prop, local] of props) {
+      if (local.includes('.')) continue // alias directo a otro objeto: sin cuerpo propio
       const dm =
         new RegExp(`\\b(?:async\\s+)?function\\s+${local}\\s*\\(`).exec(body) ||
         new RegExp(`\\bconst\\s+${local}\\s*=`).exec(body)
@@ -318,6 +343,23 @@ function analyze(file) {
       ranges.set(prop, [a + bs, a + be])
     }
     if (ranges.size) propRanges.set(sym, ranges)
+  }
+
+  // Escrituras vía useConfigTable: pertenecen a las propiedades devueltas que
+  // ejecutan saveRow/deleteRow (por cuerpo o por alias directo). Si el
+  // importador no destructura ninguna de esas, no puede escribir.
+  for (const w of writes) {
+    if (!w.viaConfigTable) continue
+    const ranges = propRanges.get(w.symbol)
+    const locals = propLocals.get(w.symbol)
+    if (!locals) continue
+    const owners = new Set()
+    for (const [prop, local] of locals) {
+      if (/^(?:\w+\.)?(?:saveRow|deleteRow)$/.test(local)) owners.add(prop)
+      const r = ranges?.get(prop)
+      if (r && /\b(?:saveRow|deleteRow)\b/.test(src.slice(r[0], r[1]))) owners.add(prop)
+    }
+    if (owners.size) w.viaProps = owners
   }
 
   // — imports —
@@ -451,8 +493,9 @@ function collect(entryFile) {
 
     // Regla 2: la escritura vive en una función que el hook devuelve bajo un
     // nombre que el importador NO destructuró → no la puede ejecutar.
-    const blockedByProps = (idx) => {
+    const blockedByProps = (idx, viaProps) => {
       if (!props || symbol === '*') return false
+      if (viaProps) return ![...viaProps].some((p) => props.has(p))
       const ranges = a.propRanges.get(symbol)
       if (!ranges) return false
       for (const [prop, [x, y]] of ranges) {
@@ -463,7 +506,7 @@ function collect(entryFile) {
 
     const where = (line) => `${relative(ROOT, file)}:${line}`
     for (const w of a.writes) {
-      if (!inScope(w.idx, w.symbol) || blockedByProps(w.idx)) continue
+      if (!inScope(w.idx, w.symbol) || blockedByProps(w.idx, w.viaProps)) continue
       const list = tables.get(w.table) || []
       list.push(`${where(w.line)} (${w.ops.join('/')})`)
       tables.set(w.table, list)

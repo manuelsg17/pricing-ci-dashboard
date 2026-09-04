@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react'
 import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { AlertTriangle } from 'lucide-react'
-import * as XLSX from 'xlsx'
 import { sb } from '../../lib/supabase'
 import { mapBotRows } from '../../lib/botMapping'
 import { useCountry } from '../../context/CountryContext'
@@ -34,6 +33,8 @@ export default function BotUpload() {
       setFileName(file.name)
 
       try {
+        // xlsx se carga bajo demanda (chunk aparte, no entra en la ruta inicial).
+        const XLSX = await import('xlsx')
         const buffer = await file.arrayBuffer()
         const wb = XLSX.read(buffer, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]

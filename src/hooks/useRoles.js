@@ -24,3 +24,19 @@ export function useInvalidateRoles() {
   const queryClient = useQueryClient()
   return () => queryClient.invalidateQueries({ queryKey: ROLES_QUERY_KEY })
 }
+
+// ── Escrituras sobre `roles` (patrón único de datos, 2026-09) ─────────
+// Antes vivían inline en AccessManagement.jsx. Devuelven `{ error }` tal cual
+// supabase-js: la pantalla decide el toast y, si salió bien, llama a
+// `useInvalidateRoles()` para que la cache compartida se refresque.
+export async function updateRolePermissions(id, permissions) {
+  return sb.from('roles').update({ permissions }).eq('id', id)
+}
+
+export async function createRole({ name, label, permissions }) {
+  return sb.from('roles').insert({ name, label, permissions })
+}
+
+export async function deleteRole(id) {
+  return sb.from('roles').delete().eq('id', id)
+}

@@ -29,7 +29,7 @@ export default function CompletedSessionsTable({ sessions, total }) {
       <div className="mon-panel__head">
         <h2>{t('monitoring.sessions')}</h2>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="mon-table-scroll">
         <table className="de-history-table">
           <thead>
             <tr>

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
-import { sb } from '../../lib/supabase'
+import { useState, useMemo } from 'react'
 import { getCountryConfig } from '../../lib/constants'
+import { dbErrorText } from '../../lib/dbErrorText'
+import { useConfigTable } from '../../hooks/useConfigTable'
 import { useCountry } from '../../context/CountryContext'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -13,102 +14,35 @@ export default function RushHourConfig({ country }) {
   const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
   const { t } = useI18n()
-  const allCities = ['all', ...config.dbCities]
+  const dbCities = config.dbCities
+  const allCities = useMemo(() => ['all', ...dbCities], [dbCities])
 
-  const [windows, setWindows] = useState([])
-  const [original, setOriginal] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const tbl = useConfigTable({
+    table: 'rush_hour_windows',
+    country,
+    query: (q) => q.in('city', allCities).order('city').order('start_time'),
+    newRow: () => ({ city: 'all', label: '', start_time: '07:00', end_time: '09:00' }),
+    toPayload: (w) => ({
+      country,
+      city: w.city,
+      label: w.label || null,
+      start_time: w.start_time,
+      end_time: w.end_time,
+    }),
+  })
+  const { rows: windows, loading, saving, error: loadError } = tbl
   const [msg, setMsg] = useState(null)
-
-  useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country])
-
-  // Live-sync: si otra sesión modifica rush_hour_windows, recargamos
-  // preservando dirty rows. Mismo patrón que AirportMarkersTable.
-  useEffect(() => {
-    function onChange(e) {
-      if (e?.detail?.table === 'rush_hour_windows') loadPreservingDirty()
-    }
-    window.addEventListener('config:changed', onChange)
-    return () => window.removeEventListener('config:changed', onChange)
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [country])
-
-  async function load() {
-    setLoading(true)
-    const { data, error } = await sb
-      .from('rush_hour_windows')
-      .select('*')
-      .eq('country', country)
-      .in('city', allCities)
-      .order('city')
-      .order('start_time')
-    // Antes se ignoraba `error`: un rebote de RLS/red se veía como "sin ventanas".
-    if (error) setMsg({ type: 'err', text: t('config.load_error', { msg: error.message }) })
-    setWindows(data || [])
-    setOriginal((data || []).map((r) => ({ ...r })))
-    setLoading(false)
-  }
-
-  // Recarga server pero preserva filas dirty para no pisar trabajo en curso.
-  async function loadPreservingDirty() {
-    const { data } = await sb
-      .from('rush_hour_windows')
-      .select('*')
-      .eq('country', country)
-      .in('city', allCities)
-      .order('city')
-      .order('start_time')
-    const fresh = data || []
-    setWindows((prev) => {
-      const dirtyRows = prev.filter(isRowDirty)
-      const dirtyIds = new Set(dirtyRows.map((r) => r.id))
-      const cleanFromServer = fresh.filter((s) => !dirtyIds.has(s.id))
-      return [...cleanFromServer, ...dirtyRows]
-    })
-    setOriginal(fresh.map((r) => ({ ...r })))
-  }
 
   function update(id, field, val) {
     setMsg(null)
-    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, [field]: val } : w)))
+    tbl.setField(id, field, val)
   }
 
-  function addWindow() {
-    const tempId = `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    setMsg(null)
-    setWindows((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        city: 'all',
-        label: '',
-        start_time: '07:00',
-        end_time: '09:00',
-        _new: true,
-      },
-    ])
-  }
-
-  const isRowDirty = (w) => {
-    if (w._new) return true
-    const orig = original.find((o) => o.id === w.id)
-    if (!orig) return true
-    return (
-      String(w.city ?? '') !== String(orig.city ?? '') ||
-      String(w.label ?? '') !== String(orig.label ?? '') ||
-      String(w.start_time ?? '') !== String(orig.start_time ?? '') ||
-      String(w.end_time ?? '') !== String(orig.end_time ?? '')
-    )
-  }
+  const cityLabel = (c) => (c === 'all' ? t('config.commissions.all_cities') : c)
 
   async function saveWindow(w) {
     // Validación: orden y solape dentro de la misma ciudad ('all' compite con todas).
-    const orderErr = timeOrderError(w.start_time, w.end_time)
-    if (orderErr) {
+    if (timeOrderError(w.start_time, w.end_time)) {
       setMsg({ type: 'err', text: t('config.rushhour.time_order_error') })
       return
     }
@@ -117,47 +51,32 @@ export default function RushHourConfig({ country }) {
       setMsg({
         type: 'err',
         text: t('config.rushhour.overlap_error', {
-          city: clash.city === 'all' ? t('config.commissions.all_cities') : clash.city,
+          city: cityLabel(clash.city),
           start: String(clash.start_time).slice(0, 5),
           end: String(clash.end_time).slice(0, 5),
         }),
       })
       return
     }
-    setSaving(true)
     setMsg(null)
-    const payload = {
-      country,
-      city: w.city,
-      label: w.label || null,
-      start_time: w.start_time,
-      end_time: w.end_time,
+    const { ok, error } = await tbl.saveRow(w)
+    if (!ok) {
+      setMsg({ type: 'err', text: t('config.rushhour.save_error', { msg: dbErrorText(t, error) }) })
+      return
     }
-    let err
-    if (w._new) {
-      ;({ error: err } = await sb.from('rush_hour_windows').insert(payload))
-    } else {
-      ;({ error: err } = await sb.from('rush_hour_windows').update(payload).eq('id', w.id))
-    }
-    if (err) {
-      setMsg({ type: 'err', text: t('config.rushhour.save_error', { msg: err.message }) })
-    } else {
-      setMsg({
-        type: 'ok',
-        text: t('config.rushhour.saved_toast', {
-          city: payload.city === 'all' ? t('config.commissions.all_cities') : payload.city,
-          start: payload.start_time,
-          end: payload.end_time,
-        }),
-      })
-      await load()
-    }
-    setSaving(false)
+    setMsg({
+      type: 'ok',
+      text: t('config.rushhour.saved_toast', {
+        city: cityLabel(w.city),
+        start: w.start_time,
+        end: w.end_time,
+      }),
+    })
   }
 
   async function deleteWindow(id) {
-    if (String(id).startsWith('new_')) {
-      setWindows((prev) => prev.filter((w) => w.id !== id))
+    if (tbl.isNew(id)) {
+      tbl.deleteRow(id)
       return
     }
     const ok = await confirm({
@@ -167,23 +86,16 @@ export default function RushHourConfig({ country }) {
       confirmText: t('app.delete'),
     })
     if (!ok) return
-    const { error } = await sb.from('rush_hour_windows').delete().eq('id', id)
-    if (!error) {
-      setMsg({ type: 'ok', text: t('config.rushhour.delete_success') })
-      await load()
-    } else {
-      setMsg({ type: 'err', text: t('config.rushhour.delete_error', { msg: error.message }) })
-    }
+    const res = await tbl.deleteRow(id)
+    if (res.ok) setMsg({ type: 'ok', text: t('config.rushhour.delete_success') })
+    else
+      setMsg({
+        type: 'err',
+        text: t('config.rushhour.delete_error', { msg: dbErrorText(t, res.error) }),
+      })
   }
 
   if (loading) return <div className="config-loading">{t('config.rushhour.loading')}</div>
-
-  const dirtyCellStyle = {
-    background: '#fef3c7',
-    borderColor: '#f59e0b',
-    fontWeight: 600,
-    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
-  }
 
   return (
     <div className="config-section">
@@ -192,6 +104,12 @@ export default function RushHourConfig({ country }) {
         {t('config.rushhour.description')}
       </p>
 
+      {loadError && (
+        <SaveStatusBanner
+          status={{ type: 'err', text: t('config.load_error', { msg: dbErrorText(t, loadError) }) }}
+          onDismiss={tbl.reload}
+        />
+      )}
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
       <table className="config-table" style={{ marginTop: 10 }}>
@@ -206,18 +124,19 @@ export default function RushHourConfig({ country }) {
         </thead>
         <tbody>
           {windows.map((w) => {
-            const dirty = isRowDirty(w)
+            const dirty = tbl.isDirty(w.id)
+            const cls = dirty ? 'config-dirty' : undefined
             return (
-              <tr key={w.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+              <tr key={w.id} className={dirty ? 'config-row--dirty' : undefined}>
                 <td>
                   <select
                     value={w.city}
                     onChange={(e) => update(w.id, 'city', e.target.value)}
-                    style={dirty ? dirtyCellStyle : undefined}
+                    className={cls}
                   >
                     {allCities.map((c) => (
                       <option key={c} value={c}>
-                        {c === 'all' ? t('config.commissions.all_cities') : c}
+                        {cityLabel(c)}
                       </option>
                     ))}
                   </select>
@@ -228,7 +147,8 @@ export default function RushHourConfig({ country }) {
                     value={w.label || ''}
                     onChange={(e) => update(w.id, 'label', e.target.value)}
                     placeholder={t('config.citimeslots.label_placeholder')}
-                    style={{ width: 90, ...(dirty ? dirtyCellStyle : {}) }}
+                    className={cls}
+                    style={{ width: 90 }}
                   />
                 </td>
                 <td>
@@ -236,7 +156,8 @@ export default function RushHourConfig({ country }) {
                     type="time"
                     value={w.start_time?.slice(0, 5) || ''}
                     onChange={(e) => update(w.id, 'start_time', e.target.value)}
-                    style={{ width: 90, ...(dirty ? dirtyCellStyle : {}) }}
+                    className={cls}
+                    style={{ width: 90 }}
                   />
                 </td>
                 <td>
@@ -244,7 +165,8 @@ export default function RushHourConfig({ country }) {
                     type="time"
                     value={w.end_time?.slice(0, 5) || ''}
                     onChange={(e) => update(w.id, 'end_time', e.target.value)}
-                    style={{ width: 90, ...(dirty ? dirtyCellStyle : {}) }}
+                    className={cls}
+                    style={{ width: 90 }}
                   />
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
@@ -283,7 +205,10 @@ export default function RushHourConfig({ country }) {
         variant="outline"
         size="sm"
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
-        onClick={addWindow}
+        onClick={() => {
+          setMsg(null)
+          tbl.addRow()
+        }}
       >
         + {t('config.rushhour.add_btn')}
       </Button>

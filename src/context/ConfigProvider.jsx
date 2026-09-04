@@ -18,6 +18,30 @@
  *   para Config.jsx que edita + guarda. Este context es para los consumers
  *   que solo necesitan leer (Dashboard, Market, Coverage, etc.).
  *
+ * CARGA PEREZOSA POR CONSUMIDOR (auditoría frontend 2026-09-04):
+ *   Antes el provider disparaba las 8 queries al montar, para TODAS las
+ *   pantallas — Dashboard pagaba competitive_bands, yango_gmv_tiers,
+ *   indrive_config, etc. que nunca lee. Ahora cada bloque se fetchea la
+ *   primera vez que un consumidor lo LEE: el value del context expone
+ *   getters con los mismos nombres de siempre (`weights`, `semaforo`, …),
+ *   y leer uno marca el slice como "pedido" y habilita su
+ *   useStaleWhileRevalidate. La API pública no cambia: destructurar
+ *   `const { weights } = useConfigContext()` sigue funcionando igual.
+ *
+ *   Detalles que importan:
+ *   · El "pedir" ocurre durante el render del consumidor; el setState del
+ *     provider se difiere a un microtask para no actualizar un componente
+ *     mientras se renderea otro (warning de React). Mientras tanto, el
+ *     slice devuelve el cache de localStorage si existe (mismo render
+ *     instantáneo de antes) o EMPTY.
+ *   · Un slice pedido una vez queda habilitado para toda la sesión: el
+ *     live-sync (`config:changed`) lo refresca igual que antes, y `refresh()`
+ *     recarga solo los pedidos (los no pedidos no tienen nada que recargar).
+ *   · `loading`/`error` agregan SOLO los slices pedidos hasta ese momento —
+ *     antes eran fijos sobre weights/semaforo/thresholds. Competitividad,
+ *     que lee `competitiveBands` y `loading`, ahora ve el loading de
+ *     competitive_bands (antes miraba el de 3 tablas que no usa).
+ *
  * LIVE-SYNC:
  *   Cada config tiene live-sync por su tabla. Si otra sesión edita weights
  *   desde /config, useStaleWhileRevalidate refetchea silenciosamente y
@@ -28,7 +52,7 @@
  *   por country localmente. Esto evita re-fetchear cuando el usuario cambia
  *   de Peru a Colombia — el cache ya tiene la data de ambos.
  */
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useStaleWhileRevalidate } from '../hooks/useStaleWhileRevalidate'
@@ -40,25 +64,21 @@ const ConfigContext = createContext(null)
 // y los consumidores memoizados dispararían re-render innecesario.
 const EMPTY = Object.freeze([])
 
-export function ConfigProvider({ children }) {
-  const { session } = useAuth()
-  const enabled = !!session
-
-  const weights = useStaleWhileRevalidate({
+// Un fetcher por slice, a nivel de módulo (identidad estable, sin closures
+// por render). La clave del objeto es el nombre público en el context.
+const SLICES = {
+  weights: {
     key: 'cfg.bracket_weights.all',
-    enabled,
-    liveSyncTable: 'bracket_weights',
+    table: 'bracket_weights',
     fetcher: async () => {
       const { data, error } = await sb.from('bracket_weights').select('*')
       if (error) throw error
       return data || []
     },
-  })
-
-  const semaforo = useStaleWhileRevalidate({
+  },
+  semaforo: {
     key: 'cfg.semaforo_config.all',
-    enabled,
-    liveSyncTable: 'semaforo_config',
+    table: 'semaforo_config',
     fetcher: async () => {
       const { data, error } = await sb
         .from('semaforo_config')
@@ -68,34 +88,28 @@ export function ConfigProvider({ children }) {
       if (error) throw error
       return data || []
     },
-  })
-
-  const thresholds = useStaleWhileRevalidate({
+  },
+  thresholds: {
     key: 'cfg.distance_thresholds.all',
-    enabled,
-    liveSyncTable: 'distance_thresholds',
+    table: 'distance_thresholds',
     fetcher: async () => {
       const { data, error } = await sb.from('distance_thresholds').select('*')
       if (error) throw error
       return data || []
     },
-  })
-
-  const priceRules = useStaleWhileRevalidate({
+  },
+  priceRules: {
     key: 'cfg.price_validation_rules.all',
-    enabled,
-    liveSyncTable: 'price_validation_rules',
+    table: 'price_validation_rules',
     fetcher: async () => {
       const { data, error } = await sb.from('price_validation_rules').select('*')
       if (error) throw error
       return data || []
     },
-  })
-
-  const rushHour = useStaleWhileRevalidate({
+  },
+  rushHour: {
     key: 'cfg.rush_hour_windows.all',
-    enabled,
-    liveSyncTable: 'rush_hour_windows',
+    table: 'rush_hour_windows',
     fetcher: async () => {
       const { data, error } = await sb
         .from('rush_hour_windows')
@@ -105,12 +119,10 @@ export function ConfigProvider({ children }) {
       if (error) throw error
       return data || []
     },
-  })
-
-  const indriveConfig = useStaleWhileRevalidate({
+  },
+  indriveConfig: {
     key: 'cfg.indrive_config.all',
-    enabled,
-    liveSyncTable: 'indrive_config',
+    table: 'indrive_config',
     fetcher: async () => {
       const { data, error } = await sb
         .from('indrive_config')
@@ -118,12 +130,10 @@ export function ConfigProvider({ children }) {
       if (error) throw error
       return data || []
     },
-  })
-
-  const competitiveBands = useStaleWhileRevalidate({
+  },
+  competitiveBands: {
     key: 'cfg.competitive_bands.all',
-    enabled,
-    liveSyncTable: 'competitive_bands',
+    table: 'competitive_bands',
     fetcher: async () => {
       // ORDER BY explícito: sin esto, Postgres no garantiza el orden de
       // retorno y el fallback countryBands[0] de Competitividad.jsx podría
@@ -136,12 +146,10 @@ export function ConfigProvider({ children }) {
       if (error) throw error
       return data || []
     },
-  })
-
-  const yangoGmvTiers = useStaleWhileRevalidate({
+  },
+  yangoGmvTiers: {
     key: 'cfg.yango_gmv_tiers.all',
-    enabled,
-    liveSyncTable: 'yango_gmv_tiers',
+    table: 'yango_gmv_tiers',
     fetcher: async () => {
       const { data, error } = await sb
         .from('yango_gmv_tiers')
@@ -156,60 +164,109 @@ export function ConfigProvider({ children }) {
       }
       return data || []
     },
-  })
+  },
+}
 
-  const value = useMemo(
-    () => ({
-      weights: weights.data ?? EMPTY,
-      semaforo: semaforo.data ?? EMPTY,
-      thresholds: thresholds.data ?? EMPTY,
-      priceRules: priceRules.data ?? EMPTY,
-      rushHour: rushHour.data ?? EMPTY,
-      indriveConfig: indriveConfig.data ?? EMPTY,
-      yangoGmvTiers: yangoGmvTiers.data ?? EMPTY,
-      competitiveBands: competitiveBands.data ?? EMPTY,
-      loading: weights.loading || semaforo.loading || thresholds.loading,
-      error: weights.error || semaforo.error || thresholds.error,
-      refresh: () =>
-        Promise.all([
-          weights.reload(),
-          semaforo.reload(),
-          thresholds.reload(),
-          priceRules.reload(),
-          rushHour.reload(),
-          indriveConfig.reload(),
-          yangoGmvTiers.reload(),
-          competitiveBands.reload(),
-        ]),
-    }),
-    // Deps granulares a propósito (.data/.loading/.reload por config) para
-    // no invalidar el memo con cada render del hook SWR.
+const SLICE_NAMES = Object.keys(SLICES)
+
+// Los hooks no pueden ir dentro de un loop dinámico, pero SLICE_NAMES es una
+// constante de módulo: el orden y la cantidad de llamadas es idéntico en
+// cada render, que es lo que las reglas de hooks exigen.
+function useSlice(name, enabled) {
+  const { key, table, fetcher } = SLICES[name]
+  return useStaleWhileRevalidate({ key, enabled, liveSyncTable: table, fetcher })
+}
+
+export function ConfigProvider({ children }) {
+  const { session } = useAuth()
+  const hasSession = !!session
+
+  // Set de slices pedidos por algún consumidor. El ref es la verdad
+  // síncrona (se actualiza durante el render del consumidor); el state es
+  // lo que fuerza el re-render del provider para habilitar el fetch.
+  const requestedRef = useRef(new Set())
+  const [requested, setRequested] = useState(() => requestedRef.current)
+  const flushScheduled = useRef(false)
+
+  const request = useCallback((name) => {
+    if (requestedRef.current.has(name)) return
+    requestedRef.current = new Set(requestedRef.current).add(name)
+    if (flushScheduled.current) return
+    flushScheduled.current = true
+    // Diferido: estamos dentro del render de un consumidor, no del provider.
+    queueMicrotask(() => {
+      flushScheduled.current = false
+      setRequested(requestedRef.current)
+    })
+  }, [])
+
+  /* eslint-disable react-hooks/rules-of-hooks -- SLICE_NAMES es constante de
+     módulo: misma cantidad y orden de hooks en cada render. */
+  const slices = {}
+  for (const name of SLICE_NAMES) {
+    slices[name] = useSlice(name, hasSession && requested.has(name))
+  }
+  /* eslint-enable react-hooks/rules-of-hooks */
+
+  // Deps granulares a propósito (.data/.loading/.error/.reload por slice)
+  // para no invalidar el memo con cada render del hook SWR.
+  const deps = SLICE_NAMES.flatMap((n) => [
+    slices[n].data,
+    slices[n].loading,
+    slices[n].error,
+    slices[n].reload,
+  ])
+
+  const value = useMemo(() => {
+    const isRequested = (n) => requestedRef.current.has(n)
+    const obj = {
+      // OJO: solo la lectura de un slice lo marca como pedido, así que un
+      // consumidor que destructure `loading` ANTES que su slice lo vería en
+      // false el primer render. Por eso también cuenta como "cargando" un
+      // slice pedido que todavía no tiene datos.
+      get loading() {
+        return SLICE_NAMES.some(
+          (n) => isRequested(n) && (slices[n].loading || slices[n].data == null)
+        )
+      },
+      get error() {
+        for (const n of SLICE_NAMES) if (isRequested(n) && slices[n].error) return slices[n].error
+        return null
+      },
+      // Recarga los slices pedidos e INVALIDA el cache de los que no lo fueron:
+      // el editor de Configuración suele no leer el slice que acaba de guardar
+      // (CompetitiveBandsConfig solo usa `refresh`), y sin esto la pantalla de
+      // análisis leía del cache viejo de localStorage (TTL 5 min).
+      refresh: () => {
+        for (const n of SLICE_NAMES) {
+          if (isRequested(n)) continue
+          try {
+            localStorage.removeItem(SLICES[n].key)
+          } catch {}
+        }
+        return Promise.all(SLICE_NAMES.filter(isRequested).map((n) => slices[n].reload()))
+      },
+    }
+    // No enumerables: un spread, un Object.keys o un console.log del context
+    // dispararía las 8 queries de golpe y anularía la carga perezosa.
+    for (const k of ['loading', 'error', 'refresh']) {
+      Object.defineProperty(obj, k, {
+        ...Object.getOwnPropertyDescriptor(obj, k),
+        enumerable: false,
+      })
+    }
+    for (const name of SLICE_NAMES) {
+      Object.defineProperty(obj, name, {
+        enumerable: false,
+        get() {
+          request(name)
+          return slices[name].data ?? EMPTY
+        },
+      })
+    }
+    return obj
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      weights.data,
-      weights.loading,
-      weights.error,
-      weights.reload,
-      semaforo.data,
-      semaforo.loading,
-      semaforo.error,
-      semaforo.reload,
-      thresholds.data,
-      thresholds.loading,
-      thresholds.error,
-      thresholds.reload,
-      priceRules.data,
-      priceRules.reload,
-      rushHour.data,
-      rushHour.reload,
-      indriveConfig.data,
-      indriveConfig.reload,
-      yangoGmvTiers.data,
-      yangoGmvTiers.reload,
-      competitiveBands.data,
-      competitiveBands.reload,
-    ]
-  )
+  }, [request, requested, ...deps])
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
 }

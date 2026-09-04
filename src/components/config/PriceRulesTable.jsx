@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
-import { sb } from '../../lib/supabase'
+import { useState, useMemo, useCallback } from 'react'
 import { getCountryConfig } from '../../lib/constants'
+import { dbErrorText } from '../../lib/dbErrorText'
+import { useConfigTable, isNewId } from '../../hooks/useConfigTable'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useCountry } from '../../context/CountryContext'
@@ -28,99 +29,39 @@ export default function PriceRulesTable({ country }) {
     return ['all', ...Array.from(comps).sort()]
   }, [config])
 
-  const [rules, setRules] = useState([])
-  const [original, setOriginal] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const dbCities = config.dbCities
+  const query = useCallback(
+    (q) => q.in('city', dbCities).order('city').order('category').order('competition'),
+    [dbCities]
+  )
+
+  const tbl = useConfigTable({
+    table: 'price_validation_rules',
+    country,
+    query,
+    // Default a maxPrice del país (PEN=120, COP=120000, NPR=2000, etc.).
+    // Si config.maxPrice no está seteado, fallback a 120 (Peru-equivalent).
+    newRow: () => ({
+      city: defaultCity,
+      category: 'all',
+      competition: 'all',
+      max_price: Number(config.maxPrice) || 120,
+    }),
+    toPayload: (rule) => ({
+      country,
+      city: rule.city,
+      category: rule.category || 'all',
+      competition: rule.competition || 'all',
+      max_price: parseFloat(rule.max_price),
+      ...(isNewId(rule.id) ? {} : { updated_at: new Date().toISOString() }),
+    }),
+  })
+  const { rows, loading, saving, error: loadError } = tbl
   const [msg, setMsg] = useState(null)
-
-  useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country])
-
-  // Live-sync: si otra sesión modifica price_validation_rules, recargamos
-  // preservando dirty rows. Mismo patrón que AirportMarkersTable.
-  useEffect(() => {
-    function onChange(e) {
-      if (e?.detail?.table === 'price_validation_rules') loadPreservingDirty()
-    }
-    window.addEventListener('config:changed', onChange)
-    return () => window.removeEventListener('config:changed', onChange)
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [country])
-
-  async function load() {
-    setLoading(true)
-    const { data, error } = await sb
-      .from('price_validation_rules')
-      .select('*')
-      .eq('country', country)
-      .in('city', config.dbCities)
-      .order('city')
-      .order('category')
-      .order('competition')
-    if (error) setMsg({ type: 'err', text: t('config.load_error', { msg: error.message }) })
-    setRules(data || [])
-    setOriginal((data || []).map((r) => ({ ...r })))
-    setLoading(false)
-  }
-
-  // Recarga server pero preserva filas dirty (en edición o _new) para no
-  // pisar el trabajo del usuario cuando otra sesión escribe.
-  async function loadPreservingDirty() {
-    const { data } = await sb
-      .from('price_validation_rules')
-      .select('*')
-      .eq('country', country)
-      .in('city', config.dbCities)
-      .order('city')
-      .order('category')
-      .order('competition')
-    const fresh = data || []
-    setRules((prev) => {
-      const dirtyRows = prev.filter(isRowDirty)
-      const dirtyIds = new Set(dirtyRows.map((r) => r.id))
-      const cleanFromServer = fresh.filter((s) => !dirtyIds.has(s.id))
-      return [...cleanFromServer, ...dirtyRows]
-    })
-    setOriginal(fresh.map((r) => ({ ...r })))
-  }
 
   function updateRule(id, field, val) {
     setMsg(null)
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: val } : r)))
-  }
-
-  function addRule() {
-    const tempId = `new_${Date.now()}`
-    setMsg(null)
-    // Default a maxPrice del país (PEN=120, COP=120000, NPR=2000, etc.).
-    // Si config.maxPrice no está seteado, fallback a 120 (Peru-equivalent).
-    const defaultMax = Number(config.maxPrice) || 120
-    setRules((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        city: defaultCity,
-        category: 'all',
-        competition: 'all',
-        max_price: defaultMax,
-        _new: true,
-      },
-    ])
-  }
-
-  const isRowDirty = (r) => {
-    if (r._new) return true
-    const orig = original.find((o) => o.id === r.id)
-    if (!orig) return true
-    return (
-      r.city !== orig.city ||
-      r.category !== orig.category ||
-      r.competition !== orig.competition ||
-      String(r.max_price) !== String(orig.max_price)
-    )
+    tbl.setField(id, field, val)
   }
 
   async function saveRule(rule) {
@@ -131,45 +72,30 @@ export default function PriceRulesTable({ country }) {
       setMsg({ type: 'err', text: t('config.pricerules.max_price_invalid') })
       return
     }
-    setSaving(true)
     setMsg(null)
-    const payload = {
-      country,
-      city: rule.city,
-      category: rule.category || 'all',
-      competition: rule.competition || 'all',
-      max_price: maxPrice,
-    }
-    let err
-    if (rule._new) {
-      ;({ error: err } = await sb.from('price_validation_rules').insert(payload))
-    } else {
-      ;({ error: err } = await sb
-        .from('price_validation_rules')
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', rule.id))
-    }
-    if (err) {
-      setMsg({ type: 'err', text: t('config.pricerules.save_error', { msg: err.message }) })
-    } else {
+    const { ok, error } = await tbl.saveRow(rule)
+    if (!ok) {
       setMsg({
-        type: 'ok',
-        text: t('config.pricerules.saved_toast', {
-          city: payload.city,
-          category: payload.category,
-          competition: payload.competition,
-          currency: config.currency,
-          price: payload.max_price,
-        }),
+        type: 'err',
+        text: t('config.pricerules.save_error', { msg: dbErrorText(t, error) }),
       })
-      await load()
+      return
     }
-    setSaving(false)
+    setMsg({
+      type: 'ok',
+      text: t('config.pricerules.saved_toast', {
+        city: rule.city,
+        category: rule.category || 'all',
+        competition: rule.competition || 'all',
+        currency: config.currency,
+        price: maxPrice,
+      }),
+    })
   }
 
   async function deleteRule(id) {
-    if (String(id).startsWith('new_')) {
-      setRules((prev) => prev.filter((r) => r.id !== id))
+    if (tbl.isNew(id)) {
+      tbl.deleteRow(id)
       return
     }
     const ok = await confirm({
@@ -179,23 +105,16 @@ export default function PriceRulesTable({ country }) {
       confirmText: t('app.delete'),
     })
     if (!ok) return
-    const { error } = await sb.from('price_validation_rules').delete().eq('id', id)
-    if (!error) {
-      setMsg({ type: 'ok', text: t('config.pricerules.delete_success') })
-      await load()
-    } else {
-      setMsg({ type: 'err', text: t('config.pricerules.delete_error', { msg: error.message }) })
-    }
+    const res = await tbl.deleteRow(id)
+    if (res.ok) setMsg({ type: 'ok', text: t('config.pricerules.delete_success') })
+    else
+      setMsg({
+        type: 'err',
+        text: t('config.pricerules.delete_error', { msg: dbErrorText(t, res.error) }),
+      })
   }
 
   if (loading) return <div className="config-loading">{t('config.pricerules.loading')}</div>
-
-  const dirtyCellStyle = {
-    background: '#fef3c7',
-    borderColor: '#f59e0b',
-    fontWeight: 600,
-    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
-  }
 
   return (
     <div className="config-section">
@@ -204,6 +123,12 @@ export default function PriceRulesTable({ country }) {
         {t('config.pricerules.description')}
       </p>
 
+      {loadError && (
+        <SaveStatusBanner
+          status={{ type: 'err', text: t('config.load_error', { msg: dbErrorText(t, loadError) }) }}
+          onDismiss={tbl.reload}
+        />
+      )}
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
       <table className="config-table" style={{ marginTop: 10 }}>
@@ -219,15 +144,16 @@ export default function PriceRulesTable({ country }) {
           </tr>
         </thead>
         <tbody>
-          {rules.map((rule) => {
-            const dirty = isRowDirty(rule)
+          {rows.map((rule) => {
+            const dirty = tbl.isDirty(rule.id)
+            const cls = dirty ? 'config-dirty' : undefined
             return (
-              <tr key={rule.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+              <tr key={rule.id} className={dirty ? 'config-row--dirty' : undefined}>
                 <td>
                   <select
                     value={rule.city}
                     onChange={(e) => updateRule(rule.id, 'city', e.target.value)}
-                    style={dirty ? dirtyCellStyle : undefined}
+                    className={cls}
                   >
                     {config.dbCities.map((c) => (
                       <option key={c}>{c}</option>
@@ -238,7 +164,7 @@ export default function PriceRulesTable({ country }) {
                   <select
                     value={rule.category || 'all'}
                     onChange={(e) => updateRule(rule.id, 'category', e.target.value)}
-                    style={dirty ? dirtyCellStyle : undefined}
+                    className={cls}
                   >
                     {allCategories.map((c) => (
                       <option key={c}>{c}</option>
@@ -249,7 +175,7 @@ export default function PriceRulesTable({ country }) {
                   <select
                     value={rule.competition || 'all'}
                     onChange={(e) => updateRule(rule.id, 'competition', e.target.value)}
-                    style={dirty ? dirtyCellStyle : undefined}
+                    className={cls}
                   >
                     {allCompetitors.map((c) => (
                       <option key={c}>{c}</option>
@@ -263,7 +189,8 @@ export default function PriceRulesTable({ country }) {
                     min="0"
                     step="1"
                     onChange={(e) => updateRule(rule.id, 'max_price', e.target.value)}
-                    style={{ width: 80, ...(dirty ? dirtyCellStyle : {}) }}
+                    className={cls}
+                    style={{ width: 80 }}
                   />
                 </td>
                 <td style={{ display: 'flex', gap: 6 }}>
@@ -298,7 +225,10 @@ export default function PriceRulesTable({ country }) {
         variant="outline"
         size="sm"
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
-        onClick={addRule}
+        onClick={() => {
+          setMsg(null)
+          tbl.addRow()
+        }}
       >
         + {t('config.pricerules.add_btn')}
       </Button>

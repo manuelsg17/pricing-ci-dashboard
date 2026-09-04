@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import * as XLSX from 'xlsx'
 import { convertBotToExcel } from '../../lib/botToExcel'
 import { useCountry } from '../../context/CountryContext'
 import { usePriceRules } from '../../hooks/usePriceRules'
@@ -27,12 +26,15 @@ export default function BotConverter() {
     setShowSkip(false)
 
     try {
+      // xlsx (~400 kB) se carga bajo demanda: solo cuando el analista suelta
+      // un archivo, no al abrir la ruta.
+      const XLSX = await import('xlsx')
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type: 'array', cellDates: false })
       const ws = wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(ws, { defval: null })
 
-      const converted = convertBotToExcel(rows, country, dbConfigs)
+      const converted = await convertBotToExcel(rows, country, dbConfigs)
       setResult(converted)
 
       // Chequear precios contra límites configurados

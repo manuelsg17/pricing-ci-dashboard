@@ -57,11 +57,11 @@ export default function WeeklyCoveragePanel({
     <div className="mon-panel">
       <div className="mon-panel__head" style={{ justifyContent: 'space-between' }}>
         <h2>{t('monitoring.coverage_title')}</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="mon-week-nav">
           <Button size="sm" variant="outline" onClick={onPrevWeek} disabled={loading}>
             ◀
           </Button>
-          <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+          <span className="mon-week-nav__label">
             {t('monitoring.coverage_week', { year, week })}
           </span>
           <Button size="sm" variant="outline" onClick={onNextWeek} disabled={loading}>
@@ -81,7 +81,7 @@ export default function WeeklyCoveragePanel({
       ) : rowKeys.length === 0 ? (
         <div className="mon-empty">{t('monitoring.coverage_empty')}</div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="mon-table-scroll">
           <table className="de-history-table">
             <thead>
               <tr>

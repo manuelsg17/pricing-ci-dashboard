@@ -17,7 +17,6 @@ import PriceComplianceAlerts from '../components/monitoring/PriceComplianceAlert
 import ClientErrorsPanel from '../components/monitoring/ClientErrorsPanel'
 import ProjectTasksPanel from '../components/monitoring/ProjectTasksPanel'
 import TurnoTimesPanel from '../components/monitoring/TurnoTimesPanel'
-import '../styles/data-entry.css'
 import '../styles/monitoring.css'
 
 // Monitoreo de la carga de hubs — SOLO admin. La seguridad real está en las
@@ -51,7 +50,7 @@ export default function Monitoring() {
   const taskAlerts = useProjectTaskAlerts(country)
 
   return (
-    <div className="de-page">
+    <div className="de-page mon-page">
       <div className="de-header">
         <div className="de-header__left">
           <h1>{t('monitoring.title')}</h1>

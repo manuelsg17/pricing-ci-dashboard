@@ -34,7 +34,6 @@ const REFETCHABLE_TABLES = new Set([
   'bot_rules',
   'distance_thresholds',
   'bracket_weights',
-  'bracket_weights_by_category',
   'semaforo_config',
   'rush_hour_windows',
   'price_validation_rules',
@@ -58,7 +57,6 @@ const TOAST_WORTHY_TABLES = new Set([
   'bot_rules',
   'distance_thresholds',
   'bracket_weights',
-  'bracket_weights_by_category',
   'semaforo_config',
 ])
 

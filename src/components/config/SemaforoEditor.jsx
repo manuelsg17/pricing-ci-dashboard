@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import SaveStatusBanner from './SaveStatusBanner'
+import UnsavedChangesBanner from './UnsavedChangesBanner'
+import { dbErrorText } from '../../lib/dbErrorText'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
@@ -76,15 +78,8 @@ export default function SemaforoEditor({ semaforo, onSave, saving, country }) {
         text: t('config.semaforo.save_success'),
       })
     } catch (e) {
-      setSaveMsg({ type: 'err', text: t('app.error_prefix') + e.message })
+      setSaveMsg({ type: 'err', text: t('app.error_prefix') + dbErrorText(t, e) })
     }
-  }
-
-  const dirtyInputStyle = {
-    background: '#fef3c7',
-    borderColor: '#f59e0b',
-    fontWeight: 600,
-    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
   }
 
   return (
@@ -95,34 +90,9 @@ export default function SemaforoEditor({ semaforo, onSave, saving, country }) {
       </p>
 
       {hasUnsavedChanges && (
-        <div
-          style={{
-            marginTop: 8,
-            marginBottom: 12,
-            padding: '10px 14px',
-            borderRadius: 6,
-            background: '#fef3c7',
-            border: '1px solid #f59e0b',
-            color: '#78350f',
-            fontSize: 13,
-            fontWeight: 500,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          <span>⚠ {t('config.semaforo.unsaved_warning')}</span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="bg-transparent border-[#b45309] text-[#78350f]"
-            onClick={handleDiscard}
-          >
-            {t('config.discard_changes')}
-          </Button>
-        </div>
+        <UnsavedChangesBanner onDiscard={handleDiscard}>
+          {t('config.semaforo.unsaved_warning')}
+        </UnsavedChangesBanner>
       )}
 
       <table className="config-table">
@@ -145,7 +115,7 @@ export default function SemaforoEditor({ semaforo, onSave, saving, country }) {
                   placeholder="∞"
                   value={row.min_pct ?? ''}
                   onChange={(e) => handleChange(idx, 'min_pct', e.target.value)}
-                  style={isDirty(idx, 'min_pct') ? dirtyInputStyle : undefined}
+                  className={isDirty(idx, 'min_pct') ? 'config-dirty' : undefined}
                 />
               </td>
               <td>
@@ -155,13 +125,14 @@ export default function SemaforoEditor({ semaforo, onSave, saving, country }) {
                   placeholder="∞"
                   value={row.max_pct ?? ''}
                   onChange={(e) => handleChange(idx, 'max_pct', e.target.value)}
-                  style={isDirty(idx, 'max_pct') ? dirtyInputStyle : undefined}
+                  className={isDirty(idx, 'max_pct') ? 'config-dirty' : undefined}
                 />
               </td>
               <td style={{ textAlign: 'left', padding: '3px 6px' }}>
                 <input
                   type="text"
-                  style={{ width: 200, ...(isDirty(idx, 'note') ? dirtyInputStyle : {}) }}
+                  className={isDirty(idx, 'note') ? 'config-dirty' : undefined}
+                  style={{ width: 200 }}
                   value={row.note || ''}
                   onChange={(e) => handleChange(idx, 'note', e.target.value)}
                 />

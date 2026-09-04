@@ -206,32 +206,7 @@
   background: #fef3c7;
 }
 
-/* ── Bulk messages ────────────────────────────────────── */
-.drefs-bulk-msg {
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  margin-bottom: 10px;
-}
-
-.drefs-bulk-msg--ok {
-  background: var(--color-success-bg-subtle);
-  border: 1px solid var(--color-success-border);
-  color: var(--color-success-fg);
-}
-.drefs-bulk-msg--err {
-  background: var(--color-danger-bg-subtle);
-  border: 1px solid var(--color-danger-border);
-  color: var(--color-danger-fg);
-}
-
 /* ── State ───────────────────────────────────────────── */
-.drefs-empty {
-  padding: 32px;
-  text-align: center;
-  color: var(--color-muted);
-  font-size: 13px;
-}
 
 .drefs-error {
   padding: 10px 16px;

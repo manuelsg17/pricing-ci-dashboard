@@ -317,3 +317,50 @@
 .toggle-switch input:focus-visible + .toggle-track {
   box-shadow: 0 0 0 2px var(--color-yango-mid);
 }
+
+/* ── Estado "dirty" (cambios sin guardar) ───────────────────
+   Único estilo para toda Configuración. Antes vivía copiado ~12 veces
+   como objetos inline (DIRTY_STYLE / dirtyCellStyle / '#fffbeb'). La
+   especificidad .config-section > .config-dirty gana a las utilidades de
+   Tailwind del Button del Combobox y a `.config-table input`. */
+.config-section .config-dirty {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+/* Variante sin box-shadow para triggers de Combobox: un box-shadow estático
+   taparía siempre el anillo de :focus-visible (Tailwind también usa
+   box-shadow) — el fondo/borde amarillo sigue marcando "dirty" pero el
+   foco de teclado sigue siendo visible al tabular. */
+.config-section .config-dirty--soft {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  font-weight: 600;
+}
+.config-section .config-dirty--error {
+  background: #fef2f2;
+  border-color: #ef4444;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+.config-table tr.config-row--dirty td {
+  background: #fffbeb;
+}
+
+/* ── Banner de cambios sin guardar (UnsavedChangesBanner) ─── */
+.config-unsaved-banner {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #78350f;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}

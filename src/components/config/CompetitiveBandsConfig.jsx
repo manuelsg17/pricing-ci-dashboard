@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { Percent, Plus, Trash2, Save } from 'lucide-react'
 import { useCompetitiveBands } from '../../hooks/useCompetitiveBands'
+import { dbErrorText } from '../../lib/dbErrorText'
 import { useCompetitiveBandAnalysis } from '../../hooks/useCompetitiveBandAnalysis'
 import { useConfigContext } from '../../context/ConfigProvider'
 import { useCountry } from '../../context/CountryContext'
@@ -12,20 +13,6 @@ import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
-
-const DIRTY_STYLE = {
-  background: '#fef3c7',
-  borderColor: '#f59e0b',
-  fontWeight: 600,
-  boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)',
-}
-// Sin boxShadow (ver BotRulesTable/CommissionsConfig): el boxShadow inline
-// estático tapa el anillo de :focus-visible de los triggers Combobox.
-const DIRTY_TRIGGER_STYLE = {
-  background: DIRTY_STYLE.background,
-  borderColor: DIRTY_STYLE.borderColor,
-  fontWeight: DIRTY_STYLE.fontWeight,
-}
 
 // Preview en vivo: mientras el usuario tipea min/max%, muestra qué % de las
 // cotizaciones reales caería "dentro de banda" hoy — sin necesidad de
@@ -97,19 +84,25 @@ export default function CompetitiveBandsConfig({ country }) {
   const { dbConfigs } = useCountry()
   const config = getCountryConfig(country, dbConfigs)
   const confirm = useConfirm()
+  // Filas, edits por fila y live-sync viven en el hook (useConfigTable):
+  // guardar una fila ya no pisa lo tipeado en otra.
   const {
     allRows,
     loading,
     error: loadError,
+    saving,
     saveBand,
     deleteBand,
     addRow,
+    reload,
+    getField,
+    setField: setFieldRaw,
+    isDirty,
+    isNew,
   } = useCompetitiveBands(country)
   const { refresh: refreshConfig } = useConfigContext()
   const { t } = useI18n()
-  const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
-  const [edits, setEdits] = useState({})
 
   // Competidores válidos = NUNCA sub-marcas de Yango (constraint en BD).
   const competitorItems = useMemo(
@@ -130,18 +123,14 @@ export default function CompetitiveBandsConfig({ country }) {
       .map((c) => ({ value: c, label: c }))
   }, [config])
 
-  function getField(row, field) {
-    return edits[row.id]?.[field] ?? row[field] ?? ''
-  }
   function setField(id, field, val) {
     setMsg(null)
-    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: val } }))
+    setFieldRaw(id, field, val)
   }
-  const isDirty = (id) => !!edits[id] && Object.keys(edits[id]).length > 0
-  const isNew = (row) => String(row.id).startsWith('new_')
 
   async function handleSave(row) {
-    const merged = { ...row, ...edits[row.id] }
+    // `row` ya viene con los edits aplicados (tbl.rows).
+    const merged = row
     if (!merged.competitor_name || !merged.category) {
       setMsg({ type: 'err', text: t('config.bands.choose_error') })
       return
@@ -150,15 +139,9 @@ export default function CompetitiveBandsConfig({ country }) {
       setMsg({ type: 'err', text: t('config.bands.range_error') })
       return
     }
-    setSaving(true)
     setMsg(null)
-    const errMsg = await saveBand(merged)
-    if (!errMsg) {
-      setEdits((prev) => {
-        const n = { ...prev }
-        delete n[row.id]
-        return n
-      })
+    const { ok, error } = await saveBand(merged)
+    if (ok) {
       setMsg({
         type: 'ok',
         text: t('config.bands.saved_toast', {
@@ -173,9 +156,8 @@ export default function CompetitiveBandsConfig({ country }) {
       // vea el cambio reflejado al instante en Análisis → Competitividad.
       refreshConfig()
     } else {
-      setMsg({ type: 'err', text: t('config.bands.save_error', { msg: errMsg }) })
+      setMsg({ type: 'err', text: t('config.bands.save_error', { msg: dbErrorText(t, error) }) })
     }
-    setSaving(false)
   }
 
   async function handleDelete(row) {
@@ -209,10 +191,10 @@ export default function CompetitiveBandsConfig({ country }) {
       </p>
 
       {loadError && (
-        <div className="state-box state-box--error">
-          {t('app.error_prefix')}
-          {loadError}
-        </div>
+        <SaveStatusBanner
+          status={{ type: 'err', text: t('config.load_error', { msg: dbErrorText(t, loadError) }) }}
+          onDismiss={reload}
+        />
       )}
       <SaveStatusBanner status={msg} onDismiss={() => setMsg(null)} />
 
@@ -237,11 +219,13 @@ export default function CompetitiveBandsConfig({ country }) {
         </thead>
         <tbody>
           {allRows.map((row) => {
-            const dirty = isDirty(row.id) || isNew(row)
+            const dirty = isDirty(row.id)
+            const cls = dirty ? 'config-dirty' : undefined
+            const triggerCls = dirty ? 'text-xs config-dirty--soft' : 'text-xs'
             const minPct = Number(getField(row, 'min_pct'))
             const maxPct = Number(getField(row, 'max_pct'))
             return (
-              <tr key={row.id} style={dirty ? { background: '#fffbeb' } : undefined}>
+              <tr key={row.id} className={dirty ? 'config-row--dirty' : undefined}>
                 <td style={{ textAlign: 'left', minWidth: 160 }}>
                   <Combobox
                     items={competitorItems}
@@ -250,8 +234,7 @@ export default function CompetitiveBandsConfig({ country }) {
                     placeholder={t('config.bands.select_placeholder')}
                     searchPlaceholder={t('config.commissions.search_competitor')}
                     emptyText={t('config.commissions.no_results')}
-                    triggerClassName="text-xs"
-                    style={dirty ? DIRTY_TRIGGER_STYLE : undefined}
+                    triggerClassName={triggerCls}
                   />
                 </td>
                 <td style={{ textAlign: 'left', minWidth: 150 }}>
@@ -262,8 +245,7 @@ export default function CompetitiveBandsConfig({ country }) {
                     placeholder={t('config.bands.select_placeholder')}
                     searchPlaceholder={t('config.bands.search_category')}
                     emptyText={t('config.commissions.no_results')}
-                    triggerClassName="text-xs"
-                    style={dirty ? DIRTY_TRIGGER_STYLE : undefined}
+                    triggerClassName={triggerCls}
                   />
                 </td>
                 <td>
@@ -272,7 +254,8 @@ export default function CompetitiveBandsConfig({ country }) {
                     step="0.5"
                     value={getField(row, 'min_pct')}
                     onChange={(e) => setField(row.id, 'min_pct', e.target.value)}
-                    style={{ width: 70, textAlign: 'right', ...(dirty ? DIRTY_STYLE : {}) }}
+                    className={cls}
+                    style={{ width: 70, textAlign: 'right' }}
                   />
                 </td>
                 <td>
@@ -281,7 +264,8 @@ export default function CompetitiveBandsConfig({ country }) {
                     step="0.5"
                     value={getField(row, 'max_pct')}
                     onChange={(e) => setField(row.id, 'max_pct', e.target.value)}
-                    style={{ width: 70, textAlign: 'right', ...(dirty ? DIRTY_STYLE : {}) }}
+                    className={cls}
+                    style={{ width: 70, textAlign: 'right' }}
                   />
                 </td>
                 <td>
@@ -290,7 +274,8 @@ export default function CompetitiveBandsConfig({ country }) {
                     value={getField(row, 'note')}
                     onChange={(e) => setField(row.id, 'note', e.target.value)}
                     placeholder={t('config.bands.note_placeholder')}
-                    style={{ width: '100%', ...(dirty ? DIRTY_STYLE : {}) }}
+                    className={cls}
+                    style={{ width: '100%' }}
                   />
                 </td>
                 <td style={{ textAlign: 'center' }}>
@@ -353,7 +338,10 @@ export default function CompetitiveBandsConfig({ country }) {
         variant="outline"
         size="sm"
         className="mt-2.5 border-dashed border-border text-muted hover:border-yango hover:text-yango"
-        onClick={addRow}
+        onClick={() => {
+          setMsg(null)
+          addRow()
+        }}
       >
         <Plus size={13} />
         {t('config.bands.add_btn')}

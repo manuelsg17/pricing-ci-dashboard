@@ -70,25 +70,6 @@
   border-color: var(--color-yango);
 }
 
-/* ── Message ────────────────────────────────────────────── */
-.mevt-msg {
-  padding: 9px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.mevt-msg--ok {
-  background: var(--color-success-bg-subtle);
-  border: 1px solid var(--color-success-border);
-  color: var(--color-success-fg);
-}
-.mevt-msg--err {
-  background: var(--color-danger-bg-subtle);
-  border: 1px solid var(--color-danger-border);
-  color: var(--color-danger-fg);
-}
-
 /* ── Section ────────────────────────────────────────────── */
 .mevt-section {
   background: var(--color-panel);
@@ -167,50 +148,4 @@
 
 .mevt-input:focus {
   border-color: var(--color-yango);
-}
-
-/* ── Impact badges ──────────────────────────────────────── */
-.mevt-impact {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.mevt-impact--alto {
-  background: var(--sem-red-bg);
-  color: var(--sem-red-fg);
-}
-.mevt-impact--medio {
-  background: var(--sem-yellow-bg);
-  color: var(--sem-yellow-fg);
-}
-.mevt-impact--bajo {
-  background: var(--color-bg-hover);
-  color: var(--color-muted);
-}
-
-/* ── Event type badges ──────────────────────────────────── */
-.mevt-type {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 600;
-  background: #eff6ff;
-  color: var(--color-info-fg);
-  border: 1px solid var(--color-info-border);
-}
-
-/* ── Empty ──────────────────────────────────────────────── */
-.mevt-empty {
-  padding: 28px;
-  text-align: center;
-  color: var(--color-muted);
-  font-size: 12px;
 }

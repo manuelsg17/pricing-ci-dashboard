@@ -7,7 +7,6 @@
  * Reutiliza mapBotRows() de botMapping.js para normalización y filtros de calidad.
  */
 
-import * as XLSX from 'xlsx'
 import { mapBotRows } from './botMapping.js'
 import { getCountryConfig } from './constants.js'
 import { sanitizeForSpreadsheet } from './csvSafety.js'
@@ -173,7 +172,7 @@ const COL_HEADERS = [
   'Minimal Bid Vs Recomm Price',
 ]
 
-function buildCityXlsx(rows, city) {
+function buildCityXlsx(XLSX, rows, city) {
   // Nombres de sheet: TRU_... ARQ_... para Peru, City_... para el resto
   let sheetName = `${city}_Pricing_CI_FINAL`
   if (city === 'Trujillo') sheetName = 'TRU_Pricing_CI_FINAL'
@@ -196,14 +195,17 @@ function buildCityXlsx(rows, city) {
  *
  * @param {object[]} rawRows - filas tal como vienen del xlsx del bot (objeto plano)
  * @param {string} country - "Peru" | "Colombia"
- * @returns {{
+ * @returns {Promise<{
  *   files:   { [cityName: string]: Uint8Array },
  *   summary: { [cityName: string]: number, total: number },
  *   skipped: { row: object, reason: string }[],
  *   ok:      object[]  — filas válidas (para chequeo de outliers en el caller)
  * }}
  */
-export function convertBotToExcel(rawRows, country = 'Peru', dbConfigs = null) {
+export async function convertBotToExcel(rawRows, country = 'Peru', dbConfigs = null) {
+  // xlsx se importa en el momento de uso (chunk aparte); la función pasa a
+  // ser async por eso — el único llamador (BotConverter) ya corre en async.
+  const XLSX = await import('xlsx')
   const config = getCountryConfig(country, dbConfigs)
 
   // 1. Normalizar y filtrar calidad (mapBotRows ya hace todo el trabajo duro)
@@ -253,7 +255,7 @@ export function convertBotToExcel(rawRows, country = 'Peru', dbConfigs = null) {
     summary[city] = byCity[city].length
     summary.total += byCity[city].length
     if (byCity[city].length > 0) {
-      files[city] = buildCityXlsx(byCity[city], city)
+      files[city] = buildCityXlsx(XLSX, byCity[city], city)
     }
   }
 

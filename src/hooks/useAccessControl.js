@@ -19,20 +19,12 @@ export const ALL_SECTIONS = [
   'access',
 ]
 
-export const SECTION_LABELS = {
-  dashboard: '📊 Dashboard',
-  rentabilidad: '🧮 Rentabilidad',
-  market: '🎯 Mercado',
-  competitividad: '📈 Competitividad',
-  dataentry: '✏️ Ingresar CI',
-  projects: '🗂️ Proyectos',
-  upload: '📤 Cargar Data',
-  rawdata: '🗃 Data Raw',
-  coverage: '🛡️ Cobertura',
-  events: '📌 Eventos',
-  distances: '📍 Distancias Ref.',
-  config: '⚙️ Configuración',
-  access: '🔐 Gestión de Accesos',
+// Etiquetas de sección: van por i18n (`sections.<id>`, 3 locales) — antes
+// era un mapa hardcodeado en español. `t` viene del consumidor (useI18n).
+export function getSectionLabel(t, sectionId) {
+  const key = `sections.${sectionId}`
+  const label = t(key)
+  return label === key ? sectionId : label
 }
 
 export function useAccessControl() {

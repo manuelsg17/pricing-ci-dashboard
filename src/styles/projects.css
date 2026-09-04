@@ -6,6 +6,9 @@
   padding: 16px 20px;
   flex: 1;
   max-width: 1400px;
+  /* Hijo de un flex: sin esto, una fila con contenido indivisible ensancha la
+     página en vez de desplazarse dentro de su tarjeta. */
+  min-width: 0;
 }
 
 /* ── Barra superior ─────────────────────────────────────────── */
@@ -1368,15 +1371,33 @@
      390px, tres pestañas con padding fijo se desbordan. */
   .projects__tabs {
     width: 100%;
+    /* El admin tiene CINCO pestañas: a 390px no entran en una línea sin
+       cortar "Proyectos". Se envuelven y cada una mide ≥40px de alto —
+       son el primer toque de cada visita. */
+    flex-wrap: wrap;
   }
   .projects__tabs button {
-    flex: 1;
-    padding: 0 8px;
+    flex: 1 1 auto;
+    padding: 0 10px;
     font-size: 12px;
+    height: auto;
+    min-height: 40px;
   }
   .projects__filters {
     width: 100%;
     flex-wrap: wrap;
+  }
+  .projects__filters label {
+    flex: 1 1 auto;
+  }
+  .projects__filters select {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+  }
+  .projects__refresh {
+    flex: 1 1 auto;
+    height: 40px;
   }
 
   /* A 390px los 4 filtros en fila se desbordan. Se apilan de a dos, y el
@@ -1392,10 +1413,15 @@
     flex: 1;
     min-width: 0;
     max-width: none;
+    height: 40px;
   }
   .pfilters__count {
     margin-left: 0;
     flex: 1 1 100%;
+  }
+  .pfilters__clear {
+    flex: 1 1 100%;
+    height: 40px;
   }
 
   /* El Kanban a 390px: 4 columnas de ~85px no se leen y arrastrar con el dedo
@@ -1404,6 +1430,29 @@
      teléfono. El arrastre sigue funcionando para quien tenga mouse. */
   .pkanban__cols {
     grid-template-columns: 1fr;
+  }
+  .pkanban__bar {
+    flex-wrap: wrap;
+  }
+  .pkanban__bar label {
+    flex: 1 1 100%;
+  }
+  .pkanban__bar select {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+  }
+  .pkanban__reason input,
+  .pkanban__reason button {
+    height: 40px;
+  }
+  .pkanban__reason button {
+    flex: 1 1 auto;
+  }
+  /* La tarjeta del Kanban se toca para arrastrar: que tenga alto de dedo. */
+  .pcard {
+    min-height: 40px;
+    padding: 10px;
   }
 
   /* El Gantt sí se desplaza a lo ancho —una línea de tiempo apilada no es una
@@ -1420,6 +1469,25 @@
   .pgantt__hint {
     margin-left: 0;
     flex: 1 1 100%;
+  }
+  .pgantt__zooms {
+    flex: 1 1 100%;
+  }
+  .pgantt__zooms button,
+  .pgantt__nav button {
+    height: 40px;
+    flex: 1;
+  }
+  .pgantt__nav button {
+    min-width: 40px;
+  }
+  .pgantt__nav {
+    flex: 1 1 auto;
+  }
+  .pgantt__aparte summary {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
   }
 
   /* Lo más importante del bloque: la fila de tarea deja de ser
@@ -1438,9 +1506,15 @@
     flex: 1;
     padding: 0 4px;
     font-size: 11px;
-    /* 34px de alto: por debajo de eso el dedo empieza a errarle, y este es
-       EL control que el hub usa todos los días. */
-    height: 34px;
+    /* 40px de alto: por debajo de eso el dedo empieza a errarle, y este es
+       EL control que el hub usa todos los días (marcar la rutina). Antes
+       medía 34px; se subió al mínimo tocable real. */
+    height: 40px;
+    white-space: normal;
+    line-height: 1.15;
+  }
+  .ptask__comment input {
+    height: 40px;
   }
 
   /* La ruta y los metadatos pueden ser largos; que corten en varias líneas
@@ -1518,19 +1592,33 @@
   /* El número de días y los botones del lote, a lo ancho: a 390px un campo de
      72px pegado a dos botones es un blanco difícil con el pulgar. */
   .pshift__days input {
-    height: 34px;
+    height: 40px;
+  }
+  .pshift button {
+    min-height: 40px;
   }
   .pdup__row label:last-child input {
     width: 100%;
   }
+  .pdup__row input,
+  .pdup__actions button {
+    height: 40px;
+  }
   .ptable__row input,
   .ptable__row select {
-    height: 34px;
+    height: 40px;
   }
   .ptable__del,
   .ptable__add,
   .ptable__discard {
-    height: 34px;
+    height: 40px;
+  }
+  .ptable__chk {
+    height: 40px;
+  }
+  .ptable__chk input {
+    width: 20px;
+    height: 20px;
   }
   /* Las acciones del alta ocupan el ancho: a 390px un botón de 12px de texto
      pegado al borde derecho es un blanco difícil con el pulgar. */
@@ -1546,6 +1634,12 @@
   .pform {
     max-width: 100%;
   }
+  .pform input {
+    height: 40px;
+  }
+  .pform button {
+    min-height: 40px;
+  }
 
   /* El encabezado de proyecto (nombre + progreso + archivar) se apila para
      que el nombre no quede truncado a tres caracteres. */
@@ -1556,6 +1650,23 @@
   .pproj__meta {
     width: 100%;
     order: 3;
+  }
+  .pproj__toggle,
+  .pproj__archive {
+    min-height: 40px;
+  }
+  .pproj__archive {
+    padding: 0 12px;
+  }
+  /* Índice por persona de "Hoy": son enlaces que se tocan para saltar. */
+  .pview__index-item {
+    min-height: 40px;
+  }
+  .pview__err--closable button,
+  .pview__warn--closable button,
+  .pview__ok--closable button {
+    min-height: 40px;
+    min-width: 40px;
   }
 }
 

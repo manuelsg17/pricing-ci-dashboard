@@ -1,41 +1,12 @@
-import { useEffect, useState, useMemo } from 'react'
-import { sb } from '../../lib/supabase'
+import { useMemo } from 'react'
+import { useRushValleyStats } from '../../hooks/useMarketStats'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { normalizeCompetitorName } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
 
 export default function RushVsValley({ filters, currency = '' }) {
   const { t } = useI18n()
-  const [rawRows, setRawRows] = useState([])
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!filters.dbCity || !filters.dbCategory) return
-    let cancelled = false
-    setLoading(true)
-    const startDate = filters.weekColumns?.[0]
-      ? toISO(filters.weekColumns[0])
-      : toISO(new Date(Date.now() - 56 * 86400_000))
-    const endDate = filters.weekColumns?.length
-      ? toISO(addDays(filters.weekColumns[filters.weekColumns.length - 1], 6))
-      : toISO(new Date())
-
-    sb.rpc('get_rush_valley_stats', {
-      p_country: filters.country,
-      p_city: filters.dbCity,
-      p_category: filters.dbCategory,
-      p_start_date: startDate,
-      p_end_date: endDate,
-    }).then(({ data, error }) => {
-      if (cancelled) return
-      if (error) console.error('RushVsValley RPC error:', error)
-      setRawRows(data || [])
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [filters.country, filters.dbCity, filters.dbCategory, filters.weekColumns])
+  const { rawRows, loading } = useRushValleyStats(filters)
 
   // RPC ya agregó: { competition_name, rush_avg, rush_n, valley_avg, valley_n }
   const rows = useMemo(() => {
@@ -137,16 +108,6 @@ export default function RushVsValley({ filters, currency = '' }) {
       </table>
     </div>
   )
-}
-
-function toISO(d) {
-  const dt = new Date(d)
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-}
-function addDays(d, n) {
-  const r = new Date(d)
-  r.setDate(r.getDate() + n)
-  return r
 }
 
 const th = {

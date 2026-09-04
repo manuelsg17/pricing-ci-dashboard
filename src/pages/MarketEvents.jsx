@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toISODate } from '../lib/dateUtils'
-import { sb } from '../lib/supabase'
+import {
+  useMarketEventsAdmin,
+  insertMarketEvent,
+  updateMarketEvent,
+  deleteMarketEvent,
+} from '../hooks/useMarketEvents'
 import { useAuth } from '../lib/auth'
 import { useI18n } from '../context/LanguageContext'
 import { useToast } from '../components/ui/Toast'
@@ -51,32 +56,21 @@ export default function MarketEvents() {
   const [filterFrom, setFilterFrom] = useState(thirtyDaysAgo())
   const [filterTo, setFilterTo] = useState(todayStr())
 
-  const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Local edits (for both existing and new rows)
   const [edits, setEdits] = useState({})
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    let q = sb
-      .from('market_events')
-      .select('*')
-      .eq('country', country)
-      .gte('event_date', filterFrom)
-      .lte('event_date', filterTo)
-      .order('event_date', { ascending: false })
-
-    if (filterCity !== 'Todas') {
-      q = q.eq('city', filterCity)
-    }
-
-    const { data } = await q
-    setEvents(data || [])
-    setEdits({})
-    setLoading(false)
-  }, [country, filterCity, filterFrom, filterTo])
+  // Consulta en useMarketEvents.js; al recargar se descartan los edits locales
+  // (mismo orden que antes: filas nuevas → edits vacíos → loading off).
+  const onLoaded = useCallback(() => setEdits({}), [])
+  const { events, setEvents, loading, load } = useMarketEventsAdmin({
+    country,
+    filterCity,
+    filterFrom,
+    filterTo,
+    onLoaded,
+  })
 
   useEffect(() => {
     load()
@@ -126,9 +120,9 @@ export default function MarketEvents() {
     }
     let err
     if (String(row.id).startsWith('new_')) {
-      ;({ error: err } = await sb.from('market_events').insert(payload))
+      ;({ error: err } = await insertMarketEvent(payload))
     } else {
-      ;({ error: err } = await sb.from('market_events').update(payload).eq('id', row.id))
+      ;({ error: err } = await updateMarketEvent(row.id, payload))
     }
     if (!err) {
       toast.ok(t('market_events.saved_toast'))
@@ -151,7 +145,7 @@ export default function MarketEvents() {
       confirmText: t('app.delete'),
     })
     if (!ok) return
-    const { error } = await sb.from('market_events').delete().eq('id', id)
+    const { error } = await deleteMarketEvent(id)
     if (error) toast.err(t('market_events.delete_error', { msg: error.message }))
     else {
       toast.ok(t('market_events.deleted_toast'))

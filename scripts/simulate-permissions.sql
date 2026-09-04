@@ -72,7 +72,7 @@ DO $$ BEGIN
       $q$INSERT INTO distance_references (city,category,bracket,country,point_a,point_b)
          VALUES ('Lima','TukTuk','short','Peru','QA-A','QA-B')$q$), true);
 
-  PERFORM pg_temp.esperar('NO escribe competitor_commissions (no tiene earnings)',
+  PERFORM pg_temp.esperar('NO escribe competitor_commissions (no tiene config)',
     pg_temp.puede_insertar('qa.temp@local.test',
       $q$INSERT INTO competitor_commissions (country,competitor_name,commission_pct)
          VALUES ('Peru','QA-Comp',10)$q$), false);
@@ -84,8 +84,8 @@ DO $$ BEGIN
 END $$;
 
 \echo ''
-\echo '════ 2. Se le AGREGA earnings — solo editando roles.permissions, sin SQL de políticas ════'
-UPDATE roles SET permissions = '{"sections":["distances","earnings"],"countries":["Peru"]}'::jsonb
+\echo '════ 2. Se le AGREGA config — solo editando roles.permissions, sin SQL de políticas ════'
+UPDATE roles SET permissions = '{"sections":["distances","config"],"countries":["Peru"]}'::jsonb
  WHERE name='qa_temp';
 
 DO $$ BEGIN
@@ -107,7 +107,7 @@ END $$;
 
 \echo ''
 \echo '════ 3. Se le QUITA distances — debe perder ese permiso ════'
-UPDATE roles SET permissions = '{"sections":["earnings"],"countries":["Peru"]}'::jsonb
+UPDATE roles SET permissions = '{"sections":["config"],"countries":["Peru"]}'::jsonb
  WHERE name='qa_temp';
 
 DO $$ BEGIN
@@ -116,7 +116,7 @@ DO $$ BEGIN
       $q$INSERT INTO distance_references (city,category,bracket,country,point_a,point_b)
          VALUES ('Lima','TukTuk','short','Peru','QA-C','QA-D')$q$), false);
 
-  PERFORM pg_temp.esperar('conserva earnings',
+  PERFORM pg_temp.esperar('conserva config',
     pg_temp.puede_insertar('qa.temp@local.test',
       $q$INSERT INTO competitor_commissions (country,competitor_name,commission_pct)
          VALUES ('Peru','QA-Comp3',12)$q$), true);
@@ -131,7 +131,7 @@ DO $$ BEGIN
          VALUES ('Colombia','QA-CO',9)$q$), false);
 END $$;
 
-UPDATE roles SET permissions = '{"sections":["earnings"],"countries":["Peru","Colombia"]}'::jsonb
+UPDATE roles SET permissions = '{"sections":["config"],"countries":["Peru","Colombia"]}'::jsonb
  WHERE name='qa_temp';
 
 DO $$ BEGIN
@@ -146,7 +146,7 @@ END $$;
 -- Es el caso más peligroso: un rol que pudiera escribir `roles` se
 -- concedería a sí mismo cualquier permiso. Por eso `access` NO está en
 -- section_write_grants y estas tablas siguen gateadas por is_admin().
-UPDATE roles SET permissions = '{"sections":["access","earnings"],"countries":["Peru"]}'::jsonb
+UPDATE roles SET permissions = '{"sections":["access","config"],"countries":["Peru"]}'::jsonb
  WHERE name='qa_temp';
 
 DO $$ BEGIN
@@ -215,7 +215,7 @@ DO $$ BEGIN
 END $$;
 
 -- ms&e + earnings: 2 usuarios reales bloqueados hasta hoy.
-UPDATE roles SET permissions = '{"sections":["dashboard","earnings","report"],"countries":["Peru"]}'::jsonb
+UPDATE roles SET permissions = '{"sections":["dashboard","config"],"countries":["Peru"]}'::jsonb
  WHERE name='qa_temp';
 DO $$ BEGIN
   PERFORM pg_temp.esperar('caso ms&e: guarda una comisión',
@@ -390,7 +390,7 @@ END $$;
 -- ambos obligatorios. Un rol con `earnings` y ningún país no debe poder
 -- escribir "en ningún lado" por no tener país asignado — el AND tiene que
 -- cerrar, no quedar en "no aplica".
-UPDATE roles SET permissions = '{"sections":["earnings"],"countries":[]}'::jsonb WHERE name='qa_temp';
+UPDATE roles SET permissions = '{"sections":["config"],"countries":[]}'::jsonb WHERE name='qa_temp';
 DO $$ BEGIN
   PERFORM pg_temp.esperar('countries=[] : la sección sola no alcanza',
     pg_temp.puede_insertar('qa.temp@local.test',
@@ -405,11 +405,11 @@ END $$;
 -- otro, ni al revés. Si el modelo se resolviera por rol y no por usuario, acá
 -- se rompería.
 INSERT INTO roles (name, label, permissions)
-VALUES ('qa_temp2', 'QA temporal 2', '{"sections":["earnings"],"countries":["Peru"]}'::jsonb);
+VALUES ('qa_temp2', 'QA temporal 2', '{"sections":["config"],"countries":["Peru"]}'::jsonb);
 INSERT INTO user_profiles (email, first_name, last_name, role_id, is_active)
 VALUES ('qa.temp2@local.test', 'QA', 'Dos', (SELECT id FROM roles WHERE name='qa_temp2'), true);
 
-UPDATE roles SET permissions = '{"sections":["earnings"],"countries":["Peru"]}'::jsonb
+UPDATE roles SET permissions = '{"sections":["config"],"countries":["Peru"]}'::jsonb
  WHERE name='qa_temp';
 
 DO $$ BEGIN

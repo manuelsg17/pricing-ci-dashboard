@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
-import { sb } from '../../lib/supabase'
+import { Fragment, useMemo, useState } from 'react'
+import { useDistanceThresholds } from '../../hooks/useDistanceThresholds'
 import { getCountryConfig, BRACKET_LABELS, BRACKETS, COMPETITOR_COLORS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
@@ -19,32 +19,18 @@ function fmtTier(rule) {
 
 export default function DashboardLegend({ country, dbCity, dbCategory }) {
   const [open, setOpen] = useState(false)
-  const [thresholds, setThresholds] = useState([])
-  const [loading, setLoading] = useState(false)
   const { dbConfigs } = useCountry()
   const config = useMemo(() => getCountryConfig(country, dbConfigs), [country, dbConfigs])
   const { t } = useI18n()
 
   // Fetch thresholds del (country, city, category) actual sólo cuando
   // se abre el modal, para no pegarle a Supabase hasta que se necesite.
-  useEffect(() => {
-    if (!open || !dbCity || !dbCategory) return
-    let cancelled = false
-    setLoading(true)
-    sb.from('distance_thresholds')
-      .select('bracket, max_km')
-      .eq('country', country)
-      .eq('city', dbCity)
-      .eq('category', dbCategory)
-      .then(({ data }) => {
-        if (cancelled) return
-        setThresholds(data || [])
-        setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open, country, dbCity, dbCategory])
+  const { thresholds, loading } = useDistanceThresholds({
+    enabled: open,
+    country,
+    dbCity,
+    dbCategory,
+  })
 
   // Categorías de la ciudad de UI actual + las reglas que aplican a cada una.
   // Los nombres "UI" (categoriesByCity) pueden incluir "Aeropuerto" que es

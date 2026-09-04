@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from 'react'
-import { sb } from '../../lib/supabase'
+import { useMemo } from 'react'
+import { useHeatmapDowTod } from '../../hooks/useMarketStats'
 import { COMPETITOR_COLORS } from '../../lib/constants'
 import { normalizeCompetitorName } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
@@ -14,9 +14,6 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
     label: t(`market.heatmap.time_slot_${key}`),
   }))
   const DOWS = DOW_KEYS.map((key) => ({ key, label: t(`market.heatmap.dow_${key}`) }))
-  const [rawRows, setRawRows] = useState([])
-  const [loading, setLoading] = useState(false)
-
   // Rango: SOLO la última semana del rango seleccionado en el filtro.
   // El heatmap responde "¿quién es el más barato AHORA en cada día×hora?",
   // así que promediar semanas viejas diluye la foto actual.
@@ -26,28 +23,8 @@ export default function HeatmapDayHour({ filters, competitors = [], focusComp = 
   const startDate = lastMonday ? toISO(lastMonday) : toISO(new Date(Date.now() - 7 * 86400_000))
   const endDate = lastMonday ? toISO(addDays(lastMonday, 6)) : toISO(new Date())
 
-  useEffect(() => {
-    if (!filters.dbCity || !filters.dbCategory) return
-    let cancelled = false
-    setLoading(true)
-
-    // Server-side aggregation vía RPC para evitar el cap de 1000 filas de PostgREST
-    sb.rpc('get_heatmap_dow_tod', {
-      p_country: filters.country,
-      p_city: filters.dbCity,
-      p_category: filters.dbCategory,
-      p_start_date: startDate,
-      p_end_date: endDate,
-    }).then(({ data, error }) => {
-      if (cancelled) return
-      if (error) console.error('Heatmap RPC error:', error)
-      setRawRows(data || [])
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [filters.country, filters.dbCity, filters.dbCategory, startDate, endDate])
+  // Server-side aggregation vía RPC para evitar el cap de 1000 filas de PostgREST
+  const { rawRows, loading } = useHeatmapDowTod(filters, startDate, endDate)
 
   // El RPC ya devuelve agregado: { competition_name, dow, time_of_day, avg_price, n }
   const cells = useMemo(() => {

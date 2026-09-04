@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx'
 import { sanitizeForFilename, sanitizeForSpreadsheet } from './csvSafety'
 
 const HEADERS = [
@@ -81,7 +80,9 @@ function buildRow(r) {
 // análisis externo (ej. head de partners haciendo análisis en frío fuera del
 // dashboard). Mismo patrón Blob/URL.createObjectURL que el resto de los
 // exports del proyecto — solo cambian los bytes (XLSX.write en vez de CSV).
-export function exportRawDataXlsx({ rows, dbCity, dbCategory }) {
+export async function exportRawDataXlsx({ rows, dbCity, dbCategory }) {
+  // xlsx se importa bajo demanda: RawData no paga el chunk hasta exportar.
+  const XLSX = await import('xlsx')
   const aoa = [HEADERS, ...rows.map(buildRow)]
   const ws = XLSX.utils.aoa_to_sheet(aoa)
   const wb = XLSX.utils.book_new()

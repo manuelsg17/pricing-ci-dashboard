@@ -791,6 +791,20 @@ export default {
   'errors.resolve': 'Mark resolved',
   'errors.no_stack': 'No stack available.',
   'errors.more': 'There are more errors than the {n} shown. Resolve some to see the rest.',
+
+  // ── Database errors (src/lib/dbErrorText.js) ──────────────────────
+  'errors.db.duplicate': 'A record with those same values already exists.',
+  'errors.db.reference': 'Cannot complete: other records depend on this one.',
+  'errors.db.permission': 'You do not have permission for this action in this country or section.',
+  'errors.db.check': 'A value is outside the allowed range.',
+  'errors.db.not_null': 'A required field is missing.',
+  'errors.db.invalid_format': 'Invalid format in one of the fields.',
+  'errors.db.not_found': 'The record no longer exists (deleted by another session?).',
+  'errors.db.session_expired': 'Your session expired. Reload the page.',
+  'errors.db.network': 'No connection to the server. Check your network.',
+  'errors.db.timeout': 'The operation took too long. Try again.',
+  'errors.db.postgrest': 'The server rejected the request. Reload the page and try again.',
+  'errors.db.generic': 'An unexpected error occurred. Try again.',
   'projects.owner': 'Owner',
   'projects.unassigned': 'Unassigned',
   'projects.no_news': 'no updates',
@@ -1172,6 +1186,20 @@ export default {
   'access.deactivate': 'Deactivate',
   'access.activate': 'Activate',
   'access.no_role': '— No role —',
+  // Etiquetas de sección (Accesos) — antes SECTION_LABELS hardcodeado
+  'sections.dashboard': '📊 Dashboard',
+  'sections.rentabilidad': '🧮 Profitability',
+  'sections.market': '🎯 Market',
+  'sections.competitividad': '📈 Competitiveness',
+  'sections.dataentry': '✏️ Enter CI',
+  'sections.projects': '🗂️ Projects',
+  'sections.upload': '📤 Upload Data',
+  'sections.rawdata': '🗃 Raw Data',
+  'sections.coverage': '🛡️ Coverage',
+  'sections.events': '📌 Events',
+  'sections.distances': '📍 Ref. Distances',
+  'sections.config': '⚙️ Settings',
+  'sections.access': '🔐 Access Management',
   'access.sections': 'Sections',
   'access.countries': 'Countries',
   'access.all': 'All',
@@ -1215,7 +1243,6 @@ export default {
   'realtime.table.bot_rules': 'bot rules',
   'realtime.table.distance_thresholds': 'distance thresholds',
   'realtime.table.bracket_weights': 'weighted-average weights',
-  'realtime.table.bracket_weights_by_category': 'category weights',
   'realtime.table.semaforo_config': 'semaphore bands',
   'realtime.table.rush_hour_windows': 'rush hour windows',
   'realtime.table.price_validation_rules': 'price validation rules',
@@ -2362,6 +2389,8 @@ export default {
   'config.country_wizard.created_toast':
     'Country "{label}" created in status=draft. Check the checklist below and activate it when ready.',
   'config.country_wizard.create_error': 'Error creating the country: {error}',
+  'config.country_wizard.indrive_warning':
+    'Heads-up: the InDrive configuration could not be seeded; add it manually in Config → InDrive.',
   'config.country_wizard.cancel_title': 'Cancel wizard',
   'config.country_wizard.cancel_message':
     "You're about to discard all wizard changes. The local draft will also be deleted.",
@@ -2423,6 +2452,20 @@ export default {
   'config.country_wizard.creating_btn': 'Creating…',
   'config.country_wizard.created_btn': 'Created',
   'config.country_wizard.create_country_btn': 'Create country (status=draft)',
+  'config.country_wizard.created_summary':
+    'Seeded: {thresholds} distance thresholds, {semaforo} traffic-light bands, {rush} rush-hour windows, {rules} bot rules, {weights} weights.',
+  'config.country_wizard.review_seeds_label': 'Will be seeded automatically:',
+  'config.country_wizard.review_seed_thresholds':
+    'default distance thresholds (2 / 4 / 6 / 8 / 10 km) per city and category',
+  'config.country_wizard.review_seed_outlier': 'country outlier rule (3 × max price)',
+  'config.country_wizard.review_seed_semaforo':
+    'traffic light with 5 default bands (green 5-10%, yellow 1-5% and 10-12%, red otherwise)',
+  'config.country_wizard.review_seed_rush':
+    'rush-hour windows per city: {morning} (07:00-09:00) and {afternoon} (17:00-20:00)',
+  'config.country_wizard.seed_rush_morning': 'Morning',
+  'config.country_wizard.seed_rush_afternoon': 'Afternoon',
+  'config.country_wizard.review_seeds_note':
+    'Everything is saved in a single transaction: if anything fails, nothing is left half-done. Seeded values are data you can edit later from Configuration.',
 
   // ── CountriesConfig ──────────────────────────────────────────────
   'config.countries_config.add_adder_placeholder': '+ Add...',

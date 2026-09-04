@@ -21,6 +21,11 @@
 --   que incluye las claves legacy con espacio de retrocompat.
 --
 -- QUÉ HACE (idempotente):
+--   VERIFICADO EN PROD 2026-09-04 antes de aplicar: competitor_bonuses y
+--   competitive_bands NO tienen dos nombres que colapsen al mismo canónico
+--   (ninguna quedaría con linajes duplicados), y no hay bonos con nombre
+--   Yango. El dedupe solo hace falta en competitor_commissions.
+--
 --   1. Trigger BEFORE INSERT/UPDATE en competitor_commissions,
 --      competitor_bonuses y competitive_bands: competitor_name pasa por
 --      normalize_competitor_name(x, 'Corp') — el diccionario de sub-marcas
@@ -79,8 +84,10 @@ USING (
 ) d
 WHERE c.id = d.id AND d.rn > 1;
 
--- 3. Backfill (el trigger no corre en UPDATE OF competitor_name si el valor
---    asignado es el mismo, así que se escribe el canónico explícitamente).
+-- 3. Backfill explícito. (El trigger sí dispara en cualquier UPDATE que
+--    mencione competitor_name en el SET, valga lo mismo o no; se escribe el
+--    canónico igual porque la función es idempotente y así el WHERE deja el
+--    UPDATE acotado a las filas que de verdad cambian.)
 UPDATE public.competitor_commissions
    SET competitor_name = public.normalize_competitor_name(competitor_name, 'Corp')
  WHERE competitor_name IS DISTINCT FROM public.normalize_competitor_name(competitor_name, 'Corp');

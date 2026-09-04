@@ -9,12 +9,19 @@
  */
 import { useMemo, useState } from 'react'
 import { COMPETITOR_COLORS } from '../../lib/constants'
+import { CATALOG_COMPETITORS } from '../../lib/catalogs'
 import { rowWeeklyCash, describeBonus } from '../../lib/competitorBonus'
 import { toISODate } from '../../lib/dateUtils'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
-const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
+// Mismo criterio que BonusesConfig: catálogo canónico (sin las formas legacy
+// con espacio que COMPETITOR_COLORS mantiene para leer reportes viejos) y sin
+// marcas Yango — un bono de competidor con nombre 'Yango' entraría a bonusFor()
+// y falsearía la ganancia en Rentabilidad.
+const ALL_COMPETITORS = CATALOG_COMPETITORS.map((c) => c.value).filter(
+  (v) => !v.toLowerCase().startsWith('yango')
+)
 
 // labelKey/descKey/exampleKey se resuelven con t() en el componente —
 // exampleKey usa {currency} para interpolar la moneda del país.

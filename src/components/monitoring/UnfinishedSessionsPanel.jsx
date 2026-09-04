@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { sb } from '../../lib/supabase'
 import { getCityLabel } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
 import { Button } from '../ui/shadcn/button'
+import { useUnfinishedSessionActions } from '../../hooks/useUnfinishedSessionActions'
 
 // Progreso guardado ("Guardar Progreso") sin sesión Terminada — RPC
 // get_unfinished_ci_sessions (mig 147). Diagnóstico BEST-EFFORT (ver
@@ -20,6 +20,8 @@ import { Button } from '../ui/shadcn/button'
 export default function UnfinishedSessionsPanel({ rows, onClosed }) {
   const { t, locale } = useI18n()
   const { country } = useCountry()
+  // Las RPCs viven en useUnfinishedSessionActions.js; acá queda la UI.
+  const { closeSession, reassignSession } = useUnfinishedSessionActions(country)
   const [closingKey, setClosingKey] = useState(null)
   // Claves ya cerradas con éxito pero que `rows` (prop) todavía no refleja
   // porque el `onClosed` (reload async del padre) sigue en vuelo — sin esto,
@@ -33,13 +35,7 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
   async function handleClose(r, key) {
     if (!window.confirm(t('monitoring.close_session_confirm', { hub: r.uploaded_by }))) return
     setClosingKey(key)
-    const { data, error } = await sb.rpc('admin_close_ci_session', {
-      p_country: country,
-      p_city: r.city,
-      p_zone: r.zone ?? null,
-      p_observed_date: r.observed_date,
-      p_user_email: r.uploaded_by,
-    })
+    const { data, error } = await closeSession(r)
     if (error) {
       setClosingKey(null)
       window.alert(t('monitoring.close_session_error'))
@@ -88,14 +84,7 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
     if (!to) return
     if (!window.confirm(t('monitoring.reassign_confirm', { from: r.uploaded_by, to }))) return
     setReassigningKey(key)
-    const { error } = await sb.rpc('admin_reassign_ci_session', {
-      p_country: country,
-      p_city: r.city,
-      p_zone: r.zone ?? null,
-      p_observed_date: r.observed_date,
-      p_from_email: r.uploaded_by,
-      p_to_email: to,
-    })
+    const { error } = await reassignSession(r, to)
     if (error) {
       setReassigningKey(null)
       // La mig 207 rechaza destinos que no existen, están dados de baja, o no
@@ -125,7 +114,7 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
       {rows.length === 0 ? (
         <div className="mon-empty">{t('monitoring.unfinished_empty')}</div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="mon-table-scroll">
           <table className="de-history-table">
             <thead>
               <tr>
@@ -169,7 +158,7 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
                       </Button>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
+                      <div className="mon-reassign">
                         <input
                           type="text"
                           placeholder={t('monitoring.reassign_placeholder')}
@@ -178,7 +167,6 @@ export default function UnfinishedSessionsPanel({ rows, onClosed }) {
                           onChange={(e) =>
                             setReassignInputs((prev) => ({ ...prev, [key]: e.target.value }))
                           }
-                          style={{ width: 150, fontSize: 12 }}
                         />
                         <Button
                           size="sm"

@@ -1,40 +1,26 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { sb } from '../lib/supabase'
+import { useCallback, useMemo } from 'react'
 import { canonicalCompetitorName } from '../lib/normalize'
+import { useConfigTable } from './useConfigTable'
 
+// CRUD de competitor_commissions sobre useConfigTable (carga por país,
+// edits por fila, live-sync). Consumidores: CommissionsConfig (editor),
+// Rentabilidad y BonusesConfig (solo `commissions` / `allRows`).
 export function useCompetitorCommissions(city, country) {
-  const [allRows, setAllRows] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  const [error, setError] = useState(null)
-
-  const load = useCallback(async () => {
-    if (!country) return
-    setLoading(true)
-    setError(null)
-    const { data, error: e } = await sb
-      .from('competitor_commissions')
-      .select('*')
-      .eq('country', country)
-      .order('competitor_name')
-    if (e) setError(e.message)
-    else if (data) setAllRows(data)
-    setLoading(false)
-  }, [country])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  // Live-sync (audit_log → 'config:changed'): un cambio hecho en otra
-  // sesión/pestaña se refleja sin recargar. Antes no escuchaba nada.
-  useEffect(() => {
-    function onChange(e) {
-      if (e?.detail?.table === 'competitor_commissions') load()
-    }
-    window.addEventListener('config:changed', onChange)
-    return () => window.removeEventListener('config:changed', onChange)
-  }, [load])
+  const tbl = useConfigTable({
+    table: 'competitor_commissions',
+    // null = "todavía sin país": el hook no fetchea hasta recibir uno.
+    country: country || null,
+    query: (q) => q.order('competitor_name'),
+    newRow: () => ({ competitor_name: '', city: null, commission_pct: 0 }),
+    toPayload: (row) => ({
+      competitor_name: canonicalCompetitorName(row.competitor_name),
+      city: row.city || null,
+      country,
+      commission_pct: Number(row.commission_pct),
+      updated_at: new Date().toISOString(),
+    }),
+  })
+  const { rows: allRows, loading, error, saveRow, deleteRow, addRow, reload } = tbl
 
   // Returns commission_pct for a competitor, preferring city-specific over global (city=null).
   // Defense-in-depth: el nombre del competidor en competitor_commissions
@@ -45,22 +31,24 @@ export function useCompetitorCommissions(city, country) {
   const commissions = useMemo(() => {
     const result = {}
     for (const row of allRows) {
+      if (row._new) continue
       const name = canonicalCompetitorName(row.competitor_name) || row.competitor_name
       if (row.city === null || row.city === undefined) {
         if (result[name] === undefined) result[name] = row.commission_pct
       }
     }
     for (const row of allRows) {
+      if (row._new) continue
       const name = canonicalCompetitorName(row.competitor_name) || row.competitor_name
       if (row.city === city) result[name] = row.commission_pct
     }
     return result
   }, [allRows, city])
 
-  // Devuelve { ok, error, code }: `code` es un identificador estable para
-  // que la UI traduzca ('invalid_competitor' | 'invalid_pct') y `error` el
-  // mensaje real de Supabase cuando lo hay (antes se descartaba y el
-  // usuario veía un genérico "Error al guardar").
+  // Devuelve { ok, code, error }: `code` es un identificador estable para
+  // que la UI traduzca ('invalid_competitor' | 'invalid_pct' | 'db') y
+  // `error` el objeto crudo de Supabase cuando lo hay (la UI lo pasa por
+  // dbErrorText, nunca lo muestra tal cual).
   const saveCommission = useCallback(
     async (row) => {
       const pct = Number(row.commission_pct)
@@ -68,46 +56,12 @@ export function useCompetitorCommissions(city, country) {
         return { ok: false, code: 'invalid_competitor', error: null }
       if (!Number.isFinite(pct) || pct < 0 || pct > 100)
         return { ok: false, code: 'invalid_pct', error: null }
-      const payload = {
-        competitor_name: canonicalCompetitorName(row.competitor_name),
-        city: row.city || null,
-        country,
-        commission_pct: pct,
-        updated_at: new Date().toISOString(),
-      }
-      let err
-      if (String(row.id).startsWith('new_')) {
-        ;({ error: err } = await sb.from('competitor_commissions').insert(payload))
-      } else {
-        ;({ error: err } = await sb.from('competitor_commissions').update(payload).eq('id', row.id))
-      }
-      if (!err) await load()
-      return { ok: !err, code: err ? 'db' : null, error: err?.message || null }
+      return saveRow(row)
     },
-    [load, country]
+    [saveRow]
   )
 
-  const deleteCommission = useCallback(
-    async (id) => {
-      if (String(id).startsWith('new_')) {
-        setAllRows((prev) => prev.filter((r) => r.id !== id))
-        return true
-      }
-      const { error } = await sb.from('competitor_commissions').delete().eq('id', id)
-      if (!error) await load()
-      return !error
-    },
-    [load]
-  )
-
-  const addRow = useCallback(() => {
-    // Math.random: dos clics en el mismo milisegundo daban la misma key.
-    const tempId = `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    setAllRows((prev) => [
-      ...prev,
-      { id: tempId, competitor_name: '', city: null, commission_pct: 0, _isNew: true },
-    ])
-  }, [])
+  const deleteCommission = useCallback(async (id) => (await deleteRow(id)).ok, [deleteRow])
 
   return {
     allRows,
@@ -117,6 +71,12 @@ export function useCompetitorCommissions(city, country) {
     saveCommission,
     deleteCommission,
     addRow,
-    reload: load,
+    reload,
+    // Para el editor: edits/dirty por fila.
+    getField: tbl.getField,
+    setField: tbl.setField,
+    isDirty: tbl.isDirty,
+    isNew: tbl.isNew,
+    saving: tbl.saving,
   }
 }

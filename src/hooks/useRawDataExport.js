@@ -66,7 +66,7 @@ export function useRawDataExport({ filters, dbCity, dbCategory, toast, confirm }
         snapshotIso,
         onProgress: (loaded, totalCount) => setExportProgress({ loaded, total: totalCount }),
       })
-      exportRawDataXlsx({ rows: allRows, dbCity, dbCategory })
+      await exportRawDataXlsx({ rows: allRows, dbCity, dbCategory })
       toast.ok(t('rawdata.export_success', { n: allRows.length.toLocaleString() }))
     } catch (e) {
       toast.err(t('rawdata.export_error', { msg: e.message }))

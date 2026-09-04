@@ -1,10 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
-import { sb } from '../lib/supabase'
+import { useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { useCountry } from '../context/CountryContext'
-import { useRoles, useInvalidateRoles } from '../hooks/useRoles'
+import {
+  useRoles,
+  useInvalidateRoles,
+  updateRolePermissions,
+  createRole as createRoleRow,
+  deleteRole as deleteRoleRow,
+} from '../hooks/useRoles'
+import {
+  useUserProfiles,
+  setUserProfileActive,
+  setUserProfileRole,
+  deleteUserProfile,
+  createUserAccount,
+} from '../hooks/useUserProfiles'
 import { useSectionWriteGrants, tablesGrantedBy } from '../hooks/useSectionWriteGrants'
-import { ALL_SECTIONS, SECTION_LABELS } from '../hooks/useAccessControl'
+import { ALL_SECTIONS, getSectionLabel } from '../hooks/useAccessControl'
 import { useI18n } from '../context/LanguageContext'
 import { COUNTRIES } from '../lib/constants'
 import { toSnakeCase } from '../lib/normalize'
@@ -23,8 +35,8 @@ function UsersTab({ roles }) {
   const toast = useToast()
   const confirm = useConfirm()
 
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(false)
+  // Consulta y recarga en useUserProfiles.js
+  const { users, loading, load } = useUserProfiles()
 
   // New user form
   const [showForm, setShowForm] = useState(false)
@@ -35,30 +47,13 @@ function UsersTab({ roles }) {
   const [roleId, setRoleId] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const { data } = await sb
-      .from('user_profiles')
-      .select('*, roles(id, name, label)')
-      .order('created_at', { ascending: false })
-    setUsers(data || [])
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
   async function handleToggleActive(user) {
-    await sb.from('user_profiles').update({ is_active: !user.is_active }).eq('id', user.id)
+    await setUserProfileActive(user.id, !user.is_active)
     load()
   }
 
   async function handleChangeRole(userId, newRoleId) {
-    const { error } = await sb
-      .from('user_profiles')
-      .update({ role_id: newRoleId ? parseInt(newRoleId) : null })
-      .eq('id', userId)
+    const { error } = await setUserProfileRole(userId, newRoleId)
     if (error) toast.err(`Error al actualizar rol: ${error.message}`)
     else toast.ok('Rol actualizado.')
     load()
@@ -70,32 +65,15 @@ function UsersTab({ roles }) {
     setSaving(true)
 
     try {
-      const {
-        data: { session: currentSession },
-      } = await sb.auth.getSession()
-      const token = currentSession?.access_token
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-      const res = await fetch(`${supabaseUrl}/functions/v1/create-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: anonKey,
-          Authorization: token ? `Bearer ${token}` : `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password: password.trim(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          role_id: roleId || null,
-          invited_by: currentEmail,
-        }),
+      const res = await createUserAccount({
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        role_id: roleId || null,
+        invited_by: currentEmail,
       })
-
-      const json = await res.json().catch(() => ({}))
+      const json = res.json
       setSaving(false)
 
       if (!res.ok) {
@@ -124,7 +102,7 @@ function UsersTab({ roles }) {
       confirmText: 'Eliminar',
     })
     if (!ok) return
-    const { error } = await sb.from('user_profiles').delete().eq('id', id)
+    const { error } = await deleteUserProfile(id)
     if (error) toast.err(`Error al eliminar: ${error.message}`)
     else {
       toast.ok('Usuario eliminado.')
@@ -406,7 +384,7 @@ function RolesTab({ availableCountries }) {
 
   async function saveRole(id) {
     setSaving(true)
-    const { error } = await sb.from('roles').update({ permissions: draftPerms }).eq('id', id)
+    const { error } = await updateRolePermissions(id, draftPerms)
     setSaving(false)
     if (error) {
       toast.err(`Error al guardar rol: ${error.message}`)
@@ -421,7 +399,7 @@ function RolesTab({ availableCountries }) {
     e.preventDefault()
     if (!newName.trim() || !newLabel.trim()) return
     setSaving(true)
-    const { error } = await sb.from('roles').insert({
+    const { error } = await createRoleRow({
       name: toSnakeCase(newName),
       label: newLabel.trim(),
       permissions: { sections: ['dashboard'], countries: ['all'] },
@@ -446,7 +424,7 @@ function RolesTab({ availableCountries }) {
       confirmText: 'Eliminar',
     })
     if (!ok) return
-    const { error } = await sb.from('roles').delete().eq('id', id)
+    const { error } = await deleteRoleRow(id)
     if (error) toast.err(`Error al eliminar rol: ${error.message}`)
     else {
       toast.ok('Rol eliminado.')
@@ -568,7 +546,7 @@ function RolesTab({ availableCountries }) {
                               }
                             }}
                           />
-                          <span className="am-check__label">{SECTION_LABELS[sec] || sec}</span>
+                          <span className="am-check__label">{getSectionLabel(t, sec)}</span>
                           <SectionWriteBadge buckets={writeGrants[sec]} />
                         </label>
                       ))}
@@ -629,7 +607,7 @@ function RolesTab({ availableCountries }) {
                     {role.permissions?.sections?.includes('all')
                       ? t('access.all')
                       : (role.permissions?.sections || [])
-                          .map((s) => SECTION_LABELS[s] || s)
+                          .map((s) => getSectionLabel(t, s))
                           .join(', ') || '—'}
                   </span>
                   <span className="am-role-card__perm-label">{t('access.countries')}:</span>

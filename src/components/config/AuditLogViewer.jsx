@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { toISODate } from '../../lib/dateUtils'
 import { sb } from '../../lib/supabase'
+import { dbErrorText } from '../../lib/dbErrorText'
 import { useI18n } from '../../context/LanguageContext'
 import { useAccessControl } from '../../hooks/useAccessControl'
 import { Button } from '../ui/shadcn/button'
@@ -26,24 +27,33 @@ import { Button } from '../ui/shadcn/button'
 //   Para UPDATE, calcula qué campos cambiaron y los resalta.
 // ════════════════════════════════════════════════════════════════════════
 
+// Tablas con trigger `log_changes()` HOY (las 16 de mig 62 que existen +
+// surge_windows, competitive_bands (mig 124) y airport_markers /
+// yango_gmv_tiers (mig 238)).
+// `bracket_weights_by_category` nunca existió como tabla (mig 62 la
+// listaba y el DO la salteaba) — fuera. Si se agrega un trigger nuevo,
+// sumar la tabla acá: `grep -l "EXECUTE FUNCTION log_changes" supabase/`.
 const AUDITED_TABLES = [
-  'country_config',
-  'catalog_extras',
+  'airport_markers',
   'bot_rules',
-  'distance_thresholds',
   'bracket_weights',
-  'bracket_weights_by_category',
-  'semaforo_config',
-  'rush_hour_windows',
-  'price_validation_rules',
-  'indrive_config',
-  'distance_references',
+  'catalog_extras',
   'ci_timeslots',
-  'competitor_commissions',
+  'competitive_bands',
   'competitor_bonuses',
+  'competitor_commissions',
+  'country_config',
+  'distance_references',
+  'distance_thresholds',
+  'indrive_config',
   'market_events',
-  'user_profiles',
+  'price_validation_rules',
   'roles',
+  'rush_hour_windows',
+  'semaforo_config',
+  'surge_windows',
+  'user_profiles',
+  'yango_gmv_tiers',
 ]
 
 const ACTIONS = ['INSERT', 'UPDATE', 'DELETE']
@@ -84,29 +94,21 @@ export default function AuditLogViewer() {
       p_offset: 0,
     })
     if (error) {
-      setError(error.message)
+      setError(dbErrorText(t, error))
       setRows([])
     } else {
       setRows(data || [])
     }
     setLoading(false)
-  }, [isAdmin, fTable, fUser, fCountry, fAction, fSince])
+  }, [isAdmin, fTable, fUser, fCountry, fAction, fSince, t])
 
   useEffect(() => {
     load()
   }, [load])
 
-  // Live: si llega audit_log nuevo, refrescar (estamos viendo audit log
-  // en realtime, irónicamente vía el mismo mecanismo de la mig 62).
-  useEffect(() => {
-    function onChange() {
-      // No queremos refetch en cada cambio (sería ruidoso); solo
-      // mostramos un hint y dejamos que el admin apriete refresh.
-      // En cambio dejamos que el toast del RealtimeSyncProvider hable.
-    }
-    window.addEventListener('config:changed', onChange)
-    return () => window.removeEventListener('config:changed', onChange)
-  }, [])
+  // Sin live-refresh a propósito: un refetch por cada `config:changed` sería
+  // ruidoso viendo el propio audit_log. El toast de RealtimeSyncProvider
+  // avisa y el admin aprieta "Refrescar". (Antes había un listener vacío.)
 
   const fmtTs = useCallback(
     (ts) => {

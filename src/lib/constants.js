@@ -123,6 +123,27 @@ export const LEGACY_WEIGHTS_PE = Object.entries(PE_LEGACY_BY_CITY).flatMap(([cit
 )
 
 // ── Configuración por País ────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
+// COUNTRY_CONFIG es un FALLBACK, no la fuente de verdad: la config real vive
+// en la tabla `country_config` (mig 79+) y llega vía CountryContext.dbConfigs.
+// Un bloque acá solo se usa cuando la tabla no está disponible (arranque
+// offline, primer render sin cache) o cuando el país NO existe en la tabla.
+//
+// Qué se mantiene y por qué (auditoría frontend 2026-09-04):
+//   · Peru: fallback de arranque de toda la app (getCountryConfig cae acá).
+//   · Colombia y Bolivia: scripts/test-getcountryconfig.mjs asserta que
+//     existen en la constante ("país conocido sin dbConfigs").
+//   · Venezuela y Zambia: NO existen en country_config; si se borran de acá
+//     desaparecen del selector (COUNTRIES) y CountriesConfig no puede
+//     promocionarlos a la BD. Decisión de producto, no de código.
+//   · Nepal: eliminado — en PROD country_config.status='active' (verificado
+//     2026-09-04; la mig 129 lo sembró como 'draft' y alguien lo activó
+//     después), así que CountryContext lo lista desde la BD y el bloque
+//     hardcodeado estaba muerto. Si algún día vuelve a 'draft', desaparece
+//     del selector: ese es el acoplamiento a vigilar.
+// Las claves de este objeto también alimentan COUNTRIES (orden del selector),
+// así que borrar un país acá cambia la UI aunque exista en la BD.
+// ─────────────────────────────────────────────────────────────────────────
 export const COUNTRY_CONFIG = {
   Peru: {
     label: 'Perú 🇵🇪',
@@ -405,41 +426,6 @@ export const COUNTRY_CONFIG = {
       { app: 'yango', vc: 'tuktuk', ovc: '*', name: 'Yango', category: 'TukTuk', cities: ['Lima'] },
       { app: 'uber', vc: 'tuktuk', ovc: '*', name: 'Uber', category: 'TukTuk', cities: ['Lima'] },
     ],
-  },
-
-  Nepal: {
-    label: 'Nepal 🇳🇵',
-    currency: 'NPR',
-    locale: 'ne-NP',
-    timezone: 'Asia/Kathmandu',
-
-    cities: ['Kathmandu'],
-    dbCities: ['Kathmandu'],
-
-    categoriesByCity: {
-      Kathmandu: ['Economy'],
-    },
-
-    categoryDbMap: {
-      'Kathmandu|||Economy': { dbCity: 'Kathmandu', dbCategory: 'Economy' },
-    },
-
-    competitorsByDbCityCategory: {
-      Kathmandu: {
-        Economy: ['Yango', 'InDrive'],
-      },
-    },
-
-    yangoDisplayName: {
-      Kathmandu: { Economy: 'Yango' },
-    },
-
-    weightCities: ['all', 'Kathmandu'],
-    outlierThreshold: 1000,
-    maxPrice: 5000,
-    botCityMap: {
-      kathmandu: 'Kathmandu',
-    },
   },
 
   Bolivia: {

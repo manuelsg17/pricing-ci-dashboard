@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
-import { sb } from '../../lib/supabase'
+import { useRepresentativity } from '../../hooks/useRepresentativity'
 import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import CollapsibleSection from '../market/CollapsibleSection'
 import { computeRepresentativity } from '../../lib/representativity'
 import { BRACKET_LABELS } from '../../lib/constants'
-import { getISOYearWeek } from '../../lib/dateUtils'
 
 // Panel de Representatividad de la data para la ventana principal del dashboard.
 // Muestra, para la SEMANA ISO en curso, cuántas celdas (ciudad × categoría ×
@@ -26,37 +24,7 @@ const MAX_RED_ROWS = 40
 export default function RepresentativityCard() {
   const { country } = useCountry()
   const { t } = useI18n()
-  const [rows, setRows] = useState(null)
-  const [failed, setFailed] = useState(false)
-
-  const load = useCallback(async () => {
-    try {
-      // Semana ISO en curso calculada en la zona local del analista (evita el
-      // sesgo UTC del servidor en el borde domingo→lunes; ver mig 138).
-      const { year, week } = getISOYearWeek()
-      const { data, error } = await sb.rpc('get_representativity', {
-        p_country: country,
-        p_year: year,
-        p_week: week,
-      })
-      if (error) {
-        setFailed(true)
-        setRows(null)
-        return
-      }
-      setFailed(false)
-      setRows(Array.isArray(data) ? data : [])
-    } catch {
-      setFailed(true)
-      setRows(null)
-    }
-  }, [country])
-
-  useEffect(() => {
-    load()
-    const iv = setInterval(load, 5 * 60_000)
-    return () => clearInterval(iv)
-  }, [load])
+  const { rows, failed } = useRepresentativity(country)
 
   // `failed` se calculaba y NUNCA se renderizaba: era estado muerto. La tarjeta
   // que responde "¿puedo confiar en este número?" se esfumaba cuando la RPC

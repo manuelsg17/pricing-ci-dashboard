@@ -1,7 +1,200 @@
 /* Monitoreo rediseñado (mig 146-147) — cards de sesión en vivo + paneles.
-   Primitivas compartidas con Ingresar CI (.de-page/.de-history-table/etc)
-   siguen viviendo en data-entry.css; acá solo lo específico de esta página. */
 
+   Hasta 2026-09 esta página importaba data-entry.css entero (1.416 líneas,
+   sin un solo @media) por seis primitivas compartidas. Ahora esas primitivas
+   (.de-page, .de-header, .de-session-bar, .de-ctrl, .de-progress-…, .de-msg,
+   .de-history-table) están PORTADAS acá con los mismos nombres y valores:
+   conservan el nombre porque RepresentativityCard (compartida con Dashboard)
+   las usa, y si Ingresar CI está cargada en la misma sesión las dos hojas
+   declaran lo mismo, así que no hay conflicto. Monitoreo entra en el alcance
+   responsive (CLAUDE.md §1); Ingresar CI no. */
+
+/* ── Primitivas portadas desde data-entry.css ───────────────────────────── */
+.de-page {
+  padding: 16px 20px 40px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.de-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.de-header__left {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.de-header h1 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.de-session-bar {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.de-session-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.de-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.de-ctrl span {
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.de-ctrl select,
+.de-ctrl input[type='date'] {
+  padding: 5px 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  outline: none;
+  background: var(--color-bg);
+  transition: border-color 0.15s;
+}
+.de-ctrl select:focus,
+.de-ctrl input[type='date']:focus {
+  border-color: var(--color-yango);
+}
+
+.de-progress-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 3px 12px;
+}
+.de-progress-filled {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-yango);
+}
+.de-progress-sep {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin: 0 2px;
+}
+.de-progress-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.de-progress-label {
+  font-size: 10px;
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+
+.de-msg {
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+}
+.de-msg--err {
+  background: var(--color-danger-bg-subtle);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger-fg);
+}
+
+.de-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.de-history-table th {
+  background: var(--color-bg-header);
+  color: var(--color-muted);
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.de-history-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.de-history-table tbody tr:hover td {
+  background: var(--color-bg-subtle);
+}
+.de-history-note {
+  white-space: normal;
+  font-size: 10px;
+  color: var(--color-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* Toda tabla de Monitoreo va dentro de esto: si es más ancha que la tarjeta,
+   se desplaza DENTRO de la tarjeta, nunca arrastra la página. Reemplaza los
+   `style={{ overflowX: 'auto' }}` inline que había en cada panel. */
+.mon-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Relevo entre hubs: email destino + botón, en una sola línea dentro de la
+   celda (antes era un flex inline). */
+.mon-reassign {
+  display: flex;
+  gap: 4px;
+}
+.mon-reassign input {
+  width: 150px;
+  font-size: 12px;
+}
+
+/* Navegación de semana de la matriz de cobertura. */
+.mon-week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mon-week-nav__label {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Página ─────────────────────────────────────────────────────────────── */
 .mon-panel {
   background: var(--color-panel);
   border: 1px solid var(--color-border);
@@ -486,4 +679,100 @@
   font-size: 12px;
   font-style: italic;
   color: var(--color-text);
+}
+
+/* ── Responsive (CLAUDE.md §1) ──────────────────────────────────────────────
+   Objetivo: legible y operable a 390px. Un solo breakpoint, igual que
+   projects.css. Preflight de Tailwind está deshabilitado, así que nada de
+   esto se asume: se midió en navegador con scrollWidth del documento.
+   Las reglas .de-* van prefijadas con .mon-page: Vite deja inyectado el CSS
+   de una ruta al navegar, y sin ese prefijo el móvil que pasa por Monitoreo
+   se llevaba las reglas puestas a la grilla de Ingresar CI, que §1 excluye
+   del alcance responsive a propósito.
+   Regla general del bloque: todo lo tocable mide ≥40px de alto, las tablas
+   se desplazan dentro de su tarjeta (.mon-table-scroll) y las grillas pasan
+   a una columna. */
+@media (max-width: 640px) {
+  .mon-page.de-page {
+    padding: 12px 10px 32px;
+  }
+  .mon-panel {
+    padding: 12px;
+  }
+  .mon-panel__head h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Rango de fechas: cada control a lo ancho, uno debajo del otro. */
+  .mon-page .de-session-bar {
+    padding: 10px 12px;
+  }
+  .mon-page .de-session-controls {
+    gap: 8px;
+  }
+  .mon-page .de-ctrl {
+    flex: 1 1 100%;
+  }
+  .mon-page .de-ctrl input[type='date'],
+  .mon-page .de-ctrl select {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+  }
+  .mon-page .de-session-controls > button {
+    flex: 1 1 100%;
+    min-height: 40px;
+  }
+
+  /* Cards de sesión en vivo: una por fila. */
+  .mon-session-grid {
+    grid-template-columns: 1fr;
+  }
+  .mon-session-card__email {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Lo tocable: 40px de alto. Botones de texto (refrescar, ver más, resolver,
+     mostrar/ocultar detalle) y los de tabla (cerrar sesión, reasignar). */
+  .mon-panel__refresh,
+  .mon-recent-inactive__toggle,
+  .cerr__actions button {
+    min-height: 40px;
+    padding: 8px 0;
+  }
+  .mon-panel__refresh {
+    padding: 8px 6px;
+  }
+  .cerr__actions {
+    gap: 20px;
+  }
+  .turnos__rangos button,
+  .mon-week-nav button,
+  .mon-page .de-history-table button,
+  .mon-page .de-history-table input {
+    min-height: 40px;
+  }
+  .mon-week-nav {
+    width: 100%;
+  }
+  .mon-week-nav button {
+    min-width: 40px;
+  }
+  .mon-reassign input {
+    width: 140px;
+    min-width: 0;
+  }
+
+  /* El mensaje de error del cliente se corta con "…" en escritorio para no
+     hacer filas de tres líneas; en el teléfono un "…" esconde justo lo que se
+     vino a leer. */
+  .cerr__msg {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .cerr__row {
+    flex-wrap: wrap;
+  }
 }

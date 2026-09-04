@@ -815,6 +815,20 @@ export default {
   'errors.no_stack': 'Стек недоступен.',
   'errors.more':
     'Ошибок больше, чем показано ({n}). Отметьте часть решёнными, чтобы увидеть остальные.',
+
+  // ── Ошибки базы данных (src/lib/dbErrorText.js) ───────────────────
+  'errors.db.duplicate': 'Запись с такими же значениями уже существует.',
+  'errors.db.reference': 'Невозможно выполнить: от этой записи зависят другие.',
+  'errors.db.permission': 'У вас нет прав на это действие в этой стране или разделе.',
+  'errors.db.check': 'Одно из значений вне допустимого диапазона.',
+  'errors.db.not_null': 'Не заполнено обязательное поле.',
+  'errors.db.invalid_format': 'Неверный формат в одном из полей.',
+  'errors.db.not_found': 'Запись больше не существует (удалена другой сессией?).',
+  'errors.db.session_expired': 'Сессия истекла. Перезагрузите страницу.',
+  'errors.db.network': 'Нет соединения с сервером. Проверьте сеть.',
+  'errors.db.timeout': 'Операция заняла слишком много времени. Попробуйте ещё раз.',
+  'errors.db.postgrest': 'Сервер отклонил запрос. Перезагрузите страницу и попробуйте снова.',
+  'errors.db.generic': 'Произошла непредвиденная ошибка. Попробуйте ещё раз.',
   'projects.owner': 'Ответственный',
   'projects.unassigned': 'Не назначено',
   'projects.no_news': 'без изменений',
@@ -1202,6 +1216,20 @@ export default {
   'access.deactivate': 'Деактивировать',
   'access.activate': 'Активировать',
   'access.no_role': '— Без роли —',
+  // Etiquetas de sección (Accesos) — antes SECTION_LABELS hardcodeado
+  'sections.dashboard': '📊 Дашборд',
+  'sections.rentabilidad': '🧮 Рентабельность',
+  'sections.market': '🎯 Рынок',
+  'sections.competitividad': '📈 Конкурентоспособность',
+  'sections.dataentry': '✏️ Ввод CI',
+  'sections.projects': '🗂️ Проекты',
+  'sections.upload': '📤 Загрузка данных',
+  'sections.rawdata': '🗃 Сырые данные',
+  'sections.coverage': '🛡️ Покрытие',
+  'sections.events': '📌 События',
+  'sections.distances': '📍 Эталонные расстояния',
+  'sections.config': '⚙️ Настройки',
+  'sections.access': '🔐 Управление доступом',
   'access.sections': 'Разделы',
   'access.countries': 'Страны',
   'access.all': 'Все',
@@ -1246,7 +1274,6 @@ export default {
   'realtime.table.bot_rules': 'правила бота',
   'realtime.table.distance_thresholds': 'пороги дистанций',
   'realtime.table.bracket_weights': 'веса средневзвешенного',
-  'realtime.table.bracket_weights_by_category': 'веса по категориям',
   'realtime.table.semaforo_config': 'настройки семафора',
   'realtime.table.rush_hour_windows': 'окна часа пик',
   'realtime.table.price_validation_rules': 'правила валидации цен',
@@ -2441,6 +2468,8 @@ export default {
   'config.country_wizard.created_toast':
     'Страна "{label}" создана со статусом draft. Проверьте чеклист ниже и активируйте, когда будет готово.',
   'config.country_wizard.create_error': 'Ошибка при создании страны: {error}',
+  'config.country_wizard.indrive_warning':
+    'Внимание: не удалось создать конфигурацию InDrive; добавьте её вручную в «Конфигурация → InDrive».',
   'config.country_wizard.cancel_title': 'Отменить мастер',
   'config.country_wizard.cancel_message':
     'Вы собираетесь отменить все изменения мастера. Локальный черновик также будет удалён.',
@@ -2503,6 +2532,20 @@ export default {
   'config.country_wizard.creating_btn': 'Создание…',
   'config.country_wizard.created_btn': 'Создано',
   'config.country_wizard.create_country_btn': 'Создать страну (status=draft)',
+  'config.country_wizard.created_summary':
+    'Создано: {thresholds} порогов расстояния, {semaforo} полос светофора, {rush} окон часа пик, {rules} bot rules, {weights} весов.',
+  'config.country_wizard.review_seeds_label': 'Будет создано автоматически:',
+  'config.country_wizard.review_seed_thresholds':
+    'пороги расстояния по умолчанию (2 / 4 / 6 / 8 / 10 км) для каждого города и категории',
+  'config.country_wizard.review_seed_outlier': 'правило выбросов для страны (3 × max price)',
+  'config.country_wizard.review_seed_semaforo':
+    'светофор с 5 полосами по умолчанию (зелёная 5-10 %, жёлтая 1-5 % и 10-12 %, красная остальное)',
+  'config.country_wizard.review_seed_rush':
+    'окна часа пик по городам: {morning} (07:00-09:00) и {afternoon} (17:00-20:00)',
+  'config.country_wizard.seed_rush_morning': 'Утро',
+  'config.country_wizard.seed_rush_afternoon': 'Вечер',
+  'config.country_wizard.review_seeds_note':
+    'Всё сохраняется одной транзакцией: если что-то не удастся, ничего не останется наполовину. Созданные значения — это данные, их можно изменить в Конфигурации.',
 
   // ── CountriesConfig ──────────────────────────────────────────────
   'config.countries_config.add_adder_placeholder': '+ Добавить...',

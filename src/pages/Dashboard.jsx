@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { usePricingData } from '../hooks/usePricingData'
-import { sb } from '../lib/supabase'
+import { useDashboardMarketEvents } from '../hooks/useMarketEvents'
+import { useBotOutlierTotal } from '../hooks/useBotCoverage'
 import FilterBar from '../components/dashboard/FilterBar'
 import BracketSection from '../components/dashboard/BracketSection'
 import AnimatedKpiValue from '../components/dashboard/AnimatedKpiValue'
@@ -276,33 +277,8 @@ function DashboardContent() {
       rawDeltaChartData,
     ])
 
-  // Market events for daily view
-  const [marketEvents, setMarketEvents] = useState([])
-  useEffect(() => {
-    if (filters.viewMode !== 'daily') {
-      setMarketEvents([])
-      return
-    }
-    let cancelled = false
-    sb.from('market_events')
-      .select('id, city, event_date, event_type, impact, description')
-      .eq('country', filters.country)
-      .eq('city', filters.dbCity)
-      .gte('event_date', filters.dailyStart)
-      .lte('event_date', filters.dailyEnd)
-      .order('event_date')
-      .then(({ data, error }) => {
-        if (cancelled) return
-        if (error) {
-          setMarketEvents([])
-          return
-        }
-        setMarketEvents(data || [])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [filters.country, filters.viewMode, filters.dbCity, filters.dailyStart, filters.dailyEnd])
+  // Market events for daily view (consulta en useMarketEvents.js)
+  const marketEvents = useDashboardMarketEvents(filters)
 
   // ── KPI computations ────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -403,24 +379,8 @@ function DashboardContent() {
     }
   }, [periods, priceMatrix, sampleMatrix, filters.compareVs, filters.competitors])
 
-  // ── Outlier count from recent bot_sync_log runs ──────────────────────
-  const [outlierTotal, setOutlierTotal] = useState(null)
-  useEffect(() => {
-    let cancelled = false
-    const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString()
-    sb.from('bot_sync_log')
-      .select('outlier_count')
-      .eq('country', filters.country)
-      .gte('started_at', sevenDaysAgo)
-      .then(({ data }) => {
-        if (cancelled) return
-        const total = (data || []).reduce((s, r) => s + (r.outlier_count || 0), 0)
-        setOutlierTotal(total)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [filters.country])
+  // ── Outlier count from recent bot_sync_log runs (useBotCoverage.js) ──
+  const outlierTotal = useBotOutlierTotal(filters.country)
 
   // #32 — animated KPI values: viven dentro de <AnimatedKpiValue> y
   // <AnimatedWowBadge>. Antes useCountUp se llamaba acá → ~30 setState/s
