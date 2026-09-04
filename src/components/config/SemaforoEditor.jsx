@@ -21,16 +21,29 @@ const rowsEqual = (a, b) => {
   return true
 }
 
-export default function SemaforoEditor({ semaforo, onSave, saving }) {
+export default function SemaforoEditor({ semaforo, onSave, saving, country }) {
   const [rows, setRows] = useState([])
   const [saveMsg, setSaveMsg] = useState(null)
   const { t } = useI18n()
 
+  // Se resetea SIEMPRE que cambian las filas o el país — también cuando el
+  // país nuevo no tiene bandas. Antes `if (semaforo.length)` dejaba las
+  // bandas del país anterior en pantalla y "Guardar" las sembraba en el
+  // país nuevo (auditoría Config 2026-09-03, B3).
   useEffect(() => {
-    if (semaforo.length) setRows(semaforo.map((r) => ({ ...r })))
-  }, [semaforo])
+    setRows(semaforo.map((r) => ({ ...r })))
+    setSaveMsg(null)
+  }, [semaforo, country])
 
-  const hasUnsavedChanges = rows.length > 0 && semaforo.length > 0 && !rowsEqual(rows, semaforo)
+  const hasUnsavedChanges = rows.length > 0 && !rowsEqual(rows, semaforo)
+  const invalidRow = rows.find(
+    (r) =>
+      r.min_pct !== '' &&
+      r.min_pct != null &&
+      r.max_pct !== '' &&
+      r.max_pct != null &&
+      Number(r.min_pct) > Number(r.max_pct)
+  )
 
   const handleChange = (idx, field, val) => {
     setSaveMsg(null)
@@ -161,8 +174,14 @@ export default function SemaforoEditor({ semaforo, onSave, saving }) {
       <div className="config-footer" style={{ marginTop: 14 }}>
         <Button
           onClick={handleSave}
-          disabled={saving || !hasUnsavedChanges}
-          title={!hasUnsavedChanges ? t('config.semaforo.no_changes_title') : undefined}
+          disabled={saving || !hasUnsavedChanges || !!invalidRow}
+          title={
+            !hasUnsavedChanges
+              ? t('config.semaforo.no_changes_title')
+              : invalidRow
+                ? t('config.semaforo.min_gt_max_error')
+                : undefined
+          }
         >
           {saving ? t('account.saving') : t('config.semaforo.save_btn')}
         </Button>

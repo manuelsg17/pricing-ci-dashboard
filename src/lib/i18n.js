@@ -2598,6 +2598,16 @@ export const TRANSLATIONS = {
 
     // ── Error prefix compartido ───────────────────────────────────────
     'app.error_prefix': 'Error: ',
+    'config.load_error': 'No se pudo cargar: {msg}',
+    'config.commissions.pct_range_error': 'La comisión debe estar entre 0 y 100 %.',
+    'config.commissions.competitor_required_error': 'Elegí un competidor antes de guardar.',
+    'config.bonuses_config.valid_from_required_error': 'Falta la fecha desde la que rige el bono.',
+    'config.semaforo.min_gt_max_error': 'Hay una banda con mínimo mayor que máximo.',
+    'config.rushhour.time_order_error': 'La hora de fin debe ser posterior a la de inicio.',
+    'config.rushhour.overlap_error': 'Se solapa con la ventana {start}–{end} de {city}.',
+    'config.citimeslots.time_order_error': 'La hora de fin debe ser posterior a la de inicio.',
+    'config.citimeslots.overlap_error': 'Se solapa con el turno "{label}" ({start}–{end}).',
+    'config.pricerules.max_price_invalid': 'El precio máximo debe ser un número mayor que 0.',
   },
 
   en: {
@@ -5146,6 +5156,16 @@ export const TRANSLATIONS = {
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Error: ',
+    'config.load_error': 'Could not load: {msg}',
+    'config.commissions.pct_range_error': 'Commission must be between 0 and 100%.',
+    'config.commissions.competitor_required_error': 'Pick a competitor before saving.',
+    'config.bonuses_config.valid_from_required_error': 'The bonus start date is missing.',
+    'config.semaforo.min_gt_max_error': 'A band has a minimum greater than its maximum.',
+    'config.rushhour.time_order_error': 'End time must be after start time.',
+    'config.rushhour.overlap_error': 'Overlaps the {start}–{end} window for {city}.',
+    'config.citimeslots.time_order_error': 'End time must be after start time.',
+    'config.citimeslots.overlap_error': 'Overlaps the "{label}" slot ({start}–{end}).',
+    'config.pricerules.max_price_invalid': 'Max price must be a number greater than 0.',
   },
 
   ru: {
@@ -7769,6 +7789,16 @@ export const TRANSLATIONS = {
 
     // ── Error prefix ──────────────────────────────────────────────────
     'app.error_prefix': 'Ошибка: ',
+    'config.load_error': 'Не удалось загрузить: {msg}',
+    'config.commissions.pct_range_error': 'Комиссия должна быть от 0 до 100 %.',
+    'config.commissions.competitor_required_error': 'Выберите конкурента перед сохранением.',
+    'config.bonuses_config.valid_from_required_error': 'Не указана дата начала действия бонуса.',
+    'config.semaforo.min_gt_max_error': 'В одной из полос минимум больше максимума.',
+    'config.rushhour.time_order_error': 'Время окончания должно быть позже начала.',
+    'config.rushhour.overlap_error': 'Пересекается с окном {start}–{end} для {city}.',
+    'config.citimeslots.time_order_error': 'Время окончания должно быть позже начала.',
+    'config.citimeslots.overlap_error': 'Пересекается со сменой «{label}» ({start}–{end}).',
+    'config.pricerules.max_price_invalid': 'Максимальная цена должна быть числом больше 0.',
   },
 }
 

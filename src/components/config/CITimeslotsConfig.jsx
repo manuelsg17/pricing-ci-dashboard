@@ -4,6 +4,7 @@ import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
+import { timeOrderError, findOverlap } from '../../lib/timeWindows'
 
 const DIRTY_STYLE = {
   background: '#fef3c7',
@@ -22,12 +23,24 @@ export default function CITimeslotsConfig() {
   const { t } = useI18n()
 
   useEffect(() => {
-    load()
+    load() /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [])
+
+  // Live-sync: ci_timeslots está auditada y en REFETCHABLE_TABLES, pero
+  // este editor no escuchaba (auditoría Config 2026-09-03, B15).
+  useEffect(() => {
+    function onChange(e) {
+      if (e?.detail?.table === 'ci_timeslots') load()
+    }
+    window.addEventListener('config:changed', onChange)
+    return () => window.removeEventListener('config:changed', onChange)
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [])
 
   async function load() {
     setLoading(true)
-    const { data } = await sb.from('ci_timeslots').select('*').order('sort_order')
+    const { data, error } = await sb.from('ci_timeslots').select('*').order('sort_order')
+    if (error) setMsg({ type: 'err', text: t('config.load_error', { msg: error.message }) })
     setRows(data || [])
     setOriginal((data || []).map((r) => ({ ...r })))
     setLoading(false)
@@ -40,7 +53,7 @@ export default function CITimeslotsConfig() {
 
   function addRow() {
     const maxOrder = rows.reduce((m, r) => Math.max(m, r.sort_order || 0), 0)
-    const tempId = `new_${Date.now()}`
+    const tempId = `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     setMsg(null)
     setRows((prev) => [
       ...prev,
@@ -72,6 +85,22 @@ export default function CITimeslotsConfig() {
   async function saveRow(r) {
     if (!r.label?.trim()) {
       setMsg({ type: 'err', text: t('config.citimeslots.label_empty_error') })
+      return
+    }
+    if (timeOrderError(r.start_time, r.end_time)) {
+      setMsg({ type: 'err', text: t('config.citimeslots.time_order_error') })
+      return
+    }
+    const clash = r.is_active === false ? null : findOverlap(rows, r)
+    if (clash) {
+      setMsg({
+        type: 'err',
+        text: t('config.citimeslots.overlap_error', {
+          label: clash.label,
+          start: String(clash.start_time).slice(0, 5),
+          end: String(clash.end_time).slice(0, 5),
+        }),
+      })
       return
     }
     setSaving(true)

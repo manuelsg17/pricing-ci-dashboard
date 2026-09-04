@@ -74,7 +74,7 @@ export default function CommissionsConfig({ country }) {
     setSaving(true)
     setMsg(null)
     const merged = { ...row, ...edits[row.id] }
-    const ok = await saveCommission(merged)
+    const { ok, code, error } = await saveCommission(merged)
     if (ok) {
       setEdits((prev) => {
         const n = { ...prev }
@@ -93,7 +93,12 @@ export default function CommissionsConfig({ country }) {
     } else {
       setMsg({
         type: 'err',
-        text: t('config.commissions.save_error'),
+        text:
+          code === 'invalid_pct'
+            ? t('config.commissions.pct_range_error')
+            : code === 'invalid_competitor'
+              ? t('config.commissions.competitor_required_error')
+              : `${t('config.commissions.save_error')}${error ? ` — ${error}` : ''}`,
       })
     }
     setSaving(false)

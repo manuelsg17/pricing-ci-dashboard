@@ -6,6 +6,7 @@ import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
+import { timeOrderError, findOverlap } from '../../lib/timeWindows'
 
 export default function RushHourConfig({ country }) {
   const { dbConfigs } = useCountry()
@@ -38,13 +39,15 @@ export default function RushHourConfig({ country }) {
 
   async function load() {
     setLoading(true)
-    const { data } = await sb
+    const { data, error } = await sb
       .from('rush_hour_windows')
       .select('*')
       .eq('country', country)
       .in('city', allCities)
       .order('city')
       .order('start_time')
+    // Antes se ignoraba `error`: un rebote de RLS/red se veía como "sin ventanas".
+    if (error) setMsg({ type: 'err', text: t('config.load_error', { msg: error.message }) })
     setWindows(data || [])
     setOriginal((data || []).map((r) => ({ ...r })))
     setLoading(false)
@@ -75,7 +78,7 @@ export default function RushHourConfig({ country }) {
   }
 
   function addWindow() {
-    const tempId = `new_${Date.now()}`
+    const tempId = `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     setMsg(null)
     setWindows((prev) => [
       ...prev,
@@ -103,6 +106,24 @@ export default function RushHourConfig({ country }) {
   }
 
   async function saveWindow(w) {
+    // Validación: orden y solape dentro de la misma ciudad ('all' compite con todas).
+    const orderErr = timeOrderError(w.start_time, w.end_time)
+    if (orderErr) {
+      setMsg({ type: 'err', text: t('config.rushhour.time_order_error') })
+      return
+    }
+    const clash = findOverlap(windows, w, (r) => r.city || 'all')
+    if (clash) {
+      setMsg({
+        type: 'err',
+        text: t('config.rushhour.overlap_error', {
+          city: clash.city === 'all' ? t('config.commissions.all_cities') : clash.city,
+          start: String(clash.start_time).slice(0, 5),
+          end: String(clash.end_time).slice(0, 5),
+        }),
+      })
+      return
+    }
     setSaving(true)
     setMsg(null)
     const payload = {

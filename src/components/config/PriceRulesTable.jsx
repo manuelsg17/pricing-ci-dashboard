@@ -52,7 +52,7 @@ export default function PriceRulesTable({ country }) {
 
   async function load() {
     setLoading(true)
-    const { data } = await sb
+    const { data, error } = await sb
       .from('price_validation_rules')
       .select('*')
       .eq('country', country)
@@ -60,6 +60,7 @@ export default function PriceRulesTable({ country }) {
       .order('city')
       .order('category')
       .order('competition')
+    if (error) setMsg({ type: 'err', text: t('config.load_error', { msg: error.message }) })
     setRules(data || [])
     setOriginal((data || []).map((r) => ({ ...r })))
     setLoading(false)
@@ -123,6 +124,13 @@ export default function PriceRulesTable({ country }) {
   }
 
   async function saveRule(rule) {
+    // Antes `parseFloat(x) || fallback` convertía un 0 o un vacío en 120 en
+    // silencio: ahora un tope inválido no se guarda.
+    const maxPrice = parseFloat(rule.max_price)
+    if (!Number.isFinite(maxPrice) || maxPrice <= 0) {
+      setMsg({ type: 'err', text: t('config.pricerules.max_price_invalid') })
+      return
+    }
     setSaving(true)
     setMsg(null)
     const payload = {
@@ -130,7 +138,7 @@ export default function PriceRulesTable({ country }) {
       city: rule.city,
       category: rule.category || 'all',
       competition: rule.competition || 'all',
-      max_price: parseFloat(rule.max_price) || Number(config.maxPrice) || 120,
+      max_price: maxPrice,
     }
     let err
     if (rule._new) {

@@ -3,11 +3,11 @@ import { sb } from '../lib/supabase'
 
 export function useConfig(country) {
   const [thresholds, setThresholds] = useState([])
-  const [weights,    setWeights]    = useState([])
-  const [semaforo,   setSemaforo]   = useState([])
-  const [loading,    setLoading]    = useState(true)
-  const [saving,     setSaving]     = useState(false)
-  const [error,      setError]      = useState(null)
+  const [weights, setWeights] = useState([])
+  const [semaforo, setSemaforo] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
 
   const load = useCallback(async () => {
     if (!country) return
@@ -15,9 +15,26 @@ export function useConfig(country) {
     setError(null)
     try {
       const [t, w, s] = await Promise.all([
-        sb.from('distance_thresholds').select('*').eq('country', country).order('city').order('category').order('max_km'),
-        sb.from('bracket_weights').select('*').eq('country', country).order('city').order('category').order('bracket'),
-        sb.from('semaforo_config').select('*').eq('country', country).order('band').order('min_pct'),
+        sb
+          .from('distance_thresholds')
+          .select('*')
+          .eq('country', country)
+          .order('city')
+          .order('category')
+          .order('max_km'),
+        sb
+          .from('bracket_weights')
+          .select('*')
+          .eq('country', country)
+          .order('city')
+          .order('category')
+          .order('bracket'),
+        sb
+          .from('semaforo_config')
+          .select('*')
+          .eq('country', country)
+          .order('band')
+          .order('min_pct'),
       ])
       if (t.error) throw t.error
       if (w.error) throw w.error
@@ -32,7 +49,7 @@ export function useConfig(country) {
       }
 
       setThresholds(t.data || [])
-      setWeights(w.data    || [])
+      setWeights(w.data || [])
       setSemaforo(semaforoRows || [])
     } catch (e) {
       setError(e.message)
@@ -41,7 +58,9 @@ export function useConfig(country) {
     }
   }, [country])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   // Live-sync: si otra sesión cambia distance_thresholds, bracket_weights o
   // semaforo_config (audit_log → 'config:changed'), recargamos los 3 a la
@@ -64,7 +83,7 @@ export function useConfig(country) {
   const saveThresholds = async (rows) => {
     setSaving(true)
     try {
-      const data = rows.map(r => ({ ...r, country }))
+      const data = rows.map((r) => ({ ...r, country }))
       const { error } = await sb
         .from('distance_thresholds')
         .upsert(data, { onConflict: 'country,city,category,bracket' })
@@ -78,8 +97,8 @@ export function useConfig(country) {
       if (rows.length > 0) {
         const { city, category } = rows[0]
         const { data: cnt, error: rpcErr } = await sb.rpc('recompute_brackets_for', {
-          p_country:  country,
-          p_city:     city,
+          p_country: country,
+          p_city: city,
           p_category: category,
         })
         if (rpcErr) {
@@ -107,7 +126,7 @@ export function useConfig(country) {
       // Garantizar que cada row tenga `category` (default 'all' para
       // retrocompat con callers viejos pre mig 56). El onConflict
       // incluye category para que el UNIQUE constraint matchee.
-      const data = rows.map(r => ({
+      const data = rows.map((r) => ({
         ...r,
         country,
         category: r.category ?? 'all',
@@ -122,22 +141,14 @@ export function useConfig(country) {
     }
   }
 
-  // Semáforo: antes borraba TODO globalmente (sin filtro por country),
-  // lo que al guardar Perú borraría semáforo de otros países. Ahora el
-  // scope es sólo country actual.
+  // Semáforo: reemplazo ATÓMICO vía RPC (mig 238). Antes era DELETE +
+  // INSERT en dos requests: si el INSERT rebotaba, el país quedaba sin
+  // semáforo. La RPC valida bandas y scope de país en una transacción.
   const saveSemaforo = async (rows) => {
     setSaving(true)
     try {
-      const { error: delErr } = await sb
-        .from('semaforo_config')
-        .delete()
-        .eq('country', country)
-      if (delErr) throw delErr
-
-      const data = rows.map(r => ({ ...r, country }))
-      const { error: insErr } = await sb.from('semaforo_config').insert(data)
-      if (insErr) throw insErr
-
+      const { error } = await sb.rpc('replace_semaforo', { p_country: country, p_rows: rows })
+      if (error) throw error
       await load()
     } finally {
       setSaving(false)

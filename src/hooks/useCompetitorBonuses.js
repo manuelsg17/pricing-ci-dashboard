@@ -32,6 +32,15 @@ export function useCompetitorBonuses(city, country, asOf = null) {
     load()
   }, [load])
 
+  // Live-sync (audit_log → 'config:changed'): cambios de otra sesión.
+  useEffect(() => {
+    function onChange(e) {
+      if (e?.detail?.table === 'competitor_bonuses') load()
+    }
+    window.addEventListener('config:changed', onChange)
+    return () => window.removeEventListener('config:changed', onChange)
+  }, [load])
+
   // Returns active bonuses relevant to the city (global + city-specific), grouped by competitor
   const bonuses = useMemo(() => {
     const result = {}
@@ -110,12 +119,13 @@ export function useCompetitorBonuses(city, country, asOf = null) {
   // Guardado "en el lugar": crea una fila nueva o corrige la versión actual
   // (typo, tope mal cargado). Para un cambio de condiciones que rige desde
   // otra fecha, usar newVersion — así queda el historial.
+  // Devuelve { ok, code, error }: code = 'invalid_valid_from' | 'invalid_competitor'
+  // | 'db'; error = mensaje real de Supabase (antes se descartaba).
   const saveBonus = useCallback(
     async (row) => {
-      if (!row.valid_from) {
-        setError('valid_from')
-        return false
-      }
+      if (!row.competitor_name?.trim())
+        return { ok: false, code: 'invalid_competitor', error: null }
+      if (!row.valid_from) return { ok: false, code: 'invalid_valid_from', error: null }
       const payload = buildPayload(row)
       let err
       if (String(row.id).startsWith('new_')) {
@@ -124,7 +134,7 @@ export function useCompetitorBonuses(city, country, asOf = null) {
         ;({ error: err } = await sb.from('competitor_bonuses').update(payload).eq('id', row.id))
       }
       if (!err) await load()
-      return !err
+      return { ok: !err, code: err ? 'db' : null, error: err?.message || null }
     },
     [load, buildPayload]
   )
@@ -166,7 +176,7 @@ export function useCompetitorBonuses(city, country, asOf = null) {
   )
 
   const addRow = useCallback(() => {
-    const tempId = `new_${Date.now()}`
+    const tempId = `new_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     setAllRows((prev) => [
       ...prev,
       {

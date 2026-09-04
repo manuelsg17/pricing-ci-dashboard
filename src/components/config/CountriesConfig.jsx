@@ -156,9 +156,12 @@ export default function CountriesConfig() {
 
   const loadRows = useCallback(async () => {
     setLoading(true)
-    const { data } = await sb.from('country_config').select('*').order('sort_order')
+    const { data, error } = await sb.from('country_config').select('*').order('sort_order')
+    // Antes se ignoraba `error`: un rebote de RLS/red se veía como "sin países".
+    if (error) setMsg({ type: 'err', text: t('config.load_error', { msg: error.message }) })
     setDbRows(data || [])
     setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadBotRuleCounts = useCallback(async () => {

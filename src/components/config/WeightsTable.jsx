@@ -343,7 +343,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
         {/* Primario: sin snapshot — el usuario lo usa frecuentemente */}
         <Button
           onClick={handleSaveNoSnapshot}
-          disabled={saving || !hasUnsavedChanges}
+          disabled={saving || !hasUnsavedChanges || !totalOk}
           title={
             !hasUnsavedChanges
               ? t('config.semaforo.no_changes_title')
@@ -359,7 +359,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
           variant="outline"
           className="border-slate-300 text-slate-600"
           onClick={handleSave}
-          disabled={saving || !hasUnsavedChanges}
+          disabled={saving || !hasUnsavedChanges || !totalOk}
           title={t('config.thresholds.save_snapshot_title')}
         >
           📸 {t('config.thresholds.save_snapshot_btn')}

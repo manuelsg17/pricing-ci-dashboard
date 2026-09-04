@@ -65,7 +65,7 @@ export default function YangoGmvConfig({ country }) {
 
   async function load() {
     setLoading(true)
-    const { data } = await sb
+    const { data, error } = await sb
       .from('yango_gmv_tiers')
       .select('*')
       .eq('country', country)
@@ -73,6 +73,7 @@ export default function YangoGmvConfig({ country }) {
       .order('variant')
       .order('valid_from')
       .order('min_trips')
+    if (error) setMsg({ type: 'err', text: t('config.load_error', { msg: error.message }) })
     setTiers(data || [])
     setOriginal((data || []).map((r) => ({ ...r })))
     setLoading(false)

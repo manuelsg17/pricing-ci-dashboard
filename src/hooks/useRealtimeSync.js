@@ -44,6 +44,10 @@ const REFETCHABLE_TABLES = new Set([
   'ci_timeslots',
   'airport_markers',
   'competitive_bands',
+  // Auditoría de Config 2026-09-03: se auditaban desde mig 62 pero no
+  // estaban acá → guardar una comisión no refrescaba Rentabilidad.
+  'competitor_commissions',
+  'competitor_bonuses',
 ])
 
 // Tablas que SIEMPRE muestran toast (cambios visibles inmediatamente al

@@ -225,7 +225,7 @@ export default function BonusesConfig({ country }) {
     setSaving(true)
     setMsg(null)
     const m = merged(row)
-    const ok = await saveBonus(m)
+    const { ok, code, error } = await saveBonus(m)
     if (ok) {
       setEdits((prev) => {
         const n = { ...prev }
@@ -245,16 +245,24 @@ export default function BonusesConfig({ country }) {
         }),
       })
     } else {
-      setMsg({ type: 'err', text: t('config.bonuses_config.save_error') })
+      setMsg({ type: 'err', text: saveErrorText(code, error) })
     }
     setSaving(false)
+  }
+
+  // Texto de error de guardado según el código del hook (traducible) o el
+  // mensaje real de Supabase (antes siempre era un genérico).
+  function saveErrorText(code, error) {
+    if (code === 'invalid_valid_from') return t('config.bonuses_config.valid_from_required_error')
+    if (code === 'invalid_competitor') return t('config.commissions.competitor_required_error')
+    return `${t('config.bonuses_config.save_error')}${error ? ` — ${error}` : ''}`
   }
 
   // Crear desde el asistente paso a paso
   async function handleWizardSave(draft) {
     setSaving(true)
     setMsg(null)
-    const ok = await saveBonus({ ...draft, id: `new_${Date.now()}` })
+    const { ok, code, error } = await saveBonus({ ...draft, id: `new_${Date.now()}` })
     if (ok) {
       setWizardOpen(false)
       setMsg({
@@ -267,7 +275,10 @@ export default function BonusesConfig({ country }) {
     } else {
       setMsg({
         type: 'err',
-        text: t('config.bonuses_config.wizard_create_error'),
+        text:
+          code === 'db' || !code
+            ? `${t('config.bonuses_config.wizard_create_error')}${error ? ` — ${error}` : ''}`
+            : saveErrorText(code, error),
       })
     }
     setSaving(false)
