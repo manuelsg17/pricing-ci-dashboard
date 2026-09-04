@@ -1381,6 +1381,11 @@ export default {
   'competitividad.verdict_mixed': 'Resultados mixtos',
   'competitividad.verdict_bad': 'Mayormente fuera de rango',
   'competitividad.week_range.1': 'Última semana',
+  'competitividad.week_range.shared': 'Según el filtro global del dashboard',
+  'routemon.shared_range_hint': 'Período del filtro global: {from} → {to}',
+  'routemon.shared_range_note':
+    'Sigue al período elegido en el Dashboard (máx. 31 días: se toman los últimos). Editá las fechas para fijar otro.',
+  'routemon.use_shared_range': '↺ Usar filtro global',
   'competitividad.week_range.4': 'Últimas 4 semanas',
   'competitividad.week_range.8': 'Últimas 8 semanas',
   'competitividad.week_range.12': 'Últimas 12 semanas',

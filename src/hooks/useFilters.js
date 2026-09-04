@@ -251,6 +251,21 @@ export function useFilters(country) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const weekColumns = useMemo(() => weekColumnsRaw, [weekColumnsKey])
 
+  // Rango de fechas NORMALIZADO (Fase C, 2026-09-03): una sola forma de
+  // preguntar "qué período está mirando el usuario" para las vistas que no
+  // trabajan en columnas semanales (Competitividad, Monitoreo de rutas…).
+  //   weekly   → lunes de la primera semana … domingo de la última
+  //   daily    → dailyStart … dailyEnd
+  //   historic → historicFrom … historicTo
+  const dateRange = useMemo(() => {
+    if (viewMode === 'daily') return { from: dailyStart, to: dailyEnd, granularity: 'day' }
+    if (viewMode === 'historic') return { from: historicFrom, to: historicTo, granularity: 'week' }
+    const first = weekColumns[0]
+    const last = new Date(weekColumns[weekColumns.length - 1])
+    last.setDate(last.getDate() + 6)
+    return { from: toISODate(first), to: toISODate(last), granularity: 'week' }
+  }, [viewMode, dailyStart, dailyEnd, historicFrom, historicTo, weekColumns])
+
   const competitorsRaw = useMemo(
     () => getCompetitors(city, category, subCategory, country, dbConfigs),
     [city, category, subCategory, country, dbConfigs]
@@ -279,6 +294,7 @@ export function useFilters(country) {
       dailyEnd,
       historicFrom,
       historicTo,
+      dateRange,
       competitors,
       timeOfDay,
     }),
@@ -300,6 +316,7 @@ export function useFilters(country) {
       dailyEnd,
       historicFrom,
       historicTo,
+      dateRange,
       competitors,
       timeOfDay,
     ]

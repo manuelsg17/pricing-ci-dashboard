@@ -19,6 +19,17 @@ function daysAgoISO(n) {
   return toISODate(d)
 }
 
+// La RPC admite máx. 31 días; el filtro global en modo semanal cubre 8
+// semanas. Se conservan los últimos 31 días del rango (sin rango: 7 días).
+function clampTo31Days(range) {
+  if (!range?.from || !range?.to) return { from: daysAgoISO(7), to: daysAgoISO(0) }
+  const to = new Date(`${range.to}T00:00:00`)
+  const from = new Date(`${range.from}T00:00:00`)
+  const minFrom = new Date(to)
+  minFrom.setDate(to.getDate() - 30)
+  return { from: toISODate(from < minFrom ? minFrom : from), to: toISODate(to) }
+}
+
 // hh:mm — los segundos que devuelve la RPC son ruido para leer la tabla
 // (lo que importa es a qué hora del día pasó, no el segundo exacto).
 function fmtTime(t) {
@@ -43,8 +54,16 @@ export default function RouteMonitor() {
   const currency = countryConfig?.currency || ''
 
   const [tab, setTab] = useState('gaps')
-  const [dateFrom, setDateFrom] = useState(() => daysAgoISO(7))
-  const [dateTo, setDateTo] = useState(() => daysAgoISO(0))
+  // Fase C: el período sale del filtro global del dashboard (filters.dateRange),
+  // acotado a los 31 días que admite la RPC (se toman los ÚLTIMOS 31). Los
+  // inputs siguen editables: al tocarlos, la vista deja de seguir al filtro
+  // global hasta que se aprieta "usar filtro global".
+  const sharedRange = useMemo(() => clampTo31Days(filters.dateRange), [filters.dateRange])
+  const [localDates, setLocalDates] = useState(null) // null = sigue al filtro global
+  const dateFrom = localDates?.from ?? sharedRange.from
+  const dateTo = localDates?.to ?? sharedRange.to
+  const setDateFrom = (v) => setLocalDates({ from: v, to: dateTo })
+  const setDateTo = (v) => setLocalDates({ from: dateFrom, to: v })
   const [minGapPct, setMinGapPct] = useState(0)
   const [cityFilter, setCityFilter] = useState(ALL)
 
@@ -156,6 +175,23 @@ export default function RouteMonitor() {
         <div className="filter-bar__group">
           <span className="filter-bar__label">{t('routemon.date_to')}</span>
           <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </div>
+        <div className="filter-bar__group" style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+          {localDates ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setLocalDates(null)}
+              title={`${sharedRange.from} → ${sharedRange.to}`}
+            >
+              {t('routemon.use_shared_range')}
+            </Button>
+          ) : (
+            <span title={t('routemon.shared_range_note')}>
+              {t('routemon.shared_range_hint', { from: sharedRange.from, to: sharedRange.to })}
+            </span>
+          )}
         </div>
         {tab === 'gaps' && (
           <div className="filter-bar__group">

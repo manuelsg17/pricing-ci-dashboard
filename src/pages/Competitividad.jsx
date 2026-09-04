@@ -17,6 +17,9 @@ import PriceVolatilityChart from '../components/competitiveBands/PriceVolatility
 import '../styles/config.css'
 
 const WEEK_RANGE_OPTIONS = [
+  // 'shared' = el período del filtro global del dashboard (Fase C): una sola
+  // fuente de verdad para "qué semanas estoy mirando" entre vistas.
+  { value: 'shared', labelKey: 'competitividad.week_range.shared' },
   { value: 1, labelKey: 'competitividad.week_range.1' },
   { value: 4, labelKey: 'competitividad.week_range.4' },
   { value: 8, labelKey: 'competitividad.week_range.8' },
@@ -41,7 +44,7 @@ export default function Competitividad() {
   const country = filters.country
 
   const [selectedBand, setSelectedBand] = useState(null)
-  const [weeksBack, setWeeksBack] = useState(8)
+  const [weeksBack, setWeeksBack] = useState('shared')
   const [useCustomRange, setUseCustomRange] = useState(false)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -72,10 +75,15 @@ export default function Competitividad() {
       const end = getISOYearWeek(new Date(`${customTo}T00:00:00`))
       return { yearStart: start.year, weekStart: start.week, yearEnd: end.year, weekEnd: end.week }
     }
+    if (weeksBack === 'shared' && filters.dateRange) {
+      const start = getISOYearWeek(new Date(`${filters.dateRange.from}T00:00:00`))
+      const end = getISOYearWeek(new Date(`${filters.dateRange.to}T00:00:00`))
+      return { yearStart: start.year, weekStart: start.week, yearEnd: end.year, weekEnd: end.week }
+    }
     const end = getISOYearWeek(new Date())
-    const start = getISOYearWeek(getMondayWeeksAgo(weeksBack))
+    const start = getISOYearWeek(getMondayWeeksAgo(Number(weeksBack) || 8))
     return { yearStart: start.year, weekStart: start.week, yearEnd: end.year, weekEnd: end.week }
-  }, [weeksBack, useCustomRange, customFrom, customTo])
+  }, [weeksBack, useCustomRange, customFrom, customTo, filters.dateRange])
 
   const { summary, breakdown, loading, error, drillInto } = useCompetitiveBandAnalysis({
     country,
@@ -141,7 +149,14 @@ export default function Competitividad() {
           </div>
           <select
             value={weeksBack}
-            onChange={(e) => setWeeksBack(Number(e.target.value))}
+            onChange={(e) =>
+              setWeeksBack(e.target.value === 'shared' ? 'shared' : Number(e.target.value))
+            }
+            title={
+              weeksBack === 'shared' && filters.dateRange
+                ? `${filters.dateRange.from} → ${filters.dateRange.to}`
+                : undefined
+            }
             disabled={useCustomRange}
             style={{
               padding: '6px 10px',

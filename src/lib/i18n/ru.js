@@ -1393,6 +1393,11 @@ export default {
   'competitividad.verdict_mixed': 'Смешанные результаты',
   'competitividad.verdict_bad': 'В основном вне диапазона',
   'competitividad.week_range.1': 'Последняя неделя',
+  'competitividad.week_range.shared': 'По фильтру дашборда',
+  'routemon.shared_range_hint': 'Период глобального фильтра: {from} → {to}',
+  'routemon.shared_range_note':
+    'Следует периоду, выбранному на дашборде (макс. 31 день: берутся последние). Измените даты, чтобы задать другой.',
+  'routemon.use_shared_range': '↺ Использовать глобальный фильтр',
   'competitividad.week_range.4': 'Последние 4 недели',
   'competitividad.week_range.8': 'Последние 8 недель',
   'competitividad.week_range.12': 'Последние 12 недель',
