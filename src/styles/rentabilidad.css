@@ -1,0 +1,127 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Rentabilidad — hoja de estilos propia (Fase D, 2026-09-03)
+   Antes la página era 100 % estilos inline (123) y la clase .rent-panel
+   que usaba el JSX no existía en ningún CSS. Tokens: src/styles/global.css.
+   Responsive: la página entra en el alcance de lectura (CLAUDE.md §1),
+   objetivo legible a 390px.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.rent-panel {
+  background: var(--color-panel, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.rent-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--color-muted);
+  background: var(--color-panel, #fff);
+  border: 1px dashed var(--color-border, #e2e8f0);
+  border-radius: 8px;
+}
+
+.rent-input {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 13px;
+  width: 90px;
+  background: #fff;
+}
+
+.rent-select {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.rent-adv-toggle {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.rent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+
+.rent-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.rent-th {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--color-border, #e2e8f0);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.rent-td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  white-space: nowrap;
+}
+
+.rent-formula-card {
+  background: #fff;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.rent-formula-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--color-muted);
+  margin-bottom: 4px;
+}
+.rent-formula-expr {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+/* Tablas anchas (matriz de escenarios, desglose): scroll horizontal en vez
+   de romper el layout en pantallas chicas. */
+.rent-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .rent-panel {
+    padding: 12px;
+    border-radius: 8px;
+  }
+  .rent-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .rent-input {
+    width: 72px;
+  }
+}

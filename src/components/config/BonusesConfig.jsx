@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useCompetitorBonuses } from '../../hooks/useCompetitorBonuses'
 import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
 import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
+import { CATALOG_COMPETITORS } from '../../lib/catalogs'
 import { describeBonus } from '../../lib/competitorBonus'
 import SaveStatusBanner from './SaveStatusBanner'
 import BonusWizard from './BonusWizard'
@@ -11,7 +12,12 @@ import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 import { toISODate } from '../../lib/dateUtils'
 
-const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
+// Catálogo canónico de competidores (lib/catalogs), no las claves de un mapa
+// de colores (que mezclaba 'CabifyLite' y 'Cabify Lite'). Yango no recibe
+// bonos de competidor: se excluye acá y la BD también lo rechaza.
+const ALL_COMPETITORS = CATALOG_COMPETITORS.map((c) => c.value).filter(
+  (v) => !v.toLowerCase().startsWith('yango')
+)
 // Día siguiente en ISO (para el mínimo del selector "nueva versión desde").
 const nextDay = (iso) => {
   if (!iso) return undefined

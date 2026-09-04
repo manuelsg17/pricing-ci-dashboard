@@ -13,8 +13,18 @@ import { isYangoBrand as isYango } from '../lib/normalize'
 
 // Extraído de Rentabilidad.jsx (Fase 1.2) — el motor de pricing: comisión
 // apilable de Yango (base ciudad + partner + herramientas) y las funciones
-// de ganancia neta (bonusFor/netFor/yangoNetAt/netPerTrip) que alimentan
-// gráficos, matriz de escenarios y el análisis auto-generado.
+// de ganancia neta que alimentan gráficos, matriz de escenarios, break-even
+// y el desglose del análisis.
+//
+// Fase D (2026-09-03): UNA sola fórmula. `netParts` es la única función que
+// sabe cómo se compone el take-home semanal:
+//   fareWeek  = precio · viajes · (1 − comisión_efectiva)
+//   bonusWeek = bonos de competidor (motor único) + bono GMV de Yango
+//   totalWeek = fareWeek + bonusWeek
+// netFor / yangoNetAt / netPerTrip y el desglose del análisis son
+// proyecciones de `netParts` (por viaje o por semana). Antes el mismo bloque
+// estaba copiado en 4 lugares y el doc de diseño §9.1 avisaba que tocar uno
+// solo desincronizaba los otros.
 export function useRentabilidadEngine({
   dbCity,
   country,
@@ -27,7 +37,7 @@ export function useRentabilidadEngine({
   metric,
   branded,
   yangoGmvTiers,
-  asOf, // ISO date: vigencia de bonos/escaleras (mig 237)
+  asOf, // ISO date o { from, to }: vigencia de bonos/escaleras (mig 237)
 }) {
   // ── Comisión total de Yango = base ciudad + partner(3%) + herramientas ──────
   // Reemplaza el % plano del DB (Yango figura 20%): el modelo real es apilable.
@@ -52,6 +62,12 @@ export function useRentabilidadEngine({
   const yangoExtraPct = useMemo(() => yangoToolsExtra(tools, miZonaPct), [tools, miZonaPct])
   const yangoCommission = yangoBasePct + YANGO_PARTNER_PCT + yangoExtraPct
 
+  // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
+  const yangoKeyFor = useCallback(
+    (dbCategory) => getYangoDisplayName(country, dbCity, dbCategory),
+    [country, dbCity]
+  )
+
   // ── Cálculo de ganancia ─────────────────────────────────────────────────
   // Delega en el motor único (peldaño-máximo, sin el bug de suma). cash semanal.
   const bonusFor = useCallback(
@@ -72,93 +88,65 @@ export function useRentabilidadEngine({
     [bonuses, hoursPerWeek, commissions, archetype, asOf]
   )
 
-  const netFor = useCallback(
-    (dbCategory, comp, trips) => {
-      const pd = pricesByCat[dbCategory]?.[comp]
-      if (!pd || !trips || isNaN(pd.avg)) return null
-      // Yango: comisión apilable computada. Resto: % del DB con descuento de
-      // ventana (comm_discount InDrive) según el arquetipo.
-      const comm = isYango(comp)
+  // Comisión efectiva de un competidor: Yango = apilable; resto = % del DB
+  // con descuento de ventana (comm_discount InDrive) según el arquetipo.
+  const commissionFor = useCallback(
+    (comp, dbCategory) =>
+      isYango(comp)
         ? yangoCommission
         : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
             dbCategory,
             segment: archetype.segment,
             asOf,
-          })
+          }),
+    [yangoCommission, commissions, bonuses, archetype, asOf]
+  )
+
+  // LA fórmula. Devuelve null si no hay precio. `commOverride` permite
+  // evaluar Yango a una comisión arbitraria (matriz de escenarios).
+  const netParts = useCallback(
+    (comp, dbCategory, trips, commOverride = null) => {
+      const pd = pricesByCat[dbCategory]?.[comp]
+      if (!pd || !trips || isNaN(pd.avg)) return null
+      const fare = pd.avg
+      const comm = commOverride ?? commissionFor(comp, dbCategory)
       const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers, asOf)
+        ? yangoGmvBonus(dbCity, dbCategory, branded, fare, trips, yangoGmvTiers, asOf)
         : 0
-      const week =
-        pd.avg * trips * (1 - comm / 100) + bonusFor(comp, dbCategory, trips, pd.avg) + gmv
-      return metric === 'trip' ? week / trips : week
+      const fareWeek = fare * trips * (1 - comm / 100)
+      const bonusWeek = bonusFor(comp, dbCategory, trips, fare) + gmv
+      return { fare, trips, comm, gmv, fareWeek, bonusWeek, totalWeek: fareWeek + bonusWeek }
     },
-    [
-      pricesByCat,
-      commissions,
-      bonuses,
-      bonusFor,
-      metric,
-      yangoCommission,
-      archetype,
-      dbCity,
-      branded,
-      yangoGmvTiers,
-      asOf,
-    ]
+    [pricesByCat, commissionFor, bonusFor, dbCity, branded, yangoGmvTiers, asOf]
+  )
+
+  // Ganancia en la métrica activa (por viaje | semana).
+  const netFor = useCallback(
+    (dbCategory, comp, trips) => {
+      const p = netParts(comp, dbCategory, trips)
+      if (!p) return null
+      return metric === 'trip' ? p.totalWeek / trips : p.totalWeek
+    },
+    [netParts, metric]
   )
 
   // Ganancia de Yango a una comisión arbitraria (para la matriz de escenarios).
-  // La key de Yango varía por ciudad/categoría (ej. Corp usa 'YangoEconomy'),
-  // así que la resolvemos con getYangoDisplayName en vez de hardcodear 'Yango'.
   const yangoNetAt = useCallback(
     (dbCategory, trips, commPct) => {
-      const yangoKey = getYangoDisplayName(country, dbCity, dbCategory)
-      const pd = pricesByCat[dbCategory]?.[yangoKey]
-      if (!pd || !trips || isNaN(pd.avg)) return null
-      const week =
-        pd.avg * trips * (1 - commPct / 100) +
-        bonusFor(yangoKey, dbCategory, trips, pd.avg) +
-        yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, trips, yangoGmvTiers, asOf)
-      return metric === 'trip' ? week / trips : week
+      const p = netParts(yangoKeyFor(dbCategory), dbCategory, trips, commPct)
+      if (!p) return null
+      return metric === 'trip' ? p.totalWeek / trips : p.totalWeek
     },
-    [pricesByCat, bonusFor, metric, country, dbCity, branded, yangoGmvTiers, asOf]
-  )
-
-  // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
-  const yangoKeyFor = useCallback(
-    (dbCategory) => getYangoDisplayName(country, dbCity, dbCategory),
-    [country, dbCity]
+    [netParts, yangoKeyFor, metric]
   )
 
   // Ganancia POR VIAJE a n viajes (siempre per-trip, para el break-even).
   const netPerTrip = useCallback(
     (dbCategory, comp, n) => {
-      const pd = pricesByCat[dbCategory]?.[comp]
-      if (!pd || !n || isNaN(pd.avg)) return null
-      const comm = isYango(comp)
-        ? yangoCommission
-        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
-            dbCategory,
-            segment: archetype.segment,
-            asOf,
-          })
-      const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, dbCategory, branded, pd.avg, n, yangoGmvTiers, asOf)
-        : 0
-      return pd.avg * (1 - comm / 100) + (bonusFor(comp, dbCategory, n, pd.avg) + gmv) / n
+      const p = netParts(comp, dbCategory, n)
+      return p ? p.totalWeek / n : null
     },
-    [
-      pricesByCat,
-      commissions,
-      bonuses,
-      bonusFor,
-      yangoCommission,
-      archetype,
-      dbCity,
-      branded,
-      yangoGmvTiers,
-      asOf,
-    ]
+    [netParts]
   )
 
   return {
@@ -169,6 +157,8 @@ export function useRentabilidadEngine({
     yangoExtraPct,
     yangoCommission,
     bonusFor,
+    commissionFor,
+    netParts,
     netFor,
     yangoNetAt,
     yangoKeyFor,

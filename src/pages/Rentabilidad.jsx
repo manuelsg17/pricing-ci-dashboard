@@ -34,6 +34,7 @@ import MiZonaMap from '../components/rentabilidad/MiZonaMap'
 import CollapsibleSection from '../components/market/CollapsibleSection'
 import BonusSummaryByCity from '../components/dashboard/BonusSummaryByCity'
 import { Button } from '../components/ui/shadcn/button'
+import '../styles/rentabilidad.css'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 // isYango: única implementación en lib/normalize (antes había 5 copias).
@@ -156,7 +157,7 @@ export default function Rentabilidad() {
     yangoNetAt,
     yangoKeyFor,
     netPerTrip,
-    bonusFor,
+    netParts,
   } = useRentabilidadEngine({
     dbCity,
     country,
@@ -209,11 +210,8 @@ export default function Rentabilidad() {
     commissions,
     archetype,
     hasData,
-    yangoCommission,
-    branded,
-    bonusFor,
-    yangoGmvTiers,
     asOf,
+    netParts,
   })
 
   // ── Manejo de segmentos ────────────────────────────────────────────────
@@ -317,11 +315,15 @@ export default function Rentabilidad() {
       )}
 
       {/* ── Parámetros ── */}
-      <div className="rent-panel" style={panelStyle}>
+      <div className="rent-panel">
         {/* ── Controles principales ── */}
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <Field label={t('filter.city')}>
-            <select value={uiCity} onChange={(e) => setUiCity(e.target.value)} style={selectStyle}>
+            <select
+              value={uiCity}
+              onChange={(e) => setUiCity(e.target.value)}
+              className="rent-select"
+            >
               {uiCities.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -336,7 +338,7 @@ export default function Rentabilidad() {
               value={refWeek}
               min="1"
               max="53"
-              style={inputStyle}
+              className="rent-input"
               onChange={(e) => {
                 const v = Number(e.target.value)
                 if (v) setRefWeek(v)
@@ -381,7 +383,7 @@ export default function Rentabilidad() {
           <button
             type="button"
             onClick={() => setShowAdvanced((s) => !s)}
-            style={advancedToggleStyle}
+            className="rent-adv-toggle"
           >
             ⚙ Avanzado {showAdvanced ? '▴' : '▾'}
           </button>
@@ -408,7 +410,7 @@ export default function Rentabilidad() {
                 value={refYear}
                 min="2020"
                 max="2030"
-                style={inputStyle}
+                className="rent-input"
                 onChange={(e) => {
                   const v = Number(e.target.value)
                   if (v) setRefYear(v)
@@ -421,7 +423,7 @@ export default function Rentabilidad() {
                 value={hoursPerWeek}
                 min="1"
                 max="80"
-                style={inputStyle}
+                className="rent-input"
                 onChange={(e) => {
                   const v = Number(e.target.value)
                   if (v) setHoursPerWeek(v)
@@ -431,7 +433,7 @@ export default function Rentabilidad() {
             <Field label={t('rentabilidad.segments')}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 {segments.map((n, i) => (
-                  <div key={i} style={chipStyle}>
+                  <div key={i} className="rent-chip">
                     <input
                       type="number"
                       value={n}
@@ -491,7 +493,7 @@ export default function Rentabilidad() {
             min="0"
             max="400"
             value={liveTrips}
-            style={inputStyle}
+            className="rent-input"
             onChange={(e) => setLiveTrips(Number(e.target.value) || 0)}
           />
           <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
@@ -806,9 +808,9 @@ export default function Rentabilidad() {
 
       {/* ── Gráficos (small multiples) ── */}
       {loading ? (
-        <div style={emptyStyle}>{t('app.loading')}</div>
+        <div className="rent-empty">{t('app.loading')}</div>
       ) : !hasData ? (
-        <div style={emptyStyle}>
+        <div className="rent-empty">
           {t('rentabilidad.no_data')}{' '}
           <strong>
             {uiCity} · {formatWeekLabel(refYear, refWeek)}
@@ -828,7 +830,6 @@ export default function Rentabilidad() {
               key={p.key}
               className="rent-panel"
               style={{
-                ...panelStyle,
                 borderColor: p.live ? 'var(--color-yango, #E53935)' : undefined,
               }}
             >
@@ -903,7 +904,7 @@ export default function Rentabilidad() {
 
       {/* ── Desglose de ganancia (tarifa vs bonos) ── */}
       {breakdown.length > 0 && (
-        <div className="rent-panel" style={panelStyle}>
+        <div className="rent-panel">
           <div
             style={{
               display: 'flex',
@@ -919,7 +920,8 @@ export default function Rentabilidad() {
             <select
               value={refTier?.dbCategory || ''}
               onChange={(e) => setRefTierCat(e.target.value)}
-              style={{ ...selectStyle, minWidth: 130 }}
+              className="rent-select"
+              style={{ minWidth: 130 }}
             >
               {tiersWithData.map((c) => (
                 <option key={c.dbCategory} value={c.dbCategory}>
@@ -956,22 +958,22 @@ export default function Rentabilidad() {
             {t('rentabilidad.breakdown_help', { trips: liveTrips })}
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={matrixTableStyle}>
+            <table className="rent-matrix">
               <thead>
                 <tr>
-                  <th style={thStyle}>{t('rentabilidad.col_trips')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_competitor')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_avg_fare')}</th>
-                  <th style={thStyle}>GMV</th>
-                  <th style={thStyle}>{t('rentabilidad.col_gmv_net')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_incentives')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_total')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_per_trip')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_rank')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_trips')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_competitor')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_avg_fare')}</th>
+                  <th className="rent-th">GMV</th>
+                  <th className="rent-th">{t('rentabilidad.col_gmv_net')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_incentives')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_total')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_per_trip')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_rank')}</th>
                   {showDetail && (
-                    <th style={thStyle}>{t('rentabilidad.col_effective_commission')}</th>
+                    <th className="rent-th">{t('rentabilidad.col_effective_commission')}</th>
                   )}
-                  {showDetail && <th style={thStyle}>{t('rentabilidad.col_bonus_pct')}</th>}
+                  {showDetail && <th className="rent-th">{t('rentabilidad.col_bonus_pct')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -984,8 +986,8 @@ export default function Rentabilidad() {
                       : null
                   return (
                     <tr key={b.comp} style={{ background: isBest ? '#f0fdf4' : undefined }}>
-                      <td style={tdStyle}>{b.trips}</td>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                      <td className="rent-td">{b.trips}</td>
+                      <td className="rent-td" style={{ fontWeight: 600 }}>
                         <span style={{ color: COMPETITOR_COLORS[b.comp] || '#64748b' }}>●</span>{' '}
                         {b.comp}
                         {isBest && (
@@ -995,12 +997,12 @@ export default function Rentabilidad() {
                           </span>
                         )}
                       </td>
-                      <td style={tdStyle}>{fmt2(b.avgFare)}</td>
-                      <td style={tdStyle}>{fmt2(b.gmvGross)}</td>
-                      <td style={tdStyle}>{fmt2(b.gmvNet)}</td>
+                      <td className="rent-td">{fmt2(b.avgFare)}</td>
+                      <td className="rent-td">{fmt2(b.gmvGross)}</td>
+                      <td className="rent-td">{fmt2(b.gmvNet)}</td>
                       <td
+                        className="rent-td"
                         style={{
-                          ...tdStyle,
                           fontWeight: 600,
                           color: b.incentiveWeek > 0.005 ? '#16A34A' : 'var(--color-muted)',
                         }}
@@ -1008,21 +1010,21 @@ export default function Rentabilidad() {
                         {b.incentiveWeek > 0.005 ? `+ ${fmt2(b.incentiveWeek)}` : '—'}
                       </td>
                       <td
+                        className="rent-td"
                         style={{
-                          ...tdStyle,
                           fontWeight: 700,
                           color: isBest ? '#16A34A' : undefined,
                         }}
                       >
                         {fmt2(b.totalWeek)}
                       </td>
-                      <td style={tdStyle}>{fmt2(b.perTrip)}</td>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                      <td className="rent-td">{fmt2(b.perTrip)}</td>
+                      <td className="rent-td" style={{ fontWeight: 600 }}>
                         {rank ? `${rank === 1 ? '🏆 ' : ''}${rank}º` : '—'}
                       </td>
-                      {showDetail && <td style={tdStyle}>{b.comm.toFixed(1)}%</td>}
+                      {showDetail && <td className="rent-td">{b.comm.toFixed(1)}%</td>}
                       {showDetail && (
-                        <td style={tdStyle}>{pctBonus != null ? `${pctBonus}%` : '—'}</td>
+                        <td className="rent-td">{pctBonus != null ? `${pctBonus}%` : '—'}</td>
                       )}
                     </tr>
                   )
@@ -1051,7 +1053,7 @@ export default function Rentabilidad() {
 
       {/* ── Matriz de escenarios Yango (E1 mejor / E4 peor) ── */}
       {hasData && refTier && (
-        <div className="rent-panel" style={panelStyle}>
+        <div className="rent-panel">
           <div
             style={{
               display: 'flex',
@@ -1070,15 +1072,15 @@ export default function Rentabilidad() {
             </span>
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={matrixTableStyle}>
+            <table className="rent-matrix">
               <thead>
                 <tr>
-                  <th style={thStyle}>{t('rentabilidad.col_scenario')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_my_zone')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_commission')}</th>
-                  <th style={thStyle}>{t('rentabilidad.col_net')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_scenario')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_my_zone')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_commission')}</th>
+                  <th className="rent-th">{t('rentabilidad.col_net')}</th>
                   {rivalCols.map((c) => (
-                    <th key={c} style={thStyle}>
+                    <th key={c} className="rent-th">
                       vs {c}
                     </th>
                   ))}
@@ -1111,20 +1113,22 @@ export default function Rentabilidad() {
                   const yNet = yangoNetAt(refTier.dbCategory, liveTrips, row.comm)
                   return (
                     <tr key={row.key}>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>
+                      <td className="rent-td" style={{ fontWeight: 600 }}>
                         <span style={{ color: row.accent }}>●</span> {row.label}
                       </td>
-                      <td style={tdStyle}>{row.zona}</td>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>{row.comm.toFixed(1)}%</td>
-                      <td style={tdStyle}>{fmt(yNet)}</td>
+                      <td className="rent-td">{row.zona}</td>
+                      <td className="rent-td" style={{ fontWeight: 700 }}>
+                        {row.comm.toFixed(1)}%
+                      </td>
+                      <td className="rent-td">{fmt(yNet)}</td>
                       {rivalCols.map((c) => {
                         const rNet = netFor(refTier.dbCategory, c, liveTrips)
                         const delta = yNet != null && rNet != null ? yNet - rNet : null
                         return (
                           <td
                             key={c}
+                            className="rent-td"
                             style={{
-                              ...tdStyle,
                               color: delta == null ? 'inherit' : delta >= 0 ? '#16A34A' : '#DC2626',
                               fontWeight: 600,
                             }}
@@ -1148,24 +1152,24 @@ export default function Rentabilidad() {
       )}
 
       {/* ── Notas: fórmulas de cálculo ── */}
-      <div className="rent-panel" style={panelStyle}>
+      <div className="rent-panel">
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
           {t('rentabilidad.formulas')}
         </div>
         <div style={{ display: 'grid', gap: 10 }}>
-          <div style={formulaCardStyle}>
-            <div style={formulaLabelStyle}>{t('rentabilidad.formula_competitor')}</div>
-            <div style={formulaExprStyle}>{t('rentabilidad.formula_net_week')}</div>
-            <div style={formulaExprStyle}>{t('rentabilidad.formula_net_trip')}</div>
+          <div className="rent-formula-card">
+            <div className="rent-formula-label">{t('rentabilidad.formula_competitor')}</div>
+            <div className="rent-formula-expr">{t('rentabilidad.formula_net_week')}</div>
+            <div className="rent-formula-expr">{t('rentabilidad.formula_net_trip')}</div>
           </div>
-          <div style={formulaCardStyle}>
-            <div style={formulaLabelStyle}>Yango — {t('rentabilidad.formula_stacked')}</div>
-            <div style={formulaExprStyle}>
+          <div className="rent-formula-card">
+            <div className="rent-formula-label">Yango — {t('rentabilidad.formula_stacked')}</div>
+            <div className="rent-formula-expr">
               comisión_total = base_ciudad + partner(3%) + Σ herramientas
             </div>
             <div
+              className="rent-formula-expr"
               style={{
-                ...formulaExprStyle,
                 color: 'var(--color-yango, #E53935)',
                 fontWeight: 700,
                 fontSize: 14,
@@ -1174,7 +1178,10 @@ export default function Rentabilidad() {
               = {yangoBasePct}% ({dbCity}) + {YANGO_PARTNER_PCT}% + {yangoExtraPct.toFixed(1)}% ={' '}
               {yangoCommission.toFixed(1)}%
             </div>
-            <div style={{ ...formulaExprStyle, color: 'var(--color-muted)', fontSize: 11 }}>
+            <div
+              className="rent-formula-expr"
+              style={{ color: 'var(--color-muted)', fontSize: 11 }}
+            >
               herramientas: Mi Casa +5% · Mis Destinos +5% · Mi Zona 9·(1 − t^1.087)% · t =
               (cobertura_GMV − 0.251) / 0.749
             </div>
@@ -1187,7 +1194,7 @@ export default function Rentabilidad() {
 
       {/* ── Análisis auto-generado (Build 3) ── */}
       {hasData && refTier && (
-        <div className="rent-panel" style={panelStyle}>
+        <div className="rent-panel">
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
             {t('rentabilidad.analysis')}
           </div>
@@ -1228,13 +1235,13 @@ export default function Rentabilidad() {
             {t('rentabilidad.vs_competitors_tier')}
           </div>
           <div style={{ overflowX: 'auto', marginBottom: 18 }}>
-            <table style={matrixTableStyle}>
+            <table className="rent-matrix">
               <thead>
                 <tr>
-                  <th style={thStyle}>{t('rentabilidad.col_tier')}</th>
-                  <th style={thStyle}>Yango</th>
+                  <th className="rent-th">{t('rentabilidad.col_tier')}</th>
+                  <th className="rent-th">Yango</th>
                   {rivalCols.map((c) => (
-                    <th key={c} style={thStyle}>
+                    <th key={c} className="rent-th">
                       vs {c}
                     </th>
                   ))}
@@ -1243,13 +1250,15 @@ export default function Rentabilidad() {
               <tbody>
                 {tierComparison.map((row) => (
                   <tr key={row.uiCat}>
-                    <td style={{ ...tdStyle, fontWeight: 600 }}>{row.uiCat}</td>
-                    <td style={tdStyle}>{fmt(row.yNet)}</td>
+                    <td className="rent-td" style={{ fontWeight: 600 }}>
+                      {row.uiCat}
+                    </td>
+                    <td className="rent-td">{fmt(row.yNet)}</td>
                     {row.cells.map((c) => (
                       <td
                         key={c.comp}
+                        className="rent-td"
                         style={{
-                          ...tdStyle,
                           color: c.delta == null ? 'inherit' : c.delta >= 0 ? '#16A34A' : '#DC2626',
                           fontWeight: 600,
                         }}
@@ -1275,18 +1284,18 @@ export default function Rentabilidad() {
                     · {refTier.uiCat}
                   </span>
                 </div>
-                <table style={matrixTableStyle}>
+                <table className="rent-matrix">
                   <thead>
                     <tr>
-                      <th style={thStyle}>{t('rentabilidad.col_tool')}</th>
-                      <th style={thStyle}>+pp</th>
-                      <th style={thStyle}>{t('rentabilidad.cost')}</th>
+                      <th className="rent-th">{t('rentabilidad.col_tool')}</th>
+                      <th className="rent-th">+pp</th>
+                      <th className="rent-th">{t('rentabilidad.cost')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {toolCosts.items.map((it) => (
                       <tr key={it.key} style={{ opacity: it.active ? 1 : 0.5 }}>
-                        <td style={tdStyle}>
+                        <td className="rent-td">
                           {it.label}
                           {it.active && (
                             <span style={{ color: '#16A34A', marginLeft: 4 }}>
@@ -1294,18 +1303,20 @@ export default function Rentabilidad() {
                             </span>
                           )}
                         </td>
-                        <td style={tdStyle}>+{it.pct.toFixed(it.key === 'mi_zona' ? 1 : 0)}</td>
-                        <td style={{ ...tdStyle, color: '#DC2626' }}>−{fmt(it.cost)}</td>
+                        <td className="rent-td">+{it.pct.toFixed(it.key === 'mi_zona' ? 1 : 0)}</td>
+                        <td className="rent-td" style={{ color: '#DC2626' }}>
+                          −{fmt(it.cost)}
+                        </td>
                       </tr>
                     ))}
                     <tr>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>
+                      <td className="rent-td" style={{ fontWeight: 700 }}>
                         {t('rentabilidad.total_active')}
                       </td>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>
+                      <td className="rent-td" style={{ fontWeight: 700 }}>
                         +{toolCosts.totalPct.toFixed(1)}
                       </td>
-                      <td style={{ ...tdStyle, fontWeight: 700, color: '#DC2626' }}>
+                      <td className="rent-td" style={{ fontWeight: 700, color: '#DC2626' }}>
                         −{fmt(toolCosts.totalCost)}
                       </td>
                     </tr>
@@ -1392,97 +1403,6 @@ function Field({ label, children }) {
   )
 }
 
-const inputStyle = {
-  padding: '6px 10px',
-  border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 8,
-  fontSize: 13,
-  width: 90,
-  background: '#fff',
-}
-const advancedToggleStyle = {
-  padding: '6px 12px',
-  border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 8,
-  background: '#fff',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--color-muted)',
-  cursor: 'pointer',
-}
-const panelStyle = {
-  background: 'var(--color-panel, #fff)',
-  border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 10,
-  padding: 16,
-  marginBottom: 16,
-  boxShadow: 'var(--shadow-sm)',
-}
-const emptyStyle = {
-  padding: '40px 16px',
-  textAlign: 'center',
-  color: 'var(--color-muted)',
-  background: 'var(--color-panel, #fff)',
-  border: '1px dashed var(--color-border, #e2e8f0)',
-  borderRadius: 8,
-}
-const matrixTableStyle = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontSize: 13,
-}
-const thStyle = {
-  textAlign: 'left',
-  padding: '6px 10px',
-  borderBottom: '2px solid var(--color-border, #e2e8f0)',
-  fontSize: 11,
-  fontWeight: 600,
-  color: 'var(--color-muted)',
-  whiteSpace: 'nowrap',
-}
-const tdStyle = {
-  padding: '7px 10px',
-  borderBottom: '1px solid var(--color-border, #f1f5f9)',
-  whiteSpace: 'nowrap',
-}
-const formulaCardStyle = {
-  background: '#fff',
-  border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 8,
-  padding: '10px 14px',
-}
-const formulaLabelStyle = {
-  fontSize: 11,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: 0.4,
-  color: 'var(--color-muted)',
-  marginBottom: 4,
-}
-const formulaExprStyle = {
-  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  fontSize: 12.5,
-  lineHeight: 1.7,
-  color: 'var(--color-text)',
-}
-const chipStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 2,
-  border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 6,
-  padding: '2px 4px',
-}
-const selectStyle = {
-  padding: '6px 10px',
-  border: '1px solid var(--color-border, #e2e8f0)',
-  borderRadius: 8,
-  fontSize: 13,
-  fontWeight: 600,
-  background: '#fff',
-  cursor: 'pointer',
-  minWidth: 150,
-}
 function toggleStyle(active) {
   return {
     padding: '7px 14px',

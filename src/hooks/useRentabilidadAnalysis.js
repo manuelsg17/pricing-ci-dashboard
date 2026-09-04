@@ -1,8 +1,7 @@
 import { useMemo, useCallback } from 'react'
 import { getYangoDisplayName } from '../lib/constants'
 import { YANGO_TOOLS } from '../lib/yangoTools'
-import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
-import { yangoGmvBonus } from '../lib/yangoGmvBonus'
+import { resolveBonusWeekly } from '../lib/competitorBonus'
 import { isYangoBrand as isYango } from '../lib/normalize'
 
 // Extraído de Rentabilidad.jsx (Fase 1.2) — análisis derivado que alimenta
@@ -30,11 +29,8 @@ export function useRentabilidadAnalysis({
   commissions,
   archetype,
   hasData,
-  yangoCommission,
-  branded,
-  bonusFor,
-  yangoGmvTiers,
   asOf, // ISO date: vigencia de bonos/escaleras (mig 237)
+  netParts, // Fase D: la única fórmula de take-home (engine)
 }) {
   // data para un valor de viajes: [{ tier, [comp]: value }]
   const chartDataFor = useCallback(
@@ -205,20 +201,11 @@ export function useRentabilidadAnalysis({
     const div = metric === 'trip' ? liveTrips : 1
     const out = []
     for (const comp of visibleCompetitors) {
-      const pd = pricesByCat[refTier.dbCategory]?.[comp]
-      if (!pd || isNaN(pd.avg)) continue
-      const comm = isYango(comp)
-        ? yangoCommission
-        : effectiveCommission(commissions[comp] ?? 20, bonuses[comp], archetype.sharePeak, {
-            dbCategory: refTier.dbCategory,
-            segment: archetype.segment,
-            asOf,
-          })
-      const fareWeek = pd.avg * liveTrips * (1 - comm / 100)
-      const gmv = isYango(comp)
-        ? yangoGmvBonus(dbCity, refTier.dbCategory, branded, pd.avg, liveTrips, yangoGmvTiers, asOf)
-        : 0
-      const bonusWeek = bonusFor(comp, refTier.dbCategory, liveTrips, pd.avg) + gmv
+      // Fase D: misma fórmula que netFor, sin copiarla (engine.netParts).
+      const p = netParts(comp, refTier.dbCategory, liveTrips)
+      if (!p) continue
+      const pd = { avg: p.fare }
+      const { comm, fareWeek, bonusWeek } = p
       out.push({
         comp,
         comm,
@@ -237,23 +224,7 @@ export function useRentabilidadAnalysis({
       })
     }
     return out
-  }, [
-    asOf,
-    refTier,
-    hasData,
-    liveTrips,
-    metric,
-    visibleCompetitors,
-    pricesByCat,
-    yangoCommission,
-    commissions,
-    bonuses,
-    archetype,
-    dbCity,
-    branded,
-    bonusFor,
-    yangoGmvTiers,
-  ])
+  }, [netParts, refTier, hasData, liveTrips, metric, visibleCompetitors])
 
   // Mejor competidor (mayor total) + posición de Yango en el ranking de rentabilidad.
   const breakdownStats = useMemo(() => {
