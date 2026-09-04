@@ -37,6 +37,19 @@ export const COMPETITOR_COLORS = {
   Picap: '#FB923C', // Colombia/Bike — alinea con catalogs.js
 }
 
+// Formas con espacio pre-mig 72: solo para leer reportes/snapshots viejos.
+// Nunca se ofrecen en un selector — en BD (mig 239) y en el cliente
+// (canonicalCompetitorName) siempre se persiste la forma pegada.
+export const LEGACY_SPACE_FORM_COMPETITORS = new Set(
+  Object.keys(COMPETITOR_COLORS).filter((k) => k.includes(' '))
+)
+
+// Lo que un selector de competidor debe ofrecer: todo lo que tiene color,
+// menos las formas legacy con espacio.
+export const CANONICAL_COMPETITOR_NAMES = Object.keys(COMPETITOR_COLORS).filter(
+  (k) => !LEGACY_SPACE_FORM_COMPETITORS.has(k)
+)
+
 // ── Brackets (globales) ───────────────────────────────────
 export const BRACKETS = ['very_short', 'short', 'median', 'average', 'long', 'very_long']
 

@@ -66,6 +66,12 @@ console.log('\n══ Catalog tests ══')
   assert(normalizeCompetitor('Beat')     === 'Beat',    'Beat → Beat')
   assert(normalizeCompetitor(null)       === null,      'null → null')
   assert(normalizeCompetitor('foo')      === null,      'desconocido → null')
+  // Mig 239: sub-marcas siempre pegadas, las formas con espacio son solo alias
+  assert(normalizeCompetitor('Yango Premier')  === 'YangoPremier',  'Yango Premier → YangoPremier')
+  assert(normalizeCompetitor('yango_comfort+') === 'YangoComfort+', 'yango_comfort+ → YangoComfort+')
+  assert(normalizeCompetitor('Yango XL')       === 'YangoXL',       'Yango XL → YangoXL')
+  assert(normalizeCompetitor('Cabify Lite')    === 'CabifyLite',    'Cabify Lite → CabifyLite')
+  assert(CATALOG_COMPETITORS.every(c => !c.value.includes(' ') || c.value === c.value.trim() && !/^(Yango|Cabify) /.test(c.value)), 'ninguna sub-marca Yango/Cabify con espacio en el catálogo')
 }
 
 // — Colores

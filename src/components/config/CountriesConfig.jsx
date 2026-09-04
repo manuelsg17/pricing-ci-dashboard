@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../../lib/supabase'
-import { COUNTRY_CONFIG, COMPETITOR_COLORS, CURRENCY_PRESETS } from '../../lib/constants'
+import {
+  COUNTRY_CONFIG,
+  COMPETITOR_COLORS,
+  CURRENCY_PRESETS,
+  LEGACY_SPACE_FORM_COMPETITORS,
+} from '../../lib/constants'
 import { CATALOG_CATEGORIES } from '../../lib/catalogs'
 import { useCountry } from '../../context/CountryContext'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -21,16 +26,6 @@ const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
 // últimos grupos salvo que se esté editando la ciudad "Corp" de Perú —
 // si no, cualquier país nuevo ve una lista de 29 opciones sin sentido
 // para su caso (bug reportado onboardeando Bolivia).
-const LEGACY_SPACE_FORM_COMPETITORS = new Set([
-  'Yango Economy',
-  'Yango Comfort',
-  'Yango Comfort+',
-  'Yango Premier',
-  'Yango XL',
-  'Cabify Lite',
-  'Cabify Extra Comfort',
-  'Cabify XL',
-])
 const CORP_ONLY_COMPETITORS = new Set([
   'YangoEconomy',
   'YangoComfort+',

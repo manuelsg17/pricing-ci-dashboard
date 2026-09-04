@@ -214,10 +214,13 @@ export function rivalsOf(competitors, base) {
 
 /**
  * Normaliza competition_name a forma canónica. Idempotente y tolerante
- * a variantes (case, espacios). Es CONTEXT-AWARE por city porque en
- * city='Corp' la convención canónica usa nombres con espacios
- * ('Yango Comfort', 'Cabify Extra Comfort'), mientras que en el resto
- * de categorías el canónico es pegado ('YangoComfort').
+ * a variantes (case, espacios). Es CONTEXT-AWARE por city: los alias de
+ * sub-marca (fingerprint sin espacios → forma pegada 'YangoComfort') solo
+ * se aplican en city='Corp', que es donde históricamente entraron con
+ * espacio. Fuera de Corp no se toca nada que no sea casing universal, para
+ * no reescribir data legítima desconocida. Para tablas de configuración
+ * (comisiones, bonos, bandas), donde el nombre tiene que matchear
+ * pricing_observations sin importar la ciudad, usar canonicalCompetitorName.
  *
  * Es la ÚNICA fuente de verdad para qué string termina en
  * pricing_observations.competition_name. Llamar SIEMPRE antes de INSERT.
@@ -250,4 +253,24 @@ export function normalizeCompetitorName(raw, { city } = {}) {
   // (3) Nada matcheó — devolver tal cual. No inventamos canonicalizaciones
   // para evitar regresiones en data legítima desconocida.
   return trimmed === raw ? raw : trimmed
+}
+
+/**
+ * Forma canónica de un nombre de competidor SIN contexto de ciudad — para
+ * tablas de configuración (competitor_commissions, competitor_bonuses,
+ * competitive_bands) cuyo nombre se usa como clave contra
+ * pricing_observations.competition_name en cualquier ciudad.
+ *
+ * Aplica siempre el diccionario de sub-marcas (la forma pegada es la
+ * canónica en TODA la base desde mig 72/96: 'Yango Comfort' → 'YangoComfort').
+ * Es el espejo JS del trigger normalize_config_competitor_name (mig 239).
+ *
+ *   canonicalCompetitorName('Yango Comfort')  === 'YangoComfort'
+ *   canonicalCompetitorName('yango premier')  === 'YangoPremier'
+ *   canonicalCompetitorName('YangoComfort')   === 'YangoComfort'
+ *   canonicalCompetitorName('uber')           === 'Uber'
+ *   canonicalCompetitorName('Picap')          === 'Picap'
+ */
+export function canonicalCompetitorName(raw) {
+  return normalizeCompetitorName(raw, { city: 'Corp' })
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { isValidOn } from '../lib/competitorBonus'
 import { toISODate } from '../lib/dateUtils'
+import { canonicalCompetitorName } from '../lib/normalize'
 
 // `asOf` (opcional): fecha ISO 'YYYY-MM-DD' o rango { from, to } inclusive.
 // Trae solo los bonos VIGENTES en ese momento/semana (mig 237). Sin asOf trae
@@ -58,7 +59,7 @@ export function useCompetitorBonuses(city, country, asOf = null) {
     (row) => {
       const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
       return {
-        competitor_name: row.competitor_name,
+        competitor_name: canonicalCompetitorName(row.competitor_name),
         city: row.city || null,
         category: row.category || null, // null = todas las categorías
         country,

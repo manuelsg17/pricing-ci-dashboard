@@ -17,34 +17,115 @@ import { toSnakeCase } from './normalize.js'
 // vía `Config → Países → + Custom` y queda en `catalog_extras`.
 
 export const CATALOG_CATEGORIES = [
-  { value: 'Economy',         label: 'Economy',         aliases: ['economy', 'economi', 'standard', 'basic', 'classic'] },
-  { value: 'Economy/Comfort', label: 'Economy/Comfort', aliases: ['economy/comfort', 'economy_comfort', 'eco_comfort'] },
-  { value: 'Comfort',         label: 'Comfort',         aliases: ['comfort', 'confort'] },
-  { value: 'Comfort+',        label: 'Comfort+',        aliases: ['comfort+', 'comfort_plus', 'comfortplus', 'comfort_mas'] },
-  { value: 'Premier',         label: 'Premier',         aliases: ['premier', 'premium', 'lujo', 'lux', 'business'] },
-  { value: 'Bike',            label: 'Bike',            aliases: ['bike', 'moto', 'motorbike', 'motorcycle', 'mototaxi'] },
-  { value: 'TukTuk',          label: 'TukTuk',          aliases: ['tuktuk', 'tuk_tuk', 'tuc_tuc', 'autorickshaw'] },
-  { value: 'XL',              label: 'XL',              aliases: ['xl', 'extra_large', 'van', 'minivan', 'group'] },
-  { value: 'Corp',            label: 'Corp',            aliases: ['corp', 'corporativo', 'corporate', 'empresa'] },
-  { value: 'Aeropuerto',      label: 'Aeropuerto',      aliases: ['aeropuerto', 'airport', 'aeroporto'] },
+  {
+    value: 'Economy',
+    label: 'Economy',
+    aliases: ['economy', 'economi', 'standard', 'basic', 'classic'],
+  },
+  {
+    value: 'Economy/Comfort',
+    label: 'Economy/Comfort',
+    aliases: ['economy/comfort', 'economy_comfort', 'eco_comfort'],
+  },
+  { value: 'Comfort', label: 'Comfort', aliases: ['comfort', 'confort'] },
+  {
+    value: 'Comfort+',
+    label: 'Comfort+',
+    aliases: ['comfort+', 'comfort_plus', 'comfortplus', 'comfort_mas'],
+  },
+  {
+    value: 'Premier',
+    label: 'Premier',
+    aliases: ['premier', 'premium', 'lujo', 'lux', 'business'],
+  },
+  {
+    value: 'Bike',
+    label: 'Bike',
+    aliases: ['bike', 'moto', 'motorbike', 'motorcycle', 'mototaxi'],
+  },
+  { value: 'TukTuk', label: 'TukTuk', aliases: ['tuktuk', 'tuk_tuk', 'tuc_tuc', 'autorickshaw'] },
+  { value: 'XL', label: 'XL', aliases: ['xl', 'extra_large', 'van', 'minivan', 'group'] },
+  { value: 'Corp', label: 'Corp', aliases: ['corp', 'corporativo', 'corporate', 'empresa'] },
+  { value: 'Aeropuerto', label: 'Aeropuerto', aliases: ['aeropuerto', 'airport', 'aeroporto'] },
 ]
 
 export const CATALOG_COMPETITORS = [
-  { value: 'Yango',         color: '#E53935', botApps: ['yango', 'yango_api'],         aliases: ['yango', 'yango_api'] },
-  { value: 'YangoComfort',  color: '#C62828', botApps: ['yango'],                       aliases: ['yangocomfort', 'yango_comfort'] },
-  { value: 'Yango Premier', color: '#B71C1C', botApps: ['yango'],                       aliases: ['yango_premier', 'yangopremier', 'yango premier'] },
-  { value: 'Yango Comfort+', color: '#D32F2F', botApps: ['yango'],                      aliases: ['yango_comfort+', 'yango comfort+', 'yangocomfortplus'] },
-  { value: 'Yango XL',      color: '#EF5350', botApps: ['yango'],                       aliases: ['yango_xl', 'yangoxl'] },
-  { value: 'Uber',          color: '#1F2937', botApps: ['uber'],                        aliases: ['uber'] },
-  { value: 'Didi',          color: '#FF7E1B', botApps: ['didi'],                        aliases: ['didi', 'didi_express'] },
-  { value: 'InDrive',       color: '#00C853', botApps: ['indrive', 'indriver'],         aliases: ['indrive', 'in_drive', 'indriver'] },
-  { value: 'Cabify',        color: '#7B1FA2', botApps: ['cabify'],                      aliases: ['cabify'] },
-  { value: 'Cabify Lite',   color: '#9C27B0', botApps: ['cabify'],                      aliases: ['cabify_lite', 'cabifylite'] },
-  { value: 'Cabify XL',     color: '#AB47BC', botApps: ['cabify'],                      aliases: ['cabify_xl', 'cabifyxl'] },
-  { value: 'Picap',         color: '#FB923C', botApps: ['picap'],                       aliases: ['picap'] },
-  { value: 'Beat',          color: '#0EA5E9', botApps: ['beat'],                        aliases: ['beat'] },
-  { value: 'Bolt',          color: '#84CC16', botApps: ['bolt'],                        aliases: ['bolt'] },
-  { value: 'Rappi',         color: '#FF1744', botApps: ['rappi'],                       aliases: ['rappi'] },
+  {
+    value: 'Yango',
+    color: '#E53935',
+    botApps: ['yango', 'yango_api'],
+    aliases: ['yango', 'yango_api'],
+  },
+  {
+    value: 'YangoComfort',
+    color: '#C62828',
+    botApps: ['yango'],
+    aliases: ['yangocomfort', 'yango_comfort'],
+  },
+  // Sub-marcas SIEMPRE en forma pegada: es lo que persiste el bot en
+  // pricing_observations y lo que exige el trigger de mig 239 en las tablas
+  // de configuración. Las formas con espacio quedan solo como alias de entrada.
+  {
+    value: 'YangoEconomy',
+    color: '#E53935',
+    botApps: ['yango'],
+    aliases: ['yango_economy', 'yangoeconomy', 'yango economy'],
+  },
+  {
+    value: 'YangoPremier',
+    color: '#B71C1C',
+    botApps: ['yango'],
+    aliases: ['yango_premier', 'yangopremier', 'yango premier'],
+  },
+  {
+    value: 'YangoComfort+',
+    color: '#D32F2F',
+    botApps: ['yango'],
+    aliases: ['yango_comfort+', 'yango comfort+', 'yangocomfortplus'],
+  },
+  {
+    value: 'YangoPlus',
+    color: '#C62828',
+    botApps: ['yango'],
+    aliases: ['yango_plus', 'yangoplus', 'yango plus'],
+  },
+  {
+    value: 'YangoXL',
+    color: '#EF5350',
+    botApps: ['yango'],
+    aliases: ['yango_xl', 'yangoxl', 'yango xl'],
+  },
+  { value: 'Uber', color: '#1F2937', botApps: ['uber'], aliases: ['uber'] },
+  { value: 'Didi', color: '#FF7E1B', botApps: ['didi'], aliases: ['didi', 'didi_express'] },
+  {
+    value: 'InDrive',
+    color: '#00C853',
+    botApps: ['indrive', 'indriver'],
+    aliases: ['indrive', 'in_drive', 'indriver'],
+  },
+  { value: 'Cabify', color: '#7B1FA2', botApps: ['cabify'], aliases: ['cabify'] },
+  {
+    value: 'CabifyLite',
+    color: '#9C27B0',
+    botApps: ['cabify'],
+    aliases: ['cabify_lite', 'cabifylite', 'cabify lite'],
+  },
+  {
+    value: 'CabifyExtraComfort',
+    color: '#6A1B9A',
+    botApps: ['cabify'],
+    aliases: ['cabify_extra_comfort', 'cabifyextracomfort', 'cabify extra comfort'],
+  },
+  {
+    value: 'CabifyXL',
+    color: '#AB47BC',
+    botApps: ['cabify'],
+    aliases: ['cabify_xl', 'cabifyxl', 'cabify xl'],
+  },
+  { value: 'Picap', color: '#FB923C', botApps: ['picap'], aliases: ['picap'] },
+  { value: 'Beat', color: '#0EA5E9', botApps: ['beat'], aliases: ['beat'] },
+  { value: 'Bolt', color: '#84CC16', botApps: ['bolt'], aliases: ['bolt'] },
+  { value: 'Rappi', color: '#FF1744', botApps: ['rappi'], aliases: ['rappi'] },
 ]
 
 // Lookup mapas — construidos una vez al cargar el módulo
@@ -94,7 +175,7 @@ export function normalizeCompetitor(input) {
 export function getCompetitorColor(name) {
   const canonical = normalizeCompetitor(name)
   if (canonical) {
-    const entry = CATALOG_COMPETITORS.find(c => c.value === canonical)
+    const entry = CATALOG_COMPETITORS.find((c) => c.value === canonical)
     if (entry?.color) return entry.color
   }
   // Hash determinístico para no-catalogados
@@ -113,24 +194,76 @@ export function getCompetitorColor(name) {
 export const BOT_RULES_TEMPLATES = {
   // Colombia-like — apps típicas LATAM con foco en COP
   COP: [
-    { app: 'yango',     vc: 'economy',    ovc: 'economy', competition_name: 'Yango',   category: 'Economy' },
-    { app: 'yango_api', vc: 'economy',    ovc: 'economy', competition_name: 'Yango',   category: 'Economy' },
-    { app: 'yango',     vc: 'comfort',    ovc: 'comfort', competition_name: 'Yango',   category: 'Comfort' },
-    { app: 'yango_api', vc: 'comfort',    ovc: 'comfort', competition_name: 'Yango',   category: 'Comfort' },
-    { app: 'didi',      vc: 'economy',    ovc: 'express', competition_name: 'Didi',    category: 'Economy' },
-    { app: 'uber',      vc: 'economy',    ovc: 'uberx',   competition_name: 'Uber',    category: 'Economy' },
-    { app: 'indrive',   vc: 'economy',    ovc: 'viaje',   competition_name: 'InDrive', category: 'Economy' },
+    { app: 'yango', vc: 'economy', ovc: 'economy', competition_name: 'Yango', category: 'Economy' },
+    {
+      app: 'yango_api',
+      vc: 'economy',
+      ovc: 'economy',
+      competition_name: 'Yango',
+      category: 'Economy',
+    },
+    { app: 'yango', vc: 'comfort', ovc: 'comfort', competition_name: 'Yango', category: 'Comfort' },
+    {
+      app: 'yango_api',
+      vc: 'comfort',
+      ovc: 'comfort',
+      competition_name: 'Yango',
+      category: 'Comfort',
+    },
+    { app: 'didi', vc: 'economy', ovc: 'express', competition_name: 'Didi', category: 'Economy' },
+    { app: 'uber', vc: 'economy', ovc: 'uberx', competition_name: 'Uber', category: 'Economy' },
+    {
+      app: 'indrive',
+      vc: 'economy',
+      ovc: 'viaje',
+      competition_name: 'InDrive',
+      category: 'Economy',
+    },
   ],
   // Peru-like
   PEN: [
-    { app: 'yango_api', vc: 'economy',    ovc: 'economy',  competition_name: 'Yango',   category: 'Economy/Comfort' },
-    { app: 'yango_api', vc: 'comfort',    ovc: 'comfort',  competition_name: 'Yango',   category: 'Economy/Comfort' },
-    { app: 'didi',      vc: 'economy',    ovc: 'express',  competition_name: 'Didi',    category: 'Economy/Comfort' },
-    { app: 'uber',      vc: 'economy',    ovc: 'uberx',    competition_name: 'Uber',    category: 'Economy/Comfort' },
-    { app: 'indrive',   vc: 'economy',    ovc: 'viaje',    competition_name: 'InDrive', category: 'Economy/Comfort' },
+    {
+      app: 'yango_api',
+      vc: 'economy',
+      ovc: 'economy',
+      competition_name: 'Yango',
+      category: 'Economy/Comfort',
+    },
+    {
+      app: 'yango_api',
+      vc: 'comfort',
+      ovc: 'comfort',
+      competition_name: 'Yango',
+      category: 'Economy/Comfort',
+    },
+    {
+      app: 'didi',
+      vc: 'economy',
+      ovc: 'express',
+      competition_name: 'Didi',
+      category: 'Economy/Comfort',
+    },
+    {
+      app: 'uber',
+      vc: 'economy',
+      ovc: 'uberx',
+      competition_name: 'Uber',
+      category: 'Economy/Comfort',
+    },
+    {
+      app: 'indrive',
+      vc: 'economy',
+      ovc: 'viaje',
+      competition_name: 'InDrive',
+      category: 'Economy/Comfort',
+    },
   ],
   // Bolivia / Nepal / Venezuela / Zambia — template mínimo genérico
-  BOB: 'PEN', NPR: 'PEN', VES: 'PEN', ZMW: 'PEN', USD: 'PEN',
+  BOB: 'PEN',
+  NPR: 'PEN',
+  VES: 'PEN',
+  ZMW: 'PEN',
+  USD: 'PEN',
 }
 
 export function getBotRulesTemplate(currency) {

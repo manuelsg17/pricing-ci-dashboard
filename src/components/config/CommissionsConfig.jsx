@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Percent, Plus, Trash2, Save } from 'lucide-react'
 import { useCompetitorCommissions } from '../../hooks/useCompetitorCommissions'
-import { getCountryConfig, COMPETITOR_COLORS } from '../../lib/constants'
+import {
+  getCountryConfig,
+  COMPETITOR_COLORS,
+  CANONICAL_COMPETITOR_NAMES,
+} from '../../lib/constants'
 import { Combobox } from '../ui/shadcn/combobox'
 import SaveStatusBanner from './SaveStatusBanner'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -9,7 +13,9 @@ import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
-const ALL_COMPETITORS = Object.keys(COMPETITOR_COLORS)
+// Sin las formas legacy con espacio ('Yango Comfort'): en prod convivían con
+// 'YangoComfort' y Rentabilidad las mostraba como dos competidores (mig 239).
+const ALL_COMPETITORS = CANONICAL_COMPETITOR_NAMES
 
 const DIRTY_STYLE = {
   background: '#fef3c7',

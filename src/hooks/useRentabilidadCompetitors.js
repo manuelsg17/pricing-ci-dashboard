@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getCompetitors } from '../lib/constants'
-import { normalizeCompetitorName, isYangoBrand as isYango } from '../lib/normalize'
+import { canonicalCompetitorName, isYangoBrand as isYango } from '../lib/normalize'
 
 // Extraído de Rentabilidad.jsx (Fase 1.2) — catálogo de competidores a
 // mostrar (unión catálogo + data real + comisiones) y la selección
@@ -26,7 +26,7 @@ export function useRentabilidadCompetitors({
     }
     for (const r of commRows) {
       if (!r.city || r.city === dbCity)
-        set.add(normalizeCompetitorName(r.competitor_name, { city: r.city }) || r.competitor_name)
+        set.add(canonicalCompetitorName(r.competitor_name) || r.competitor_name)
     }
     return [...set].sort((a, b) =>
       isYango(a) === isYango(b) ? a.localeCompare(b) : isYango(a) ? -1 : 1

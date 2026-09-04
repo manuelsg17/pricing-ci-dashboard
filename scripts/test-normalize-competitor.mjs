@@ -4,7 +4,7 @@
 //
 // Run: node scripts/test-normalize-competitor.mjs
 
-import { normalizeCompetitorName } from '../src/lib/normalize.js'
+import { normalizeCompetitorName, canonicalCompetitorName } from '../src/lib/normalize.js'
 
 const cases = [
   // [label, input, options, expected]
@@ -139,3 +139,29 @@ if (fail > 0) {
   process.exit(1)
 }
 console.log('Todo OK ✓')
+
+// ── canonicalCompetitorName (mig 239): sin contexto de ciudad ────────────
+{
+  const cases = [
+    ['Yango Comfort', 'YangoComfort'],
+    ['yango premier', 'YangoPremier'],
+    ['Yango Comfort+', 'YangoComfort+'],
+    ['Yango XL', 'YangoXL'],
+    ['YangoComfort', 'YangoComfort'],
+    ['Cabify Lite', 'CabifyLite'],
+    ['uber', 'Uber'],
+    ['Picap', 'Picap'],
+    [' Didi ', 'Didi'],
+    [null, null],
+  ]
+  let bad = 0
+  for (const [input, expected] of cases) {
+    const got = canonicalCompetitorName(input)
+    if (got !== expected) {
+      bad++
+      console.error(`✗ canonicalCompetitorName(${JSON.stringify(input)}) = ${JSON.stringify(got)}, esperado ${JSON.stringify(expected)}`)
+    }
+  }
+  if (bad) process.exit(1)
+  console.log(`✓ canonicalCompetitorName: ${cases.length} casos`)
+}

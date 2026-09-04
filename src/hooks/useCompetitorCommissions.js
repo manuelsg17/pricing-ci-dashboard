@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { sb } from '../lib/supabase'
-import { normalizeCompetitorName } from '../lib/normalize'
+import { canonicalCompetitorName } from '../lib/normalize'
 
 export function useCompetitorCommissions(city, country) {
   const [allRows, setAllRows] = useState([])
@@ -39,21 +39,19 @@ export function useCompetitorCommissions(city, country) {
   // Returns commission_pct for a competitor, preferring city-specific over global (city=null).
   // Defense-in-depth: el nombre del competidor en competitor_commissions
   // tiene que matchear el de pricing_observations al hacer commissions[comp].
-  // Si en la tabla quedó un nombre legacy ('YangoEconomy' vs 'Yango Economy'),
-  // ambos lados (lookup en DriverEarnings y este map) terminan con el mismo
-  // canónico y la búsqueda funciona.
+  // Si en la tabla quedó un nombre legacy ('Yango Comfort' vs 'YangoComfort'),
+  // ambos lados (lookup en Rentabilidad y este map) terminan con el mismo
+  // canónico y la búsqueda funciona. La BD también lo garantiza (mig 239).
   const commissions = useMemo(() => {
     const result = {}
     for (const row of allRows) {
-      const name =
-        normalizeCompetitorName(row.competitor_name, { city: row.city }) || row.competitor_name
+      const name = canonicalCompetitorName(row.competitor_name) || row.competitor_name
       if (row.city === null || row.city === undefined) {
         if (result[name] === undefined) result[name] = row.commission_pct
       }
     }
     for (const row of allRows) {
-      const name =
-        normalizeCompetitorName(row.competitor_name, { city: row.city }) || row.competitor_name
+      const name = canonicalCompetitorName(row.competitor_name) || row.competitor_name
       if (row.city === city) result[name] = row.commission_pct
     }
     return result
@@ -71,7 +69,7 @@ export function useCompetitorCommissions(city, country) {
       if (!Number.isFinite(pct) || pct < 0 || pct > 100)
         return { ok: false, code: 'invalid_pct', error: null }
       const payload = {
-        competitor_name: row.competitor_name.trim(),
+        competitor_name: canonicalCompetitorName(row.competitor_name),
         city: row.city || null,
         country,
         commission_pct: pct,
