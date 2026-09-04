@@ -3,8 +3,7 @@ import { getYangoDisplayName } from '../lib/constants'
 import { YANGO_TOOLS } from '../lib/yangoTools'
 import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
 import { yangoGmvBonus } from '../lib/yangoGmvBonus'
-
-const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
+import { isYangoBrand as isYango } from '../lib/normalize'
 
 // Extraído de Rentabilidad.jsx (Fase 1.2) — análisis derivado que alimenta
 // los gráficos, la matriz de escenarios y la sección "Análisis auto-generado":

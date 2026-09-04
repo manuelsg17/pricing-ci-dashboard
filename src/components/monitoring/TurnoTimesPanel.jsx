@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { toISODate } from '../../lib/dateUtils'
 import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import { sb } from '../../lib/supabase'
@@ -53,7 +54,7 @@ export default function TurnoTimesPanel() {
 
     const hasta = new Date()
     const desde = new Date(hasta.getTime() - dias * 86400000)
-    const iso = (d) => d.toISOString().slice(0, 10)
+    const iso = (d) => toISODate(d)
 
     const [turnos, calidad] = await Promise.all([
       sb.rpc('ci_turno_minutes', { p_country: country, p_from: iso(desde), p_to: iso(hasta) }),

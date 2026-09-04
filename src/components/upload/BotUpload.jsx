@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { AlertTriangle } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { sb } from '../../lib/supabase'

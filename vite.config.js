@@ -94,6 +94,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Código propio pesado que es DATOS, no lógica: cada diccionario en
+          // su chunk (en/ru se cargan bajo demanda) y el catálogo de países
+          // aparte. Sin esto Rollup los metía en el chunk compartido más
+          // temprano (543 kB en el camino crítico, revisión 2026-09-03).
+          if (/\/src\/lib\/i18n\/(es|en|ru)\.js$/.test(id)) return `i18n-${RegExp.$1}`
+          if (id.endsWith('/src/lib/constants.js')) return 'app-config'
           if (!id.includes('node_modules')) return undefined
           if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'vendor-react'
           if (id.includes('@supabase/supabase-js')) return 'vendor-supabase'
@@ -102,6 +108,7 @@ export default defineConfig({
         },
       },
     },
-    chunkSizeWarningLimit: 600,
+    // 400: que el build vuelva a avisar — el chunk de 543 kB pasaba en silencio con 600.
+    chunkSizeWarningLimit: 400,
   },
 })

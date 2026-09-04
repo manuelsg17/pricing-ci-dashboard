@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getCompetitors } from '../lib/constants'
-import { normalizeCompetitorName } from '../lib/normalize'
-
-const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
+import { normalizeCompetitorName, isYangoBrand as isYango } from '../lib/normalize'
 
 // Extraído de Rentabilidad.jsx (Fase 1.2) — catálogo de competidores a
 // mostrar (unión catálogo + data real + comisiones) y la selección

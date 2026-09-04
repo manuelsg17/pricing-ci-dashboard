@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
+import { toISODate } from '../../lib/dateUtils'
 import { getCountryConfig, getCompetitors } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
@@ -131,7 +133,7 @@ export default function FilterBar({ className = '' }) {
     if (day !== 1) {
       d.setDate(d.getDate() - (day - 1))
     }
-    setWeekStart(d.toISOString().slice(0, 10))
+    setWeekStart(toISODate(d))
   }
 
   // Chips de filtros activos (no-default): zona / surge / fuente / franja.

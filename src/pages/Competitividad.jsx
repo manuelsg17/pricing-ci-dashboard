@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import '../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { Download, Circle } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/shadcn/tabs'
 import { Button } from '../components/ui/shadcn/button'

@@ -1,4 +1,5 @@
 /**
+import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
  * InDriveConfig.jsx
  *
  * Dos secciones:

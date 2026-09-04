@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { toISODate } from '../lib/dateUtils'
 import { sb } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { useI18n } from '../context/LanguageContext'
@@ -25,13 +26,13 @@ const IMPACT_OPTIONS = [
 ]
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return toISODate(new Date())
 }
 
 function thirtyDaysAgo() {
   const d = new Date()
   d.setDate(d.getDate() - 30)
-  return d.toISOString().slice(0, 10)
+  return toISODate(d)
 }
 
 import { useCountry } from '../context/CountryContext'

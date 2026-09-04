@@ -9,8 +9,7 @@ import {
 import { gmvInsideRatio, miZonaCommissionForSelection } from '../lib/limaZones'
 import { resolveBonusWeekly, effectiveCommission } from '../lib/competitorBonus'
 import { yangoGmvBonus } from '../lib/yangoGmvBonus'
-
-const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
+import { isYangoBrand as isYango } from '../lib/normalize'
 
 // Extraído de Rentabilidad.jsx (Fase 1.2) — el motor de pricing: comisión
 // apilable de Yango (base ciudad + partner + herramientas) y las funciones

@@ -1,4 +1,5 @@
 /**
+import '../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
  * Config — Sprint 2.3 — Reorganización en 5 categorías con shadcn Tabs.
  *
  * ANTES: 13 tabs planos horizontales → scroll horizontal en pantallas

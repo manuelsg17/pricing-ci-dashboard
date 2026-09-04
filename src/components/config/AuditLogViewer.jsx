@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
+import { toISODate } from '../../lib/dateUtils'
 import { sb } from '../../lib/supabase'
 import { useI18n } from '../../context/LanguageContext'
 import { useAccessControl } from '../../hooks/useAccessControl'
@@ -64,7 +66,7 @@ export default function AuditLogViewer() {
     // Default: hoy - 7 días
     const d = new Date()
     d.setDate(d.getDate() - 7)
-    return d.toISOString().slice(0, 10)
+    return toISODate(d)
   })
 
   const load = useCallback(async () => {

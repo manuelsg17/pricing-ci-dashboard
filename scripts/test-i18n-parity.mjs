@@ -19,7 +19,14 @@
 //
 // Run: node scripts/test-i18n-parity.mjs
 
-import { TRANSLATIONS, LANGUAGES } from '../src/lib/i18n.js'
+import { LANGUAGES } from '../src/lib/i18n.js'
+import es from '../src/lib/i18n/es.js'
+import en from '../src/lib/i18n/en.js'
+import ru from '../src/lib/i18n/ru.js'
+
+// Desde el split (2026-09-03) i18n.js solo trae el español al arranque; la
+// paridad se comprueba sobre los tres archivos directamente.
+const TRANSLATIONS = { es, en, ru }
 import { readFileSync } from 'node:fs'
 
 let fail = 0

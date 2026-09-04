@@ -13,6 +13,7 @@ import {
 import { COMPETITOR_COLORS, resolveDbParams } from '../lib/constants'
 import { useConfigContext } from '../context/ConfigProvider'
 import { getISOYearWeek, isoWeekMonday, toISODate } from '../lib/dateUtils'
+import { isYangoBrand } from '../lib/normalize'
 import { useCompetitorCommissions } from '../hooks/useCompetitorCommissions'
 import { useCompetitorBonuses } from '../hooks/useCompetitorBonuses'
 import { useCountry } from '../context/CountryContext'
@@ -35,7 +36,8 @@ import BonusSummaryByCity from '../components/dashboard/BonusSummaryByCity'
 import { Button } from '../components/ui/shadcn/button'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-const isYango = (c) => c.startsWith('Yango') || c.startsWith('yango')
+// isYango: única implementación en lib/normalize (antes había 5 copias).
+const isYango = isYangoBrand
 
 function formatWeekLabel(year, week) {
   return `Sem ${week} / ${year}`

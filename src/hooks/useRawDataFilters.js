@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { toISODate } from '../lib/dateUtils'
 import { sb } from '../lib/supabase'
 
 // Extraído de RawData.jsx (Fase 1.2) — agrupa los filtros de la página, su
@@ -21,7 +22,7 @@ function getInitialState(key, defaultVal) {
 function getDefaultDateFrom() {
   const d = new Date()
   d.setDate(d.getDate() - 30)
-  return d.toISOString().slice(0, 10)
+  return toISODate(d)
 }
 
 export function useRawDataFilters({ country, config }) {

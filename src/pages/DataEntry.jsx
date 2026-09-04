@@ -23,7 +23,7 @@ import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
 import { capIndriveExtraBids } from '../lib/indriveAvg'
-import { getISOYearWeek } from '../lib/dateUtils'
+import { getISOYearWeek, toISODate } from '../lib/dateUtils'
 import { turnoBreakdownLabel } from '../lib/timing'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
 import { useCITimeslots } from '../hooks/useCITimeslots'
@@ -59,7 +59,7 @@ const CAT_COLORS = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return toISODate(new Date())
 }
 
 // Cuenta solo celdas con un valor numérico real — una celda tipeada y
@@ -298,9 +298,9 @@ export default function DataEntry() {
   const [histFrom, setHistFrom] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() - 30)
-    return d.toISOString().slice(0, 10)
+    return toISODate(d)
   })
-  const [histTo, setHistTo] = useState(() => new Date().toISOString().slice(0, 10))
+  const [histTo, setHistTo] = useState(() => toISODate(new Date()))
   const [histCity, setHistCity] = useState('')
   const [histEmail, setHistEmail] = useState('')
 

@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { toISODate } from '../lib/dateUtils'
 import { sb } from '../lib/supabase'
 
 function daysAgo(n) {
   const d = new Date()
   d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  return toISODate(d)
 }
 function today() {
-  return new Date().toISOString().slice(0, 10)
+  return toISODate(new Date())
 }
 
 // Carga por rango de fecha para el Monitoreo "histórico" (no en vivo): carga

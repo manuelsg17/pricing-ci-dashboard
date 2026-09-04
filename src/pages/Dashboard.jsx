@@ -578,9 +578,8 @@ function DashboardContent() {
         <>
           {/* Head-to-Head y Analytics removidos el 2026-08-30 a pedido del
               user ("no los uso para nada, no me dan un plus"). Los componentes
-              (HeadToHeadView/AdvancedAnalyticsView) quedan en el repo
-              desconectados — Vite no los incluye en el bundle si nadie los
-              importa, y volver a enchufarlos es revertir este commit. */}
+              se borraron del repo el 2026-09-03 (código muerto); están en el
+              historial de git si alguna vez hacen falta. */}
           <div className="dash-toolbar">
             <Button
               variant="outline"

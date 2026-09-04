@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { Percent, Plus, Trash2, Save } from 'lucide-react'
 import { useCompetitiveBands } from '../../hooks/useCompetitiveBands'
 import { useCompetitiveBandAnalysis } from '../../hooks/useCompetitiveBandAnalysis'

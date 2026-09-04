@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { Download } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { Combobox } from '../ui/shadcn/combobox'
