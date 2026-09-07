@@ -28,10 +28,10 @@ async function withDb(fn) {
 
 async function cleanupTestData() {
   await withDb(async (db) => {
-    await db.query(`DELETE FROM pricing_observations WHERE uploaded_by = 'admin@local.test'`)
-    await db.query(`DELETE FROM ci_bucket_writes WHERE user_email = 'admin@local.test'`)
-    await db.query(`DELETE FROM ci_sessions WHERE user_email = 'admin@local.test'`)
-    await db.query(`DELETE FROM ci_active_sessions WHERE user_email = 'admin@local.test'`)
+    await db.query(`DELETE FROM pricing_observations WHERE uploaded_by = 'e2e-ci@local.test'`)
+    await db.query(`DELETE FROM ci_bucket_writes WHERE user_email = 'e2e-ci@local.test'`)
+    await db.query(`DELETE FROM ci_sessions WHERE user_email = 'e2e-ci@local.test'`)
+    await db.query(`DELETE FROM ci_active_sessions WHERE user_email = 'e2e-ci@local.test'`)
   })
 }
 
@@ -90,7 +90,7 @@ test('Delivery: F5 real conserva el borrador sin perder lo tipeado', async ({ pa
   const { rows } = await withDb((db) =>
     db.query(
       `SELECT count(*)::int AS n FROM pricing_observations
-       WHERE uploaded_by = 'admin@local.test' AND category = 'Delivery'`
+       WHERE uploaded_by = 'e2e-ci@local.test' AND category = 'Delivery'`
     )
   )
   expect(rows[0].n).toBeGreaterThan(0)
@@ -115,7 +115,7 @@ test('Cargo: sesión completa cierra de punta a punta sin duplicar filas', async
   const { rows } = await withDb((db) =>
     db.query(
       `SELECT count(*)::int AS n FROM pricing_observations
-       WHERE uploaded_by = 'admin@local.test' AND category = 'Cargo'`
+       WHERE uploaded_by = 'e2e-ci@local.test' AND category = 'Cargo'`
     )
   )
   expect(rows[0].n).toBe(72)
@@ -123,13 +123,13 @@ test('Cargo: sesión completa cierra de punta a punta sin duplicar filas', async
   // La sesión quedó historizada y no hay latido colgado.
   const { rows: sessionRows } = await withDb((db) =>
     db.query(
-      `SELECT rows_saved FROM ci_sessions WHERE user_email = 'admin@local.test' ORDER BY id DESC LIMIT 1`
+      `SELECT rows_saved FROM ci_sessions WHERE user_email = 'e2e-ci@local.test' ORDER BY id DESC LIMIT 1`
     )
   )
   expect(sessionRows[0]?.rows_saved).toBe(72)
   const { rows: activeRows } = await withDb((db) =>
     db.query(
-      `SELECT count(*)::int AS n FROM ci_active_sessions WHERE user_email = 'admin@local.test'`
+      `SELECT count(*)::int AS n FROM ci_active_sessions WHERE user_email = 'e2e-ci@local.test'`
     )
   )
   expect(activeRows[0].n).toBe(0)
@@ -166,7 +166,7 @@ test('Delivery y Cargo no comparten marca de agua de guardado (sin conflicto fal
   const { rows } = await withDb((db) =>
     db.query(
       `SELECT zone_key, write_seq FROM ci_bucket_writes
-       WHERE user_email = 'admin@local.test' ORDER BY zone_key`
+       WHERE user_email = 'e2e-ci@local.test' ORDER BY zone_key`
     )
   )
   expect(rows.map((r) => r.zone_key).sort()).toEqual(['Cargo', 'Delivery'])

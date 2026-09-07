@@ -14,10 +14,53 @@ const ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
 const SERVICE_ROLE_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
-const EMAIL = 'admin@local.test'
+// Cuenta PROPIA de la suite, distinta de admin@local.test (revisión
+// adversarial 2026-09-07, hallazgo P1 real): si Playwright corre con la
+// misma cuenta que alguien está usando para probar a mano en el mismo
+// Supabase local, el `afterEach` de los tests borra ese trabajo manual sin
+// aviso. Con una cuenta dedicada, los DELETE de limpieza de los tests nunca
+// pueden tocar datos de otra persona.
+const EMAIL = 'e2e-ci@local.test'
 
 export default async function globalSetup() {
   const admin = createClient(URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+
+  // Crear la cuenta + su perfil si es la primera vez que corre la suite en
+  // este Supabase local. Vía Admin API, nunca INSERT directo a auth.users
+  // (CLAUDE.md §2 — faltan columnas/relaciones internas que GoTrue necesita).
+  const { data: existing } = await admin
+    .from('user_profiles')
+    .select('email')
+    .eq('email', EMAIL)
+    .maybeSingle()
+  if (!existing) {
+    const { error: createErr } = await admin.auth.admin.createUser({
+      email: EMAIL,
+      email_confirm: true,
+    })
+    if (createErr) {
+      throw new Error(`[e2e/global-setup] No se pudo crear ${EMAIL}: ${createErr.message}`)
+    }
+    // Rol admin local: alcanza para Ingresar CI (dataentry) + Perú, y es el
+    // mismo nivel de acceso que ya usa admin@local.test para las mismas
+    // pruebas — la suite no ejercita límites de permisos, solo el flujo de
+    // Ingresar CI.
+    const { data: adminRole, error: roleErr } = await admin
+      .from('roles')
+      .select('id')
+      .eq('name', 'admin')
+      .single()
+    if (roleErr || !adminRole) {
+      throw new Error(`[e2e/global-setup] No se encontró el rol 'admin': ${roleErr?.message}`)
+    }
+    const { error: profileErr } = await admin
+      .from('user_profiles')
+      .insert({ email: EMAIL, first_name: 'E2E', last_name: 'CI', role_id: adminRole.id, is_active: true })
+    if (profileErr) {
+      throw new Error(`[e2e/global-setup] No se pudo crear el perfil de ${EMAIL}: ${profileErr.message}`)
+    }
+  }
+
   const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email: EMAIL,
@@ -25,7 +68,7 @@ export default async function globalSetup() {
   if (linkErr) {
     throw new Error(
       `[e2e/global-setup] No se pudo generar el magic link para ${EMAIL}: ${linkErr.message}. ` +
-        `¿Está Supabase local corriendo (npx supabase status) y existe ese usuario en auth.users?`
+        `¿Está Supabase local corriendo (npx supabase status)?`
     )
   }
   const tokenHash = linkData.properties?.hashed_token

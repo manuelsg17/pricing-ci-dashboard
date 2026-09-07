@@ -342,6 +342,7 @@ export default {
 
   // ── Navigation ─────────────────────────────────────
   'nav.dashboard': '📊 Dashboard',
+  'topbar.app_version_tooltip': 'Versión de la app',
   'nav.analisis': 'Análisis',
   'nav.rentabilidad': '🧮 Rentabilidad',
   'nav.market': '🎯 Mercado',

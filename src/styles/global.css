@@ -59,6 +59,13 @@
   --sem-red-fg: #5a1f1f;
   --sem-none-bg: transparent;
   --sem-none-fg: var(--color-text);
+  /* Informativo (no es semáforo verde/amarillo/rojo) — usado por avisos que
+     no piden una decisión, solo informan (mig delivery/cargo 2026-09,
+     proyectos). Antes projects.css y data-entry.css referenciaban
+     --sem-blue-* sin que existiera en ningún lado — el fallback inline
+     (#1d4ed8/#eff6ff) coincidía por casualidad con lo que se ve acá. */
+  --sem-blue-bg: #eff6ff;
+  --sem-blue-fg: #1d4ed8;
 
   /* Estado (banners/pills/bordes de éxito-error-warning-info) — Fase 2
      tokenización: valores extraídos de los hex sueltos ya repetidos en

@@ -253,7 +253,7 @@ export default function Topbar({
             humanos); __BUILD_VERSION__ (timestamp) sigue siendo el que usa
             useBuildVersionCheck para detectar deploys nuevos — son cosas
             distintas a propósito, ver vite.config.js. */}
-        <span className="topbar__app-version" title="Versión de la app">
+        <span className="topbar__app-version" title={t('topbar.app_version_tooltip')}>
           {/* eslint-disable-next-line no-undef */}v
           {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?'}
         </span>

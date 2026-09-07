@@ -44,6 +44,12 @@
 BEGIN;
 
 -- ── 1. country_config: categorías Delivery/Cargo en Lima ──────────────────
+-- Cada categoría se agrega de forma INDEPENDIENTE (revisión adversarial
+-- 2026-09-07): el guard original saltaba el UPDATE completo si CUALQUIERA de
+-- las dos ya existía, así que un estado a medias (alguien agregó Delivery a
+-- mano pero no Cargo) quedaba así para siempre al re-correr la migración.
+-- Probado localmente: partiendo de Lima con Delivery ya presente pero sin
+-- Cargo, este UPDATE agrega solo Cargo.
 UPDATE country_config
 SET cities = (
   SELECT jsonb_agg(
@@ -52,18 +58,31 @@ SET cities = (
         jsonb_set(
           city_elem,
           '{categories}',
-          (city_elem->'categories') || jsonb_build_array(
-            jsonb_build_object(
-              'name', 'Delivery',
-              'dbName', 'Delivery',
-              'competitors', jsonb_build_array('Yango', 'InDrive', 'PedidosYa', 'Rappi')
-            ),
-            jsonb_build_object(
-              'name', 'Cargo',
-              'dbName', 'Cargo',
-              'competitors', jsonb_build_array('Yango', 'InDrive')
-            )
-          )
+          (city_elem->'categories')
+            || CASE
+                 WHEN NOT EXISTS (
+                   SELECT 1 FROM jsonb_array_elements(city_elem->'categories') c
+                   WHERE c->>'name' = 'Delivery'
+                 )
+                 THEN jsonb_build_array(jsonb_build_object(
+                        'name', 'Delivery',
+                        'dbName', 'Delivery',
+                        'competitors', jsonb_build_array('Yango', 'InDrive', 'PedidosYa', 'Rappi')
+                      ))
+                 ELSE '[]'::jsonb
+               END
+            || CASE
+                 WHEN NOT EXISTS (
+                   SELECT 1 FROM jsonb_array_elements(city_elem->'categories') c
+                   WHERE c->>'name' = 'Cargo'
+                 )
+                 THEN jsonb_build_array(jsonb_build_object(
+                        'name', 'Cargo',
+                        'dbName', 'Cargo',
+                        'competitors', jsonb_build_array('Yango', 'InDrive')
+                      ))
+                 ELSE '[]'::jsonb
+               END
         )
       ELSE city_elem
     END
@@ -71,10 +90,17 @@ SET cities = (
   FROM jsonb_array_elements(cities) AS city_elem
 )
 WHERE country_key = 'Peru'
-  AND NOT EXISTS (
+  AND EXISTS (
+    -- Dispara si a Lima le falta CUALQUIERA de las dos (no solo si le
+    -- faltan las DOS) — el bug original exigía que faltaran ambas.
     SELECT 1
-    FROM jsonb_array_elements(cities) ci, jsonb_array_elements(ci->'categories') ca
-    WHERE ci->>'uiName' = 'Lima' AND ca->>'name' IN ('Delivery', 'Cargo')
+    FROM jsonb_array_elements(cities) ci
+    WHERE ci->>'uiName' = 'Lima'
+      AND NOT (
+        EXISTS (SELECT 1 FROM jsonb_array_elements(ci->'categories') c WHERE c->>'name' = 'Delivery')
+        AND
+        EXISTS (SELECT 1 FROM jsonb_array_elements(ci->'categories') c WHERE c->>'name' = 'Cargo')
+      )
   );
 
 -- ── 2. distance_thresholds — 2/4/6/8/10/∞ km ───────────────────────────────

@@ -350,6 +350,7 @@ export default {
   'account.success': '✓ Пароль обновлён',
 
   'nav.dashboard': '📊 Дашборд',
+  'topbar.app_version_tooltip': 'Версия приложения',
   'nav.analisis': 'Анализ',
   'nav.rentabilidad': '🧮 Рентабельность',
   'nav.market': '🎯 Рынок',

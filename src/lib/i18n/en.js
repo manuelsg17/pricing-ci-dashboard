@@ -337,6 +337,7 @@ export default {
   'account.success': '✓ Password updated',
 
   'nav.dashboard': '📊 Dashboard',
+  'topbar.app_version_tooltip': 'App version',
   'nav.analisis': 'Analysis',
   'nav.rentabilidad': '🧮 Profitability',
   'nav.market': '🎯 Market',

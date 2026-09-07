@@ -882,7 +882,12 @@ export default function DataEntry() {
         return true
       }
       if (partes.kind === 'category') {
-        // Delivery/Cargo: sin distrito, la categoría ES la zone.
+        // Delivery/Cargo: sin distrito, la categoría ES la zone. Se valida
+        // que siga existiendo en el catálogo (revisión adversarial
+        // 2026-09-07): si se borró la categoría después de que quedaron
+        // filas guardadas, saltar igual dejaría la grilla vacía en silencio
+        // — mejor no saltar y que el llamador decida qué avisar.
+        if (!(countryConfig.categoriesByCity[target] || []).includes(partes.zone)) return false
         setUiCity(target)
         setActiveTukTuk(null)
         setActiveSpecialCat(partes.zone)
@@ -896,7 +901,7 @@ export default function DataEntry() {
       }
       return false
     },
-    [dbCityToUiCity, tukTukInfo, uiCities]
+    [dbCityToUiCity, tukTukInfo, uiCities, countryConfig]
   )
 
   // ── Aviso: sesiones PROPIAS de días anteriores que quedaron sin cerrar

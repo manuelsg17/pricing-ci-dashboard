@@ -248,3 +248,52 @@ campo vacío" — toca el manejo de foco de la grilla, que CLAUDE.md §5 marca
 como zona sensible a re-render (ya hubo un fix P0/P1 de rendimiento ahí).
 Mejor abordarlo en una pasada propia, con su propio profiling, no apurado
 al final de esta.
+
+## 12. Revisión adversarial (2026-09-07, tercera ronda) — 3 agentes en paralelo
+
+Lógica de cliente, SQL (migs 242/243), y piezas nuevas (E2E/i18n/CSS/CHANGELOG).
+
+**Descartado tras verificación propia**: el agente de SQL reportó un P0 en la
+mig 243 (falsos positivos de "sesión sin cerrar" para TODA sesión de
+Delivery/Cargo, por supuesta inconsistencia entre `pricing_observations.zone`
+y `ci_sessions.zone`). Repetí su repro pero con la RPC REAL (`save_ci_batch`)
+en vez de un INSERT manual — `zone='Delivery'` se escribe correctamente en
+ambas tablas (`save_ci_batch` usa `v_zone`, la zona efectiva del lote, para
+TODAS las filas insertadas, no el `zone` por-ruta de `distance_references`
+que sí es NULL). El repro del agente no representaba el camino real de
+escritura. No era un bug.
+
+**Corregidos:**
+
+- P1 (E2E): los tests usaban `admin@local.test`, la misma cuenta de las
+  pruebas manuales — un `afterEach` corriendo en paralelo con alguien
+  probando a mano podía borrarle el trabajo. `e2e/global-setup.mjs` ahora
+  crea (si no existe) una cuenta propia `e2e-ci@local.test` vía Admin API.
+- P2 (SQL, mig 242): el guard de `country_config` exigía que faltaran LAS
+  DOS categorías para disparar — un estado a medias (Delivery sin Cargo)
+  quedaba así para siempre al re-correr. Corregido a "falta cualquiera de
+  las dos" + inserción independiente por categoría. Probado en local: con
+  Delivery presente y Cargo ausente, la migración corregida agrega solo
+  Cargo (`UPDATE 1`); con las dos presentes, `UPDATE 0` (no duplica).
+- P2 (cliente): `irAFrente` ahora valida que la categoría siga en
+  `countryConfig.categoriesByCity` antes de saltar — si se borrara Delivery/
+  Cargo del catálogo después de tener sesiones guardadas, "Ir ahí" ya no
+  lleva a una grilla vacía en silencio.
+- P2 (i18n): el tooltip "Versión de la app" del Topbar estaba hardcodeado en
+  español — ahora pasa por `t()` en los 3 locales.
+- P2 (CSS): `--sem-blue-*` se usaba en `data-entry.css` (y ya antes en
+  `projects.css`) sin estar definida en ningún lado — el fallback inline
+  coincidía por casualidad. Ahora existe de verdad en `global.css`.
+- CHANGELOG completado con las 4 entradas que faltaban (aviso temprano,
+  alerta de sesión a medias, colapso de instructivo, suite E2E).
+
+**Aceptado sin cambio** (P2, bajo riesgo/probabilidad, documentado en el
+propio código): un admin podría nombrar un distrito de TukTuk literalmente
+"Delivery" o "Cargo" en Distancias de Referencia, lo que confundiría
+`SPECIAL_CATEGORY_ZONES`. Requiere una acción manual fuera del flujo normal
+(la UI de Config no ofrece TukTuk y Delivery/Cargo como opciones
+intercambiables); no se agregó validación extra por ahora.
+
+Validación final tras los fixes: lint 0 warnings, build, test:all,
+check:section-grants, y la suite E2E (3/3) — todo en verde. Sin residuos de
+la cuenta e2e-ci@local.test en BD.
