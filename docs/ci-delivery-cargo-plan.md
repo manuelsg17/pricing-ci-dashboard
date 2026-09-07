@@ -185,3 +185,32 @@ semanas de datos reales de Delivery/Cargo:**
 - Aplicar mig 242 a producción con OK explícito del user (falta también
   decidir si el bot alguna vez debe alimentar estas categorías — hoy no hay
   bot_rules para ellas en ningún entorno, dormant).
+
+## 9. Pruebas de navegador automatizadas (2026-09-07, segunda ronda)
+
+Primera pieza REAL de la suite E2E que CLAUDE.md marca como "pendiente de
+adopción, ya no es un no" — hasta hoy no existía ninguna. Instalado
+`@playwright/test` + `pg` (dev deps), config en `playwright.config.js`.
+
+- `e2e/global-setup.mjs`: autentica contra Supabase LOCAL con el mismo
+  flujo que se usa a mano (Admin API `generateLink` → `verifyOtp`), guarda
+  la sesión en `e2e/.auth/admin.json` (gitignored) bajo la clave real
+  `sb-127-auth-token` — nunca se manipula `auth.users` a mano (CLAUDE.md §2).
+  Las claves ANON/SERVICE_ROLE hardcodeadas son las DEMO fijas y públicas
+  que `supabase start` genera siempre en local — no son secretos, solo
+  sirven contra 127.0.0.1:54321.
+- `e2e/ci-delivery-cargo.spec.js`: 3 tests, corridos 2 veces seguidas sin
+  flakiness, sin residuos en BD al terminar (`beforeEach`/`afterEach` limpian
+  siempre):
+  1. F5 REAL (`page.reload()`, no navegación de React) conserva el borrador
+     de Delivery y lo guardado sigue en el servidor.
+  2. Sesión completa de Cargo cierra de punta a punta: exactamente 72 filas
+     (12×2×3), sesión historizada, sin latido colgado.
+  3. Delivery y Cargo no comparten marca de agua de guardado — el segundo
+     guardado no dispara el panel de conflicto (mig 191).
+- Correr: `npm run test:e2e` (requiere Supabase local arriba + `npm run dev`
+  corriendo, o Playwright lo levanta solo vía `webServer`).
+- Fuera de esta ronda, a propósito: NO se automatizó el caso de 2 hubs
+  simultáneos (necesita 2 BrowserContext) ni el flujo de Aeropuerto/TukTuk —
+  quedan como próxima expansión natural ahora que el harness ya existe y
+  funciona.

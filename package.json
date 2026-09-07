@@ -77,7 +77,8 @@
     "simulate:assignable-users": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-assignable-users.sql",
     "test:presencia": "node scripts/test-presencia.mjs",
     "test:frentes-pendientes": "node scripts/test-frentes-pendientes.mjs",
-    "test:bot-sync-py": "python3 scripts/bot-sync/test_bot_sync.py"
+    "test:bot-sync-py": "python3 scripts/bot-sync/test_bot_sync.py",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
@@ -102,6 +103,7 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@vitejs/plugin-react": "^6.0.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",
@@ -111,6 +113,7 @@
     "eslint-plugin-react-refresh": "^0.4.6",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.5",
+    "pg": "^8.23.0",
     "postcss": "^8.4.49",
     "prettier": "^3.2.5",
     "tailwindcss": "^3.4.17",

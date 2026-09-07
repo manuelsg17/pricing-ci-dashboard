@@ -9,3 +9,10 @@ dist
 
 # Informes exportados (generados desde el .md con scripts/md-to-*)
 docs/export/
+
+# Playwright E2E — nunca commitear resultados de corridas ni el token de sesión
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+e2e/.auth/
