@@ -26,6 +26,10 @@ Convención: `MAJOR` para cambios que rompen un flujo existente para el hub,
   después de la primera sesión completada.
 - Monitoreo: una sesión de Delivery/Cargo ya no se etiqueta como si fuera un
   distrito de TukTuk.
+- Ingresar CI: la grilla ahora se lee por bloques — color por bracket,
+  banda con rango de km y progreso, numeración "Ruta i/12" y estado
+  (✓/●/○) en cada tarjeta, cabecera de turno fija con minimapa para saltar
+  entre brackets, y origen común mostrado una sola vez.
 - Primera suite de pruebas de navegador automatizadas (Playwright) del
   proyecto, sobre el flujo completo de Ingresar CI (F5 real, cierre de
   sesión, aislamiento entre pestañas).

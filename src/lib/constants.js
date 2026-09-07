@@ -73,6 +73,27 @@ export const BRACKET_LABELS = {
   very_long: 'Very Long',
 }
 
+// Color por bracket (2026-09, revisión UX de Ingresar CI): escala frío→cálido
+// de más corto a más largo, para que las 36 tarjetas de una jornada (12 rutas
+// × 3 turnos) no se vean todas iguales. La usan la banda de bracket, el borde
+// de cada tarjeta y los chips del minimapa del turno.
+export const BRACKET_COLORS = {
+  very_short: '#0284C7',
+  short: '#0D9488',
+  median: '#65A30D',
+  average: '#D97706',
+  long: '#EA580C',
+  very_long: '#DC2626',
+}
+export const BRACKET_SHORT = {
+  very_short: 'VS',
+  short: 'S',
+  median: 'M',
+  average: 'A',
+  long: 'L',
+  very_long: 'VL',
+}
+
 export const DEFAULT_WEIGHTS = {
   very_short: 0.0983,
   short: 0.1967,

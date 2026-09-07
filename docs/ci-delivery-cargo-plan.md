@@ -391,3 +391,34 @@ el camino de LECTURA/dashboard:
   generalizarlas JUNTAS, en la misma migración.
 
 Validación: lint 0 warnings, build, test:all, suite E2E 3/3.
+
+## 15. Revisión UX/UI de la grilla de Ingresar CI (2026-09-07)
+
+Pedido del user: "veo varias rutas y brackets y todos son del mismo color y es
+complicado de entender y mantener un orden". Con 12 rutas × 3 turnos son 36
+tarjetas idénticas: el hub no sabía en qué turno estaba, cuánto le faltaba, ni
+qué tarjeta seguía. Cambios (solo cliente, sin migración):
+
+- **Escala de color por bracket** (`BRACKET_COLORS` en `src/lib/constants.js`,
+  azul → rojo de very_short a very_long). Cada bracket tiene una **banda**
+  con su color, rango de km y progreso de rutas (`.de-bracket-band`); las
+  tarjetas de adentro heredan el color en el borde izquierdo y en la
+  etiqueta del bracket (antes siempre rojo Yango).
+- **Cabecera de turno sticky** (`TurnoSection.jsx`, `top: 52px` = topbar).
+  Lleva un **minimapa** con un chip por bracket (`VS 2/2`, `S 0/2`…) que al
+  clickear salta a esa banda. `.de-turno-section` pasó de `overflow: hidden`
+  a `overflow: clip` — `hidden` mata el sticky.
+- **Cada tarjeta muestra `Ruta i/12` y un estado** ✓ completa / ● a medias /
+  ○ vacía (`groupStatus()` en DataEntry.jsx, mismo `rowState` que usa el
+  contador). La completa se atenúa en verde, la parcial en ámbar.
+- **Origen común una sola vez** arriba de la grilla (`.de-common-origin`)
+  cuando todas las rutas comparten punto A (Delivery/Cargo); las tarjetas
+  dejan de repetirlo. En Normal/TukTuk, con orígenes distintos, se sigue
+  mostrando por tarjeta.
+- Se quitó el encabezado turno/hora repetido dentro de cada tarjeta (ya está
+  en la cabecera sticky).
+
+Validación: lint 0 warnings, build, test:all, E2E 3/3 (los selectores
+`.de-cat-row`, `.de-sd-row-btn`, `.de-nodata-badge` no cambiaron), navegador
+a 1366px sobre la pestaña Cargo (sticky + minimapa + bandas verificados).
+Fuera de alcance responsive por diseño (CLAUDE.md §1).

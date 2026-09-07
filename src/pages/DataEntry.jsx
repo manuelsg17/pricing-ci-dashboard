@@ -62,6 +62,9 @@ import {
   resolveDbParams,
   timeslotLabel,
   isInDriveVariant,
+  BRACKET_COLORS,
+  BRACKET_SHORT,
+  BRACKET_LABELS,
 } from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
 import { formatCityZoneLabel } from '../lib/monitoring'
@@ -1989,6 +1992,28 @@ export default function DataEntry() {
     [refsByUICat, categories, sourceCategory]
   )
 
+  // Revisión UX 2026-09: si TODAS las rutas de la vista salen del mismo
+  // punto A (Delivery/Cargo: 12 rutas desde Vía Principal 129), el origen se
+  // muestra UNA vez arriba de la grilla y no en cada tarjeta. null = orígenes
+  // distintos, cada tarjeta muestra el suyo como siempre.
+  const commonOrigin = useMemo(() => {
+    const origins = new Set()
+    for (const { groups, extras } of refsByBracket) {
+      for (const g of groups) origins.add(g.anchorRef.point_a || '')
+      for (const e of extras) origins.add(e.ref.point_a || '')
+    }
+    if (origins.size !== 1) return null
+    const only = [...origins][0]
+    return only || null
+  }, [refsByBracket])
+
+  // Orden global de rutas (ancla) dentro de un turno, para numerarlas
+  // "Ruta 3/12" — el hub sabe dónde está parado sin contar tarjetas.
+  const routeOrder = useMemo(
+    () => refsByBracket.flatMap(({ groups }) => groups.map((g) => g.anchorRef.id)),
+    [refsByBracket]
+  )
+
   // Categorías sin ninguna ruta en toda la ciudad (no solo en un bracket
   // puntual) — se avisa una sola vez arriba de la grilla.
   const categoriesWithNoRoutes = useMemo(
@@ -2168,6 +2193,27 @@ export default function DataEntry() {
     if (resolved.length === 0) return 'empty'
     if (resolved.length === comps.length) return 'full'
     return 'partial'
+  }
+
+  // Estado de una RUTA entera (todas sus categorías) en un turno — para el
+  // ✓/●/○ de la cabecera de la tarjeta y el minimapa del turno (revisión UX
+  // 2026-09). Mismo criterio de "presente" que BracketRouteGroup: una
+  // categoría sin ruta en este bracket o sin competidores visibles no cuenta.
+  function groupStatus(group, ts) {
+    let full = 0
+    let any = 0
+    let n = 0
+    for (const uiCat of categories) {
+      const ref = group.byCategory[uiCat]
+      if (!ref) continue
+      if (getCiCompetitors(uiCity, uiCat, null, country, dbConfigs).length === 0) continue
+      n++
+      const st = rowState(uiCat, ref, ts)
+      if (st === 'full') full++
+      if (st !== 'empty') any++
+    }
+    if (n === 0 || any === 0) return 'empty'
+    return full === n ? 'full' : 'partial'
   }
 
   // ── Count filled ───────────────────────────────────────
@@ -4541,62 +4587,78 @@ export default function DataEntry() {
         <div className="de-loading">{t('dataentry.no_routes_at_all')}</div>
       ) : (
         <>
-          {timeslots.map((ts) => (
-            <TurnoSection
-              key={ts.label}
-              timeslot={ts}
-              filled={filledByTimeslot[ts.label] || 0}
-              total={totalExpectedPerTimeslot}
-              hasErrors={!!errorsByTimeslot[ts.label]}
-            >
-              {refsByBracket.map(({ bracket, groups, extras }) => (
-                <div key={bracket} className="de-bracket-section">
-                  {groups.map((group, gi) => (
-                    <BracketRouteGroup
-                      key={`${bracket}-${gi}`}
-                      bracket={bracket}
-                      group={group}
-                      categories={categories}
-                      timeslot={ts}
-                      uiCity={uiCity}
-                      country={country}
-                      dbConfigs={dbConfigs}
-                      catColors={CAT_COLORS}
-                      getEntry={getEntry}
-                      setEntry={setEntry}
-                      getEta={getEta}
-                      setEta={setEta}
-                      getDisc={getDisc}
-                      setDisc={setDisc}
-                      indriveExtra={indriveExtra}
-                      setIndrive={setIndrive}
-                      indKey={indKey}
-                      priceKey={priceKey}
-                      errorKeys={errorKeys}
-                      rowState={rowState}
-                      getNa={getNa}
-                      toggleNa={toggleNa}
-                      markRowNa={markRowNa}
-                      t={t}
-                    />
-                  ))}
-                  {extras.length > 0 && (
-                    <div className="de-bracket-extras">
-                      {/* El título "Rutas adicionales" solo tiene sentido cuando hay
-                          además rutas principales (groups). Si TODO el bracket son
-                          extras (ej. ciudad Corp, o solo-TukTuk), no hay "adicionales"
-                          respecto de nada → se omite el título. */}
-                      {groups.length > 0 && (
-                        <div className="de-bracket-extras-title">
-                          {t('dataentry.extra_routes_title')}
-                        </div>
-                      )}
-                      {extras.map(({ uiCat, ref }) => (
+          {commonOrigin && (
+            <div className="de-common-origin">
+              <span className="de-common-origin__label">{t('dataentry.common_origin')}</span>
+              <strong>{commonOrigin}</strong>
+              <span className="de-common-origin__hint">{t('dataentry.common_origin_hint')}</span>
+            </div>
+          )}
+          {timeslots.map((ts) => {
+            // Progreso por bracket dentro de ESTE turno (minimapa + banda).
+            const bracketProgress = refsByBracket.map(({ bracket, groups, extras }) => {
+              const items = [
+                ...groups.map((g) => groupStatus(g, ts)),
+                ...extras.map((e) => rowState(e.uiCat, e.ref, ts)),
+              ]
+              return {
+                bracket,
+                id: `de-band-${ts.label}-${bracket}`,
+                label: BRACKET_LABELS[bracket] || bracket,
+                short: BRACKET_SHORT[bracket] || bracket,
+                color: BRACKET_COLORS[bracket],
+                done: items.filter((x) => x === 'full').length,
+                total: items.length,
+              }
+            })
+            return (
+              <TurnoSection
+                key={ts.label}
+                timeslot={ts}
+                filled={filledByTimeslot[ts.label] || 0}
+                total={totalExpectedPerTimeslot}
+                hasErrors={!!errorsByTimeslot[ts.label]}
+                brackets={bracketProgress}
+              >
+                {refsByBracket.map(({ bracket, groups, extras }, bi) => {
+                  const prog = bracketProgress[bi]
+                  const kms = [
+                    ...groups.map((g) => g.anchorRef.waze_distance),
+                    ...extras.map((e) => e.ref.waze_distance),
+                  ].filter((k) => k != null)
+                  const kmRange =
+                    kms.length === 0
+                      ? null
+                      : Math.min(...kms) === Math.max(...kms)
+                        ? `${Math.min(...kms)} km`
+                        : `${Math.min(...kms)}–${Math.max(...kms)} km`
+                  return (
+                    <div
+                      key={bracket}
+                      id={prog.id}
+                      className={`de-bracket-section${prog.total > 0 && prog.done >= prog.total ? ' de-bracket-section--done' : ''}`}
+                      style={{ '--bracket-color': prog.color }}
+                    >
+                      <div className="de-bracket-band">
+                        <span className="de-bracket-band__dot" aria-hidden="true" />
+                        <span className="de-bracket-band__label">{prog.label}</span>
+                        {kmRange && <span className="de-bracket-band__km">{kmRange}</span>}
+                        <span className="de-bracket-band__progress">
+                          {prog.done >= prog.total && prog.total > 0 ? '✓ ' : ''}
+                          {prog.done}/{prog.total} {t('dataentry.band_routes')}
+                        </span>
+                      </div>
+                      {groups.map((group, gi) => (
                         <BracketRouteGroup
-                          key={`${bracket}-extra-${ref.id}`}
+                          key={`${bracket}-${gi}`}
                           bracket={bracket}
-                          group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
-                          categories={[uiCat]}
+                          group={group}
+                          status={groupStatus(group, ts)}
+                          routeIndex={routeOrder.indexOf(group.anchorRef.id) + 1}
+                          routeTotal={routeOrder.length}
+                          bracketColor={prog.color}
+                          hideOrigin={!!commonOrigin}
+                          categories={categories}
                           timeslot={ts}
                           uiCity={uiCity}
                           country={country}
@@ -4620,12 +4682,57 @@ export default function DataEntry() {
                           t={t}
                         />
                       ))}
+                      {extras.length > 0 && (
+                        <div className="de-bracket-extras">
+                          {/* El título "Rutas adicionales" solo tiene sentido cuando hay
+                          además rutas principales (groups). Si TODO el bracket son
+                          extras (ej. ciudad Corp, o solo-TukTuk), no hay "adicionales"
+                          respecto de nada → se omite el título. */}
+                          {groups.length > 0 && (
+                            <div className="de-bracket-extras-title">
+                              {t('dataentry.extra_routes_title')}
+                            </div>
+                          )}
+                          {extras.map(({ uiCat, ref }) => (
+                            <BracketRouteGroup
+                              key={`${bracket}-extra-${ref.id}`}
+                              bracket={bracket}
+                              group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
+                              status={rowState(uiCat, ref, ts)}
+                              bracketColor={prog.color}
+                              hideOrigin={!!commonOrigin}
+                              categories={[uiCat]}
+                              timeslot={ts}
+                              uiCity={uiCity}
+                              country={country}
+                              dbConfigs={dbConfigs}
+                              catColors={CAT_COLORS}
+                              getEntry={getEntry}
+                              setEntry={setEntry}
+                              getEta={getEta}
+                              setEta={setEta}
+                              getDisc={getDisc}
+                              setDisc={setDisc}
+                              indriveExtra={indriveExtra}
+                              setIndrive={setIndrive}
+                              indKey={indKey}
+                              priceKey={priceKey}
+                              errorKeys={errorKeys}
+                              rowState={rowState}
+                              getNa={getNa}
+                              toggleNa={toggleNa}
+                              markRowNa={markRowNa}
+                              t={t}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </TurnoSection>
-          ))}
+                  )
+                })}
+              </TurnoSection>
+            )
+          })}
         </>
       )}
       {/* Footer repeat buttons */}

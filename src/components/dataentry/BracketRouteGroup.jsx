@@ -62,6 +62,14 @@ export default function BracketRouteGroup({
   toggleNa,
   markRowNa,
   t,
+  // Revisión UX 2026-09: estado de la ruta (full/partial/empty), número de
+  // ruta dentro del turno, color del bracket y si el origen se muestra una
+  // sola vez arriba (cuando todas las rutas comparten punto A).
+  status = 'empty',
+  routeIndex = null,
+  routeTotal = null,
+  bracketColor = null,
+  hideOrigin = false,
 }) {
   const [open, setOpen] = useState(true)
   const ts = timeslot
@@ -79,8 +87,19 @@ export default function BracketRouteGroup({
   // del contenedor.
   const rowTemplate = `${CHIP_COL_WIDTH}px repeat(${allComps.length}, 108px)`
 
+  const statusIcon = status === 'full' ? '✓' : status === 'partial' ? '●' : '○'
+  const statusTitle =
+    status === 'full'
+      ? t('dataentry.route_done')
+      : status === 'partial'
+        ? t('dataentry.route_partial')
+        : t('dataentry.route_empty')
+
   return (
-    <div className="de-bracket-group">
+    <div
+      className={`de-bracket-group de-bracket-group--${status}`}
+      style={bracketColor ? { '--bracket-color': bracketColor } : undefined}
+    >
       <button
         type="button"
         className="de-bracket-route-header"
@@ -90,9 +109,21 @@ export default function BracketRouteGroup({
         <span className="de-bracket-chevron" aria-hidden="true">
           {open ? '▼' : '▶'}
         </span>
+        <span className={`de-route-status de-route-status--${status}`} title={statusTitle}>
+          {statusIcon}
+        </span>
+        {routeIndex != null && routeTotal != null && (
+          <span className="de-route-index">
+            {t('dataentry.route_n_of', { i: routeIndex, n: routeTotal })}
+          </span>
+        )}
         <span className="de-bracket-label">{BRACKET_LABELS[bracket] || bracket}</span>
         <span className="de-route-line">
-          {anchorRef.point_a || '—'} <span className="de-route-arrow">→</span>{' '}
+          {!hideOrigin && (
+            <>
+              {anchorRef.point_a || '—'} <span className="de-route-arrow">→</span>{' '}
+            </>
+          )}
           {anchorRef.point_b || '—'}
         </span>
         {anchorRef.waze_distance != null && (
@@ -109,11 +140,9 @@ export default function BracketRouteGroup({
           )}
 
           <div className="de-timeslot-block">
-            <div className="de-timeslot-heading">
-              <span className="de-ts-pill">{ts.label}</span>
-              <span className="de-ts-time">{ts.start_time?.slice(0, 5)}</span>
-            </div>
-
+            {/* El turno ya es el agrupador padre (TurnoSection, cabecera
+                sticky): repetirlo en cada tarjeta era ruido — 36 veces por
+                jornada en Delivery/Cargo (revisión UX 2026-09). */}
             <div className="de-cat-rows">
               {presentCats.map((uiCat) => {
                 const ref = byCategory[uiCat]
