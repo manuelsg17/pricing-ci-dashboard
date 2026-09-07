@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BRACKET_LABELS, getCiCompetitors } from '../../lib/constants'
+import { BRACKET_LABELS, getCiCompetitors, categoryTracksEta } from '../../lib/constants'
 import { sanitizeDecimalInput } from '../../lib/format'
 import CompBadge from './CompBadge'
 import InDriveCell from './InDriveCell'
@@ -224,7 +224,7 @@ export default function BracketRouteGroup({
                             <div className="de-nodata-badge">{t('dataentry.sd_no_offer')}</div>
                           ) : (
                             <>
-                              {etaInput}
+                              {categoryTracksEta(uiCat) && etaInput}
                               {comp === 'InDrive' ? (
                                 <InDriveCell
                                   avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}

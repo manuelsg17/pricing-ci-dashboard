@@ -70,6 +70,28 @@ ok(
   'en TukTuk viewId y bucketKey coinciden (lo asume el escaneo de borradores)'
 )
 
+console.log('\nbucketKey / viewId — Delivery/Cargo (zone sin isTukTuk)')
+ok(
+  bucketKeyFor('Lima', 'Delivery', false) === 'CAT~Lima~Delivery',
+  'zone sin isTukTuk: prefijo CAT~, no TT~'
+)
+ok(
+  bucketKeyFor('Lima', 'Delivery', false) !== bucketKeyFor('Lima', null, false),
+  'Delivery no comparte rebanada con Lima Normal (la marca de agua no colisiona)'
+)
+ok(
+  bucketKeyFor('Lima', 'Delivery', false) !== bucketKeyFor('Lima', 'Cargo', false),
+  'Delivery y Cargo tienen cada uno su propia rebanada'
+)
+ok(
+  bucketKeyFor('Lima', 'Comas', true) !== bucketKeyFor('Lima', 'Comas', false),
+  'CAT~ y TT~ nunca colisionan aunque el segundo segmento coincida'
+)
+ok(
+  viewIdFor('Lima', 'Lima', 'Delivery', false) === bucketKeyFor('Lima', 'Delivery', false),
+  'en Delivery/Cargo viewId y bucketKey también coinciden'
+)
+
 console.log('\nborrador en localStorage')
 ok(
   draftKeyFor('ana@x.com', 'Peru', 'Lima', '2026-09-04') ===

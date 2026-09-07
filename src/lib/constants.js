@@ -35,6 +35,7 @@ export const COMPETITOR_COLORS = {
   Bolt: '#34D399',
   Rappi: '#FF5B26',
   Picap: '#FB923C', // Colombia/Bike — alinea con catalogs.js
+  PedidosYa: '#FF0F3A', // Delivery Lima (2026-09) — alinea con catalogs.js
 }
 
 // Formas con espacio pre-mig 72: solo para leer reportes/snapshots viejos.
@@ -836,6 +837,15 @@ export function getCompetitors(uiCity, uiCategory, subCategory, country, dbConfi
 // grilla de carga (y su validación/conteo/guardado); el dashboard/histórico
 // siguen usando getCompetitors (lista completa). Si no hay ciHidden configurado
 // devuelve la lista completa (retrocompatible).
+// Categorías donde el hub NO carga ETA (pedido user 2026-09-07): Delivery y
+// Cargo — el precio es el único dato que importa ahí, y agregar un campo que
+// nunca se llena solo estorba. `uiCategory` porque es lo que la grilla conoce
+// en el momento de decidir si renderiza el input (antes de resolver dbCategory).
+const CATEGORIES_WITHOUT_ETA = new Set(['Delivery', 'Cargo'])
+export function categoryTracksEta(uiCategory) {
+  return !CATEGORIES_WITHOUT_ETA.has(uiCategory)
+}
+
 export function getCiCompetitors(uiCity, uiCategory, subCategory, country, dbConfigs = null) {
   const config = getCountryConfig(country, dbConfigs)
   const { dbCity, dbCategory } = resolveDbParams(

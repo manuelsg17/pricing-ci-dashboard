@@ -126,6 +126,14 @@ export const CATALOG_COMPETITORS = [
   { value: 'Beat', color: '#0EA5E9', botApps: ['beat'], aliases: ['beat'] },
   { value: 'Bolt', color: '#84CC16', botApps: ['bolt'], aliases: ['bolt'] },
   { value: 'Rappi', color: '#FF1744', botApps: ['rappi'], aliases: ['rappi'] },
+  // Delivery/Cargo (2026-09): forma canónica sin espacio, mismo criterio que
+  // las sub-marcas Yango — el nombre es la clave contra pricing_observations.
+  {
+    value: 'PedidosYa',
+    color: '#FF0F3A',
+    botApps: ['pedidosya'],
+    aliases: ['pedidosya', 'pedidos ya', 'peya', 'pedidos_ya'],
+  },
 ]
 
 // Lookup mapas — construidos una vez al cargar el módulo

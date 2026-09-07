@@ -110,9 +110,78 @@ semanas de datos reales de Delivery/Cargo:**
 3. Revisar en ese momento si conviene: pesos por bracket calibrados con
    distribución real de pedidos, y semáforo propio para Delivery/Cargo.
 
-## 7. Pendiente de confirmación del user antes de cargar datos reales
+## 7. Decisiones confirmadas por el user (2026-09-07, segunda ronda)
 
-- Lista exacta de los 12 destinos (origen: Vía Principal 129, San Isidro) —
-  ver captura de pantalla del 2026-09-07 para la lista tentativa.
-- Si el "precio con descuento" debe tener algún tratamiento especial en el
-  cálculo (por ahora: mismo criterio que ride-hailing, opcional).
+- Precio con descuento: disponible pero NO obligatorio (ya era así en el
+  resto de categorías — cero cambios de código necesarios).
+- Umbrales 2/4/6/8/10/∞ km confirmados, agrupando 2 rutas por bracket.
+- Dashboard: arrancar SOLO con lo que ya existe (curva de precio/distancia y
+  ranking por km quedan documentados en §6 para retomar más adelante).
+- Mejoras adicionales pedidas: pruebas de navegador automatizadas, aviso
+  temprano de pestaña duplicada, alerta de sesión a medias, revisión de
+  volumen de datos, y una pasada de UX en Ingresar CI probando como hub
+  experto — pendientes de implementar (ver §8).
+
+## 8. Estado de implementación (actualizado en vivo)
+
+**Hecho y verificado en Supabase LOCAL** (commit(s) en `feat/ci-delivery-cargo`):
+
+- Fase 0 (versionado semántico + CHANGELOG): OK.
+- Fase 1 (datos): mig 242 aplicada en local — country_config.Lima gana las
+  categorías Delivery (Yango/InDrive/PedidosYa/Rappi) y Cargo (Yango/InDrive);
+  distance_thresholds 2/4/6/8/10/∞; bracket_weights 1/6 parejo; 24 filas de
+  distance_references (12 por categoría, 2 por bracket, verificado por el DO
+  block de la propia migración). PedidosYa agregado al catálogo
+  (`src/lib/catalogs.js`, `src/lib/constants.js`) con forma canónica pegada.
+- Fase 2 (Ingresar CI): **decisión de diseño clave, revisada dos veces** —
+  Delivery/Cargo NO son una ciudad nueva (se descartó `Lima_Delivery` como
+  dbCity separado, que hubiera ensuciado el selector de ciudad de Dashboard/
+  Rentabilidad/Market/Competitividad/RawData con una entrada sin sentido
+  fuera de Ingresar CI). En cambio siguen EXACTAMENTE el precedente de
+  TukTuk: misma `city='Lima'` en toda la base, categoría propia
+  (`category='Delivery'`/`'Cargo'`), con `zone` como discriminador SOLO para
+  darle a la pestaña su propia marca de agua de guardado
+  (`ci_bucket_writes`) sin pisar la de "Lima Normal". Nuevo prefijo de
+  bucketKey `CAT~` (paralelo a `TT~` de TukTuk, nunca colisionan) en
+  `src/lib/dataEntry/keys.js` y `src/lib/sessionFronts.js` (con `kind` en
+  `parseBucketKey` para que Monitoreo etiquete "Lima · Delivery" y no
+  confunda con un distrito). Estado nuevo `activeSpecialCat` en
+  `DataEntry.jsx`, paralelo a `activeTukTuk` pero sin distrito — se
+  actualizaron los 3 mecanismos de reanudación (borradores en localStorage,
+  historial de sesiones `ci_sessions`, `irAFrente`) para reconocer el nuevo
+  `kind: 'category'` en vez de tratarlo como TukTuk. Sin ETA
+  (`categoryTracksEta()` en `constants.js`, ocultamiento en
+  `BracketRouteGroup.jsx`). InDrive con contraofertas y precio con descuento
+  opcional funcionan SIN cambios (ya eran genéricos).
+  - Verificado en navegador contra Supabase local: las pestañas Delivery y
+    Cargo aparecen, con los competidores correctos y 0 inputs de ETA;
+    guardado parcial de Delivery confirmado en BD (`city='Lima'`,
+    `category='Delivery'`, `zone='Delivery'`, sin pisar Lima Normal);
+    recuperación de borrador tras F5 real con el label correcto ("Lima ·
+    Delivery"); **sesión completa de Cargo cerrada de punta a punta: 72
+    registros (12 rutas × 2 competidores × 3 turnos), sesión historizada,
+    `ci_active_sessions` en 0**. Datos de prueba borrados.
+  - Tests nuevos/actualizados: `test-data-entry-keys.mjs` (bucketKeyFor/
+    viewIdFor con CAT~), `test-session-fronts.mjs` (parseBucketKey/frontLabel
+    con `kind`), `test-data-entry-derived.mjs` (buildCityClusters con tabs
+    delivery/cargo). `npm run lint`, `build`, `test:all`,
+    `check:section-grants`, paridad i18n: todos en verde.
+
+**Pendiente** (siguiente sesión de trabajo):
+
+- Fase 3: excluir Delivery/Cargo de Rentabilidad (no aplica más — al NO ser
+  una ciudad separada, el selector de Rentabilidad nunca las ofrece; esta
+  tarea quedó resuelta por el cambio de diseño, no por código nuevo).
+  Verificar Monitoreo muestra bien el frente "Lima · Delivery"/"Lima · Cargo"
+  en la lista de sesiones (no solo el label del front, también el detalle).
+- Fase 4: revisar RawData/exportables no rompan con las categorías nuevas
+  (debería ser automático, confirmar).
+- Fase 5 (mejoras pedidas 2026-09-07): pruebas de navegador automatizadas del
+  flujo (2 hubs simultáneos, F5, terminar cada frente); aviso temprano de
+  pestaña duplicada; alerta de sesión a medias; revisión de volumen/índices;
+  pasada de UX "hub experto" en Ingresar CI (colapsar instructivo tras la
+  primera sesión, salto al siguiente campo vacío).
+- Revisión adversarial completa antes de fusionar a `main`.
+- Aplicar mig 242 a producción con OK explícito del user (falta también
+  decidir si el bot alguna vez debe alimentar estas categorías — hoy no hay
+  bot_rules para ellas en ningún entorno, dormant).

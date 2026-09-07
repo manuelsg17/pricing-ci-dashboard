@@ -33,6 +33,7 @@ import {
   draftKeyPrefixFor,
   bucketFinishedLsKeyFor,
   syncSeqKeyFor as syncSeqKey,
+  SPECIAL_CATEGORY_ZONES,
 } from '../lib/dataEntry/keys'
 import {
   buildRowsForSlot,
@@ -138,6 +139,11 @@ export default function DataEntry() {
   // sesión — igual que Punto A/B del aeropuerto son ciudades independientes.
   const [activeTukTuk, setActiveTukTuk] = useState(null)
   const [tukTukDistricts, setTukTukDistricts] = useState([])
+  // Delivery/Cargo (2026-09): igual criterio que activeTukTuk pero sin
+  // distrito — null = vista normal; 'Delivery' | 'Cargo' = esa pestaña activa.
+  // Mutuamente excluyente con activeTukTuk (nunca los dos a la vez; cada click
+  // de pestaña limpia el otro, ver el bloque de tabs más abajo).
+  const [activeSpecialCat, setActiveSpecialCat] = useState(null)
   const [date, setDate] = useState(todayStr())
   // surge también es POR-CIUDAD: es un flag de la sesión (ciudad+fecha) que se
   // estampa en pricing_observations.surge. Si fuera global, intercalar A↔B con
@@ -314,8 +320,11 @@ export default function DataEntry() {
   // las categorías de auto.
   const categories = useMemo(() => {
     if (activeTukTuk != null) return ['TukTuk']
-    return (countryConfig.categoriesByCity[uiCity] || []).filter((c) => c !== 'TukTuk')
-  }, [countryConfig, uiCity, activeTukTuk])
+    if (activeSpecialCat) return [activeSpecialCat]
+    return (countryConfig.categoriesByCity[uiCity] || []).filter(
+      (c) => c !== 'TukTuk' && c !== 'Delivery' && c !== 'Cargo'
+    )
+  }, [countryConfig, uiCity, activeTukTuk, activeSpecialCat])
 
   // dbCity: the DB city for the current UI city (use first non-special category)
   const { dbCity } = useMemo(
@@ -363,7 +372,11 @@ export default function DataEntry() {
   // la pestaña TukTuk se resalta y el aviso de "sin distritos" puede mostrarse
   // apenas se hace click, sin esperar a la carga async.
   const isTukTuk = activeTukTuk != null
-  const zone = isTukTuk ? activeTukTuk || null : null
+  // Delivery/Cargo (2026-09): sin distrito, zone = el nombre de la categoría
+  // — le da a este frente su propia marca de agua de guardado (bucketKeyFor)
+  // sin pisar la de "Lima Normal", que comparte la misma dbCity.
+  const isSpecialCat = activeSpecialCat != null
+  const zone = isTukTuk ? activeTukTuk || null : isSpecialCat ? activeSpecialCat : null
   const bucketKey = bucketKeyFor(dbCity, zone, isTukTuk)
   const viewId = viewIdFor(uiCity, dbCity, zone, isTukTuk)
 
@@ -661,6 +674,7 @@ export default function DataEntry() {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
     setActiveTukTuk(null)
+    setActiveSpecialCat(null)
     // dbCity es reactivo a uiCity y categories, así no hay problema
   }, [country, countryConfig])
 
@@ -796,6 +810,7 @@ export default function DataEntry() {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
     setActiveTukTuk(null)
+    setActiveSpecialCat(null)
     // El cache de rutas ya no se limpia a mano: `dbCity`/`country` son parte
     // de la queryKey de React Query, así que un país nuevo automáticamente
     // usa otro namespace de cache — no hace falta invalidar el viejo.
@@ -858,14 +873,23 @@ export default function DataEntry() {
       const partes = parseBucketKey(bucket)
       if (!partes) return false
       const target = dbCityToUiCity[partes.city] || partes.city
-      if (partes.zone) {
+      if (partes.kind === 'tuktuk') {
         setUiCity(tukTukInfo?.baseUiCity || target)
         setActiveTukTuk(partes.zone)
+        setActiveSpecialCat(null)
+        return true
+      }
+      if (partes.kind === 'category') {
+        // Delivery/Cargo: sin distrito, la categoría ES la zone.
+        setUiCity(target)
+        setActiveTukTuk(null)
+        setActiveSpecialCat(partes.zone)
         return true
       }
       if (uiCities.includes(target)) {
         setUiCity(target)
         setActiveTukTuk(null)
+        setActiveSpecialCat(null)
         return true
       }
       return false
@@ -1695,14 +1719,23 @@ export default function DataEntry() {
         // TukTuk: viewId = `TT~<dbCity>~<distrito>`. El bucket en memoria es el
         // mismo viewId. Para resumir: volver a la ciudad base con TukTuk + el
         // distrito. Vistas normales: viewId = uiCity, bucket = su dbCity.
+        // TukTuk y Delivery/Cargo comparten el mismo formato de clave
+        // (`TT~`/`CAT~`, ver lib/dataEntry/keys.js) — parseBucketKey ya sabe
+        // distinguirlos por `kind`, no hace falta repetir el split acá.
+        const parsedTok = parseBucketKey(viewIdTok)
         let cityLabel, bucketKeyD, resume
-        if (viewIdTok.startsWith('TT~')) {
-          const partsTT = viewIdTok.split('~')
-          const dc = partsTT[1] || ''
-          const zn = partsTT.slice(2).join('~')
+        if (parsedTok?.kind === 'tuktuk') {
+          const dc = parsedTok.city
+          const zn = parsedTok.zone
           bucketKeyD = viewIdTok
           cityLabel = `${dc} TukTuk · ${zn}`
           resume = { tukTuk: true, uiCity: tukTukInfo?.baseUiCity || dc, zone: zn }
+        } else if (parsedTok?.kind === 'category') {
+          const dc = parsedTok.city
+          const zn = parsedTok.zone
+          bucketKeyD = viewIdTok
+          cityLabel = `${dc} · ${zn}`
+          resume = { tukTuk: false, specialCat: zn, uiCity: dc }
         } else {
           const cats = countryConfig.categoriesByCity[viewIdTok] || []
           const { dbCity: dc } = resolveDbParams(viewIdTok, cats[0] || '', null, country, dbConfigs)
@@ -1764,9 +1797,15 @@ export default function DataEntry() {
     if (d.resume?.tukTuk) {
       setUiCity(d.resume.uiCity)
       setActiveTukTuk(d.resume.zone)
+      setActiveSpecialCat(null)
+    } else if (d.resume?.specialCat) {
+      setUiCity(d.resume.uiCity)
+      setActiveTukTuk(null)
+      setActiveSpecialCat(d.resume.specialCat)
     } else {
       setUiCity(d.resume?.uiCity ?? d.city)
       setActiveTukTuk(null)
+      setActiveSpecialCat(null)
     }
     setDate(d.date)
     setMsg(null)
@@ -2947,7 +2986,15 @@ export default function DataEntry() {
     // contaminado con tiempo ajeno).
     sessionStartRef.current = Date.now()
     setSessionActive(true)
-    const targetBucketKey = s.zone ? `TT~${s.city}~${s.zone}` : s.city
+    // s.zone puede ser un distrito de TukTuk O una categoría propia
+    // (Delivery/Cargo, ver SPECIAL_CATEGORY_ZONES) — ci_sessions no guarda
+    // cuál de los dos es, así que se distingue por el nombre reservado.
+    const zoneIsSpecialCat = s.zone != null && SPECIAL_CATEGORY_ZONES.has(s.zone)
+    const targetBucketKey = bucketKeyFor(
+      s.city,
+      s.zone ?? null,
+      Boolean(s.zone) && !zoneIsSpecialCat
+    )
     // Fusionar, nunca pisar: reemplazar el alcance borraba los frentes que
     // seguían a medias (ej. Punto A+B declarados) sin dejar rastro, y la
     // sesión después cerraba como final abandonándolos en silencio.
@@ -2955,14 +3002,22 @@ export default function DataEntry() {
       prev.includes(targetBucketKey) ? prev : [...prev, targetBucketKey]
     )
     setShowHistory(false)
-    if (s.zone) {
+    if (zoneIsSpecialCat) {
+      // Sesión de Delivery/Cargo: sin distrito, la ciudad base ya es la
+      // correcta (nunca cambia de uiCity).
+      setUiCity(targetUi)
+      setActiveTukTuk(null)
+      setActiveSpecialCat(s.zone)
+    } else if (s.zone) {
       // Sesión de TukTuk por distrito: volver a la ciudad base con TukTuk + el
       // distrito guardado en la sesión.
       setUiCity(tukTukInfo?.baseUiCity || targetUi)
       setActiveTukTuk(s.zone)
+      setActiveSpecialCat(null)
     } else {
       setUiCity(targetUi)
       setActiveTukTuk(null)
+      setActiveSpecialCat(null)
     }
     setDate(s.observed_date)
     // Seedear turnoTimings desde la sesión histórica ANTES de que el efecto
@@ -3954,7 +4009,11 @@ export default function DataEntry() {
                     ? 'Corp'
                     : tb.type === 'airport'
                       ? `✈ ${t('dataentry.tab_airport')}`
-                      : 'TukTuk'
+                      : tb.type === 'delivery'
+                        ? t('dataentry.tab_delivery')
+                        : tb.type === 'cargo'
+                          ? t('dataentry.tab_cargo')
+                          : 'TukTuk'
               const active =
                 tb.type === 'tuktuk'
                   ? isTukTuk && uiCity === tb.baseUiCity
@@ -3962,7 +4021,11 @@ export default function DataEntry() {
                     ? !isTukTuk && tb.members.some((m) => m.uiCity === uiCity)
                     : tb.type === 'corp'
                       ? !isTukTuk && uiCity === 'Corp'
-                      : !isTukTuk && uiCity === tb.uiCity
+                      : tb.type === 'delivery'
+                        ? !isTukTuk && activeSpecialCat === 'Delivery' && uiCity === tb.baseUiCity
+                        : tb.type === 'cargo'
+                          ? !isTukTuk && activeSpecialCat === 'Cargo' && uiCity === tb.baseUiCity
+                          : !isTukTuk && !isSpecialCat && uiCity === tb.uiCity
               // Historia: hasta 2026-07-24 acá había un candado
               // (`scopeLockedElsewhere`) que, con un alcance "Ambos" a medias,
               // bloqueaba navegar a CUALQUIER otra pestaña. Existía porque
@@ -3988,6 +4051,7 @@ export default function DataEntry() {
                       if (!active) {
                         setUiCity(tb.baseUiCity)
                         setActiveTukTuk(firstEnabledTukTukDistrict(tukTukDistricts) ?? '')
+                        setActiveSpecialCat(null)
                       }
                     } else if (tb.type === 'airport') {
                       if (!active) {
@@ -4003,10 +4067,18 @@ export default function DataEntry() {
                           ).uiCity
                         )
                         setActiveTukTuk(null)
+                        setActiveSpecialCat(null)
                       }
+                    } else if (tb.type === 'delivery' || tb.type === 'cargo') {
+                      // Sin distrito que preservar (a diferencia de TukTuk): el
+                      // click siempre fija la categoría, incluso re-clickeando.
+                      setUiCity(tb.baseUiCity)
+                      setActiveTukTuk(null)
+                      setActiveSpecialCat(tb.type === 'delivery' ? 'Delivery' : 'Cargo')
                     } else {
                       setUiCity(tb.uiCity)
                       setActiveTukTuk(null)
+                      setActiveSpecialCat(null)
                     }
                   }}
                 >
@@ -4076,6 +4148,7 @@ export default function DataEntry() {
                     if (locked) return
                     setUiCity(m.uiCity)
                     setActiveTukTuk(null)
+                    setActiveSpecialCat(null)
                     setMsg(null)
                   }}
                 >

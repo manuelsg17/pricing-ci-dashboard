@@ -981,6 +981,8 @@ export default {
     '6. "⏹ Terminar Sesión" exige que TODA la grilla esté completa (los 3 turnos) — no se puede terminar a medias. En Aeropuerto con alcance "Ambos": al completar el primer Punto, el botón dice "Terminar este punto" — la sesión sigue activa y saltás solo al otro punto; recién al completar el segundo se cierra de verdad.',
   'dataentry.tab_normal': 'Normal',
   'dataentry.tab_airport': 'Aeropuerto',
+  'dataentry.tab_delivery': 'Delivery',
+  'dataentry.tab_cargo': 'Cargo',
   'dataentry.tuktuk_no_districts':
     'No hay distritos de TukTuk cargados. Agregalos en Distancias de Referencia.',
   'dataentry.tuktuk_district_locked': 'Distrito aún no habilitado para ingresar CI',

@@ -967,6 +967,8 @@ export default {
     '6. "⏹ End Session" requires the WHOLE grid to be complete (all 3 timeslots) — you can\'t end it halfway. In Airport with "Both" scope: once you finish the first Point, the button says "Finish this point" — the session stays active and you jump straight to the other point; it only really ends once you finish the second one.',
   'dataentry.tab_normal': 'Normal',
   'dataentry.tab_airport': 'Airport',
+  'dataentry.tab_delivery': 'Delivery',
+  'dataentry.tab_cargo': 'Cargo',
   'dataentry.tuktuk_no_districts':
     'No TukTuk districts loaded yet. Add them in Reference Distances.',
   'dataentry.tuktuk_district_locked': 'District not yet enabled for CI entry',

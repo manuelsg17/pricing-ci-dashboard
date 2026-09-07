@@ -37,9 +37,18 @@ export function parseBucketKey(bucket) {
     // servidor y saldría en Monitoreo como "Lima TukTuk · null" y como una
     // fila de presencia fantasma.
     if (parts[2] === 'null' || parts[2] === 'undefined') return null
-    return { city: parts[1], zone: parts[2] }
+    return { city: parts[1], zone: parts[2], kind: 'tuktuk' }
   }
-  return { city: bucket, zone: null }
+  // `CAT~ciudad~categoría` — Delivery/Cargo (2026-09): misma ciudad de BD,
+  // categoría propia con su propia zone/marca de agua (ver lib/dataEntry/keys.js).
+  // Mismas reglas de robustez que TukTuk: 3 partes exactas, sin 'null' colado.
+  if (bucket.startsWith('CAT~')) {
+    const parts = bucket.split('~')
+    if (parts.length !== 3 || !parts[1] || !parts[2]) return null
+    if (parts[2] === 'null' || parts[2] === 'undefined') return null
+    return { city: parts[1], zone: parts[2], kind: 'category' }
+  }
+  return { city: bucket, zone: null, kind: 'normal' }
 }
 
 // Label legible de un frente, única fuente para el aviso de "te falta cerrar"
@@ -50,6 +59,9 @@ export function frontLabel(bucket) {
   if (!parsed) return String(bucket ?? '')
   const air = /^(.+)_Airport_([AB])$/.exec(parsed.city)
   if (air) return `${getCityLabel(air[1])} Aeropuerto · Punto ${air[2]}`
+  // Delivery/Cargo: "Lima · Delivery", no "Lima TukTuk · Delivery" — es una
+  // categoría propia, no un distrito.
+  if (parsed.kind === 'category') return `${getCityLabel(parsed.city)} · ${parsed.zone}`
   return formatCityZoneLabel(parsed.city, parsed.zone)
 }
 
