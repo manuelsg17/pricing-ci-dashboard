@@ -15,6 +15,7 @@ import {
   fetchSessionHistory,
   fetchTurnoTimings,
   fetchTukTukZones,
+  fetchMyUnfinishedSessions,
 } from '../hooks/useDataEntryPersistence'
 import {
   countFilledEntries,
@@ -58,6 +59,7 @@ import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRef
 import { useAuth } from '../lib/auth'
 import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
+import { formatCityZoneLabel } from '../lib/monitoring'
 import { frentesSinGuardar } from '../lib/frentesPendientes'
 import FrentesSinGuardar from '../components/dataentry/FrentesSinGuardar'
 import { normalizeCompetitorName } from '../lib/normalize'
@@ -896,6 +898,24 @@ export default function DataEntry() {
     },
     [dbCityToUiCity, tukTukInfo, uiCities]
   )
+
+  // ── Aviso: sesiones PROPIAS de días anteriores que quedaron sin cerrar
+  // (mig 243, pedido user 2026-09-07) ────────────────────────────────────
+  // Se consulta UNA vez al entrar (no en cada cambio de vista): es un aviso
+  // de bienvenida, no algo que deba recalcularse mientras el hub trabaja.
+  // Cubre lo que el aviso temprano de conflicto NO cubre: acá no hay dos
+  // pantallas escribiendo, hay CERO — el hub nunca volvió a esa ciudad/fecha
+  // para terminarla, y puede haber pasado en OTRO dispositivo.
+  const [myUnfinished, setMyUnfinished] = useState(null)
+  const unfinishedCheckedRef = useRef(false)
+  useEffect(() => {
+    if (!userEmail || unfinishedCheckedRef.current) return
+    unfinishedCheckedRef.current = true
+    fetchMyUnfinishedSessions().then(({ data, error }) => {
+      if (error || !Array.isArray(data) || data.length === 0) return
+      setMyUnfinished(data)
+    })
+  }, [userEmail])
 
   useEffect(() => {
     if (!tukTukInfo) {
@@ -3962,6 +3982,46 @@ export default function DataEntry() {
       </div>
 
       <InstructionsBanner t={t} />
+
+      {/* Sesiones propias de días anteriores sin cerrar (mig 243). Solo
+          informativo: ir ahí sigue requiriendo que el hub complete y termine
+          a mano — esto no cierra nada solo. Se puede descartar por completo
+          o fila por fila (una vez atendida, no debe seguir apareciendo). */}
+      {Array.isArray(myUnfinished) && myUnfinished.length > 0 && (
+        <div className="de-unfinished-alert">
+          <p className="de-unfinished-alert__title">
+            {t('dataentry.unfinished_alert_title', { n: myUnfinished.length })}
+          </p>
+          <ul className="de-unfinished-alert__list">
+            {myUnfinished.map((u) => {
+              const isSpecial = SPECIAL_CATEGORY_ZONES.has(u.zone)
+              const bk = bucketKeyFor(u.city, u.zone ?? null, Boolean(u.zone) && !isSpecial)
+              return (
+                <li key={`${u.city}|${u.zone || ''}|${u.observed_date}`}>
+                  <span>
+                    {formatCityZoneLabel(u.city, u.zone)} · {u.observed_date} · {u.n_rows}{' '}
+                    {t('dataentry.unfinished_alert_rows')}
+                  </span>
+                  <button
+                    type="button"
+                    className="de-footer-goto"
+                    onClick={() => {
+                      if (irAFrente(bk)) setDate(u.observed_date)
+                      setMyUnfinished((prev) => (prev || []).filter((x) => x !== u))
+                    }}
+                  >
+                    {t('dataentry.unfinished_alert_goto')}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <button type="button" className="de-footer-goto" onClick={() => setMyUnfinished(null)}>
+            {t('dataentry.unfinished_alert_dismiss_all')}
+          </button>
+        </div>
+      )}
+
       {pendingExtraFronts.length > 0 && (
         <div className="de-locked-district-banner">
           {t('dataentry.extra_fronts_pending', {

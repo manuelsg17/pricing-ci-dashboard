@@ -221,6 +221,11 @@ export function fetchTukTukZones(country, dbCity) {
     .not('zone', 'is', null)
 }
 
+// ── Sesiones propias sin terminar (mig 243, aviso al hub) ──────────────
+export async function fetchMyUnfinishedSessions() {
+  return sb.rpc('get_my_unfinished_ci_sessions', { p_days_back: 7 })
+}
+
 // Acceso agrupado para quien prefiera un solo objeto. DataEntry.jsx importa
 // las funciones por nombre (el checker de section-grants resuelve por
 // símbolo, CLAUDE.md §3), pero la API "hook" queda disponible.
@@ -238,6 +243,7 @@ const PERSISTENCE = Object.freeze({
   fetchSessionHistory,
   fetchTurnoTimings,
   fetchTukTukZones,
+  fetchMyUnfinishedSessions,
 })
 
 export function useDataEntryPersistence() {

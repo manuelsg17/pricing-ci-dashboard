@@ -941,6 +941,10 @@ export default {
   'dataentry.early_conflict_hint':
     'Внимание: это уже сохранялось из другого места {when}. Если продолжите здесь, при сохранении может быть конфликт — проверьте, прежде чем тратить время.',
   'dataentry.early_conflict_dismiss': 'Понятно',
+  'dataentry.unfinished_alert_title': 'У вас есть {n} незавершённых сессий за прошлые дни:',
+  'dataentry.unfinished_alert_rows': 'сохранённых строк',
+  'dataentry.unfinished_alert_goto': 'Перейти',
+  'dataentry.unfinished_alert_dismiss_all': 'Скрыть',
   'dataentry.conflict_body':
     'Выберите, что оставить. Пока ничего не потеряно — данные с другого экрана сохранены.',
   'dataentry.conflict_reload': 'Загрузить последнюю версию (копия вашей сохранится)',

@@ -1432,3 +1432,36 @@
 .de-footer-goto:hover {
   background: rgba(185, 28, 28, 0.08);
 }
+
+/* Alerta de sesiones propias sin cerrar de días anteriores (mig 243). Tono
+   informativo (azulado), no de error — a diferencia de .de-conflict, esto
+   no bloquea nada ni exige una decisión inmediata. */
+.de-unfinished-alert {
+  border: 1px solid var(--sem-blue-fg, #1d4ed8);
+  background: var(--sem-blue-bg, #eff6ff);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.de-unfinished-alert__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.de-unfinished-alert__list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.de-unfinished-alert__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text);
+}

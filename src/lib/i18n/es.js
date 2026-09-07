@@ -931,6 +931,10 @@ export default {
   'dataentry.early_conflict_hint':
     'Aviso: esto se guardó desde otro lado el {when}. Si seguís acá, puede haber un conflicto al guardar — revisá antes de invertir tiempo tipeando.',
   'dataentry.early_conflict_dismiss': 'Entendido',
+  'dataentry.unfinished_alert_title': 'Tenés {n} sesión(es) sin terminar de días anteriores:',
+  'dataentry.unfinished_alert_rows': 'filas guardadas',
+  'dataentry.unfinished_alert_goto': 'Ir ahí',
+  'dataentry.unfinished_alert_dismiss_all': 'Descartar aviso',
   'dataentry.conflict_body':
     'Elegí con cuál te quedás. Nada se perdió todavía: lo de la otra pantalla sigue guardado.',
   'dataentry.conflict_reload': 'Traer lo último (guardamos copia de lo tuyo)',

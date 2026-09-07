@@ -917,6 +917,10 @@ export default {
   'dataentry.early_conflict_hint':
     'Heads-up: this was saved from somewhere else on {when}. If you keep working here, saving may conflict — worth checking before you type a lot.',
   'dataentry.early_conflict_dismiss': 'Got it',
+  'dataentry.unfinished_alert_title': 'You have {n} unfinished session(s) from earlier days:',
+  'dataentry.unfinished_alert_rows': 'rows saved',
+  'dataentry.unfinished_alert_goto': 'Go there',
+  'dataentry.unfinished_alert_dismiss_all': 'Dismiss',
   'dataentry.conflict_body':
     'Choose which one to keep. Nothing is lost yet — the other screen is still saved.',
   'dataentry.conflict_reload': 'Get the latest (we keep a copy of yours)',
