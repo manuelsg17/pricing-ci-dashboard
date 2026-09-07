@@ -71,6 +71,14 @@ console.log('\n══ monitoring tests ══')
     formatCityZoneLabel('Corp', null) === 'Corp',
     'Corp (getCityLabel ya mapea el nombre) sin zona'
   )
+  assert(
+    formatCityZoneLabel('Lima', 'Delivery') === 'Lima · Delivery',
+    'Delivery/Cargo (2026-09): zone es la categoría, no un distrito — sin "TukTuk"'
+  )
+  assert(
+    formatCityZoneLabel('Lima', 'Cargo') === 'Lima · Cargo',
+    'Cargo también entra por SPECIAL_CATEGORY_ZONES'
+  )
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

@@ -928,6 +928,9 @@ export default {
   'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
   'dataentry.err_save_conflict':
     'No guardamos nada, para no borrar tu trabajo. Esta ciudad se guardó desde otro lado y esta pantalla tiene una versión más vieja.',
+  'dataentry.early_conflict_hint':
+    'Aviso: esto se guardó desde otro lado el {when}. Si seguís acá, puede haber un conflicto al guardar — revisá antes de invertir tiempo tipeando.',
+  'dataentry.early_conflict_dismiss': 'Entendido',
   'dataentry.conflict_body':
     'Elegí con cuál te quedás. Nada se perdió todavía: lo de la otra pantalla sigue guardado.',
   'dataentry.conflict_reload': 'Traer lo último (guardamos copia de lo tuyo)',

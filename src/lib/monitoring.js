@@ -3,6 +3,7 @@
 // ciudad+distrito compartido entre paneles. Sin dependencias de React/Supabase
 // — fácil de testear (ver scripts/test-monitoring.mjs).
 import { getCityLabel } from './constants.js'
+import { SPECIAL_CATEGORY_ZONES } from './dataEntry/keys.js'
 
 // Umbrales de "sesión en vivo" (ver mig 146, comentario de ci_active_sessions):
 // el latido se manda cada ~25s mientras sessionActive; 3 min de silencio ya es
@@ -29,8 +30,16 @@ export function classifySession(lastSeenIso, nowMs = Date.now()) {
 // paneles de Monitoreo. (Nota: DataEntry.jsx tiene 2 formatos ligeramente
 // distintos ya en uso para otros fines — acá se estandariza al más explícito,
 // sin tocar esos usos existentes.)
+//
+// Delivery/Cargo (2026-09): mismo `zone` que TukTuk usa para el distrito,
+// pero acá NO es un distrito — es la categoría misma (ver
+// SPECIAL_CATEGORY_ZONES). "Lima TukTuk · Delivery" confundiría al admin;
+// debe leerse "Lima · Delivery", igual que frontLabel() en sessionFronts.js
+// (misma regla, dos fuentes de datos: ahí llega bucketKey ya parseado con
+// `kind`, acá llegan city/zone sueltos desde ci_active_sessions).
 export function formatCityZoneLabel(city, zone) {
   const label = getCityLabel(city)
   if (!zone) return label
+  if (SPECIAL_CATEGORY_ZONES.has(zone)) return `${label} · ${zone}`
   return `${label} TukTuk · ${zone}`
 }

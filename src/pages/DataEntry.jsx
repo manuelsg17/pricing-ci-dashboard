@@ -1045,11 +1045,25 @@ export default function DataEntry() {
       // pantalla de verdad y el conflicto tiene que aparecer.
       if (savedAt != null && Number.isFinite(escrituraServidor) && escrituraServidor <= savedAt) {
         writeSyncSeqFor(country, city, z, d, Number(data.write_seq))
+      } else if (Number.isFinite(escrituraServidor)) {
+        // Mismo caso, pero AVISADO YA — antes el hub solo se enteraba al
+        // guardar, después de haber tipeado. La marca queda igual de
+        // "vieja" a propósito: el conflicto real de verdad sigue apareciendo
+        // al guardar (mig 191), esto es solo el heads-up temprano.
+        setEarlyConflictHint({ bucketKey: bucketKeyFor(city, z, isTukTuk), at: data.last_write_at })
       }
     },
-    [userEmail, country, writeSyncSeqFor]
+    [userEmail, country, writeSyncSeqFor, isTukTuk]
   )
 
+  // Aviso TEMPRANO, no bloqueante: se muestra apenas se detecta que el
+  // servidor tiene una escritura más nueva que el borrador local restaurado
+  // — antes de que el hub invierta tiempo tipeando y recién se entere al
+  // guardar (pedido user 2026-09-07, tras el incidente real de conflicto en
+  // Corp). `{ bucketKey, at }` para que solo se muestre en la vista a la que
+  // corresponde; se limpia al guardar con éxito (mismo momento que
+  // saveConflict) o al resolverlo desde acá.
+  const [earlyConflictHint, setEarlyConflictHint] = useState(null)
   // Conflicto detectado por el servidor: { at, isFinish } o null.
   const [saveConflict, setSaveConflict] = useState(null)
   // El aviso de conflicto sale junto al botón que el hub apretó (barra
@@ -2567,6 +2581,7 @@ export default function DataEntry() {
     }
     if (saveRes && Number.isFinite(Number(saveRes.seq))) writeSyncSeq(Number(saveRes.seq))
     setSaveConflict(null)
+    setEarlyConflictHint(null)
     // Guardado confirmado en servidor de verdad (no solo local) — ver
     // indicador en el header.
     setLastSaveOkAt(Date.now())
@@ -4322,6 +4337,27 @@ export default function DataEntry() {
         <div className="de-msg de-msg--err de-msg--emphasize">
           <AlertTriangle className="de-msg__icon" size={20} />
           {t('dataentry.storage_failed')}
+        </div>
+      )}
+
+      {/* Aviso temprano (pedido user 2026-09-07): la MISMA señal que dispara
+          el conflicto al guardar (mig 191) ya está disponible al restaurar el
+          borrador — mostrarla ACÁ, antes de que el hub tipee, en vez de
+          esperar a que el guardado rebote. No bloquea nada: se puede
+          descartar, y si el hub guarda igual el conflicto real (si sigue
+          vigente) aparece abajo con sus dos salidas. */}
+      {earlyConflictHint?.bucketKey === bucketKey && !saveConflict && (
+        <div className="de-msg de-msg--err">
+          {t('dataentry.early_conflict_hint', {
+            when: new Date(earlyConflictHint.at).toLocaleString(),
+          })}
+          <button
+            type="button"
+            className="de-footer-goto"
+            onClick={() => setEarlyConflictHint(null)}
+          >
+            {t('dataentry.early_conflict_dismiss')}
+          </button>
         </div>
       )}
 
