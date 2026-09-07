@@ -214,3 +214,20 @@ adopción, ya no es un no" — hasta hoy no existía ninguna. Instalado
   simultáneos (necesita 2 BrowserContext) ni el flujo de Aeropuerto/TukTuk —
   quedan como próxima expansión natural ahora que el harness ya existe y
   funciona.
+
+## 10. Volumen e índices (revisado 2026-09-07, sin cambios necesarios)
+
+Delivery/Cargo escriben en la MISMA tabla particionada `pricing_observations`
+(city='Lima', category nueva) — no hay partición ni índice nuevo que crear:
+los índices compuestos existentes (`country_city_category_idx`,
+`country_data_source_city_categ_idx`, etc., ver
+`docs/index-usage-baseline-2026-09-03.md`) ya son genéricos por category, no
+están hardcodeados a las categorías de ride-hailing. El particionado mensual
+(migs 168-169) absorbe el crecimiento sin cambios.
+
+Volumen estimado (worst case, ambas categorías completas todos los días):
+12 rutas × 6 competidores (4+2) × 3 turnos = 216 celdas/día por hub — en la
+práctica menos, porque son pestañas OPCIONALES que un hub llena cuando
+corresponde, no un tercer frente obligatorio. Sin acción hoy; incluir estas
+categorías al comparar `idx_scan` en la re-medición ya agendada del
+2026-10-03 (por si el patrón de acceso real difiere de ride-hailing).
