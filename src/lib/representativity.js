@@ -3,6 +3,7 @@
 // sin UI. Los usa RepresentativityCard.jsx sobre la RPC get_representativity
 // (mig 138), que devuelve por celda (ciudad × categoría × competidor × bracket)
 // el conteo de la SEMANA ISO en curso, separado bot_n / manual_n.
+import { isInDriveVariant } from './constants.js'
 
 // Umbrales por celda por SEMANA. Derivados de la variabilidad real de Perú
 // (CV ≈ 0.17 estándar / 0.19 InDrive) para un margen de error de ±10% (piso) y
@@ -15,8 +16,11 @@ export const REP_OPTIMO = { standard: 40, indrive: 55 }
 export const HEALTH_OK = 0.95
 export const HEALTH_WARN = 0.8
 
+// isInDriveVariant (constants.js) generaliza esto a las 4 subcategorías de
+// InDrive en Cargo (mismo CV/varianza que InDrive a secas) — hallazgo de la
+// revisión adversarial 2026-09-07, antes solo comparaba el nombre exacto.
 export function isIndrive(comp) {
-  return comp === 'InDrive'
+  return isInDriveVariant(comp)
 }
 export function cellFloor(comp) {
   return isIndrive(comp) ? REP_FLOOR.indrive : REP_FLOOR.standard

@@ -350,3 +350,44 @@ automáticamente en cada corrida futura.
 
 Migración 244 aplicada en LOCAL, probada dos veces seguidas (segunda
 corrida `UPDATE 0`, idempotente).
+
+## 14. Revisión adversarial de las subcategorías de Cargo (2026-09-07)
+
+2 agentes en paralelo (lógica de cliente, SQL/datos de la mig 244). Sin
+hallazgos P0/P1 en ninguno de los dos.
+
+**SQL/datos — confirmado sin cambios necesarios:** mig 244 idéntica a su
+espejo; idempotente incluso ante corrupción manual del array de competidores
+(probado insertando un estado a medias y confirmando que la migración lo
+corrige); los 8 nombres nuevos no colisionan con el diccionario de
+`normalize_competitor_name` (mig 239, probado insertando cada uno); sin
+reglas de bot huérfanas para Cargo; `check:section-grants` verde; sin límite
+de tamaño de batch para las 288 filas (probado con un INSERT real de 288).
+
+**Cliente — 5 P2 corregidos:** la generalización de `comp === 'InDrive'` a
+`isInDriveVariant()` se había hecho bien en el camino de ESCRITURA
+(`DataEntry.jsx`, `rows.js`, `BracketRouteGroup.jsx`) pero quedó a medias en
+el camino de LECTURA/dashboard:
+
+- `src/lib/representativity.js`: el umbral de representatividad (14/55 en
+  vez de 10/40) ahora aplica a las 4 subcategorías de InDrive en Cargo, no
+  solo a "InDrive" a secas.
+- `src/components/dashboard/DrillDownModal.jsx`: el predicado que decide si
+  buscar por bids o por precio simple ahora reconoce las 4 subcategorías —
+  antes una fila de Cargo InDrive con bids pero sin `recommended_price`
+  hubiera quedado invisible en el drill-down (mismo bug que el propio
+  comentario del archivo documenta para InDrive puro).
+- `src/components/market/DiscountIntensity.jsx`: la nota "precio con
+  contraoferta" ahora aparece también para las 4 subcategorías (cosmético).
+- `src/algorithms/indrive.js`: **NO se generalizó a propósito** — es "espejo
+  exacto" de la vista SQL `v_effective_price`, que sigue comparando
+  `competition_name = 'InDrive'` literal. Cambiar solo el JS habría creado
+  una divergencia nueva entre JS y SQL, exactamente la clase de bug que el
+  propio archivo advierte que ya pasó dos veces. Hoy es inofensivo porque
+  Cargo es 100% manual y el cliente siempre precalcula el promedio de bids
+  en `price_without_discount` antes de guardar. Se dejó documentado en el
+  archivo: si Cargo alguna vez gana un camino de ingesta que no precalcule
+  ese promedio (bot, import de Excel), la función y la vista SQL hay que
+  generalizarlas JUNTAS, en la misma migración.
+
+Validación: lint 0 warnings, build, test:all, suite E2E 3/3.

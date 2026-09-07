@@ -5,6 +5,7 @@ import { useI18n } from '../../context/LanguageContext'
 import { formatCurrency } from '../../lib/format.js'
 import { prettyCompetitor } from '../../lib/normalize'
 import { computeEffectivePrice } from '../../algorithms/indrive'
+import { isInDriveVariant } from '../../lib/constants'
 import { toISODate } from '../../lib/dateUtils'
 import { Button } from '../ui/shadcn/button'
 
@@ -72,10 +73,13 @@ export default function DrillDownModal({
       // misma regla.
       const coalescePositivo =
         'price_without_discount.gt.0,and(price_without_discount.is.null,recommended_price.gt.0)'
-      const predicado =
-        comp === 'InDrive'
-          ? `bid_1.gt.0,bid_2.gt.0,bid_3.gt.0,bid_4.gt.0,bid_5.gt.0,${coalescePositivo}`
-          : coalescePositivo
+      // isInDriveVariant (no solo === 'InDrive'): las 4 subcategorías de
+      // InDrive en Cargo (2026-09) también cargan bids — hallazgo de la
+      // revisión adversarial, mismo patrón de divergencia que el comentario
+      // de arriba ya documenta para 'InDrive' a secas.
+      const predicado = isInDriveVariant(comp)
+        ? `bid_1.gt.0,bid_2.gt.0,bid_3.gt.0,bid_4.gt.0,bid_5.gt.0,${coalescePositivo}`
+        : coalescePositivo
       let query = sb
         .from('pricing_observations')
         .select(
