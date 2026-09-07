@@ -1414,3 +1414,21 @@
   border-color: var(--sem-red-fg, #b91c1c) !important;
   color: var(--sem-red-fg, #b91c1c);
 }
+
+/* Atajo del aviso de conflicto en la barra inferior hacia el panel con las
+   dos salidas (que vive arriba de la grilla). Sin esto el hub lee el error
+   al lado del botón que apretó y no tiene ninguna acción a mano. */
+.de-footer-goto {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.de-footer-goto:hover {
+  background: rgba(185, 28, 28, 0.08);
+}

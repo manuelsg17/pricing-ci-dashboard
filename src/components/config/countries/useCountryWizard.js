@@ -219,9 +219,17 @@ export default function useCountryWizard({ onClose, onCreated }) {
         // Igual que antes: los pesos solo se guardan si suman 100.
         weights: weightsSumOk(totalWeight) ? draft.weights : null,
       }
-      const { data: created, error: rpcErr } = await sb.rpc('create_country_setup', {
+      let { data: created, error: rpcErr } = await sb.rpc('create_country_setup', {
         p_payload: payload,
       })
+      // La RPC es transaccional pero NO idempotente: si commiteó y la
+      // respuesta se perdió (red caída, pestaña dormida), el reintento choca
+      // con 23505. El país YA está creado, así que se sigue a la validación
+      // en vez de mostrar un error que empuja al hub a crearlo "de nuevo".
+      if (rpcErr?.code === '23505') {
+        created = null
+        rpcErr = null
+      }
       if (rpcErr) throw rpcErr
 
       // Validar setup
@@ -232,20 +240,24 @@ export default function useCountryWizard({ onClose, onCreated }) {
 
       setMsg({
         type: 'ok',
-        text:
-          t('config.country_wizard.created_toast', { label: draft.label }) +
-          ' ' +
-          t('config.country_wizard.created_summary', {
-            thresholds: created?.distance_thresholds ?? 0,
-            semaforo: created?.semaforo_config ?? 0,
-            rush: created?.rush_hour_windows ?? 0,
-            rules: created?.bot_rules ?? 0,
-            weights: created?.bracket_weights ?? 0,
-          }) +
-          // La siembra de indrive_config es best-effort dentro de la RPC: si
-          // falló, el país queda creado pero sin ajuste de InDrive y hay que
-          // decirlo, no esconderlo bajo el toast de éxito.
-          (created?.indrive_config_error ? ' ' + t('config.country_wizard.indrive_warning') : ''),
+        text: !created
+          ? // Reintento sobre un país que ya había quedado creado: sin conteos
+            // (la RPC no los devuelve la segunda vez); la tabla de validación
+            // que se muestra abajo dice qué quedó sembrado de verdad.
+            t('config.country_wizard.already_created', { label: draft.label })
+          : t('config.country_wizard.created_toast', { label: draft.label }) +
+            ' ' +
+            t('config.country_wizard.created_summary', {
+              thresholds: created.distance_thresholds ?? 0,
+              semaforo: created.semaforo_config ?? 0,
+              rush: created.rush_hour_windows ?? 0,
+              rules: created.bot_rules ?? 0,
+              weights: created.bracket_weights ?? 0,
+            }) +
+            // La siembra de indrive_config es best-effort dentro de la RPC: si
+            // falló, el país queda creado pero sin ajuste de InDrive y hay que
+            // decirlo, no esconderlo bajo el toast de éxito.
+            (created.indrive_config_error ? ' ' + t('config.country_wizard.indrive_warning') : ''),
       })
       try {
         localStorage.removeItem(WIZARD_DRAFT_KEY)

@@ -942,6 +942,7 @@ export default {
     'Выберите, что оставить. Пока ничего не потеряно — данные с другого экрана сохранены.',
   'dataentry.conflict_reload': 'Загрузить последнюю версию (копия вашей сохранится)',
   'dataentry.conflict_force': 'Всё равно сохранить то, что здесь',
+  'dataentry.conflict_goto': 'Показать 2 варианта ↑',
   'dataentry.conflict_force_confirm':
     'Это заменит то, что было сохранено с другого места. Продолжить?',
   'dataentry.lease_readonly_title': 'Эта вкладка только для чтения.',
@@ -2467,6 +2468,8 @@ export default {
   'config.country_wizard.err_currency': 'currency обязательна',
   'config.country_wizard.created_toast':
     'Страна "{label}" создана со статусом draft. Проверьте чеклист ниже и активируйте, когда будет готово.',
+  'config.country_wizard.already_created':
+    '{label} уже был создан (предыдущая попытка сохранилась). Ниже видно, что настроено.',
   'config.country_wizard.create_error': 'Ошибка при создании страны: {error}',
   'config.country_wizard.indrive_warning':
     'Внимание: не удалось создать конфигурацию InDrive; добавьте её вручную в «Конфигурация → InDrive».',

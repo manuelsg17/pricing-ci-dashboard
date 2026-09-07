@@ -1028,6 +1028,17 @@ export default function DataEntry() {
 
   // Conflicto detectado por el servidor: { at, isFinish } o null.
   const [saveConflict, setSaveConflict] = useState(null)
+  // El aviso de conflicto sale junto al botón que el hub apretó (barra
+  // inferior), pero las dos salidas viven arriba de la grilla: en Corp son
+  // ~1000px de distancia y el hub se queda mirando un error sin acciones
+  // (le pasó a un hub el 2026-09-07). El panel se trae a la vista solo.
+  const conflictRef = useRef(null)
+  const irAlConflicto = useCallback(() => {
+    conflictRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [])
+  useEffect(() => {
+    if (saveConflict) irAlConflicto()
+  }, [saveConflict, irAlConflicto])
 
   // El borrador NO se está pudiendo escribir (durabilidad R5).
   //
@@ -4246,7 +4257,7 @@ export default function DataEntry() {
           seguir. Las dos son EXPLÍCITAS y dicen qué descartan — ninguna
           resuelve el conflicto en silencio. */}
       {saveConflict && (
-        <div className="de-conflict">
+        <div className="de-conflict" ref={conflictRef}>
           <p className="de-conflict__body">{t('dataentry.conflict_body')}</p>
           <div className="de-conflict__actions">
             <button
@@ -4478,7 +4489,14 @@ export default function DataEntry() {
             </Button>
           )}
           {msg && (
-            <span className={msg.type === 'ok' ? 'de-footer-ok' : 'de-footer-err'}>{msg.text}</span>
+            <span className={msg.type === 'ok' ? 'de-footer-ok' : 'de-footer-err'}>
+              {msg.text}
+              {saveConflict && (
+                <button type="button" className="de-footer-goto" onClick={irAlConflicto}>
+                  {t('dataentry.conflict_goto')}
+                </button>
+              )}
+            </span>
           )}
         </div>
       )}

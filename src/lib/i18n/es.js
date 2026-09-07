@@ -932,6 +932,7 @@ export default {
     'Elegí con cuál te quedás. Nada se perdió todavía: lo de la otra pantalla sigue guardado.',
   'dataentry.conflict_reload': 'Traer lo último (guardamos copia de lo tuyo)',
   'dataentry.conflict_force': 'Guardar lo de esta pantalla igual',
+  'dataentry.conflict_goto': 'Ver las 2 opciones ↑',
   'dataentry.conflict_force_confirm':
     'Vas a reemplazar lo que se guardó desde el otro lado. ¿Seguimos?',
   'dataentry.lease_readonly_title': 'Esta pestaña está en modo lectura.',
@@ -2432,6 +2433,8 @@ export default {
   'config.country_wizard.err_currency': 'currency es obligatorio',
   'config.country_wizard.created_toast':
     'País "{label}" creado en status=draft. Revisá el checklist abajo y activá cuando esté listo.',
+  'config.country_wizard.already_created':
+    '{label} ya estaba creado (el intento anterior sí se guardó). Revisá abajo qué quedó configurado.',
   'config.country_wizard.create_error': 'Error al crear país: {error}',
   'config.country_wizard.indrive_warning':
     'Atención: no se pudo sembrar la configuración de InDrive; cargala a mano desde Configuración → InDrive.',

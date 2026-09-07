@@ -918,6 +918,7 @@ export default {
     'Choose which one to keep. Nothing is lost yet — the other screen is still saved.',
   'dataentry.conflict_reload': 'Get the latest (we keep a copy of yours)',
   'dataentry.conflict_force': 'Save this screen anyway',
+  'dataentry.conflict_goto': 'See the 2 options ↑',
   'dataentry.conflict_force_confirm':
     'This will replace what was saved from the other side. Continue?',
   'dataentry.lease_readonly_title': 'This tab is read-only.',
@@ -2388,6 +2389,8 @@ export default {
   'config.country_wizard.err_currency': 'currency is required',
   'config.country_wizard.created_toast':
     'Country "{label}" created in status=draft. Check the checklist below and activate it when ready.',
+  'config.country_wizard.already_created':
+    '{label} was already created (the previous attempt did go through). Check below what got configured.',
   'config.country_wizard.create_error': 'Error creating the country: {error}',
   'config.country_wizard.indrive_warning':
     'Heads-up: the InDrive configuration could not be seeded; add it manually in Config → InDrive.',
