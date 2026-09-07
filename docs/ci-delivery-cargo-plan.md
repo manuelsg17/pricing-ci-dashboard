@@ -297,3 +297,56 @@ intercambiables); no se agregó validación extra por ahora.
 Validación final tras los fixes: lint 0 warnings, build, test:all,
 check:section-grants, y la suite E2E (3/3) — todo en verde. Sin residuos de
 la cuenta e2e-ci@local.test en BD.
+
+## 13. Cargo: subcategorías de vehículo (2026-09-07, pedido posterior al merge)
+
+Cargo deja de ser "Yango vs InDrive" a secas: cada marca tiene 4 tamaños de
+vehículo, cada uno con su propia columna en la grilla (ver mig 244). Volumen
+resultante: 12 rutas × 8 subcategorías × 3 turnos = 288 celdas/día (el
+turno de mediodía se carga marcando "sin oferta" — decisión explícita del
+user para no tocar el mecanismo de turnos, que es global).
+
+| Marca   | Competidor interno    | Columna    | Nombre completo                |
+| ------- | --------------------- | ---------- | ------------------------------ |
+| Yango   | `YangoCargoXP`        | XP         | Camión Extra Pequeño           |
+| Yango   | `YangoCargoPickup`    | Pickup     | Minivan/Pickup                 |
+| Yango   | `YangoCargoM`         | Mediano    | Camión Mediano                 |
+| Yango   | `YangoCargoXL`        | Grande     | Camión Grande                  |
+| InDrive | `InDriveCargoPickup`  | Pickup/SUV | Pickup y SUV (contraofertas)   |
+| InDrive | `InDriveCargoVan`     | Van        | Van (contraofertas)            |
+| InDrive | `InDriveCargoLiviano` | Liviano    | Camión Liviano (contraofertas) |
+| InDrive | `InDriveCargoGrande`  | Camión     | Camión (contraofertas)         |
+
+**Bug real encontrado y corregido ANTES de mergear** (probado en navegador, no
+solo revisado en el código): el mecanismo de contraofertas de InDrive
+identificaba la celda por `(uiCat, refId, timeslot)` SIN el competidor —
+funcionaba porque hasta ahora solo existía UN InDrive por fila. Con 4
+subcategorías de InDrive compartiendo la misma fila, las 4 pisaban el mismo
+estado de bids/recomendado (P0 de corrupción de datos, nunca llegó a
+producción). Corregido en 3 capas:
+
+- `indKey()` (`lib/dataEntry/keys.js`) ahora incluye `comp`, igual que
+  `priceKey()` — mismo formato exacto entre las dos.
+- `setIndrive()` y los 7 puntos de uso de `indKey()` en `DataEntry.jsx`/
+  `rows.js`/`BracketRouteGroup.jsx` actualizados para pasar `comp`.
+- Un segundo bug relacionado en el mismo componente: `avg={getEntry(...,
+'InDrive')}` tenía el nombre de competidor HARDCODEADO en vez de usar
+  `comp` — mismo síntoma, otra causa.
+
+Verificado en navegador contra Supabase local: 4 valores DISTINTOS
+(11/22/33/44) escritos en las 4 celdas de contraofertas de InDrive de la
+MISMA fila, guardados y confirmados en `pricing_observations.recommended_price`
+sin colisión; las 4 de Yango con sus propios precios (100/200/300/400).
+`isInDriveVariant()` (nuevo, `constants.js`) generaliza el chequeo
+`comp === 'InDrive'` a las 4 subcategorías en los 6 puntos donde existía.
+
+Nombres cortos en pantalla con nombre completo en el tooltip
+(`COMPETITOR_SHORT_LABEL`/`COMPETITOR_FULL_LABEL` en `catalogs.js`,
+`CompBadge.jsx`).
+
+E2E actualizado: el test de cierre de sesión de Cargo ahora espera 288 filas
+(antes 72) — sigue pasando (3/3) y de paso confirma el volumen nuevo
+automáticamente en cada corrida futura.
+
+Migración 244 aplicada en LOCAL, probada dos veces seguidas (segunda
+corrida `UPDATE 0`, idempotente).

@@ -109,16 +109,16 @@ test('Cargo: sesión completa cierra de punta a punta sin duplicar filas', async
     .getByRole('button', { name: /End Session/ })
     .first()
     .click()
-  await expect(page.locator('.de-msg')).toContainText(/72 records saved/)
+  await expect(page.locator('.de-msg')).toContainText(/288 records saved/)
 
-  // Sin duplicados: 12 rutas × 2 competidores × 3 turnos = 72, ni una fila más.
+  // Sin duplicados: 12 rutas × 8 subcategorías (2026-09) × 3 turnos = 288, ni una fila más.
   const { rows } = await withDb((db) =>
     db.query(
       `SELECT count(*)::int AS n FROM pricing_observations
        WHERE uploaded_by = 'e2e-ci@local.test' AND category = 'Cargo'`
     )
   )
-  expect(rows[0].n).toBe(72)
+  expect(rows[0].n).toBe(288)
 
   // La sesión quedó historizada y no hay latido colgado.
   const { rows: sessionRows } = await withDb((db) =>
@@ -126,7 +126,7 @@ test('Cargo: sesión completa cierra de punta a punta sin duplicar filas', async
       `SELECT rows_saved FROM ci_sessions WHERE user_email = 'e2e-ci@local.test' ORDER BY id DESC LIMIT 1`
     )
   )
-  expect(sessionRows[0]?.rows_saved).toBe(72)
+  expect(sessionRows[0]?.rows_saved).toBe(288)
   const { rows: activeRows } = await withDb((db) =>
     db.query(
       `SELECT count(*)::int AS n FROM ci_active_sessions WHERE user_email = 'e2e-ci@local.test'`

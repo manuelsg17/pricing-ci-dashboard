@@ -134,7 +134,100 @@ export const CATALOG_COMPETITORS = [
     botApps: ['pedidosya'],
     aliases: ['pedidosya', 'pedidos ya', 'peya', 'pedidos_ya'],
   },
+  // Cargo (2026-09): subcategorías por tamaño de vehículo, no un competidor
+  // más — cada una es su propia columna en la grilla de Cargo, de más chico
+  // a más grande dentro de cada marca (mismo orden en que aparecen acá).
+  // `botApps: []` porque el bot no las alimenta (categorías dormant, ver
+  // mig 239/242) — solo carga manual del hub.
+  {
+    value: 'YangoCargoXP',
+    color: '#EF9A9A',
+    botApps: [],
+    aliases: ['camion extra pequeño', 'camion extra pequeno', 'yango cargo xp'],
+  },
+  {
+    value: 'YangoCargoPickup',
+    color: '#E57373',
+    botApps: [],
+    aliases: ['minivan', 'minivan/pickup', 'yango cargo pickup'],
+  },
+  {
+    value: 'YangoCargoM',
+    color: '#E53935',
+    botApps: [],
+    aliases: ['camion mediano', 'yango cargo mediano', 'yango cargo m'],
+  },
+  {
+    value: 'YangoCargoXL',
+    color: '#B71C1C',
+    botApps: [],
+    aliases: ['camion grande', 'yango cargo grande', 'yango cargo xl'],
+  },
+  {
+    value: 'InDriveCargoPickup',
+    color: '#A5D6A7',
+    botApps: [],
+    aliases: ['pickup y suv', 'pickup/suv', 'indrive cargo pickup'],
+  },
+  {
+    value: 'InDriveCargoVan',
+    color: '#66BB6A',
+    botApps: [],
+    aliases: ['van', 'indrive cargo van'],
+  },
+  {
+    value: 'InDriveCargoLiviano',
+    color: '#2E7D32',
+    botApps: [],
+    aliases: ['camion liviano', 'indrive cargo liviano'],
+  },
+  {
+    value: 'InDriveCargoGrande',
+    color: '#1B5E20',
+    botApps: [],
+    aliases: ['camion', 'indrive cargo camion', 'indrive cargo grande'],
+  },
 ]
+
+// Subcategorías de Cargo que llevan contraofertas de InDrive (mismo mecanismo
+// que la marca InDrive en el resto de la app — 5 bids + recomendado). Ver
+// isInDriveVariant() en constants.js, que las trata igual que 'InDrive' a
+// secas en cada punto donde la grilla decide si mostrar el campo de bids.
+export const INDRIVE_CARGO_VARIANTS = [
+  'InDriveCargoPickup',
+  'InDriveCargoVan',
+  'InDriveCargoLiviano',
+  'InDriveCargoGrande',
+]
+
+// Nombre corto para la columna de la grilla (el nombre completo va en el
+// title/tooltip) — pedido user 2026-09-07, "que los nombres no sean tan
+// largos". Solo cubre las subcategorías de Cargo; cualquier otro competidor
+// sin entrada acá muestra su nombre completo, como siempre.
+export const COMPETITOR_SHORT_LABEL = {
+  YangoCargoXP: 'XP',
+  YangoCargoPickup: 'Pickup',
+  YangoCargoM: 'Mediano',
+  YangoCargoXL: 'Grande',
+  InDriveCargoPickup: 'Pickup/SUV',
+  InDriveCargoVan: 'Van',
+  InDriveCargoLiviano: 'Liviano',
+  InDriveCargoGrande: 'Camión',
+}
+
+// Nombre completo para el tooltip del badge (CompBadge.jsx) — el nombre
+// corto de arriba no alcanza para distinguir "Mediano" de "Grande" sin
+// contexto la primera vez que un hub ve la grilla.
+export const COMPETITOR_FULL_LABEL = {
+  YangoCargoXP: 'Camión Extra Pequeño',
+  YangoCargoPickup: 'Minivan/Pickup',
+  YangoCargoM: 'Camión Mediano',
+  YangoCargoXL: 'Camión Grande',
+  InDriveCargoPickup: 'Pickup y SUV',
+  InDriveCargoVan: 'Van',
+  InDriveCargoLiviano: 'Camión Liviano',
+  InDriveCargoGrande: 'Camión',
+}
 
 // Lookup mapas — construidos una vez al cargar el módulo
 const CATEGORY_BY_ALIAS = (() => {

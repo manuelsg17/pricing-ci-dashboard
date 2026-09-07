@@ -1,6 +1,7 @@
 // ============================================================
 // CONSTANTES DEL NEGOCIO — Multi-País
 // ============================================================
+import { INDRIVE_CARGO_VARIANTS } from './catalogs.js'
 
 // ── Colores de competidores (globales) ────────────────────
 // Convención canónica desde mig 72/96: nombres concat sin espacios para
@@ -36,6 +37,15 @@ export const COMPETITOR_COLORS = {
   Rappi: '#FF5B26',
   Picap: '#FB923C', // Colombia/Bike — alinea con catalogs.js
   PedidosYa: '#FF0F3A', // Delivery Lima (2026-09) — alinea con catalogs.js
+  // Cargo (2026-09): subcategorías por tamaño de vehículo — alinea con catalogs.js
+  YangoCargoXP: '#EF9A9A',
+  YangoCargoPickup: '#E57373',
+  YangoCargoM: '#E53935',
+  YangoCargoXL: '#B71C1C',
+  InDriveCargoPickup: '#A5D6A7',
+  InDriveCargoVan: '#66BB6A',
+  InDriveCargoLiviano: '#2E7D32',
+  InDriveCargoGrande: '#1B5E20',
 }
 
 // Formas con espacio pre-mig 72: solo para leer reportes/snapshots viejos.
@@ -844,6 +854,15 @@ export function getCompetitors(uiCity, uiCategory, subCategory, country, dbConfi
 const CATEGORIES_WITHOUT_ETA = new Set(['Delivery', 'Cargo'])
 export function categoryTracksEta(uiCategory) {
   return !CATEGORIES_WITHOUT_ETA.has(uiCategory)
+}
+
+// Subcategorías de Cargo que llevan el campo de contraofertas de InDrive
+// (pedido user 2026-09-07: las 4 mantienen bids, igual que 'InDrive' a
+// secas en el resto de la app). Import de catalogs.js (fuente única de la
+// lista) en vez de duplicarla acá.
+const INDRIVE_VARIANTS = new Set(['InDrive', ...INDRIVE_CARGO_VARIANTS])
+export function isInDriveVariant(comp) {
+  return INDRIVE_VARIANTS.has(comp)
 }
 
 export function getCiCompetitors(uiCity, uiCategory, subCategory, country, dbConfigs = null) {

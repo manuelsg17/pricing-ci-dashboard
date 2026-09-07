@@ -7,7 +7,12 @@
 
 // Claves de celda dentro de la rebanada de una vista.
 export const priceKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
-export const indKey = (uiCat, refId, tsLabel) => `${uiCat}|${refId}|${tsLabel}`
+// `comp` (2026-09, subcategorías de Cargo): antes la clave no distinguía
+// competidor porque solo existía UN InDrive por fila — con 4 subcategorías
+// de InDrive en Cargo compartiendo (uiCat, refId, tsLabel), sin `comp`
+// las 4 pisaban el mismo estado de bids/recomendado (bug real, hallado al
+// probar en navegador antes de mergear).
+export const indKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
 
 // bucketKey: vista normal → la ciudad de BD; distrito de TukTuk → clave
 // sintética única por distrito (TukTuk no es ciudad aparte en BD, se

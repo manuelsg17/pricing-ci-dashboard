@@ -51,15 +51,15 @@ console.log('\ncountAllFilled')
 const entries = { 'E|1|Mañana|Yango': '10', 'E|1|Mañana|InDrive': '' }
 ok(countAllFilled(entries, {}) === 1, 'sin indriveExtra: cuenta solo entries')
 ok(
-  countAllFilled(entries, { 'E|1|Mañana': { rec: '8' } }) === 2,
+  countAllFilled(entries, { 'E|1|Mañana|InDrive': { rec: '8' } }) === 2,
   'InDrive solo-recomendado (sin promedio) suma 1'
 )
 ok(
-  countAllFilled({ ...entries, 'E|1|Mañana|InDrive': '8.5' }, { 'E|1|Mañana': { rec: '8' } }) === 2,
+  countAllFilled({ ...entries, 'E|1|Mañana|InDrive': '8.5' }, { 'E|1|Mañana|InDrive': { rec: '8' } }) === 2,
   'InDrive con promedio Y recomendado no se cuenta dos veces'
 )
-ok(countAllFilled(entries, { 'E|1|Mañana': { rec: '' } }) === 1, 'rec vacío no suma')
-ok(countAllFilled(entries, { 'E|1|Mañana': { rec: 'x' } }) === 1, 'rec no numérico no suma')
+ok(countAllFilled(entries, { 'E|1|Mañana|InDrive': { rec: '' } }) === 1, 'rec vacío no suma')
+ok(countAllFilled(entries, { 'E|1|Mañana|InDrive': { rec: 'x' } }) === 1, 'rec no numérico no suma')
 
 console.log('\nearliestTurnoStart')
 ok(earliestTurnoStart(null) === null, 'null → null')
@@ -85,7 +85,7 @@ console.log('\ncountFilledByTimeslot')
 const timeslots = [{ label: 'Mañana' }, { label: 'Tarde' }]
 const byTs = countFilledByTimeslot(
   { 'E|1|Mañana|Yango': '10', 'E|1|Tarde|Yango': '', 'E|1|Noche|Yango': '5' },
-  { 'E|1|Tarde': { rec: '7' }, 'E|1|Mañana': { rec: '7' } },
+  { 'E|1|Tarde|InDrive': { rec: '7' }, 'E|1|Mañana|InDrive': { rec: '7' } },
   new Set(['E|2|Tarde|Uber']),
   timeslots
 )
@@ -93,11 +93,11 @@ ok(byTs.Mañana === 2, 'Mañana: precio Yango + rec-only de InDrive = 2')
 ok(byTs.Tarde === 2, 'Tarde: rec-only de InDrive + una celda S/D')
 ok(!('Noche' in byTs), 'una franja fuera del set de timeslots no aparece')
 // Mañana tiene rec sin promedio de InDrive → debería sumar 1 más.
-const byTs2 = countFilledByTimeslot({}, { 'E|1|Mañana': { rec: '7' } }, new Set(), timeslots)
+const byTs2 = countFilledByTimeslot({}, { 'E|1|Mañana|InDrive': { rec: '7' } }, new Set(), timeslots)
 ok(byTs2.Mañana === 1 && byTs2.Tarde === 0, 'rec-only suma en su franja y solo ahí')
 const byTs3 = countFilledByTimeslot(
   { 'E|1|Mañana|InDrive': '7' },
-  { 'E|1|Mañana': { rec: '7' } },
+  { 'E|1|Mañana|InDrive': { rec: '7' } },
   new Set(),
   timeslots
 )

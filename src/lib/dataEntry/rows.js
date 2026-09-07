@@ -1,5 +1,5 @@
 import { normalizeCompetitorName } from '../normalize.js'
-import { timeslotLabel } from '../constants.js'
+import { timeslotLabel, isInDriveVariant } from '../constants.js'
 import { priceKey, indKey } from './keys.js'
 
 // Armado de filas y payloads de Ingresar CI (sin React). Extraído de
@@ -47,16 +47,16 @@ export function buildRowsForSlot({
       }
       const raw = entries[priceKey(uiCat, ref.id, ts.label, comp)] ?? ''
       const price = parseFloat(raw)
-      const extra = indriveExtra[indKey(uiCat, ref.id, ts.label)]
+      const extra = indriveExtra[indKey(uiCat, ref.id, ts.label, comp)]
       // Mig 136: pricing_observations vuelve a tener bid_1..bid_5 → hasta 5
       // bids. Guarda por si un borrador trajera más (nunca debería).
-      const bids = comp === 'InDrive' ? (extra?.bids || []).slice(0, 5) : []
-      const minBid = comp === 'InDrive' ? extra?.minBid || null : null
+      const bids = isInDriveVariant(comp) ? (extra?.bids || []).slice(0, 5) : []
+      const minBid = isInDriveVariant(comp) ? extra?.minBid || null : null
       // Precio recomendado por la app de InDrive → recommended_price. NO entra
       // al promedio de bids. Si no hay bids, el precio efectivo cae al
       // recomendado (v_effective_price), por eso una celda solo-recomendado
       // igual debe guardarse (ver filtro de abajo).
-      const recNum = comp === 'InDrive' ? parseFloat(extra?.rec ?? '') : NaN
+      const recNum = isInDriveVariant(comp) ? parseFloat(extra?.rec ?? '') : NaN
       const etaNum = parseFloat(etaEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
       const discNum = parseFloat(discEntries[priceKey(uiCat, ref.id, ts.label, comp)] ?? '')
       return {
@@ -119,7 +119,7 @@ export function buildInsertPayload(r, capturedTime, ctx) {
     no_data: r.na || false,
     country,
   }
-  if (r.comp === 'InDrive') {
+  if (isInDriveVariant(r.comp)) {
     r.bids.forEach((b, i) => {
       const n = parseFloat(b)
       if (!isNaN(n)) base[`bid_${i + 1}`] = n

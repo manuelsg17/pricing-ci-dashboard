@@ -71,7 +71,7 @@ console.log('\nbuildRowsForSlot')
     ...base,
     entries: {},
     indriveExtra: {
-      'Economy|7|Mañana': { rec: '8', bids: ['', '', '', '', '', '9'], minBid: '5' },
+      'Economy|7|Mañana|InDrive': { rec: '8', bids: ['', '', '', '', '', '9'], minBid: '5' },
     },
     etaEntries: {},
     discEntries: {},

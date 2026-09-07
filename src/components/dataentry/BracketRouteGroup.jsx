@@ -1,5 +1,10 @@
 import { useState } from 'react'
-import { BRACKET_LABELS, getCiCompetitors, categoryTracksEta } from '../../lib/constants'
+import {
+  BRACKET_LABELS,
+  getCiCompetitors,
+  categoryTracksEta,
+  isInDriveVariant,
+} from '../../lib/constants'
 import { sanitizeDecimalInput } from '../../lib/format'
 import CompBadge from './CompBadge'
 import InDriveCell from './InDriveCell'
@@ -225,12 +230,12 @@ export default function BracketRouteGroup({
                           ) : (
                             <>
                               {categoryTracksEta(uiCat) && etaInput}
-                              {comp === 'InDrive' ? (
+                              {isInDriveVariant(comp) ? (
                                 <InDriveCell
-                                  avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
-                                  extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
+                                  avg={getEntry(uiCat, ref.id, ts.label, comp)}
+                                  extra={indriveExtra[indKey(uiCat, ref.id, ts.label, comp)]}
                                   onChange={(extra, avg) =>
-                                    setIndrive(uiCat, ref.id, ts.label, extra, avg)
+                                    setIndrive(uiCat, ref.id, ts.label, comp, extra, avg)
                                   }
                                   hasError={hasErr}
                                 />

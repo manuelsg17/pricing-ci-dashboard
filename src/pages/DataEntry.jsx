@@ -57,7 +57,12 @@ import { duracionActiva, registrarActividad, normalizarActividad } from '../lib/
 import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
-import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
+import {
+  getCiCompetitors,
+  resolveDbParams,
+  timeslotLabel,
+  isInDriveVariant,
+} from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
 import { formatCityZoneLabel } from '../lib/monitoring'
 import { frentesSinGuardar } from '../lib/frentesPendientes'
@@ -2000,8 +2005,8 @@ export default function DataEntry() {
   // marcado de errores — que diverjan pintaba en rojo una celda ya cargada.
   const effectiveCellValue = (uiCat, refId, tsLabel, comp) => {
     const v = entries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
-    if (comp === 'InDrive' && (v === '' || isNaN(parseFloat(v)))) {
-      return indriveExtra[indKey(uiCat, refId, tsLabel)]?.rec ?? ''
+    if (isInDriveVariant(comp) && (v === '' || isNaN(parseFloat(v)))) {
+      return indriveExtra[indKey(uiCat, refId, tsLabel, comp)]?.rec ?? ''
     }
     return v
   }
@@ -2055,10 +2060,10 @@ export default function DataEntry() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
+  const setIndrive = useCallback((uiCat, refId, tsLabel, comp, extra, avg) => {
     const c = bucketRef.current
-    const ik = indKey(uiCat, refId, tsLabel)
-    const pk = priceKey(uiCat, refId, tsLabel, 'InDrive')
+    const ik = indKey(uiCat, refId, tsLabel, comp)
+    const pk = priceKey(uiCat, refId, tsLabel, comp)
     markTouched(c)
     setIndriveByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [ik]: extra } }))
     setEntriesByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [pk]: avg } }))
@@ -2117,7 +2122,7 @@ export default function DataEntry() {
       else n.add(k)
       return { ...prev, [c]: n }
     })
-    clearCellsData(c, [k], comp === 'InDrive' ? [indKey(uiCat, refId, tsLabel)] : [])
+    clearCellsData(c, [k], isInDriveVariant(comp) ? [indKey(uiCat, refId, tsLabel, comp)] : [])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -2137,7 +2142,11 @@ export default function DataEntry() {
       }
       return { ...prev, [c]: n }
     })
-    clearCellsData(c, keys, comps.includes('InDrive') ? [indKey(uiCat, refId, tsLabel)] : [])
+    clearCellsData(
+      c,
+      keys,
+      comps.filter(isInDriveVariant).map((comp) => indKey(uiCat, refId, tsLabel, comp))
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -3256,11 +3265,11 @@ export default function DataEntry() {
       if (row.price_without_discount != null) newEntries[k] = String(row.price_without_discount)
       if (row.price_with_discount != null) newDisc[k] = String(row.price_with_discount)
       if (row.eta_min != null) newEta[k] = String(row.eta_min)
-      if (comp === 'InDrive') {
+      if (isInDriveVariant(comp)) {
         const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
           .filter((b) => b != null)
           .map((b) => String(b))
-        newIndrive[indKey(uiCat, ref.id, tsLabel)] = {
+        newIndrive[indKey(uiCat, ref.id, tsLabel, comp)] = {
           bids: bids.length ? bids : [''],
           minBid: row.minimal_bid != null ? String(row.minimal_bid) : '',
           rec: row.recommended_price != null ? String(row.recommended_price) : '',
