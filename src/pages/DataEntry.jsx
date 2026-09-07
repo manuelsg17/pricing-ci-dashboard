@@ -906,6 +906,11 @@ export default function DataEntry() {
   // Cubre lo que el aviso temprano de conflicto NO cubre: acá no hay dos
   // pantallas escribiendo, hay CERO — el hub nunca volvió a esa ciudad/fecha
   // para terminarla, y puede haber pasado en OTRO dispositivo.
+  // Señal para InstructionsBanner: sube cada vez que una sesión termina de
+  // verdad (isFinalInScope más abajo), así el instructivo se colapsa solo
+  // desde la SEGUNDA sesión en adelante sin que el hub tenga que cerrarlo a
+  // mano (pedido user 2026-09-07).
+  const [legendCollapseSignal, setLegendCollapseSignal] = useState(0)
   const [myUnfinished, setMyUnfinished] = useState(null)
   const unfinishedCheckedRef = useRef(false)
   useEffect(() => {
@@ -2768,6 +2773,7 @@ export default function DataEntry() {
       }
       if (isFinalInScope) {
         setSessionActive(false)
+        setLegendCollapseSignal((n) => n + 1)
         // `emphasize` (pedido user 2026-07-24, incidente real de Raisa): la
         // grilla se vacía a propósito apenas termina la sesión (ver
         // dropCity más abajo) para que el autosave no la "resucite" — pero
@@ -3981,7 +3987,7 @@ export default function DataEntry() {
         </div>
       </div>
 
-      <InstructionsBanner t={t} />
+      <InstructionsBanner t={t} collapseSignal={legendCollapseSignal} />
 
       {/* Sesiones propias de días anteriores sin cerrar (mig 243). Solo
           informativo: ir ahí sigue requiriendo que el hub complete y termine

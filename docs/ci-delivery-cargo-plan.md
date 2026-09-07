@@ -231,3 +231,20 @@ práctica menos, porque son pestañas OPCIONALES que un hub llena cuando
 corresponde, no un tercer frente obligatorio. Sin acción hoy; incluir estas
 categorías al comparar `idx_scan` en la re-medición ya agendada del
 2026-10-03 (por si el patrón de acceso real difiere de ride-hailing).
+
+## 11. UX "hub experto" (2026-09-07) — hecho: colapso automático del instructivo
+
+Ya existía persistencia del instructivo colapsado (localStorage), pero solo
+si el hub lo cerraba a mano — un hub nuevo lo ve abierto ocupando toda la
+primera pantalla en cada sesión hasta que decide cerrarlo. Ahora se colapsa
+SOLO apenas termina la primera sesión de verdad (`isFinalInScope` en
+`handleFinishSession`), sin acción del hub — desde la segunda sesión en
+adelante ya no lo ve. Verificado en navegador: instructivo abierto al
+entrar, sesión de Cargo completa y cerrada, instructivo colapsado en la
+MISMA carga de página sin recargar.
+
+**Fuera de esta ronda, documentado para más adelante:** "salto al siguiente
+campo vacío" — toca el manejo de foco de la grilla, que CLAUDE.md §5 marca
+como zona sensible a re-render (ya hubo un fix P0/P1 de rendimiento ahí).
+Mejor abordarlo en una pasada propia, con su propio profiling, no apurado
+al final de esta.
