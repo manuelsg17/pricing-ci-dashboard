@@ -15,6 +15,7 @@ import {
   fetchSessionHistory,
   fetchTurnoTimings,
   fetchTukTukZones,
+  fetchMyUnfinishedSessions,
 } from '../hooks/useDataEntryPersistence'
 import {
   countFilledEntries,
@@ -33,6 +34,7 @@ import {
   draftKeyPrefixFor,
   bucketFinishedLsKeyFor,
   syncSeqKeyFor as syncSeqKey,
+  SPECIAL_CATEGORY_ZONES,
 } from '../lib/dataEntry/keys'
 import {
   buildRowsForSlot,
@@ -55,8 +57,17 @@ import { duracionActiva, registrarActividad, normalizarActividad } from '../lib/
 import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
-import { getCiCompetitors, resolveDbParams, timeslotLabel } from '../lib/constants'
+import {
+  getCiCompetitors,
+  resolveDbParams,
+  timeslotLabel,
+  isInDriveVariant,
+  BRACKET_COLORS,
+  BRACKET_SHORT,
+  BRACKET_LABELS,
+} from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
+import { formatCityZoneLabel } from '../lib/monitoring'
 import { frentesSinGuardar } from '../lib/frentesPendientes'
 import FrentesSinGuardar from '../components/dataentry/FrentesSinGuardar'
 import { normalizeCompetitorName } from '../lib/normalize'
@@ -138,6 +149,11 @@ export default function DataEntry() {
   // sesión — igual que Punto A/B del aeropuerto son ciudades independientes.
   const [activeTukTuk, setActiveTukTuk] = useState(null)
   const [tukTukDistricts, setTukTukDistricts] = useState([])
+  // Delivery/Cargo (2026-09): igual criterio que activeTukTuk pero sin
+  // distrito — null = vista normal; 'Delivery' | 'Cargo' = esa pestaña activa.
+  // Mutuamente excluyente con activeTukTuk (nunca los dos a la vez; cada click
+  // de pestaña limpia el otro, ver el bloque de tabs más abajo).
+  const [activeSpecialCat, setActiveSpecialCat] = useState(null)
   const [date, setDate] = useState(todayStr())
   // surge también es POR-CIUDAD: es un flag de la sesión (ciudad+fecha) que se
   // estampa en pricing_observations.surge. Si fuera global, intercalar A↔B con
@@ -174,6 +190,12 @@ export default function DataEntry() {
 
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
+  // Un solo punto para los avisos traducidos: `notify(type, key, params, opts)`.
+  // Evita 30 objetos armados a mano y que se cuele un texto sin t().
+  const notify = useCallback(
+    (type, key, params, opts) => setMsg({ type, text: t(key, params), ...(opts || {}) }),
+    [t]
+  )
 
   // Session management
   const sessionStartRef = useRef(null)
@@ -314,8 +336,11 @@ export default function DataEntry() {
   // las categorías de auto.
   const categories = useMemo(() => {
     if (activeTukTuk != null) return ['TukTuk']
-    return (countryConfig.categoriesByCity[uiCity] || []).filter((c) => c !== 'TukTuk')
-  }, [countryConfig, uiCity, activeTukTuk])
+    if (activeSpecialCat) return [activeSpecialCat]
+    return (countryConfig.categoriesByCity[uiCity] || []).filter(
+      (c) => c !== 'TukTuk' && c !== 'Delivery' && c !== 'Cargo'
+    )
+  }, [countryConfig, uiCity, activeTukTuk, activeSpecialCat])
 
   // dbCity: the DB city for the current UI city (use first non-special category)
   const { dbCity } = useMemo(
@@ -363,7 +388,11 @@ export default function DataEntry() {
   // la pestaña TukTuk se resalta y el aviso de "sin distritos" puede mostrarse
   // apenas se hace click, sin esperar a la carga async.
   const isTukTuk = activeTukTuk != null
-  const zone = isTukTuk ? activeTukTuk || null : null
+  // Delivery/Cargo (2026-09): sin distrito, zone = el nombre de la categoría
+  // — le da a este frente su propia marca de agua de guardado (bucketKeyFor)
+  // sin pisar la de "Lima Normal", que comparte la misma dbCity.
+  const isSpecialCat = activeSpecialCat != null
+  const zone = isTukTuk ? activeTukTuk || null : isSpecialCat ? activeSpecialCat : null
   const bucketKey = bucketKeyFor(dbCity, zone, isTukTuk)
   const viewId = viewIdFor(uiCity, dbCity, zone, isTukTuk)
 
@@ -661,6 +690,7 @@ export default function DataEntry() {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
     setActiveTukTuk(null)
+    setActiveSpecialCat(null)
     // dbCity es reactivo a uiCity y categories, así no hay problema
   }, [country, countryConfig])
 
@@ -796,6 +826,7 @@ export default function DataEntry() {
     const firstCity = countryConfig.cities[0]
     setUiCity(firstCity)
     setActiveTukTuk(null)
+    setActiveSpecialCat(null)
     // El cache de rutas ya no se limpia a mano: `dbCity`/`country` son parte
     // de la queryKey de React Query, así que un país nuevo automáticamente
     // usa otro namespace de cache — no hace falta invalidar el viejo.
@@ -858,20 +889,57 @@ export default function DataEntry() {
       const partes = parseBucketKey(bucket)
       if (!partes) return false
       const target = dbCityToUiCity[partes.city] || partes.city
-      if (partes.zone) {
+      if (partes.kind === 'tuktuk') {
         setUiCity(tukTukInfo?.baseUiCity || target)
         setActiveTukTuk(partes.zone)
+        setActiveSpecialCat(null)
+        return true
+      }
+      if (partes.kind === 'category') {
+        // Delivery/Cargo: sin distrito, la categoría ES la zone. Se valida
+        // que siga existiendo en el catálogo (revisión adversarial
+        // 2026-09-07): si se borró la categoría después de que quedaron
+        // filas guardadas, saltar igual dejaría la grilla vacía en silencio
+        // — mejor no saltar y que el llamador decida qué avisar.
+        if (!(countryConfig.categoriesByCity[target] || []).includes(partes.zone)) return false
+        setUiCity(target)
+        setActiveTukTuk(null)
+        setActiveSpecialCat(partes.zone)
         return true
       }
       if (uiCities.includes(target)) {
         setUiCity(target)
         setActiveTukTuk(null)
+        setActiveSpecialCat(null)
         return true
       }
       return false
     },
-    [dbCityToUiCity, tukTukInfo, uiCities]
+    [dbCityToUiCity, tukTukInfo, uiCities, countryConfig]
   )
+
+  // ── Aviso: sesiones PROPIAS de días anteriores que quedaron sin cerrar
+  // (mig 243, pedido user 2026-09-07) ────────────────────────────────────
+  // Se consulta UNA vez al entrar (no en cada cambio de vista): es un aviso
+  // de bienvenida, no algo que deba recalcularse mientras el hub trabaja.
+  // Cubre lo que el aviso temprano de conflicto NO cubre: acá no hay dos
+  // pantallas escribiendo, hay CERO — el hub nunca volvió a esa ciudad/fecha
+  // para terminarla, y puede haber pasado en OTRO dispositivo.
+  // Señal para InstructionsBanner: sube cada vez que una sesión termina de
+  // verdad (isFinalInScope más abajo), así el instructivo se colapsa solo
+  // desde la SEGUNDA sesión en adelante sin que el hub tenga que cerrarlo a
+  // mano (pedido user 2026-09-07).
+  const [legendCollapseSignal, setLegendCollapseSignal] = useState(0)
+  const [myUnfinished, setMyUnfinished] = useState(null)
+  const unfinishedCheckedRef = useRef(false)
+  useEffect(() => {
+    if (!userEmail || unfinishedCheckedRef.current) return
+    unfinishedCheckedRef.current = true
+    fetchMyUnfinishedSessions().then(({ data, error }) => {
+      if (error || !Array.isArray(data) || data.length === 0) return
+      setMyUnfinished(data)
+    })
+  }, [userEmail])
 
   useEffect(() => {
     if (!tukTukInfo) {
@@ -1021,11 +1089,25 @@ export default function DataEntry() {
       // pantalla de verdad y el conflicto tiene que aparecer.
       if (savedAt != null && Number.isFinite(escrituraServidor) && escrituraServidor <= savedAt) {
         writeSyncSeqFor(country, city, z, d, Number(data.write_seq))
+      } else if (Number.isFinite(escrituraServidor)) {
+        // Mismo caso, pero AVISADO YA — antes el hub solo se enteraba al
+        // guardar, después de haber tipeado. La marca queda igual de
+        // "vieja" a propósito: el conflicto real de verdad sigue apareciendo
+        // al guardar (mig 191), esto es solo el heads-up temprano.
+        setEarlyConflictHint({ bucketKey: bucketKeyFor(city, z, isTukTuk), at: data.last_write_at })
       }
     },
-    [userEmail, country, writeSyncSeqFor]
+    [userEmail, country, writeSyncSeqFor, isTukTuk]
   )
 
+  // Aviso TEMPRANO, no bloqueante: se muestra apenas se detecta que el
+  // servidor tiene una escritura más nueva que el borrador local restaurado
+  // — antes de que el hub invierta tiempo tipeando y recién se entere al
+  // guardar (pedido user 2026-09-07, tras el incidente real de conflicto en
+  // Corp). `{ bucketKey, at }` para que solo se muestre en la vista a la que
+  // corresponde; se limpia al guardar con éxito (mismo momento que
+  // saveConflict) o al resolverlo desde acá.
+  const [earlyConflictHint, setEarlyConflictHint] = useState(null)
   // Conflicto detectado por el servidor: { at, isFinish } o null.
   const [saveConflict, setSaveConflict] = useState(null)
   // El aviso de conflicto sale junto al botón que el hub apretó (barra
@@ -1695,14 +1777,23 @@ export default function DataEntry() {
         // TukTuk: viewId = `TT~<dbCity>~<distrito>`. El bucket en memoria es el
         // mismo viewId. Para resumir: volver a la ciudad base con TukTuk + el
         // distrito. Vistas normales: viewId = uiCity, bucket = su dbCity.
+        // TukTuk y Delivery/Cargo comparten el mismo formato de clave
+        // (`TT~`/`CAT~`, ver lib/dataEntry/keys.js) — parseBucketKey ya sabe
+        // distinguirlos por `kind`, no hace falta repetir el split acá.
+        const parsedTok = parseBucketKey(viewIdTok)
         let cityLabel, bucketKeyD, resume
-        if (viewIdTok.startsWith('TT~')) {
-          const partsTT = viewIdTok.split('~')
-          const dc = partsTT[1] || ''
-          const zn = partsTT.slice(2).join('~')
+        if (parsedTok?.kind === 'tuktuk') {
+          const dc = parsedTok.city
+          const zn = parsedTok.zone
           bucketKeyD = viewIdTok
           cityLabel = `${dc} TukTuk · ${zn}`
           resume = { tukTuk: true, uiCity: tukTukInfo?.baseUiCity || dc, zone: zn }
+        } else if (parsedTok?.kind === 'category') {
+          const dc = parsedTok.city
+          const zn = parsedTok.zone
+          bucketKeyD = viewIdTok
+          cityLabel = `${dc} · ${zn}`
+          resume = { tukTuk: false, specialCat: zn, uiCity: dc }
         } else {
           const cats = countryConfig.categoriesByCity[viewIdTok] || []
           const { dbCity: dc } = resolveDbParams(viewIdTok, cats[0] || '', null, country, dbConfigs)
@@ -1764,9 +1855,15 @@ export default function DataEntry() {
     if (d.resume?.tukTuk) {
       setUiCity(d.resume.uiCity)
       setActiveTukTuk(d.resume.zone)
+      setActiveSpecialCat(null)
+    } else if (d.resume?.specialCat) {
+      setUiCity(d.resume.uiCity)
+      setActiveTukTuk(null)
+      setActiveSpecialCat(d.resume.specialCat)
     } else {
       setUiCity(d.resume?.uiCity ?? d.city)
       setActiveTukTuk(null)
+      setActiveSpecialCat(null)
     }
     setDate(d.date)
     setMsg(null)
@@ -1901,12 +1998,57 @@ export default function DataEntry() {
     [refsByUICat, categories, sourceCategory]
   )
 
+  // Revisión UX 2026-09: si TODAS las rutas de la vista salen del mismo
+  // punto A (Delivery/Cargo: 12 rutas desde Vía Principal 129), el origen se
+  // muestra UNA vez arriba de la grilla y no en cada tarjeta. null = orígenes
+  // distintos, cada tarjeta muestra el suyo como siempre.
+  const commonOrigin = useMemo(() => {
+    const origins = new Set()
+    for (const { groups, extras } of refsByBracket) {
+      for (const g of groups) origins.add(g.anchorRef.point_a || '')
+      for (const e of extras) origins.add(e.ref.point_a || '')
+    }
+    if (origins.size !== 1) return null
+    const only = [...origins][0]
+    return only || null
+  }, [refsByBracket])
+
+  // Orden global de rutas (ancla) dentro de un turno, para numerarlas
+  // "Ruta 3/12" — el hub sabe dónde está parado sin contar tarjetas.
+  const routeOrder = useMemo(
+    () => refsByBracket.flatMap(({ groups }) => groups.map((g) => g.anchorRef.id)),
+    [refsByBracket]
+  )
+
   // Categorías sin ninguna ruta en toda la ciudad (no solo en un bracket
   // puntual) — se avisa una sola vez arriba de la grilla.
   const categoriesWithNoRoutes = useMemo(
     () => categories.filter((uiCat) => (refsByUICat[uiCat] || []).length === 0),
     [categories, refsByUICat]
   )
+
+  // Enter en cualquier input de la grilla salta al PRÓXIMO precio vacío en
+  // orden de lectura (revisión UX 2026-09): con 36 tarjetas, Tab pasa por
+  // ETA/descuento/celdas ya llenas y el hub pierde la mitad del tiempo
+  // navegando. Solo precios (el campo obligatorio); ETA y descuento son
+  // opcionales y se alcanzan con Tab como siempre. Sin estado de React: se
+  // resuelve sobre el DOM en el momento del Enter, así no toca el render de
+  // la grilla (CLAUDE.md §5).
+  function handleGridKeyDown(e) {
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return
+    const root = e.currentTarget
+    const inputs = [...root.querySelectorAll('input.de-price-input')].filter(
+      (el) => !el.disabled && el.offsetParent !== null
+    )
+    const from = inputs.indexOf(e.target)
+    const next =
+      inputs.slice(from + 1).find((el) => el.value.trim() === '') ||
+      inputs.slice(0, Math.max(from, 0)).find((el) => el.value.trim() === '')
+    if (!next) return
+    e.preventDefault()
+    next.focus()
+    next.scrollIntoView({ block: 'center' })
+  }
 
   // ── Entry helpers ──────────────────────────────────────
   // priceKey / indKey: src/lib/dataEntry/keys.js (mismo formato de siempre).
@@ -1917,8 +2059,8 @@ export default function DataEntry() {
   // marcado de errores — que diverjan pintaba en rojo una celda ya cargada.
   const effectiveCellValue = (uiCat, refId, tsLabel, comp) => {
     const v = entries[priceKey(uiCat, refId, tsLabel, comp)] ?? ''
-    if (comp === 'InDrive' && (v === '' || isNaN(parseFloat(v)))) {
-      return indriveExtra[indKey(uiCat, refId, tsLabel)]?.rec ?? ''
+    if (isInDriveVariant(comp) && (v === '' || isNaN(parseFloat(v)))) {
+      return indriveExtra[indKey(uiCat, refId, tsLabel, comp)]?.rec ?? ''
     }
     return v
   }
@@ -1972,10 +2114,10 @@ export default function DataEntry() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const setIndrive = useCallback((uiCat, refId, tsLabel, extra, avg) => {
+  const setIndrive = useCallback((uiCat, refId, tsLabel, comp, extra, avg) => {
     const c = bucketRef.current
-    const ik = indKey(uiCat, refId, tsLabel)
-    const pk = priceKey(uiCat, refId, tsLabel, 'InDrive')
+    const ik = indKey(uiCat, refId, tsLabel, comp)
+    const pk = priceKey(uiCat, refId, tsLabel, comp)
     markTouched(c)
     setIndriveByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [ik]: extra } }))
     setEntriesByCity((prev) => ({ ...prev, [c]: { ...(prev[c] || {}), [pk]: avg } }))
@@ -2034,7 +2176,7 @@ export default function DataEntry() {
       else n.add(k)
       return { ...prev, [c]: n }
     })
-    clearCellsData(c, [k], comp === 'InDrive' ? [indKey(uiCat, refId, tsLabel)] : [])
+    clearCellsData(c, [k], isInDriveVariant(comp) ? [indKey(uiCat, refId, tsLabel, comp)] : [])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -2054,7 +2196,11 @@ export default function DataEntry() {
       }
       return { ...prev, [c]: n }
     })
-    clearCellsData(c, keys, comps.includes('InDrive') ? [indKey(uiCat, refId, tsLabel)] : [])
+    clearCellsData(
+      c,
+      keys,
+      comps.filter(isInDriveVariant).map((comp) => indKey(uiCat, refId, tsLabel, comp))
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -2076,6 +2222,27 @@ export default function DataEntry() {
     if (resolved.length === 0) return 'empty'
     if (resolved.length === comps.length) return 'full'
     return 'partial'
+  }
+
+  // Estado de una RUTA entera (todas sus categorías) en un turno — para el
+  // ✓/●/○ de la cabecera de la tarjeta y el minimapa del turno (revisión UX
+  // 2026-09). Mismo criterio de "presente" que BracketRouteGroup: una
+  // categoría sin ruta en este bracket o sin competidores visibles no cuenta.
+  function groupStatus(group, ts) {
+    let full = 0
+    let any = 0
+    let n = 0
+    for (const uiCat of categories) {
+      const ref = group.byCategory[uiCat]
+      if (!ref) continue
+      if (getCiCompetitors(uiCity, uiCat, null, country, dbConfigs).length === 0) continue
+      n++
+      const st = rowState(uiCat, ref, ts)
+      if (st === 'full') full++
+      if (st !== 'empty') any++
+    }
+    if (n === 0 || any === 0) return 'empty'
+    return full === n ? 'full' : 'partial'
   }
 
   // ── Count filled ───────────────────────────────────────
@@ -2123,6 +2290,24 @@ export default function DataEntry() {
   // `engaged` = esta pestaña tiene trabajo de verdad. Una pestaña abierta solo
   // para mirar no puede bloquear a la pestaña donde el hub va a trabajar.
   const leaseEngaged = sessionActive || filledCount > 0
+
+  // "Usar esta pestaña": el hub reclama el candado a mano (la otra pestaña
+  // se degrada sola por el evento `storage`, así que nunca escriben las dos).
+  // Es la salida para el caso más común — la otra pestaña ya está cerrada y
+  // el lease todavía no venció — sin obligar a recargar.
+  const claimDraftLease = useCallback(() => {
+    const lKey = leaseKey(draftKey)
+    try {
+      localStorage.setItem(
+        lKey,
+        serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: leaseEngaged })
+      )
+      setLeaseOwner(ownsLease(localStorage.getItem(lKey), SESSION_ID))
+    } catch {
+      setLeaseOwner(true)
+    }
+    setMsg(null)
+  }, [draftKey, leaseEngaged])
   useEffect(() => {
     const lKey = leaseKey(draftKey)
     let vivo = true
@@ -2173,17 +2358,26 @@ export default function DataEntry() {
       if (e.key === lKey) tick()
     }
     window.addEventListener('storage', onStorage)
-
-    return () => {
-      vivo = false
-      clearInterval(id)
-      window.removeEventListener('storage', onStorage)
-      // Liberar SOLO si es mío: nunca borrar el lease de otra pestaña.
+    // Liberar SOLO si es mío: nunca borrar el lease de otra pestaña.
+    const release = () => {
       try {
         if (ownsLease(localStorage.getItem(lKey), SESSION_ID)) localStorage.removeItem(lKey)
       } catch {
         /* sin storage no hay nada que liberar */
       }
+    }
+    // F5 / cerrar pestaña NO corren el cleanup del efecto: el lease de la
+    // pestaña vieja quedaba vivo 150s y la misma pestaña recargada (SID
+    // nuevo) se veía a sí misma como "otra" y arrancaba en modo lectura
+    // (feedback user 2026-09-07). `pagehide` sí corre en ambos casos.
+    window.addEventListener('pagehide', release)
+
+    return () => {
+      vivo = false
+      clearInterval(id)
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('pagehide', release)
+      release()
     }
   }, [draftKey, leaseEngaged])
 
@@ -2261,15 +2455,21 @@ export default function DataEntry() {
     }
     window.addEventListener('storage', onStorage)
 
-    return () => {
-      vivo = false
-      clearInterval(id)
-      window.removeEventListener('storage', onStorage)
+    const release = () => {
       try {
         if (ownsLease(localStorage.getItem(hbKey), SESSION_ID)) localStorage.removeItem(hbKey)
       } catch {
         /* sin storage no hay nada que liberar */
       }
+    }
+    window.addEventListener('pagehide', release)
+
+    return () => {
+      vivo = false
+      clearInterval(id)
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('pagehide', release)
+      release()
     }
   }, [userEmail, leaseOwner, sessionActive])
 
@@ -2422,7 +2622,7 @@ export default function DataEntry() {
     // en el único punto por el que pasa TODO guardado, para bloquear de verdad
     // escribir data NUEVA en un distrito bloqueado sin importar cómo se llegó.
     if (isTukTuk && zone && !isTukTukDistrictEnabled(zone)) {
-      setMsg({ type: 'err', text: t('dataentry.err_tuktuk_district_locked') })
+      notify('err', 'dataentry.err_tuktuk_district_locked')
       return false
     }
     setSaving(true)
@@ -2512,7 +2712,7 @@ export default function DataEntry() {
       // borró ni insertó nada: la data de la otra sigue intacta.
       if (saveErr.code === '55006') {
         setSaveConflict({ at: saveErr.details || null, isFinish })
-        setMsg({ type: 'err', text: t('dataentry.err_save_conflict'), emphasize: true })
+        notify('err', 'dataentry.err_save_conflict', null, { emphasize: true })
         setSaving(false)
         // NO se marca guardado, NO se limpia el borrador, NO se inserta en
         // ci_sessions y NO se borra el latido: el hub no perdió nada.
@@ -2522,12 +2722,13 @@ export default function DataEntry() {
       // jerga técnica tipo "duplicate key value violates..." no le dice qué
       // hacer). El detalle técnico va a consola para diagnóstico nuestro.
       console.error('[performSave] save_ci_batch error:', saveErr)
-      setMsg({ type: 'err', text: t('dataentry.err_save_failed') })
+      notify('err', 'dataentry.err_save_failed')
       setSaving(false)
       return false
     }
     if (saveRes && Number.isFinite(Number(saveRes.seq))) writeSyncSeq(Number(saveRes.seq))
     setSaveConflict(null)
+    setEarlyConflictHint(null)
     // Guardado confirmado en servidor de verdad (no solo local) — ver
     // indicador en el header.
     setLastSaveOkAt(Date.now())
@@ -2640,7 +2841,7 @@ export default function DataEntry() {
       // es idempotente (DELETE+INSERT por ruta exacta).
       if (sessErr) {
         console.error('[performSave] ci_sessions insert error:', sessErr)
-        setMsg({ type: 'err', text: t('dataentry.err_session_not_closed'), emphasize: true })
+        notify('err', 'dataentry.err_session_not_closed', null, { emphasize: true })
         setSaving(false)
         return false
       }
@@ -2694,6 +2895,7 @@ export default function DataEntry() {
       }
       if (isFinalInScope) {
         setSessionActive(false)
+        setLegendCollapseSignal((n) => n + 1)
         // `emphasize` (pedido user 2026-07-24, incidente real de Raisa): la
         // grilla se vacía a propósito apenas termina la sesión (ver
         // dropCity más abajo) para que el autosave no la "resucite" — pero
@@ -2799,7 +3001,7 @@ export default function DataEntry() {
     // ofrecería al hub el botón de forzar — o sea, un botón para pisarle el
     // trabajo a la otra pestaña. Mejor cortar antes, con un motivo claro.
     if (!leaseOwnerRef.current) {
-      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      notify('err', 'dataentry.lease_readonly_body', null, { emphasize: true })
       return false
     }
     // Collect all full rows
@@ -2814,7 +3016,7 @@ export default function DataEntry() {
       }
     }
     if (!rowsToInsert.length) {
-      setMsg({ type: 'err', text: t('dataentry.err_no_full') })
+      notify('err', 'dataentry.err_no_full')
       return false
     }
     return await performSave(rowsToInsert, false, true, forceOverwrite)
@@ -2834,12 +3036,12 @@ export default function DataEntry() {
     // con lo que tiene ESTA pestaña. Un alcance decidido por la pestaña
     // equivocada cierra la jornada con menos puntos de los que el hub midió.
     if (!leaseOwnerRef.current) {
-      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      notify('err', 'dataentry.lease_readonly_body', null, { emphasize: true })
       return
     }
     const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
     if (hasPartial || hasEmpty) {
-      setMsg({ type: 'err', text: t('dataentry.err_finish') })
+      notify('err', 'dataentry.err_finish')
       return
     }
     const rowsToInsert = []
@@ -2851,7 +3053,7 @@ export default function DataEntry() {
       }
     }
     if (!rowsToInsert.length) {
-      setMsg({ type: 'err', text: t('dataentry.err_no_full') })
+      notify('err', 'dataentry.err_no_full')
       return
     }
     const remainingAfterThis = pendingScopeMembers.filter((m) => m !== bucketKey)
@@ -2929,7 +3131,7 @@ export default function DataEntry() {
     // reciente.
     if (s.city === dbCity && s.observed_date === date && (s.zone ?? null) === (zone ?? null)) {
       setShowHistory(false)
-      setMsg({ type: 'ok', text: t('dataentry.already_viewing_session') })
+      notify('ok', 'dataentry.already_viewing_session')
       return
     }
     const targetUi = dbCityToUiCity[s.city] || s.city
@@ -2947,7 +3149,15 @@ export default function DataEntry() {
     // contaminado con tiempo ajeno).
     sessionStartRef.current = Date.now()
     setSessionActive(true)
-    const targetBucketKey = s.zone ? `TT~${s.city}~${s.zone}` : s.city
+    // s.zone puede ser un distrito de TukTuk O una categoría propia
+    // (Delivery/Cargo, ver SPECIAL_CATEGORY_ZONES) — ci_sessions no guarda
+    // cuál de los dos es, así que se distingue por el nombre reservado.
+    const zoneIsSpecialCat = s.zone != null && SPECIAL_CATEGORY_ZONES.has(s.zone)
+    const targetBucketKey = bucketKeyFor(
+      s.city,
+      s.zone ?? null,
+      Boolean(s.zone) && !zoneIsSpecialCat
+    )
     // Fusionar, nunca pisar: reemplazar el alcance borraba los frentes que
     // seguían a medias (ej. Punto A+B declarados) sin dejar rastro, y la
     // sesión después cerraba como final abandonándolos en silencio.
@@ -2955,14 +3165,22 @@ export default function DataEntry() {
       prev.includes(targetBucketKey) ? prev : [...prev, targetBucketKey]
     )
     setShowHistory(false)
-    if (s.zone) {
+    if (zoneIsSpecialCat) {
+      // Sesión de Delivery/Cargo: sin distrito, la ciudad base ya es la
+      // correcta (nunca cambia de uiCity).
+      setUiCity(targetUi)
+      setActiveTukTuk(null)
+      setActiveSpecialCat(s.zone)
+    } else if (s.zone) {
       // Sesión de TukTuk por distrito: volver a la ciudad base con TukTuk + el
       // distrito guardado en la sesión.
       setUiCity(tukTukInfo?.baseUiCity || targetUi)
       setActiveTukTuk(s.zone)
+      setActiveSpecialCat(null)
     } else {
       setUiCity(targetUi)
       setActiveTukTuk(null)
+      setActiveSpecialCat(null)
     }
     setDate(s.observed_date)
     // Seedear turnoTimings desde la sesión histórica ANTES de que el efecto
@@ -2975,7 +3193,7 @@ export default function DataEntry() {
         s.turno_timings && typeof s.turno_timings === 'object' ? s.turno_timings : {},
     }))
     setPendingLoad({ dbCity: s.city, zone: s.zone ?? null, date: s.observed_date })
-    setMsg({ type: 'ok', text: t('dataentry.loading_session') })
+    notify('ok', 'dataentry.loading_session')
   }
 
   // Trae las observaciones manuales de (ciudad, fecha) y las vuelca al form,
@@ -3001,7 +3219,7 @@ export default function DataEntry() {
       // hub volvía 2 minutos después de Terminar, veía 0/162 y el botón
       // "Iniciar Sesión", y eso es indistinguible de "perdí todo mi trabajo".
       // Sus datos están guardados y a un clic en "Ver lo guardado".
-      setMsg({ type: 'ok', text: t('dataentry.just_finished_note') })
+      notify('ok', 'dataentry.just_finished_note')
       return
     }
     // Marca de agua PRIMERO, filas después (mig 191). El orden importa: si el
@@ -3155,11 +3373,11 @@ export default function DataEntry() {
       if (row.price_without_discount != null) newEntries[k] = String(row.price_without_discount)
       if (row.price_with_discount != null) newDisc[k] = String(row.price_with_discount)
       if (row.eta_min != null) newEta[k] = String(row.eta_min)
-      if (comp === 'InDrive') {
+      if (isInDriveVariant(comp)) {
         const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
           .filter((b) => b != null)
           .map((b) => String(b))
-        newIndrive[indKey(uiCat, ref.id, tsLabel)] = {
+        newIndrive[indKey(uiCat, ref.id, tsLabel, comp)] = {
           bids: bids.length ? bids : [''],
           minBid: row.minimal_bid != null ? String(row.minimal_bid) : '',
           rec: row.recommended_price != null ? String(row.recommended_price) : '',
@@ -3659,7 +3877,7 @@ export default function DataEntry() {
       savedSeq: savedSeqRef.current,
     }).map((f) => f.bucket)
     if (!pendientes.length) {
-      setMsg({ type: 'ok', text: t('dataentry.save_all_nothing') })
+      notify('ok', 'dataentry.save_all_nothing')
       return
     }
     colaOrigenRef.current = bucketKey
@@ -3891,7 +4109,47 @@ export default function DataEntry() {
         </div>
       </div>
 
-      <InstructionsBanner t={t} />
+      <InstructionsBanner t={t} collapseSignal={legendCollapseSignal} />
+
+      {/* Sesiones propias de días anteriores sin cerrar (mig 243). Solo
+          informativo: ir ahí sigue requiriendo que el hub complete y termine
+          a mano — esto no cierra nada solo. Se puede descartar por completo
+          o fila por fila (una vez atendida, no debe seguir apareciendo). */}
+      {Array.isArray(myUnfinished) && myUnfinished.length > 0 && (
+        <div className="de-unfinished-alert">
+          <p className="de-unfinished-alert__title">
+            {t('dataentry.unfinished_alert_title', { n: myUnfinished.length })}
+          </p>
+          <ul className="de-unfinished-alert__list">
+            {myUnfinished.map((u) => {
+              const isSpecial = SPECIAL_CATEGORY_ZONES.has(u.zone)
+              const bk = bucketKeyFor(u.city, u.zone ?? null, Boolean(u.zone) && !isSpecial)
+              return (
+                <li key={`${u.city}|${u.zone || ''}|${u.observed_date}`}>
+                  <span>
+                    {formatCityZoneLabel(u.city, u.zone)} · {u.observed_date} · {u.n_rows}{' '}
+                    {t('dataentry.unfinished_alert_rows')}
+                  </span>
+                  <button
+                    type="button"
+                    className="de-footer-goto"
+                    onClick={() => {
+                      if (irAFrente(bk)) setDate(u.observed_date)
+                      setMyUnfinished((prev) => (prev || []).filter((x) => x !== u))
+                    }}
+                  >
+                    {t('dataentry.unfinished_alert_goto')}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <button type="button" className="de-footer-goto" onClick={() => setMyUnfinished(null)}>
+            {t('dataentry.unfinished_alert_dismiss_all')}
+          </button>
+        </div>
+      )}
+
       {pendingExtraFronts.length > 0 && (
         <div className="de-locked-district-banner">
           {t('dataentry.extra_fronts_pending', {
@@ -3954,7 +4212,11 @@ export default function DataEntry() {
                     ? 'Corp'
                     : tb.type === 'airport'
                       ? `✈ ${t('dataentry.tab_airport')}`
-                      : 'TukTuk'
+                      : tb.type === 'delivery'
+                        ? t('dataentry.tab_delivery')
+                        : tb.type === 'cargo'
+                          ? t('dataentry.tab_cargo')
+                          : 'TukTuk'
               const active =
                 tb.type === 'tuktuk'
                   ? isTukTuk && uiCity === tb.baseUiCity
@@ -3962,7 +4224,11 @@ export default function DataEntry() {
                     ? !isTukTuk && tb.members.some((m) => m.uiCity === uiCity)
                     : tb.type === 'corp'
                       ? !isTukTuk && uiCity === 'Corp'
-                      : !isTukTuk && uiCity === tb.uiCity
+                      : tb.type === 'delivery'
+                        ? !isTukTuk && activeSpecialCat === 'Delivery' && uiCity === tb.baseUiCity
+                        : tb.type === 'cargo'
+                          ? !isTukTuk && activeSpecialCat === 'Cargo' && uiCity === tb.baseUiCity
+                          : !isTukTuk && !isSpecialCat && uiCity === tb.uiCity
               // Historia: hasta 2026-07-24 acá había un candado
               // (`scopeLockedElsewhere`) que, con un alcance "Ambos" a medias,
               // bloqueaba navegar a CUALQUIER otra pestaña. Existía porque
@@ -3988,6 +4254,7 @@ export default function DataEntry() {
                       if (!active) {
                         setUiCity(tb.baseUiCity)
                         setActiveTukTuk(firstEnabledTukTukDistrict(tukTukDistricts) ?? '')
+                        setActiveSpecialCat(null)
                       }
                     } else if (tb.type === 'airport') {
                       if (!active) {
@@ -4003,10 +4270,18 @@ export default function DataEntry() {
                           ).uiCity
                         )
                         setActiveTukTuk(null)
+                        setActiveSpecialCat(null)
                       }
+                    } else if (tb.type === 'delivery' || tb.type === 'cargo') {
+                      // Sin distrito que preservar (a diferencia de TukTuk): el
+                      // click siempre fija la categoría, incluso re-clickeando.
+                      setUiCity(tb.baseUiCity)
+                      setActiveTukTuk(null)
+                      setActiveSpecialCat(tb.type === 'delivery' ? 'Delivery' : 'Cargo')
                     } else {
                       setUiCity(tb.uiCity)
                       setActiveTukTuk(null)
+                      setActiveSpecialCat(null)
                     }
                   }}
                 >
@@ -4076,6 +4351,7 @@ export default function DataEntry() {
                     if (locked) return
                     setUiCity(m.uiCity)
                     setActiveTukTuk(null)
+                    setActiveSpecialCat(null)
                     setMsg(null)
                   }}
                 >
@@ -4182,19 +4458,40 @@ export default function DataEntry() {
           </label>
 
           <div className="de-session-info">
+            {/* Atajos: parecían botones y no hacían nada (feedback user
+                2026-09-07). Ahora saltan a la cabecera de ese turno. */}
             {timeslots.map((ts) => (
-              <span key={ts.label} className="de-ts-badge">
+              <button
+                key={ts.label}
+                type="button"
+                className="de-ts-badge"
+                title={t('dataentry.ts_jump_title', { ts: ts.label })}
+                onClick={() => {
+                  const el = document.getElementById(`de-turno-${ts.label}`)
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+              >
                 {ts.label} ({ts.start_time?.slice(0, 5)}–{ts.end_time?.slice(0, 5)})
-              </span>
+              </button>
             ))}
           </div>
 
-          <div className="de-progress-pill">
-            <span className="de-progress-filled">{filledCount}</span>
-            <span className="de-progress-sep">/</span>
-            <span className="de-progress-total">{totalExpected}</span>
-            <span className="de-progress-label">{t('dataentry.fields')}</span>
-          </div>
+          {/* Sin sesión ni trabajo, "0 / 0 campos" no dice nada: mostrar
+              qué viene (rutas × turnos) hasta que haya algo que contar. */}
+          {!sessionActive && filledCount === 0 ? (
+            routeOrder.length > 0 && (
+              <div className="de-progress-pill de-progress-pill--idle">
+                {t('dataentry.grid_summary', { r: routeOrder.length, n: timeslots.length })}
+              </div>
+            )
+          ) : (
+            <div className="de-progress-pill">
+              <span className="de-progress-filled">{filledCount}</span>
+              <span className="de-progress-sep">/</span>
+              <span className="de-progress-total">{totalExpected}</span>
+              <span className="de-progress-label">{t('dataentry.fields')}</span>
+            </div>
+          )}
 
           {/* Indicadores "guardado/confirmado hace Xs" — su ticker de 1s vive
               adentro, aislado de la grilla. Reusa el mismo umbral de 3 min
@@ -4233,12 +4530,15 @@ export default function DataEntry() {
           trabajo. La grilla queda visible y editable a propósito (CLAUDE.md
           §5): es una vista legítima, solo que no escribe. */}
       {!leaseOwner && (
-        <div className="de-msg de-msg--err de-msg--emphasize">
+        <div className="de-msg de-msg--warn de-msg--emphasize">
           <AlertTriangle className="de-msg__icon" size={20} />
           <span>
             <strong>{t('dataentry.lease_readonly_title')}</strong>{' '}
             {t('dataentry.lease_readonly_body')}
           </span>
+          <button type="button" className="de-msg__action" onClick={claimDraftLease}>
+            {t('dataentry.lease_readonly_take')}
+          </button>
         </div>
       )}
 
@@ -4249,6 +4549,27 @@ export default function DataEntry() {
         <div className="de-msg de-msg--err de-msg--emphasize">
           <AlertTriangle className="de-msg__icon" size={20} />
           {t('dataentry.storage_failed')}
+        </div>
+      )}
+
+      {/* Aviso temprano (pedido user 2026-09-07): la MISMA señal que dispara
+          el conflicto al guardar (mig 191) ya está disponible al restaurar el
+          borrador — mostrarla ACÁ, antes de que el hub tipee, en vez de
+          esperar a que el guardado rebote. No bloquea nada: se puede
+          descartar, y si el hub guarda igual el conflicto real (si sigue
+          vigente) aparece abajo con sus dos salidas. */}
+      {earlyConflictHint?.bucketKey === bucketKey && !saveConflict && (
+        <div className="de-msg de-msg--err">
+          {t('dataentry.early_conflict_hint', {
+            when: new Date(earlyConflictHint.at).toLocaleString(),
+          })}
+          <button
+            type="button"
+            className="de-footer-goto"
+            onClick={() => setEarlyConflictHint(null)}
+          >
+            {t('dataentry.early_conflict_dismiss')}
+          </button>
         </div>
       )}
 
@@ -4352,91 +4673,155 @@ export default function DataEntry() {
         <div className="de-loading">{t('dataentry.no_routes_at_all')}</div>
       ) : (
         <>
-          {timeslots.map((ts) => (
-            <TurnoSection
-              key={ts.label}
-              timeslot={ts}
-              filled={filledByTimeslot[ts.label] || 0}
-              total={totalExpectedPerTimeslot}
-              hasErrors={!!errorsByTimeslot[ts.label]}
-            >
-              {refsByBracket.map(({ bracket, groups, extras }) => (
-                <div key={bracket} className="de-bracket-section">
-                  {groups.map((group, gi) => (
-                    <BracketRouteGroup
-                      key={`${bracket}-${gi}`}
-                      bracket={bracket}
-                      group={group}
-                      categories={categories}
-                      timeslot={ts}
-                      uiCity={uiCity}
-                      country={country}
-                      dbConfigs={dbConfigs}
-                      catColors={CAT_COLORS}
-                      getEntry={getEntry}
-                      setEntry={setEntry}
-                      getEta={getEta}
-                      setEta={setEta}
-                      getDisc={getDisc}
-                      setDisc={setDisc}
-                      indriveExtra={indriveExtra}
-                      setIndrive={setIndrive}
-                      indKey={indKey}
-                      priceKey={priceKey}
-                      errorKeys={errorKeys}
-                      rowState={rowState}
-                      getNa={getNa}
-                      toggleNa={toggleNa}
-                      markRowNa={markRowNa}
-                      t={t}
-                    />
-                  ))}
-                  {extras.length > 0 && (
-                    <div className="de-bracket-extras">
-                      {/* El título "Rutas adicionales" solo tiene sentido cuando hay
+          {commonOrigin && (
+            <div className="de-common-origin">
+              <span className="de-common-origin__label">{t('dataentry.common_origin')}</span>
+              <strong>{commonOrigin}</strong>
+              <span className="de-common-origin__hint">{t('dataentry.common_origin_hint')}</span>
+            </div>
+          )}
+          <div className="de-grid" onKeyDown={handleGridKeyDown}>
+            {timeslots.map((ts) => {
+              // Progreso por bracket dentro de ESTE turno (minimapa + banda).
+              const bracketProgress = refsByBracket.map(({ bracket, groups, extras }) => {
+                const items = [
+                  ...groups.map((g) => groupStatus(g, ts)),
+                  ...extras.map((e) => rowState(e.uiCat, e.ref, ts)),
+                ]
+                return {
+                  bracket,
+                  id: `de-band-${ts.label}-${bracket}`,
+                  label: BRACKET_LABELS[bracket] || bracket,
+                  short: BRACKET_SHORT[bracket] || bracket,
+                  color: BRACKET_COLORS[bracket],
+                  done: items.filter((x) => x === 'full').length,
+                  total: items.length,
+                }
+              })
+              return (
+                <TurnoSection
+                  key={ts.label}
+                  id={`de-turno-${ts.label}`}
+                  timeslot={ts}
+                  filled={filledByTimeslot[ts.label] || 0}
+                  total={totalExpectedPerTimeslot}
+                  hasErrors={!!errorsByTimeslot[ts.label]}
+                  brackets={bracketProgress}
+                >
+                  {refsByBracket.map(({ bracket, groups, extras }, bi) => {
+                    const prog = bracketProgress[bi]
+                    const kms = [
+                      ...groups.map((g) => g.anchorRef.waze_distance),
+                      ...extras.map((e) => e.ref.waze_distance),
+                    ].filter((k) => k != null)
+                    const kmRange =
+                      kms.length === 0
+                        ? null
+                        : Math.min(...kms) === Math.max(...kms)
+                          ? `${Math.min(...kms)} km`
+                          : `${Math.min(...kms)}–${Math.max(...kms)} km`
+                    return (
+                      <div
+                        key={bracket}
+                        id={prog.id}
+                        className={`de-bracket-section${prog.total > 0 && prog.done >= prog.total ? ' de-bracket-section--done' : ''}`}
+                        style={{ '--bracket-color': prog.color }}
+                      >
+                        <div className="de-bracket-band">
+                          <span className="de-bracket-band__dot" aria-hidden="true" />
+                          <span className="de-bracket-band__label">{prog.label}</span>
+                          {kmRange && <span className="de-bracket-band__km">{kmRange}</span>}
+                          <span className="de-bracket-band__progress">
+                            {prog.done >= prog.total && prog.total > 0 ? '✓ ' : ''}
+                            {prog.done}/{prog.total} {t('dataentry.band_routes')}
+                          </span>
+                        </div>
+                        {groups.map((group, gi) => (
+                          <BracketRouteGroup
+                            key={`${bracket}-${gi}`}
+                            bracket={bracket}
+                            group={group}
+                            status={groupStatus(group, ts)}
+                            routeIndex={routeOrder.indexOf(group.anchorRef.id) + 1}
+                            routeTotal={routeOrder.length}
+                            bracketColor={prog.color}
+                            hideOrigin={!!commonOrigin}
+                            categories={categories}
+                            timeslot={ts}
+                            uiCity={uiCity}
+                            country={country}
+                            dbConfigs={dbConfigs}
+                            catColors={CAT_COLORS}
+                            getEntry={getEntry}
+                            setEntry={setEntry}
+                            getEta={getEta}
+                            setEta={setEta}
+                            getDisc={getDisc}
+                            setDisc={setDisc}
+                            indriveExtra={indriveExtra}
+                            setIndrive={setIndrive}
+                            indKey={indKey}
+                            priceKey={priceKey}
+                            errorKeys={errorKeys}
+                            rowState={rowState}
+                            getNa={getNa}
+                            toggleNa={toggleNa}
+                            markRowNa={markRowNa}
+                            t={t}
+                          />
+                        ))}
+                        {extras.length > 0 && (
+                          <div className="de-bracket-extras">
+                            {/* El título "Rutas adicionales" solo tiene sentido cuando hay
                           además rutas principales (groups). Si TODO el bracket son
                           extras (ej. ciudad Corp, o solo-TukTuk), no hay "adicionales"
                           respecto de nada → se omite el título. */}
-                      {groups.length > 0 && (
-                        <div className="de-bracket-extras-title">
-                          {t('dataentry.extra_routes_title')}
-                        </div>
-                      )}
-                      {extras.map(({ uiCat, ref }) => (
-                        <BracketRouteGroup
-                          key={`${bracket}-extra-${ref.id}`}
-                          bracket={bracket}
-                          group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
-                          categories={[uiCat]}
-                          timeslot={ts}
-                          uiCity={uiCity}
-                          country={country}
-                          dbConfigs={dbConfigs}
-                          catColors={CAT_COLORS}
-                          getEntry={getEntry}
-                          setEntry={setEntry}
-                          getEta={getEta}
-                          setEta={setEta}
-                          getDisc={getDisc}
-                          setDisc={setDisc}
-                          indriveExtra={indriveExtra}
-                          setIndrive={setIndrive}
-                          indKey={indKey}
-                          priceKey={priceKey}
-                          errorKeys={errorKeys}
-                          rowState={rowState}
-                          getNa={getNa}
-                          toggleNa={toggleNa}
-                          markRowNa={markRowNa}
-                          t={t}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </TurnoSection>
-          ))}
+                            {groups.length > 0 && (
+                              <div className="de-bracket-extras-title">
+                                {t('dataentry.extra_routes_title')}
+                              </div>
+                            )}
+                            {extras.map(({ uiCat, ref }) => (
+                              <BracketRouteGroup
+                                key={`${bracket}-extra-${ref.id}`}
+                                bracket={bracket}
+                                group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
+                                status={rowState(uiCat, ref, ts)}
+                                bracketColor={prog.color}
+                                hideOrigin={!!commonOrigin}
+                                categories={[uiCat]}
+                                timeslot={ts}
+                                uiCity={uiCity}
+                                country={country}
+                                dbConfigs={dbConfigs}
+                                catColors={CAT_COLORS}
+                                getEntry={getEntry}
+                                setEntry={setEntry}
+                                getEta={getEta}
+                                setEta={setEta}
+                                getDisc={getDisc}
+                                setDisc={setDisc}
+                                indriveExtra={indriveExtra}
+                                setIndrive={setIndrive}
+                                indKey={indKey}
+                                priceKey={priceKey}
+                                errorKeys={errorKeys}
+                                rowState={rowState}
+                                getNa={getNa}
+                                toggleNa={toggleNa}
+                                markRowNa={markRowNa}
+                                t={t}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </TurnoSection>
+              )
+            })}
+          </div>
         </>
       )}
       {/* Footer repeat buttons */}

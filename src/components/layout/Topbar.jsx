@@ -247,6 +247,17 @@ export default function Topbar({
       </div>
 
       <div className="topbar__right">
+        {/* Versión de la app visible (pedido user 2026-09-07): antes de esto
+            un hub no tenía forma de decir "estoy en la X" al reportar un
+            problema. __APP_VERSION__ = package.json (semántica, para
+            humanos); __BUILD_VERSION__ (timestamp) sigue siendo el que usa
+            useBuildVersionCheck para detectar deploys nuevos — son cosas
+            distintas a propósito, ver vite.config.js. */}
+        <span className="topbar__app-version" title={t('topbar.app_version_tooltip')}>
+          {/* eslint-disable-next-line no-undef */}v
+          {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?'}
+        </span>
+
         {/* Bot freshness — pequeño semáforo de última sync. El wrapper con
             clase existe solo para poder ocultarlo por CSS en tablet (641-
             1150px), donde la topbar no entra en una fila de 52px sin

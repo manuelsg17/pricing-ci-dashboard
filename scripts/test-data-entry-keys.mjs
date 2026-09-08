@@ -39,10 +39,22 @@ ok(
   priceKey('Economy', 42, 'Mañana', 'Uber') === 'Economy|42|Mañana|Uber',
   'priceKey uiCat|refId|ts|comp'
 )
-ok(indKey('Economy', 42, 'Mañana') === 'Economy|42|Mañana', 'indKey uiCat|refId|ts')
+// indKey/priceKey comparten formato exacto desde 2026-09 (subcategorías de
+// Cargo): antes indKey no llevaba `comp` porque solo existía UN InDrive por
+// fila; con 4 subcategorías de InDrive en Cargo compartiendo (uiCat, refId,
+// ts), sin `comp` las 4 pisaban el mismo estado de bids/recomendado (bug
+// real, hallado en navegador antes de mergear).
 ok(
-  `${indKey('E', 1, 'T')}|InDrive` === priceKey('E', 1, 'T', 'InDrive'),
-  'indKey + "|InDrive" = priceKey de InDrive (lo asume countAllFilled)'
+  indKey('Economy', 42, 'Mañana', 'InDrive') === 'Economy|42|Mañana|InDrive',
+  'indKey uiCat|refId|ts|comp'
+)
+ok(
+  indKey('E', 1, 'T', 'InDrive') === priceKey('E', 1, 'T', 'InDrive'),
+  'indKey y priceKey coinciden exactamente para el mismo (uiCat,refId,ts,comp) — lo asume countAllFilled'
+)
+ok(
+  indKey('E', 1, 'T', 'InDriveCargoVan') !== indKey('E', 1, 'T', 'InDriveCargoPickup'),
+  'dos subcategorías de InDrive en la misma fila no comparten indKey'
 )
 ok(
   priceKey('E', 1, 'Mañana', 'Uber').split('|')[2] === 'Mañana',
@@ -68,6 +80,28 @@ ok(viewIdFor('Lima', 'Lima', 'Comas', true) === 'TT~Lima~Comas', 'TukTuk: viewId
 ok(
   viewIdFor('Lima', 'Lima', 'Comas', true) === bucketKeyFor('Lima', 'Comas', true),
   'en TukTuk viewId y bucketKey coinciden (lo asume el escaneo de borradores)'
+)
+
+console.log('\nbucketKey / viewId — Delivery/Cargo (zone sin isTukTuk)')
+ok(
+  bucketKeyFor('Lima', 'Delivery', false) === 'CAT~Lima~Delivery',
+  'zone sin isTukTuk: prefijo CAT~, no TT~'
+)
+ok(
+  bucketKeyFor('Lima', 'Delivery', false) !== bucketKeyFor('Lima', null, false),
+  'Delivery no comparte rebanada con Lima Normal (la marca de agua no colisiona)'
+)
+ok(
+  bucketKeyFor('Lima', 'Delivery', false) !== bucketKeyFor('Lima', 'Cargo', false),
+  'Delivery y Cargo tienen cada uno su propia rebanada'
+)
+ok(
+  bucketKeyFor('Lima', 'Comas', true) !== bucketKeyFor('Lima', 'Comas', false),
+  'CAT~ y TT~ nunca colisionan aunque el segundo segmento coincida'
+)
+ok(
+  viewIdFor('Lima', 'Lima', 'Delivery', false) === bucketKeyFor('Lima', 'Delivery', false),
+  'en Delivery/Cargo viewId y bucketKey también coinciden'
 )
 
 console.log('\nborrador en localStorage')

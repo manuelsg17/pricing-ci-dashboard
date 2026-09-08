@@ -2,8 +2,16 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Versión SEMÁNTICA (package.json), para mostrarle al hub "estoy en la
+// 1.1.0" — distinta de BUILD_VERSION (timestamp), que solo sirve para
+// detectar deploys nuevos y no dice nada legible sobre QUÉ cambió.
+const APP_VERSION = JSON.parse(
+  readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')
+).version
 
 // ════════════════════════════════════════════════════════════════════════
 // Build version stamping
@@ -29,6 +37,7 @@ function buildVersionPlugin() {
         source: JSON.stringify(
           {
             version: BUILD_VERSION,
+            appVersion: APP_VERSION,
             builtAt: new Date().toISOString(),
           },
           null,
@@ -67,6 +76,7 @@ export default defineConfig({
     // Expone la versión a runtime via __BUILD_VERSION__ (más simple que
     // import.meta.env.VITE_*, que requeriría leerla con cuidado).
     __BUILD_VERSION__: JSON.stringify(BUILD_VERSION),
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
   build: {
     // Split heavy libs into vendor chunks. Reduces the size of the

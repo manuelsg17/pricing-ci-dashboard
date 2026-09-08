@@ -7,19 +7,43 @@
 
 // Claves de celda dentro de la rebanada de una vista.
 export const priceKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
-export const indKey = (uiCat, refId, tsLabel) => `${uiCat}|${refId}|${tsLabel}`
+// `comp` (2026-09, subcategorías de Cargo): antes la clave no distinguía
+// competidor porque solo existía UN InDrive por fila — con 4 subcategorías
+// de InDrive en Cargo compartiendo (uiCat, refId, tsLabel), sin `comp`
+// las 4 pisaban el mismo estado de bids/recomendado (bug real, hallado al
+// probar en navegador antes de mergear).
+export const indKey = (uiCat, refId, tsLabel, comp) => `${uiCat}|${refId}|${tsLabel}|${comp}`
 
 // bucketKey: vista normal → la ciudad de BD; distrito de TukTuk → clave
 // sintética única por distrito (TukTuk no es ciudad aparte en BD, se
 // distingue por `zone`). El separador '~' no aparece en ciudades ni distritos.
+//
+// Delivery/Cargo (2026-09) son categorías de la MISMA ciudad de BD (Lima),
+// no ciudades propias — mismo criterio que TukTuk (precedente ya probado):
+// una categoría más de 'Lima', discriminada por `zone` SOLO para que este
+// frente tenga su propia marca de agua de guardado (ci_bucket_writes) y no
+// pise la de "Lima Normal". Prefijo 'CAT~' propio (no 'TT~') para que
+// parseBucketKey pueda distinguir "distrito de TukTuk" de "categoría propia"
+// al armar el label en Monitoreo — son casos con display distinto.
+// Nombres reservados: una `zone` con uno de estos valores es SIEMPRE una
+// categoría propia (Delivery/Cargo), nunca un distrito de TukTuk — hace falta
+// en los puntos que reciben solo `zone` desde BD (ci_sessions) sin un `kind`
+// explícito y necesitan decidir a cuál de los dos formatos armar la clave.
+export const SPECIAL_CATEGORY_ZONES = new Set(['Delivery', 'Cargo'])
+
 export function bucketKeyFor(dbCity, zone, isTukTuk) {
-  return isTukTuk ? `TT~${dbCity}~${zone}` : dbCity
+  if (isTukTuk) return `TT~${dbCity}~${zone}`
+  if (zone) return `CAT~${dbCity}~${zone}`
+  return dbCity
 }
 
-// viewId: vista normal → uiCity (sin cambios históricos); TukTuk → lleva el
-// distrito, para que cada uno tenga su propio borrador.
+// viewId: vista normal → uiCity (sin cambios históricos); TukTuk y las
+// categorías con zone propia (ver bucketKeyFor) llevan la clave completa,
+// para que cada una tenga su propio borrador.
 export function viewIdFor(uiCity, dbCity, zone, isTukTuk) {
-  return isTukTuk ? `TT~${dbCity}~${zone}` : uiCity
+  if (isTukTuk) return `TT~${dbCity}~${zone}`
+  if (zone) return `CAT~${dbCity}~${zone}`
+  return uiCity
 }
 
 // Borrador en localStorage, uno por (usuario, país, vista, fecha). El email

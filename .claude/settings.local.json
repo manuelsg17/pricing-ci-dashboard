@@ -23,7 +23,15 @@
       "Bash(grep -A 30 \"INSERT INTO distance_thresholds\" /Users/manuel/Library/CloudStorage/ProtonDrive-hello_email25@pm.me-folder/claude_projects/Yango/pricing-ci-dashboard/supabase/*.sql)",
       "Bash(node --input-type=module --eval ' *)",
       "Bash(grep -E '\\\\.\\(jsx|js\\)$')",
-      "mcp__claude_ai_Supabase__execute_sql"
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(git -C /Users/masantillanag/Projects/pricing-ci-dashboard log -1 --format=\"%h %s\" -S \"fff7f7 0%, #ffffff\" -- src/styles/dashboard.css)",
+      "Bash(git -C /Users/masantillanag/Projects/pricing-ci-dashboard show 2529c67:src/styles/dashboard.css)",
+      "Bash(git -C /Users/masantillanag/Projects/pricing-ci-dashboard show f22812a --format=\"%B\" --no-patch)",
+      "Bash(git -C /Users/masantillanag/Projects/pricing-ci-dashboard show 2529c67:src/pages/Dashboard.jsx)",
+      "Bash(git -C /Users/masantillanag/Projects/pricing-ci-dashboard show 2529c67:src/components/dashboard/DashboardLegend.jsx)",
+      "mcp__66873a08-e8f4-4e88-bbfe-599516f24bd5__list_projects",
+      "Bash(git config *)",
+      "Bash(ssh -T git@github.com)"
     ]
   }
 }

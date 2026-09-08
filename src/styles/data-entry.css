@@ -123,13 +123,6 @@
   border-style: solid;
 }
 
-/* Bloqueada mientras hay un alcance "Ambos" de Aeropuerto a medias (bug real,
-   revisión adversarial 2026-07-23) — evita corromper el cierre de sesión. */
-.de-city-tab--locked {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 /* Sub-pestañas Punto A | Punto B del aeropuerto activo */
 .de-airport-subtabs {
   display: flex;
@@ -395,26 +388,6 @@
   border-color: var(--color-yango);
 }
 
-.de-ctrl--surge {
-  gap: 5px;
-  cursor: pointer;
-}
-
-.de-ctrl--surge input[type='checkbox'] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--color-yango);
-  cursor: pointer;
-}
-
-.de-ctrl--surge span {
-  text-transform: none;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: var(--color-text);
-}
-
 /* Timeslot badges info */
 .de-session-info {
   display: flex;
@@ -427,9 +400,24 @@
   background: var(--color-bg-hover);
   border: 1px solid var(--color-border);
   border-radius: 12px;
+  font: inherit;
   font-size: 10px;
   font-weight: 600;
   color: var(--color-muted);
+  cursor: pointer;
+}
+.de-ts-badge:hover {
+  border-color: var(--color-yango);
+  color: var(--color-text);
+}
+.de-progress-pill--idle {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+/* Destino de los saltos (turno / bracket): que no quede tapado por las dos
+   cabeceras sticky. */
+.de-scroll-target {
+  scroll-margin-top: 60px;
 }
 
 /* Progress pill */
@@ -483,6 +471,29 @@
   border: 1px solid var(--color-danger-border);
   color: var(--color-danger-fg);
 }
+/* Aviso (no error): pestaña duplicada — el hub no rompió nada, solo tiene
+   que elegir desde dónde trabaja. */
+.de-msg--warn {
+  background: #fffbeb;
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-fg);
+}
+.de-msg__action {
+  margin-left: auto;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-warning-fg);
+  background: var(--color-panel);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.de-msg__action:hover {
+  background: #fef3c7;
+}
 
 /* Confirmación de "Terminar Sesión" — la grilla se vacía a propósito justo
    después (evita que el autosave la resucite), y sin una confirmación bien
@@ -525,19 +536,6 @@
 
 .de-cat-empty strong {
   color: var(--color-text);
-}
-
-.de-ts-pill {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.de-ts-time {
-  display: block;
-  font-size: 10px;
-  color: var(--color-muted);
 }
 
 .de-td-error {
@@ -908,20 +906,6 @@
   white-space: nowrap;
 }
 
-/* ── Otro borrador sin terminar ─────────────────────────── */
-.de-other-draft {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.de-other-draft-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
 /* ── Leyenda de instrucciones ───────────────────────────── */
 .de-legend {
   background: var(--color-panel);
@@ -944,9 +928,23 @@
 .de-legend-toggle:hover {
   background: var(--color-bg-hover);
 }
+.de-legend-more {
+  margin: 0 16px 10px 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-yango);
+  cursor: pointer;
+}
+.de-legend-more:hover {
+  text-decoration: underline;
+}
 .de-legend-steps {
   margin: 0;
-  padding: 0 16px 12px 32px;
+  padding: 0 16px 6px 32px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -969,7 +967,9 @@
 .de-turno-section {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  /* clip y no hidden: hidden convierte la sección en scroll container y la
+     cabecera sticky de abajo dejaría de pegarse al viewport. */
+  overflow: clip;
   box-shadow: var(--shadow-xs);
   background: var(--color-panel);
   margin-bottom: 16px;
@@ -978,23 +978,77 @@
   margin-bottom: 0;
 }
 
+/* Cabecera STICKY (revisión UX 2026-09): con 12 rutas × 3 turnos el hub
+   está en la tarjeta 30 y ya no sabe en qué turno está ni cuánto le falta.
+   top = altura del topbar (52px, también sticky). El toggle y el minimapa
+   son botones separados dentro de la cabecera (antes la cabecera entera era
+   el botón de colapso). */
 .de-turno-header {
+  position: sticky;
+  top: 52px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--color-bg-header);
+  border-bottom: 1px solid var(--color-border-soft);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+.de-turno-toggle {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 16px;
-  background: var(--color-bg-header);
+  gap: 8px;
+  padding: 4px 4px;
+  background: transparent;
   border: none;
-  border-bottom: 1px solid var(--color-border-soft);
-  text-align: left;
   font: inherit;
   color: inherit;
   cursor: pointer;
-  transition: background 0.12s;
+  border-radius: var(--radius-sm);
 }
-.de-turno-header:hover {
+.de-turno-toggle:hover {
   background: var(--color-bg-hover);
+}
+
+/* Minimapa: un chip por bracket, color del bracket, progreso de rutas. */
+.de-turno-minimap {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: 6px;
+}
+.de-turno-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.de-turno-chip:hover {
+  border-color: var(--bracket-color);
+}
+.de-turno-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bracket-color);
+  flex-shrink: 0;
+}
+.de-turno-chip--done {
+  color: var(--color-success-fg);
+  background: var(--color-success-bg);
+  border-color: transparent;
 }
 
 .de-turno-chevron {
@@ -1053,15 +1107,118 @@
 .de-bracket-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  /* scroll-margin: el salto desde el minimapa deja la banda visible debajo
+     de las dos cabeceras sticky (topbar 52 + turno ~44). */
+  scroll-margin-top: 104px;
+}
+
+/* Banda de bracket (revisión UX 2026-09): el bracket es lo que agrupa las
+   rutas y antes solo se veía como una etiqueta chica dentro de cada tarjeta
+   — 36 tarjetas iguales. Ahora cada bracket tiene una banda con su color,
+   rango de km y progreso, y las tarjetas de adentro heredan el color en el
+   borde izquierdo. */
+.de-bracket-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 2px;
+  font-size: 12px;
+}
+.de-bracket-band__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--bracket-color);
+  flex-shrink: 0;
+}
+.de-bracket-band__label {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--bracket-color);
+}
+.de-bracket-band__km {
+  color: var(--color-muted);
+}
+.de-bracket-band__progress {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+.de-bracket-section--done .de-bracket-band__progress {
+  color: var(--color-success-fg);
 }
 
 .de-bracket-group {
   border: 1px solid var(--color-border);
+  border-left: 4px solid var(--bracket-color, var(--color-border));
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: var(--shadow-xs);
   background: var(--color-panel);
+}
+.de-bracket-group--collapsed > .de-bracket-route-header {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+/* Estado de la ruta: completa se atenúa (ya no requiere atención), a medias
+   avisa con el mismo ámbar que la fila parcial. */
+.de-bracket-group--full {
+  border-left-color: var(--color-success-fg);
+}
+.de-bracket-group--full > .de-bracket-route-header {
+  background: var(--color-success-bg);
+}
+.de-bracket-group--partial > .de-bracket-route-header {
+  background: #fff8e6;
+}
+.de-route-status {
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  align-self: center;
+}
+.de-route-status--full {
+  color: var(--color-success-fg);
+  font-weight: 800;
+}
+.de-route-status--partial {
+  color: #b45309;
+}
+.de-route-status--empty {
+  color: var(--color-muted);
+}
+.de-route-index {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* Origen común a todas las rutas (Delivery/Cargo): una sola vez arriba de la
+   grilla en vez de repetido en 36 tarjetas. */
+.de-common-origin {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+}
+.de-common-origin__label {
+  color: var(--color-muted);
+}
+.de-common-origin__hint {
+  color: var(--color-muted);
+  font-size: 11px;
 }
 
 /* La cabecera del bracket es un <button> colapsable (expande/contrae el
@@ -1099,7 +1256,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--color-yango);
+  color: var(--bracket-color, var(--color-yango));
 }
 
 .de-route-line {
@@ -1133,19 +1290,6 @@
 }
 .de-timeslot-block:last-child {
   border-bottom: none;
-}
-
-.de-timeslot-heading {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-.de-timeslot-heading .de-ts-pill {
-  font-size: 11px;
-}
-.de-timeslot-heading .de-ts-time {
-  font-size: 10px;
 }
 
 .de-cat-rows {
@@ -1431,4 +1575,37 @@
 }
 .de-footer-goto:hover {
   background: rgba(185, 28, 28, 0.08);
+}
+
+/* Alerta de sesiones propias sin cerrar de días anteriores (mig 243). Tono
+   informativo (azulado), no de error — a diferencia de .de-conflict, esto
+   no bloquea nada ni exige una decisión inmediata. */
+.de-unfinished-alert {
+  border: 1px solid var(--sem-blue-fg, #1d4ed8);
+  background: var(--sem-blue-bg, #eff6ff);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.de-unfinished-alert__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.de-unfinished-alert__list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.de-unfinished-alert__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text);
 }

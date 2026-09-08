@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useDiscountStats } from '../../hooks/useMarketStats'
-import { COMPETITOR_COLORS } from '../../lib/constants'
+import { COMPETITOR_COLORS, isInDriveVariant } from '../../lib/constants'
 import { normalizeCompetitorName } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
 
@@ -71,7 +71,7 @@ export default function DiscountIntensity({ filters, currency = '' }) {
                 >
                   {r.comp}
                 </span>
-                {r.comp === 'InDrive' && (
+                {isInDriveVariant(r.comp) && (
                   <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--color-muted)' }}>
                     {t('market.discount_intensity.indrive_note')}
                   </span>

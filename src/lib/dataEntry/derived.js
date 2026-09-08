@@ -44,11 +44,19 @@ export function buildCityClusters(uiCities, categoriesByCity) {
     if ((categoriesByCity[c] || []).includes('TukTuk')) {
       ensure(c).tabs.push({ type: 'tuktuk', baseUiCity: c })
     }
+    // Delivery/Cargo (2026-09): misma ciudad de BD, categoría propia con su
+    // propia pestaña — mismo criterio que TukTuk arriba, sin distrito.
+    if ((categoriesByCity[c] || []).includes('Delivery')) {
+      ensure(c).tabs.push({ type: 'delivery', baseUiCity: c })
+    }
+    if ((categoriesByCity[c] || []).includes('Cargo')) {
+      ensure(c).tabs.push({ type: 'cargo', baseUiCity: c })
+    }
   }
   for (const cl of clusters)
     for (const tb of cl.tabs)
       if (tb.type === 'airport') tb.members.sort((a, b) => a.side.localeCompare(b.side))
-  const order = { normal: 0, corp: 1, airport: 2, tuktuk: 3 }
+  const order = { normal: 0, corp: 1, airport: 2, tuktuk: 3, delivery: 4, cargo: 5 }
   for (const cl of clusters) cl.tabs.sort((a, b) => (order[a.type] ?? 9) - (order[b.type] ?? 9))
   return clusters
 }

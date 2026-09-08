@@ -26,14 +26,24 @@ const eq = (name, actual, expected) =>
 
 console.log('\n══ sessionFronts tests ══\n')
 
-console.log('[1] parseBucketKey: las 2 formas reales de bucket')
-eq('ciudad normal', parseBucketKey('Lima'), { city: 'Lima', zone: null })
-eq('Corp', parseBucketKey('Corp'), { city: 'Corp', zone: null })
+console.log('[1] parseBucketKey: las 3 formas reales de bucket')
+eq('ciudad normal', parseBucketKey('Lima'), { city: 'Lima', zone: null, kind: 'normal' })
+eq('Corp', parseBucketKey('Corp'), { city: 'Corp', zone: null, kind: 'normal' })
 eq('punto de aeropuerto', parseBucketKey('Lima_Airport_A'), {
   city: 'Lima_Airport_A',
   zone: null,
+  kind: 'normal',
 })
-eq('TukTuk por distrito', parseBucketKey('TT~Lima~Comas'), { city: 'Lima', zone: 'Comas' })
+eq('TukTuk por distrito', parseBucketKey('TT~Lima~Comas'), {
+  city: 'Lima',
+  zone: 'Comas',
+  kind: 'tuktuk',
+})
+eq('Delivery/Cargo por categoría', parseBucketKey('CAT~Lima~Delivery'), {
+  city: 'Lima',
+  zone: 'Delivery',
+  kind: 'category',
+})
 
 console.log('\n[2] parseBucketKey: entradas corruptas NO deben viajar al servidor')
 // Estas filas se expanden a presencia y las ven OTROS hubs — un bucket
@@ -45,10 +55,15 @@ check('TT~ sin distrito → null', parseBucketKey('TT~Lima') === null)
 check('TT~ con distrito vacío → null', parseBucketKey('TT~Lima~') === null)
 check('TT~ con ciudad vacía → null', parseBucketKey('TT~~Comas') === null)
 check('TT~ con separadores de más → null', parseBucketKey('TT~Lima~Comas~x') === null)
+check('CAT~ sin categoría → null', parseBucketKey('CAT~Lima') === null)
+check('CAT~ con categoría vacía → null', parseBucketKey('CAT~Lima~') === null)
+check('CAT~ con ciudad vacía → null', parseBucketKey('CAT~~Delivery') === null)
+check('CAT~ con separadores de más → null', parseBucketKey('CAT~Lima~Delivery~x') === null)
 
 console.log('\n[3] frontLabel: legible para el hub y para el admin')
 eq('aeropuerto muestra el punto', frontLabel('Lima_Airport_B'), 'Lima Aeropuerto · Punto B')
 eq('TukTuk muestra el distrito', frontLabel('TT~Lima~Comas'), 'Lima TukTuk · Comas')
+eq('Delivery/Cargo muestra la categoría', frontLabel('CAT~Lima~Delivery'), 'Lima · Delivery')
 eq('ciudad normal', frontLabel('Lima'), 'Lima')
 check('bucket corrupto no crashea', typeof frontLabel('TT~roto') === 'string')
 

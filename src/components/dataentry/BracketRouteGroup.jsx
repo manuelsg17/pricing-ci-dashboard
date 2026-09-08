@@ -1,5 +1,10 @@
-import { useState } from 'react'
-import { BRACKET_LABELS, getCiCompetitors } from '../../lib/constants'
+import { useState, useRef, useEffect } from 'react'
+import {
+  BRACKET_LABELS,
+  getCiCompetitors,
+  categoryTracksEta,
+  isInDriveVariant,
+} from '../../lib/constants'
 import { sanitizeDecimalInput } from '../../lib/format'
 import CompBadge from './CompBadge'
 import InDriveCell from './InDriveCell'
@@ -57,8 +62,37 @@ export default function BracketRouteGroup({
   toggleNa,
   markRowNa,
   t,
+  // Revisión UX 2026-09: estado de la ruta (full/partial/empty), número de
+  // ruta dentro del turno, color del bracket y si el origen se muestra una
+  // sola vez arriba (cuando todas las rutas comparten punto A).
+  status = 'empty',
+  routeIndex = null,
+  routeTotal = null,
+  bracketColor = null,
+  hideOrigin = false,
 }) {
   const [open, setOpen] = useState(true)
+  // Auto-colapso (revisión UX 2026-09): una ruta completa se pliega sola
+  // cuando el foco SALE de la tarjeta (nunca mientras el hub sigue tipeando
+  // adentro — por eso va por blur y no por efecto sobre `status`). Si el hub
+  // la vuelve a abrir a mano, se respeta hasta que deje de estar completa.
+  const rootRef = useRef(null)
+  const manualOpenRef = useRef(false)
+  useEffect(() => {
+    if (status !== 'full') manualOpenRef.current = false
+  }, [status])
+  function handleBlur(e) {
+    if (status !== 'full' || manualOpenRef.current) return
+    const next = e.relatedTarget
+    if (next && rootRef.current && rootRef.current.contains(next)) return
+    setOpen(false)
+  }
+  function toggleOpen() {
+    setOpen((o) => {
+      if (!o && status === 'full') manualOpenRef.current = true
+      return !o
+    })
+  }
   const ts = timeslot
   const { anchorRef, byCategory } = group
   // Una categoría con TODOS los competidores marcados "no ofrece"
@@ -74,20 +108,45 @@ export default function BracketRouteGroup({
   // del contenedor.
   const rowTemplate = `${CHIP_COL_WIDTH}px repeat(${allComps.length}, 108px)`
 
+  const statusIcon = status === 'full' ? '✓' : status === 'partial' ? '●' : '○'
+  const statusTitle =
+    status === 'full'
+      ? t('dataentry.route_done')
+      : status === 'partial'
+        ? t('dataentry.route_partial')
+        : t('dataentry.route_empty')
+
   return (
-    <div className="de-bracket-group">
+    <div
+      ref={rootRef}
+      className={`de-bracket-group de-bracket-group--${status}${open ? '' : ' de-bracket-group--collapsed'}`}
+      style={bracketColor ? { '--bracket-color': bracketColor } : undefined}
+      onBlur={handleBlur}
+    >
       <button
         type="button"
         className="de-bracket-route-header"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
       >
         <span className="de-bracket-chevron" aria-hidden="true">
           {open ? '▼' : '▶'}
         </span>
+        <span className={`de-route-status de-route-status--${status}`} title={statusTitle}>
+          {statusIcon}
+        </span>
+        {routeIndex != null && routeTotal != null && (
+          <span className="de-route-index">
+            {t('dataentry.route_n_of', { i: routeIndex, n: routeTotal })}
+          </span>
+        )}
         <span className="de-bracket-label">{BRACKET_LABELS[bracket] || bracket}</span>
         <span className="de-route-line">
-          {anchorRef.point_a || '—'} <span className="de-route-arrow">→</span>{' '}
+          {!hideOrigin && (
+            <>
+              {anchorRef.point_a || '—'} <span className="de-route-arrow">→</span>{' '}
+            </>
+          )}
           {anchorRef.point_b || '—'}
         </span>
         {anchorRef.waze_distance != null && (
@@ -104,11 +163,9 @@ export default function BracketRouteGroup({
           )}
 
           <div className="de-timeslot-block">
-            <div className="de-timeslot-heading">
-              <span className="de-ts-pill">{ts.label}</span>
-              <span className="de-ts-time">{ts.start_time?.slice(0, 5)}</span>
-            </div>
-
+            {/* El turno ya es el agrupador padre (TurnoSection, cabecera
+                sticky): repetirlo en cada tarjeta era ruido — 36 veces por
+                jornada en Delivery/Cargo (revisión UX 2026-09). */}
             <div className="de-cat-rows">
               {presentCats.map((uiCat) => {
                 const ref = byCategory[uiCat]
@@ -224,13 +281,13 @@ export default function BracketRouteGroup({
                             <div className="de-nodata-badge">{t('dataentry.sd_no_offer')}</div>
                           ) : (
                             <>
-                              {etaInput}
-                              {comp === 'InDrive' ? (
+                              {categoryTracksEta(uiCat) && etaInput}
+                              {isInDriveVariant(comp) ? (
                                 <InDriveCell
-                                  avg={getEntry(uiCat, ref.id, ts.label, 'InDrive')}
-                                  extra={indriveExtra[indKey(uiCat, ref.id, ts.label)]}
+                                  avg={getEntry(uiCat, ref.id, ts.label, comp)}
+                                  extra={indriveExtra[indKey(uiCat, ref.id, ts.label, comp)]}
                                   onChange={(extra, avg) =>
-                                    setIndrive(uiCat, ref.id, ts.label, extra, avg)
+                                    setIndrive(uiCat, ref.id, ts.label, comp, extra, avg)
                                   }
                                   hasError={hasErr}
                                 />

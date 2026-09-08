@@ -374,3 +374,10 @@
     white-space: nowrap;
   }
 }
+
+.topbar__app-version {
+  font-size: 11px;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

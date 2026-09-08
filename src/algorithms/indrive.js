@@ -35,6 +35,16 @@ function col(v) {
  *
  * Mig 136 (2026-07-20): bid_4/bid_5 re-agregados — el promedio va sobre bid_1..5.
  *
+ * PENDIENTE (revisión adversarial 2026-09-07): las 4 subcategorías de InDrive
+ * en Cargo (InDriveCargoPickup/Van/Liviano/Grande) también cargan bids, pero
+ * acá y en la vista `v_effective_price` se sigue comparando
+ * `competition_name = 'InDrive'` literal — hoy es inofensivo porque el
+ * cliente (rows.js) siempre precalcula el promedio en `price_without_discount`
+ * antes de guardar, así que el ELSE ya da el resultado correcto. Si Cargo
+ * alguna vez gana un camino de ingesta que NO precalcule ese promedio (bot,
+ * import de Excel), esta función y la vista SQL hay que generalizarlas juntas
+ * — cambiar solo una repetiría el bug que el comentario de arriba describe.
+ *
  * @param {Object} row — fila de pricing_observations (o su equivalente parseado)
  * @returns {number|null}
  */

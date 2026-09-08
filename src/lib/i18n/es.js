@@ -342,6 +342,7 @@ export default {
 
   // ── Navigation ─────────────────────────────────────
   'nav.dashboard': '📊 Dashboard',
+  'topbar.app_version_tooltip': 'Versión de la app',
   'nav.analisis': 'Análisis',
   'nav.rentabilidad': '🧮 Rentabilidad',
   'nav.market': '🎯 Mercado',
@@ -912,6 +913,14 @@ export default {
   'dataentry.err_finish': 'Para terminar la sesión, todas las filas deben estar llenas.',
   'dataentry.no_routes_at_all': 'No hay rutas configuradas para esta ciudad todavía.',
   'dataentry.extra_routes_title': 'Rutas adicionales',
+  'dataentry.common_origin': 'Origen de todas las rutas:',
+  'dataentry.common_origin_hint': '(cada tarjeta muestra solo el destino)',
+  'dataentry.route_n_of': 'Ruta {i}/{n}',
+  'dataentry.route_done': 'Ruta completa',
+  'dataentry.route_partial': 'Ruta a medias',
+  'dataentry.route_empty': 'Ruta sin cargar',
+  'dataentry.band_routes': 'rutas',
+  'dataentry.minimap_label': 'Progreso por bracket',
   'dataentry.own_route_note': 'Ruta propia',
   'dataentry.eta_placeholder': 'ETA',
   'dataentry.eta_title': 'ETA en minutos (opcional) — se completa antes del precio',
@@ -928,6 +937,13 @@ export default {
   'dataentry.autosaved_ago': 'Guardado automáticamente hace {s}s',
   'dataentry.err_save_conflict':
     'No guardamos nada, para no borrar tu trabajo. Esta ciudad se guardó desde otro lado y esta pantalla tiene una versión más vieja.',
+  'dataentry.early_conflict_hint':
+    'Aviso: esto se guardó desde otro lado el {when}. Si seguís acá, puede haber un conflicto al guardar — revisá antes de invertir tiempo tipeando.',
+  'dataentry.early_conflict_dismiss': 'Entendido',
+  'dataentry.unfinished_alert_title': 'Tenés {n} sesión(es) sin terminar de días anteriores:',
+  'dataentry.unfinished_alert_rows': 'filas guardadas',
+  'dataentry.unfinished_alert_goto': 'Ir ahí',
+  'dataentry.unfinished_alert_dismiss_all': 'Descartar aviso',
   'dataentry.conflict_body':
     'Elegí con cuál te quedás. Nada se perdió todavía: lo de la otra pantalla sigue guardado.',
   'dataentry.conflict_reload': 'Traer lo último (guardamos copia de lo tuyo)',
@@ -935,9 +951,14 @@ export default {
   'dataentry.conflict_goto': 'Ver las 2 opciones ↑',
   'dataentry.conflict_force_confirm':
     'Vas a reemplazar lo que se guardó desde el otro lado. ¿Seguimos?',
+  'dataentry.lease_readonly_take': 'Usar esta pestaña',
+  'dataentry.ts_jump_title': 'Ir al turno {ts}',
+  'dataentry.grid_summary': '{r} rutas · {n} turnos',
+  'dataentry.legend_more': 'Ver más (InDrive, guardado y cierre)',
+  'dataentry.legend_less': 'Ver menos',
   'dataentry.lease_readonly_title': 'Esta pestaña está en modo lectura.',
   'dataentry.lease_readonly_body':
-    'Tenés otra pestaña abierta con esta misma carga. Seguí trabajando ahí — lo que escribas acá no se guarda. Si ya cerraste la otra, recargá esta página.',
+    'Tenés otra pestaña abierta con esta misma carga. Seguí trabajando ahí, o si ya la cerraste, tomá el control desde acá.',
   'dataentry.storage_failed':
     'Este navegador no puede guardar tu borrador (sin espacio o bloqueado). Tocá “Guardar progreso” AHORA para mandar tu trabajo al servidor — si cerrás la página, se pierde.',
   'dataentry.just_finished_note':
@@ -968,19 +989,21 @@ export default {
     'Llegaste al máximo de {max} borradores sin terminar. Terminá o descartá uno de los de arriba para poder cargar esta ciudad/fecha.',
   'dataentry.legend_title': 'Cómo llenar esta pantalla',
   'dataentry.legend_step1':
-    '1. Elegí arriba tu ciudad y la pestaña: Normal, Corp, ✈ Aeropuerto o TukTuk. En Aeropuerto, ANTES de "Iniciar Sesión" elegí qué vas a completar: Punto A, Punto B, o Ambos — si elegís Ambos, el cronómetro sigue corriendo al pasar de uno a otro, sin cortarse. En TukTuk elegí el distrito — cada distrito se guarda y se termina por separado. Después elegí la fecha.',
+    'Elegí arriba tu ciudad y la pestaña: Normal, Corp, ✈ Aeropuerto, TukTuk, Delivery o Cargo. En Aeropuerto, ANTES de "Iniciar Sesión" elegí Punto A, Punto B o Ambos (con Ambos el cronómetro no se corta al pasar de uno a otro). En TukTuk elegí el distrito: cada distrito se guarda y se termina por separado. Después elegí la fecha.',
   'dataentry.legend_step2':
-    '2. La grilla se organiza por turno (Mañana → Tarde → Noche): completá un turno entero antes de pasar al siguiente. Dentro de cada turno, elegí el bracket (Very Short → Very Long) — la ruta (Punto A → Punto B) aparece una sola vez.',
+    'La grilla va por turno (Mañana → Tarde → Noche) y, dentro de cada turno, por bracket de distancia — cada bracket tiene su color y su rango de km. La cabecera del turno queda fija al bajar: los chips de colores muestran cuántas rutas van por bracket y, al tocarlos, saltás directo a ese bloque.',
   'dataentry.legend_step3':
-    '3. Para cada competidor poné el ETA (minutos, opcional) y el precio. Completá todas las categorías de esa ruta antes de pasar a la siguiente. Podés colapsar/expandir cada bracket o cada turno entero tocando su cabecera.',
+    'Cada tarjeta es una ruta ("Ruta 3/12") con su estado: ○ vacía, ● a medias, ✓ completa. Poné el precio de cada competidor (y el ETA en minutos donde aparezca; Delivery y Cargo no lo piden). Si no hubo oferta, usá el botón "S/D" de la fila. Completá la ruta entera antes de pasar a la siguiente.',
   'dataentry.legend_step4':
-    '4. Para InDrive, tocá ▼ para anotar el precio RECOMENDADO (el que sugiere la app) y hasta 5 bids (cada oferta de conductor). El promedio se calcula solo con los bids; el recomendado NO entra al promedio, pero si no hay ningún bid se usa como precio de la celda. Ej.: Recomendado=14, Bid 1=15, Bid 2=13, Bid 3=17 → promedio 15.00. Tocá "?" en el panel para ver el ejemplo.',
+    'Para InDrive (y sus variantes de Cargo), tocá ▼ para anotar el precio RECOMENDADO y hasta 5 bids. El promedio se calcula solo con los bids; si no hay ninguno se usa el recomendado. Ej.: Recomendado=14, Bid 1=15, Bid 2=13, Bid 3=17 → promedio 15.00. Tocá "?" en el panel para ver el ejemplo.',
   'dataentry.legend_step5':
-    '5. Guardá seguido con "💾 Guardar progreso" (podés guardar filas parciales cuantas veces quieras). Además tu progreso se autoguarda solo en este navegador: NO se pierde si actualizás la página, cambiás de ciudad o cerrás por error — al volver, sigue todo cargado.',
+    'Guardá seguido con "💾 Guardar progreso" (las filas parciales también se guardan). Además tu avance se autoguarda en este navegador: no se pierde si actualizás la página, cambiás de ciudad o cerrás por error.',
   'dataentry.legend_step6':
-    '6. "⏹ Terminar Sesión" exige que TODA la grilla esté completa (los 3 turnos) — no se puede terminar a medias. En Aeropuerto con alcance "Ambos": al completar el primer Punto, el botón dice "Terminar este punto" — la sesión sigue activa y saltás solo al otro punto; recién al completar el segundo se cierra de verdad.',
+    '"⏹ Terminar Sesión" exige la grilla completa (los 3 turnos). En Aeropuerto con alcance "Ambos", al completar el primer Punto el botón dice "Terminar este punto": la sesión sigue activa y saltás al otro; recién al completar el segundo se cierra de verdad.',
   'dataentry.tab_normal': 'Normal',
   'dataentry.tab_airport': 'Aeropuerto',
+  'dataentry.tab_delivery': 'Delivery',
+  'dataentry.tab_cargo': 'Cargo',
   'dataentry.tuktuk_no_districts':
     'No hay distritos de TukTuk cargados. Agregalos en Distancias de Referencia.',
   'dataentry.tuktuk_district_locked': 'Distrito aún no habilitado para ingresar CI',

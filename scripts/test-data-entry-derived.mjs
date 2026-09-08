@@ -60,6 +60,28 @@ console.log('\nbuildCityClusters')
 }
 ok(buildCityClusters([], {}).length === 0, 'sin ciudades → sin clusters')
 
+console.log('\nbuildCityClusters — Delivery/Cargo (2026-09)')
+{
+  const clusters = buildCityClusters(['Lima'], { Lima: ['Economy', 'TukTuk', 'Delivery', 'Cargo'] })
+  const lima = clusters.find((c) => c.base === 'Lima')
+  ok(
+    lima.tabs.map((t) => t.type).join(',') === 'normal,tuktuk,delivery,cargo',
+    'Lima con las 4 categorías: Normal, TukTuk, Delivery, Cargo, en ese orden'
+  )
+  const dv = lima.tabs.find((t) => t.type === 'delivery')
+  const cg = lima.tabs.find((t) => t.type === 'cargo')
+  ok(dv.baseUiCity === 'Lima', 'Delivery guarda la ciudad base, sin distrito (a diferencia de TukTuk)')
+  ok(cg.baseUiCity === 'Lima', 'Cargo guarda la ciudad base')
+}
+{
+  const clusters = buildCityClusters(['Lima'], { Lima: ['Economy'] })
+  const lima = clusters.find((c) => c.base === 'Lima')
+  ok(
+    !lima.tabs.some((t) => t.type === 'delivery' || t.type === 'cargo'),
+    'una ciudad sin esas categorías no gana pestañas Delivery/Cargo'
+  )
+}
+
 console.log('\ncomputeRevisionInfo')
 {
   const hist = [

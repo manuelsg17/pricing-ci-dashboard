@@ -28,7 +28,10 @@ export function countAllFilled(entries, indriveExtra) {
   for (const [k, ex] of Object.entries(indriveExtra || {})) {
     const recOk = ex?.rec != null && ex.rec !== '' && !isNaN(parseFloat(ex.rec))
     if (!recOk) continue
-    const avg = (entries || {})[`${k}|InDrive`]
+    // indKey y priceKey comparten formato exacto (uiCat|refId|ts|comp) desde
+    // 2026-09 (subcategorías de Cargo) — `k` YA es la priceKey de esta celda,
+    // no hace falta reconstruirla asumiendo 'InDrive' fijo.
+    const avg = (entries || {})[k]
     const avgOk = avg != null && avg !== '' && !isNaN(parseFloat(avg))
     if (!avgOk) n++ // recomendado sin promedio de bids → no contado por entries
   }
@@ -65,7 +68,10 @@ export function countFilledByTimeslot(entries, indriveExtra, naKeys, timeslots) 
   for (const [k, ex] of Object.entries(indriveExtra || {})) {
     const recOk = ex?.rec != null && ex.rec !== '' && !isNaN(parseFloat(ex.rec))
     if (!recOk) continue
-    const avg = (entries || {})[`${k}|InDrive`]
+    // indKey y priceKey comparten formato exacto (uiCat|refId|ts|comp) desde
+    // 2026-09 (subcategorías de Cargo) — `k` YA es la priceKey de esta celda,
+    // no hace falta reconstruirla asumiendo 'InDrive' fijo.
+    const avg = (entries || {})[k]
     const avgOk = avg != null && avg !== '' && !isNaN(parseFloat(avg))
     if (avgOk) continue // ya contado arriba vía `entries`
     const tsLabel = k.split('|')[2]
