@@ -970,17 +970,17 @@ export default {
     'You reached the maximum of {max} unfinished drafts. Finish or discard one of the drafts above to enter this city/date.',
   'dataentry.legend_title': 'How to fill this screen',
   'dataentry.legend_step1':
-    '1. Up top, pick your city and the tab: Normal, Corp, ✈ Airport or TukTuk. For Airport, BEFORE "Start Session" choose what you\'ll complete: Point A, Point B, or Both — if you pick Both, the timer keeps running as you move between them, without cutting off. For TukTuk choose the district — each district is saved and finished separately. Then pick the date.',
+    'Up top, pick your city and the tab: Normal, Corp, ✈ Airport, TukTuk, Delivery or Cargo. For Airport, BEFORE "Start Session" choose Point A, Point B or Both (with Both the timer keeps running as you move between them). For TukTuk choose the district: each district is saved and finished separately. Then pick the date.',
   'dataentry.legend_step2':
-    '2. The grid is organized by timeslot (Morning → Midday → Evening): finish a whole timeslot before moving to the next. Within each timeslot, pick a bracket (Very Short → Very Long) — the route (Point A → Point B) shows up once.',
+    'The grid goes by timeslot (Morning → Midday → Evening) and, within each timeslot, by distance bracket — each bracket has its own color and km range. The timeslot header stays pinned as you scroll: the colored chips show how many routes are done per bracket, and tapping one jumps straight to that block.',
   'dataentry.legend_step3':
-    '3. For each competitor enter the ETA (minutes, optional) and the price. Fill all categories for that route before moving to the next one. You can collapse/expand each bracket or a whole timeslot by tapping its header.',
+    'Each card is a route ("Route 3/12") with its status: ○ empty, ● partial, ✓ complete. Enter each competitor\'s price (and the ETA in minutes where shown; Delivery and Cargo don\'t ask for it). If there was no offer, use the row\'s "N/D" button. Finish the whole route before moving to the next one.',
   'dataentry.legend_step4':
-    '4. For InDrive, tap ▼ to record the RECOMMENDED price (the one the app suggests) and up to 5 bids (each driver offer). The average is computed from the bids only; the recommended price does NOT count toward the average, but if there are no bids it is used as the cell price. E.g. Recommended=14, Bid 1=15, Bid 2=13, Bid 3=17 → average 15.00. Tap "?" in the panel for the example.',
+    'For InDrive (and its Cargo variants), tap ▼ to record the RECOMMENDED price and up to 5 bids. The average is computed from the bids only; if there are none, the recommended price is used. E.g. Recommended=14, Bid 1=15, Bid 2=13, Bid 3=17 → average 15.00. Tap "?" in the panel for the example.',
   'dataentry.legend_step5':
-    '5. Save often with "💾 Save progress" (you can save partial rows as many times as you want). Your progress is also autosaved in this browser: it is NOT lost if you refresh, switch city, or close by mistake — when you come back, everything is still there.',
+    'Save often with "💾 Save progress" (partial rows are saved too). Your progress is also autosaved in this browser: it is not lost if you refresh, switch city or close by mistake.',
   'dataentry.legend_step6':
-    '6. "⏹ End Session" requires the WHOLE grid to be complete (all 3 timeslots) — you can\'t end it halfway. In Airport with "Both" scope: once you finish the first Point, the button says "Finish this point" — the session stays active and you jump straight to the other point; it only really ends once you finish the second one.',
+    '"⏹ End Session" requires the whole grid (all 3 timeslots). In Airport with "Both" scope, once you finish the first Point the button says "Finish this point": the session stays active and you jump to the other one; it only really ends once the second is complete.',
   'dataentry.tab_normal': 'Normal',
   'dataentry.tab_airport': 'Airport',
   'dataentry.tab_delivery': 'Delivery',
