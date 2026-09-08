@@ -30,6 +30,11 @@ Convención: `MAJOR` para cambios que rompen un flujo existente para el hub,
   banda con rango de km y progreso, numeración "Ruta i/12" y estado
   (✓/●/○) en cada tarjeta, cabecera de turno fija con minimapa para saltar
   entre brackets, y origen común mostrado una sola vez.
+- Ingresar CI: Enter salta al próximo precio vacío; una ruta completa se
+  pliega sola al salir de ella; los turnos de la barra superior son atajos;
+  la guía muestra 3 pasos y "Ver más".
+- Ingresar CI: el aviso de pestaña duplicada ya no aparece tras un F5 y, si
+  aparece, tiene el botón "Usar esta pestaña" en vez de exigir recargar.
 - Primera suite de pruebas de navegador automatizadas (Playwright) del
   proyecto, sobre el flujo completo de Ingresar CI (F5 real, cierre de
   sesión, aislamiento entre pestañas).

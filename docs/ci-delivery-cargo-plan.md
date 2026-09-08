@@ -422,3 +422,48 @@ Validación: lint 0 warnings, build, test:all, E2E 3/3 (los selectores
 `.de-cat-row`, `.de-sd-row-btn`, `.de-nodata-badge` no cambiaron), navegador
 a 1366px sobre la pestaña Cargo (sticky + minimapa + bandas verificados).
 Fuera de alcance responsive por diseño (CLAUDE.md §1).
+
+## 16. Segunda ronda UX + código (2026-09-07, pedido "arreglar todo")
+
+UX (todo solo cliente):
+
+- **Enter salta al próximo precio vacío** (`handleGridKeyDown` en
+  DataEntry.jsx, delegado en `.de-grid`, resuelve sobre el DOM en el momento
+  del Enter — no toca el render de la grilla). Solo `input.de-price-input`;
+  ETA/descuento siguen por Tab.
+- **Auto-colapso de ruta completa** (`BracketRouteGroup`): se pliega cuando el
+  foco SALE de la tarjeta (por `onBlur` + `relatedTarget`, nunca mientras se
+  tipea adentro). Reabrirla a mano se respeta hasta que deje de estar
+  completa. Los E2E que iteraban filas por índice se reescribieron para tomar
+  siempre la primera fila sin resolver (las filas de una tarjeta plegada
+  salen del DOM).
+- **Pestaña duplicada**: el lease se libera en `pagehide` (un F5 no corre el
+  cleanup del efecto y la pestaña recargada se veía a sí misma como "otra"
+  durante 150 s) y el aviso pasó de rojo a ámbar con botón **"Usar esta
+  pestaña"** (`claimDraftLease`: escribe el lease propio; la otra pestaña se
+  degrada sola por `storage`). Verificado con una segunda pestaña real.
+- **Pills de turno** de la barra de fecha ahora son atajos que saltan a la
+  cabecera del turno (`id="de-turno-<label>"` en TurnoSection).
+- **Contador**: sin sesión ni trabajo muestra "12 rutas · 3 turnos" en vez de
+  "0 / 0 campos"; oculto si no hay rutas.
+- **Guía**: 3 pasos visibles + "Ver más" para InDrive/guardado/cierre.
+
+Código:
+
+- `notify(type, key, params, opts)` en DataEntry.jsx reemplaza 13 `setMsg`
+  de una línea; los multilínea con params quedaron como estaban.
+- CSS: 5 bloques huérfanos borrados (`de-timeslot-heading`, `de-ts-pill`,
+  `de-ts-time`, `de-other-draft*`, `de-city-tab--locked`, `de-ctrl--surge`).
+  Método: clases `.de-*`/`.indrive-*` del CSS que no aparecen en ningún
+  `.jsx/.js` ni en `e2e/`, descontando sufijos `--estado` dinámicos.
+- E2E nuevos (`e2e/ci-tuktuk-y-dos-hubs.spec.js`): TukTuk (distrito Comas,
+  ETA visible, F5, cierre con `zone='Comas'` en BD) y **dos hubs a la vez**
+  sobre Delivery (dos contextos con dos cuentas, guardan casi a la vez, sin
+  conflicto, cada uno sus filas, cartel de presencia visible). global-setup
+  ahora crea dos cuentas (`e2e-ci@` y `e2e-ci-2@local.test`).
+  Estabilidad: 10 corridas, 9 verdes; la única falla no dejó traza
+  (test-results se limpia por corrida) — vigilar si se repite.
+
+Pendiente grande (no arrancado a propósito): partir `DataEntry.jsx`
+(5.000 líneas, 135 hooks) en `useCiSession` / `useCiDraft` / avisos. Es una
+tarea propia, después del merge, con esta suite E2E como red.

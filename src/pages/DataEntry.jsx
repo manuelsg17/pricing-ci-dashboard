@@ -190,6 +190,12 @@ export default function DataEntry() {
 
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
+  // Un solo punto para los avisos traducidos: `notify(type, key, params, opts)`.
+  // Evita 30 objetos armados a mano y que se cuele un texto sin t().
+  const notify = useCallback(
+    (type, key, params, opts) => setMsg({ type, text: t(key, params), ...(opts || {}) }),
+    [t]
+  )
 
   // Session management
   const sessionStartRef = useRef(null)
@@ -2021,6 +2027,29 @@ export default function DataEntry() {
     [categories, refsByUICat]
   )
 
+  // Enter en cualquier input de la grilla salta al PRÓXIMO precio vacío en
+  // orden de lectura (revisión UX 2026-09): con 36 tarjetas, Tab pasa por
+  // ETA/descuento/celdas ya llenas y el hub pierde la mitad del tiempo
+  // navegando. Solo precios (el campo obligatorio); ETA y descuento son
+  // opcionales y se alcanzan con Tab como siempre. Sin estado de React: se
+  // resuelve sobre el DOM en el momento del Enter, así no toca el render de
+  // la grilla (CLAUDE.md §5).
+  function handleGridKeyDown(e) {
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return
+    const root = e.currentTarget
+    const inputs = [...root.querySelectorAll('input.de-price-input')].filter(
+      (el) => !el.disabled && el.offsetParent !== null
+    )
+    const from = inputs.indexOf(e.target)
+    const next =
+      inputs.slice(from + 1).find((el) => el.value.trim() === '') ||
+      inputs.slice(0, Math.max(from, 0)).find((el) => el.value.trim() === '')
+    if (!next) return
+    e.preventDefault()
+    next.focus()
+    next.scrollIntoView({ block: 'center' })
+  }
+
   // ── Entry helpers ──────────────────────────────────────
   // priceKey / indKey: src/lib/dataEntry/keys.js (mismo formato de siempre).
 
@@ -2261,6 +2290,24 @@ export default function DataEntry() {
   // `engaged` = esta pestaña tiene trabajo de verdad. Una pestaña abierta solo
   // para mirar no puede bloquear a la pestaña donde el hub va a trabajar.
   const leaseEngaged = sessionActive || filledCount > 0
+
+  // "Usar esta pestaña": el hub reclama el candado a mano (la otra pestaña
+  // se degrada sola por el evento `storage`, así que nunca escriben las dos).
+  // Es la salida para el caso más común — la otra pestaña ya está cerrada y
+  // el lease todavía no venció — sin obligar a recargar.
+  const claimDraftLease = useCallback(() => {
+    const lKey = leaseKey(draftKey)
+    try {
+      localStorage.setItem(
+        lKey,
+        serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: leaseEngaged })
+      )
+      setLeaseOwner(ownsLease(localStorage.getItem(lKey), SESSION_ID))
+    } catch {
+      setLeaseOwner(true)
+    }
+    setMsg(null)
+  }, [draftKey, leaseEngaged])
   useEffect(() => {
     const lKey = leaseKey(draftKey)
     let vivo = true
@@ -2311,17 +2358,26 @@ export default function DataEntry() {
       if (e.key === lKey) tick()
     }
     window.addEventListener('storage', onStorage)
-
-    return () => {
-      vivo = false
-      clearInterval(id)
-      window.removeEventListener('storage', onStorage)
-      // Liberar SOLO si es mío: nunca borrar el lease de otra pestaña.
+    // Liberar SOLO si es mío: nunca borrar el lease de otra pestaña.
+    const release = () => {
       try {
         if (ownsLease(localStorage.getItem(lKey), SESSION_ID)) localStorage.removeItem(lKey)
       } catch {
         /* sin storage no hay nada que liberar */
       }
+    }
+    // F5 / cerrar pestaña NO corren el cleanup del efecto: el lease de la
+    // pestaña vieja quedaba vivo 150s y la misma pestaña recargada (SID
+    // nuevo) se veía a sí misma como "otra" y arrancaba en modo lectura
+    // (feedback user 2026-09-07). `pagehide` sí corre en ambos casos.
+    window.addEventListener('pagehide', release)
+
+    return () => {
+      vivo = false
+      clearInterval(id)
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('pagehide', release)
+      release()
     }
   }, [draftKey, leaseEngaged])
 
@@ -2399,15 +2455,21 @@ export default function DataEntry() {
     }
     window.addEventListener('storage', onStorage)
 
-    return () => {
-      vivo = false
-      clearInterval(id)
-      window.removeEventListener('storage', onStorage)
+    const release = () => {
       try {
         if (ownsLease(localStorage.getItem(hbKey), SESSION_ID)) localStorage.removeItem(hbKey)
       } catch {
         /* sin storage no hay nada que liberar */
       }
+    }
+    window.addEventListener('pagehide', release)
+
+    return () => {
+      vivo = false
+      clearInterval(id)
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('pagehide', release)
+      release()
     }
   }, [userEmail, leaseOwner, sessionActive])
 
@@ -2560,7 +2622,7 @@ export default function DataEntry() {
     // en el único punto por el que pasa TODO guardado, para bloquear de verdad
     // escribir data NUEVA en un distrito bloqueado sin importar cómo se llegó.
     if (isTukTuk && zone && !isTukTukDistrictEnabled(zone)) {
-      setMsg({ type: 'err', text: t('dataentry.err_tuktuk_district_locked') })
+      notify('err', 'dataentry.err_tuktuk_district_locked')
       return false
     }
     setSaving(true)
@@ -2650,7 +2712,7 @@ export default function DataEntry() {
       // borró ni insertó nada: la data de la otra sigue intacta.
       if (saveErr.code === '55006') {
         setSaveConflict({ at: saveErr.details || null, isFinish })
-        setMsg({ type: 'err', text: t('dataentry.err_save_conflict'), emphasize: true })
+        notify('err', 'dataentry.err_save_conflict', null, { emphasize: true })
         setSaving(false)
         // NO se marca guardado, NO se limpia el borrador, NO se inserta en
         // ci_sessions y NO se borra el latido: el hub no perdió nada.
@@ -2660,7 +2722,7 @@ export default function DataEntry() {
       // jerga técnica tipo "duplicate key value violates..." no le dice qué
       // hacer). El detalle técnico va a consola para diagnóstico nuestro.
       console.error('[performSave] save_ci_batch error:', saveErr)
-      setMsg({ type: 'err', text: t('dataentry.err_save_failed') })
+      notify('err', 'dataentry.err_save_failed')
       setSaving(false)
       return false
     }
@@ -2779,7 +2841,7 @@ export default function DataEntry() {
       // es idempotente (DELETE+INSERT por ruta exacta).
       if (sessErr) {
         console.error('[performSave] ci_sessions insert error:', sessErr)
-        setMsg({ type: 'err', text: t('dataentry.err_session_not_closed'), emphasize: true })
+        notify('err', 'dataentry.err_session_not_closed', null, { emphasize: true })
         setSaving(false)
         return false
       }
@@ -2939,7 +3001,7 @@ export default function DataEntry() {
     // ofrecería al hub el botón de forzar — o sea, un botón para pisarle el
     // trabajo a la otra pestaña. Mejor cortar antes, con un motivo claro.
     if (!leaseOwnerRef.current) {
-      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      notify('err', 'dataentry.lease_readonly_body', null, { emphasize: true })
       return false
     }
     // Collect all full rows
@@ -2954,7 +3016,7 @@ export default function DataEntry() {
       }
     }
     if (!rowsToInsert.length) {
-      setMsg({ type: 'err', text: t('dataentry.err_no_full') })
+      notify('err', 'dataentry.err_no_full')
       return false
     }
     return await performSave(rowsToInsert, false, true, forceOverwrite)
@@ -2974,12 +3036,12 @@ export default function DataEntry() {
     // con lo que tiene ESTA pestaña. Un alcance decidido por la pestaña
     // equivocada cierra la jornada con menos puntos de los que el hub midió.
     if (!leaseOwnerRef.current) {
-      setMsg({ type: 'err', text: t('dataentry.lease_readonly_body'), emphasize: true })
+      notify('err', 'dataentry.lease_readonly_body', null, { emphasize: true })
       return
     }
     const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
     if (hasPartial || hasEmpty) {
-      setMsg({ type: 'err', text: t('dataentry.err_finish') })
+      notify('err', 'dataentry.err_finish')
       return
     }
     const rowsToInsert = []
@@ -2991,7 +3053,7 @@ export default function DataEntry() {
       }
     }
     if (!rowsToInsert.length) {
-      setMsg({ type: 'err', text: t('dataentry.err_no_full') })
+      notify('err', 'dataentry.err_no_full')
       return
     }
     const remainingAfterThis = pendingScopeMembers.filter((m) => m !== bucketKey)
@@ -3069,7 +3131,7 @@ export default function DataEntry() {
     // reciente.
     if (s.city === dbCity && s.observed_date === date && (s.zone ?? null) === (zone ?? null)) {
       setShowHistory(false)
-      setMsg({ type: 'ok', text: t('dataentry.already_viewing_session') })
+      notify('ok', 'dataentry.already_viewing_session')
       return
     }
     const targetUi = dbCityToUiCity[s.city] || s.city
@@ -3131,7 +3193,7 @@ export default function DataEntry() {
         s.turno_timings && typeof s.turno_timings === 'object' ? s.turno_timings : {},
     }))
     setPendingLoad({ dbCity: s.city, zone: s.zone ?? null, date: s.observed_date })
-    setMsg({ type: 'ok', text: t('dataentry.loading_session') })
+    notify('ok', 'dataentry.loading_session')
   }
 
   // Trae las observaciones manuales de (ciudad, fecha) y las vuelca al form,
@@ -3157,7 +3219,7 @@ export default function DataEntry() {
       // hub volvía 2 minutos después de Terminar, veía 0/162 y el botón
       // "Iniciar Sesión", y eso es indistinguible de "perdí todo mi trabajo".
       // Sus datos están guardados y a un clic en "Ver lo guardado".
-      setMsg({ type: 'ok', text: t('dataentry.just_finished_note') })
+      notify('ok', 'dataentry.just_finished_note')
       return
     }
     // Marca de agua PRIMERO, filas después (mig 191). El orden importa: si el
@@ -3815,7 +3877,7 @@ export default function DataEntry() {
       savedSeq: savedSeqRef.current,
     }).map((f) => f.bucket)
     if (!pendientes.length) {
-      setMsg({ type: 'ok', text: t('dataentry.save_all_nothing') })
+      notify('ok', 'dataentry.save_all_nothing')
       return
     }
     colaOrigenRef.current = bucketKey
@@ -4396,19 +4458,40 @@ export default function DataEntry() {
           </label>
 
           <div className="de-session-info">
+            {/* Atajos: parecían botones y no hacían nada (feedback user
+                2026-09-07). Ahora saltan a la cabecera de ese turno. */}
             {timeslots.map((ts) => (
-              <span key={ts.label} className="de-ts-badge">
+              <button
+                key={ts.label}
+                type="button"
+                className="de-ts-badge"
+                title={t('dataentry.ts_jump_title', { ts: ts.label })}
+                onClick={() => {
+                  const el = document.getElementById(`de-turno-${ts.label}`)
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+              >
                 {ts.label} ({ts.start_time?.slice(0, 5)}–{ts.end_time?.slice(0, 5)})
-              </span>
+              </button>
             ))}
           </div>
 
-          <div className="de-progress-pill">
-            <span className="de-progress-filled">{filledCount}</span>
-            <span className="de-progress-sep">/</span>
-            <span className="de-progress-total">{totalExpected}</span>
-            <span className="de-progress-label">{t('dataentry.fields')}</span>
-          </div>
+          {/* Sin sesión ni trabajo, "0 / 0 campos" no dice nada: mostrar
+              qué viene (rutas × turnos) hasta que haya algo que contar. */}
+          {!sessionActive && filledCount === 0 ? (
+            routeOrder.length > 0 && (
+              <div className="de-progress-pill de-progress-pill--idle">
+                {t('dataentry.grid_summary', { r: routeOrder.length, n: timeslots.length })}
+              </div>
+            )
+          ) : (
+            <div className="de-progress-pill">
+              <span className="de-progress-filled">{filledCount}</span>
+              <span className="de-progress-sep">/</span>
+              <span className="de-progress-total">{totalExpected}</span>
+              <span className="de-progress-label">{t('dataentry.fields')}</span>
+            </div>
+          )}
 
           {/* Indicadores "guardado/confirmado hace Xs" — su ticker de 1s vive
               adentro, aislado de la grilla. Reusa el mismo umbral de 3 min
@@ -4447,12 +4530,15 @@ export default function DataEntry() {
           trabajo. La grilla queda visible y editable a propósito (CLAUDE.md
           §5): es una vista legítima, solo que no escribe. */}
       {!leaseOwner && (
-        <div className="de-msg de-msg--err de-msg--emphasize">
+        <div className="de-msg de-msg--warn de-msg--emphasize">
           <AlertTriangle className="de-msg__icon" size={20} />
           <span>
             <strong>{t('dataentry.lease_readonly_title')}</strong>{' '}
             {t('dataentry.lease_readonly_body')}
           </span>
+          <button type="button" className="de-msg__action" onClick={claimDraftLease}>
+            {t('dataentry.lease_readonly_take')}
+          </button>
         </div>
       )}
 
@@ -4594,145 +4680,148 @@ export default function DataEntry() {
               <span className="de-common-origin__hint">{t('dataentry.common_origin_hint')}</span>
             </div>
           )}
-          {timeslots.map((ts) => {
-            // Progreso por bracket dentro de ESTE turno (minimapa + banda).
-            const bracketProgress = refsByBracket.map(({ bracket, groups, extras }) => {
-              const items = [
-                ...groups.map((g) => groupStatus(g, ts)),
-                ...extras.map((e) => rowState(e.uiCat, e.ref, ts)),
-              ]
-              return {
-                bracket,
-                id: `de-band-${ts.label}-${bracket}`,
-                label: BRACKET_LABELS[bracket] || bracket,
-                short: BRACKET_SHORT[bracket] || bracket,
-                color: BRACKET_COLORS[bracket],
-                done: items.filter((x) => x === 'full').length,
-                total: items.length,
-              }
-            })
-            return (
-              <TurnoSection
-                key={ts.label}
-                timeslot={ts}
-                filled={filledByTimeslot[ts.label] || 0}
-                total={totalExpectedPerTimeslot}
-                hasErrors={!!errorsByTimeslot[ts.label]}
-                brackets={bracketProgress}
-              >
-                {refsByBracket.map(({ bracket, groups, extras }, bi) => {
-                  const prog = bracketProgress[bi]
-                  const kms = [
-                    ...groups.map((g) => g.anchorRef.waze_distance),
-                    ...extras.map((e) => e.ref.waze_distance),
-                  ].filter((k) => k != null)
-                  const kmRange =
-                    kms.length === 0
-                      ? null
-                      : Math.min(...kms) === Math.max(...kms)
-                        ? `${Math.min(...kms)} km`
-                        : `${Math.min(...kms)}–${Math.max(...kms)} km`
-                  return (
-                    <div
-                      key={bracket}
-                      id={prog.id}
-                      className={`de-bracket-section${prog.total > 0 && prog.done >= prog.total ? ' de-bracket-section--done' : ''}`}
-                      style={{ '--bracket-color': prog.color }}
-                    >
-                      <div className="de-bracket-band">
-                        <span className="de-bracket-band__dot" aria-hidden="true" />
-                        <span className="de-bracket-band__label">{prog.label}</span>
-                        {kmRange && <span className="de-bracket-band__km">{kmRange}</span>}
-                        <span className="de-bracket-band__progress">
-                          {prog.done >= prog.total && prog.total > 0 ? '✓ ' : ''}
-                          {prog.done}/{prog.total} {t('dataentry.band_routes')}
-                        </span>
-                      </div>
-                      {groups.map((group, gi) => (
-                        <BracketRouteGroup
-                          key={`${bracket}-${gi}`}
-                          bracket={bracket}
-                          group={group}
-                          status={groupStatus(group, ts)}
-                          routeIndex={routeOrder.indexOf(group.anchorRef.id) + 1}
-                          routeTotal={routeOrder.length}
-                          bracketColor={prog.color}
-                          hideOrigin={!!commonOrigin}
-                          categories={categories}
-                          timeslot={ts}
-                          uiCity={uiCity}
-                          country={country}
-                          dbConfigs={dbConfigs}
-                          catColors={CAT_COLORS}
-                          getEntry={getEntry}
-                          setEntry={setEntry}
-                          getEta={getEta}
-                          setEta={setEta}
-                          getDisc={getDisc}
-                          setDisc={setDisc}
-                          indriveExtra={indriveExtra}
-                          setIndrive={setIndrive}
-                          indKey={indKey}
-                          priceKey={priceKey}
-                          errorKeys={errorKeys}
-                          rowState={rowState}
-                          getNa={getNa}
-                          toggleNa={toggleNa}
-                          markRowNa={markRowNa}
-                          t={t}
-                        />
-                      ))}
-                      {extras.length > 0 && (
-                        <div className="de-bracket-extras">
-                          {/* El título "Rutas adicionales" solo tiene sentido cuando hay
+          <div className="de-grid" onKeyDown={handleGridKeyDown}>
+            {timeslots.map((ts) => {
+              // Progreso por bracket dentro de ESTE turno (minimapa + banda).
+              const bracketProgress = refsByBracket.map(({ bracket, groups, extras }) => {
+                const items = [
+                  ...groups.map((g) => groupStatus(g, ts)),
+                  ...extras.map((e) => rowState(e.uiCat, e.ref, ts)),
+                ]
+                return {
+                  bracket,
+                  id: `de-band-${ts.label}-${bracket}`,
+                  label: BRACKET_LABELS[bracket] || bracket,
+                  short: BRACKET_SHORT[bracket] || bracket,
+                  color: BRACKET_COLORS[bracket],
+                  done: items.filter((x) => x === 'full').length,
+                  total: items.length,
+                }
+              })
+              return (
+                <TurnoSection
+                  key={ts.label}
+                  id={`de-turno-${ts.label}`}
+                  timeslot={ts}
+                  filled={filledByTimeslot[ts.label] || 0}
+                  total={totalExpectedPerTimeslot}
+                  hasErrors={!!errorsByTimeslot[ts.label]}
+                  brackets={bracketProgress}
+                >
+                  {refsByBracket.map(({ bracket, groups, extras }, bi) => {
+                    const prog = bracketProgress[bi]
+                    const kms = [
+                      ...groups.map((g) => g.anchorRef.waze_distance),
+                      ...extras.map((e) => e.ref.waze_distance),
+                    ].filter((k) => k != null)
+                    const kmRange =
+                      kms.length === 0
+                        ? null
+                        : Math.min(...kms) === Math.max(...kms)
+                          ? `${Math.min(...kms)} km`
+                          : `${Math.min(...kms)}–${Math.max(...kms)} km`
+                    return (
+                      <div
+                        key={bracket}
+                        id={prog.id}
+                        className={`de-bracket-section${prog.total > 0 && prog.done >= prog.total ? ' de-bracket-section--done' : ''}`}
+                        style={{ '--bracket-color': prog.color }}
+                      >
+                        <div className="de-bracket-band">
+                          <span className="de-bracket-band__dot" aria-hidden="true" />
+                          <span className="de-bracket-band__label">{prog.label}</span>
+                          {kmRange && <span className="de-bracket-band__km">{kmRange}</span>}
+                          <span className="de-bracket-band__progress">
+                            {prog.done >= prog.total && prog.total > 0 ? '✓ ' : ''}
+                            {prog.done}/{prog.total} {t('dataentry.band_routes')}
+                          </span>
+                        </div>
+                        {groups.map((group, gi) => (
+                          <BracketRouteGroup
+                            key={`${bracket}-${gi}`}
+                            bracket={bracket}
+                            group={group}
+                            status={groupStatus(group, ts)}
+                            routeIndex={routeOrder.indexOf(group.anchorRef.id) + 1}
+                            routeTotal={routeOrder.length}
+                            bracketColor={prog.color}
+                            hideOrigin={!!commonOrigin}
+                            categories={categories}
+                            timeslot={ts}
+                            uiCity={uiCity}
+                            country={country}
+                            dbConfigs={dbConfigs}
+                            catColors={CAT_COLORS}
+                            getEntry={getEntry}
+                            setEntry={setEntry}
+                            getEta={getEta}
+                            setEta={setEta}
+                            getDisc={getDisc}
+                            setDisc={setDisc}
+                            indriveExtra={indriveExtra}
+                            setIndrive={setIndrive}
+                            indKey={indKey}
+                            priceKey={priceKey}
+                            errorKeys={errorKeys}
+                            rowState={rowState}
+                            getNa={getNa}
+                            toggleNa={toggleNa}
+                            markRowNa={markRowNa}
+                            t={t}
+                          />
+                        ))}
+                        {extras.length > 0 && (
+                          <div className="de-bracket-extras">
+                            {/* El título "Rutas adicionales" solo tiene sentido cuando hay
                           además rutas principales (groups). Si TODO el bracket son
                           extras (ej. ciudad Corp, o solo-TukTuk), no hay "adicionales"
                           respecto de nada → se omite el título. */}
-                          {groups.length > 0 && (
-                            <div className="de-bracket-extras-title">
-                              {t('dataentry.extra_routes_title')}
-                            </div>
-                          )}
-                          {extras.map(({ uiCat, ref }) => (
-                            <BracketRouteGroup
-                              key={`${bracket}-extra-${ref.id}`}
-                              bracket={bracket}
-                              group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
-                              status={rowState(uiCat, ref, ts)}
-                              bracketColor={prog.color}
-                              hideOrigin={!!commonOrigin}
-                              categories={[uiCat]}
-                              timeslot={ts}
-                              uiCity={uiCity}
-                              country={country}
-                              dbConfigs={dbConfigs}
-                              catColors={CAT_COLORS}
-                              getEntry={getEntry}
-                              setEntry={setEntry}
-                              getEta={getEta}
-                              setEta={setEta}
-                              getDisc={getDisc}
-                              setDisc={setDisc}
-                              indriveExtra={indriveExtra}
-                              setIndrive={setIndrive}
-                              indKey={indKey}
-                              priceKey={priceKey}
-                              errorKeys={errorKeys}
-                              rowState={rowState}
-                              getNa={getNa}
-                              toggleNa={toggleNa}
-                              markRowNa={markRowNa}
-                              t={t}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </TurnoSection>
-            )
-          })}
+                            {groups.length > 0 && (
+                              <div className="de-bracket-extras-title">
+                                {t('dataentry.extra_routes_title')}
+                              </div>
+                            )}
+                            {extras.map(({ uiCat, ref }) => (
+                              <BracketRouteGroup
+                                key={`${bracket}-extra-${ref.id}`}
+                                bracket={bracket}
+                                group={{ anchorRef: ref, byCategory: { [uiCat]: ref } }}
+                                status={rowState(uiCat, ref, ts)}
+                                bracketColor={prog.color}
+                                hideOrigin={!!commonOrigin}
+                                categories={[uiCat]}
+                                timeslot={ts}
+                                uiCity={uiCity}
+                                country={country}
+                                dbConfigs={dbConfigs}
+                                catColors={CAT_COLORS}
+                                getEntry={getEntry}
+                                setEntry={setEntry}
+                                getEta={getEta}
+                                setEta={setEta}
+                                getDisc={getDisc}
+                                setDisc={setDisc}
+                                indriveExtra={indriveExtra}
+                                setIndrive={setIndrive}
+                                indKey={indKey}
+                                priceKey={priceKey}
+                                errorKeys={errorKeys}
+                                rowState={rowState}
+                                getNa={getNa}
+                                toggleNa={toggleNa}
+                                markRowNa={markRowNa}
+                                t={t}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </TurnoSection>
+              )
+            })}
+          </div>
         </>
       )}
       {/* Footer repeat buttons */}

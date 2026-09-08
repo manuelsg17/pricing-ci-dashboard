@@ -11,12 +11,20 @@ import { useI18n } from '../../context/LanguageContext'
 // con su progreso (rutas completas / total) y su color; tocarlo salta a la
 // banda de ese bracket. La cabecera es sticky, así el hub siempre ve en qué
 // turno está y cuánto le falta aunque esté en la ruta 30 de 36.
-export default function TurnoSection({ timeslot, filled, total, hasErrors, brackets, children }) {
+export default function TurnoSection({
+  id,
+  timeslot,
+  filled,
+  total,
+  hasErrors,
+  brackets,
+  children,
+}) {
   const { t } = useI18n()
   const [open, setOpen] = useState(true)
   const done = total > 0 && filled >= total
   return (
-    <section className="de-turno-section">
+    <section id={id} className="de-turno-section de-scroll-target">
       <div className={`de-turno-header${done ? ' de-turno-header--done' : ''}`}>
         <button
           type="button"

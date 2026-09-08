@@ -5,9 +5,8 @@
 //
 // Requisitos antes de correr `npx playwright test`:
 //   1. `colima start` (o el runtime de Docker que uses) + `npx supabase start`
-//   2. El usuario admin@local.test debe existir en auth.users local (ya lo
-//      crea el flujo de trabajo habitual de este repo — ver memoria del
-//      proyecto). Si no existe, global-setup falla con un mensaje claro.
+//   2. Las cuentas e2e-ci@local.test y e2e-ci-2@local.test se crean solas
+//      (Admin API) la primera vez — ver e2e/global-setup.mjs.
 // ════════════════════════════════════════════════════════════════════════
 import { defineConfig, devices } from '@playwright/test'
 

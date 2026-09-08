@@ -937,9 +937,14 @@ export default {
   'dataentry.conflict_goto': 'See the 2 options ↑',
   'dataentry.conflict_force_confirm':
     'This will replace what was saved from the other side. Continue?',
+  'dataentry.lease_readonly_take': 'Use this tab',
+  'dataentry.ts_jump_title': 'Go to the {ts} timeslot',
+  'dataentry.grid_summary': '{r} routes · {n} timeslots',
+  'dataentry.legend_more': 'Show more (InDrive, saving and closing)',
+  'dataentry.legend_less': 'Show less',
   'dataentry.lease_readonly_title': 'This tab is read-only.',
   'dataentry.lease_readonly_body':
-    'You have another tab open with this same entry. Keep working there — nothing you type here is saved. If you already closed the other one, reload this page.',
+    'You have another tab open with this same entry. Keep working there, or if you already closed it, take over from here.',
   'dataentry.storage_failed':
     'This browser cannot save your draft (out of space or blocked). Hit “Save progress” NOW to send your work to the server — if you close the page, it is lost.',
   'dataentry.just_finished_note':

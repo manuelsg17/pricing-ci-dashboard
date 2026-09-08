@@ -951,9 +951,14 @@ export default {
   'dataentry.conflict_goto': 'Ver las 2 opciones ↑',
   'dataentry.conflict_force_confirm':
     'Vas a reemplazar lo que se guardó desde el otro lado. ¿Seguimos?',
+  'dataentry.lease_readonly_take': 'Usar esta pestaña',
+  'dataentry.ts_jump_title': 'Ir al turno {ts}',
+  'dataentry.grid_summary': '{r} rutas · {n} turnos',
+  'dataentry.legend_more': 'Ver más (InDrive, guardado y cierre)',
+  'dataentry.legend_less': 'Ver menos',
   'dataentry.lease_readonly_title': 'Esta pestaña está en modo lectura.',
   'dataentry.lease_readonly_body':
-    'Tenés otra pestaña abierta con esta misma carga. Seguí trabajando ahí — lo que escribas acá no se guarda. Si ya cerraste la otra, recargá esta página.',
+    'Tenés otra pestaña abierta con esta misma carga. Seguí trabajando ahí, o si ya la cerraste, tomá el control desde acá.',
   'dataentry.storage_failed':
     'Este navegador no puede guardar tu borrador (sin espacio o bloqueado). Tocá “Guardar progreso” AHORA para mandar tu trabajo al servidor — si cerrás la página, se pierde.',
   'dataentry.just_finished_note':

@@ -123,13 +123,6 @@
   border-style: solid;
 }
 
-/* Bloqueada mientras hay un alcance "Ambos" de Aeropuerto a medias (bug real,
-   revisión adversarial 2026-07-23) — evita corromper el cierre de sesión. */
-.de-city-tab--locked {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 /* Sub-pestañas Punto A | Punto B del aeropuerto activo */
 .de-airport-subtabs {
   display: flex;
@@ -395,26 +388,6 @@
   border-color: var(--color-yango);
 }
 
-.de-ctrl--surge {
-  gap: 5px;
-  cursor: pointer;
-}
-
-.de-ctrl--surge input[type='checkbox'] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--color-yango);
-  cursor: pointer;
-}
-
-.de-ctrl--surge span {
-  text-transform: none;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: var(--color-text);
-}
-
 /* Timeslot badges info */
 .de-session-info {
   display: flex;
@@ -427,9 +400,24 @@
   background: var(--color-bg-hover);
   border: 1px solid var(--color-border);
   border-radius: 12px;
+  font: inherit;
   font-size: 10px;
   font-weight: 600;
   color: var(--color-muted);
+  cursor: pointer;
+}
+.de-ts-badge:hover {
+  border-color: var(--color-yango);
+  color: var(--color-text);
+}
+.de-progress-pill--idle {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+/* Destino de los saltos (turno / bracket): que no quede tapado por las dos
+   cabeceras sticky. */
+.de-scroll-target {
+  scroll-margin-top: 60px;
 }
 
 /* Progress pill */
@@ -483,6 +471,29 @@
   border: 1px solid var(--color-danger-border);
   color: var(--color-danger-fg);
 }
+/* Aviso (no error): pestaña duplicada — el hub no rompió nada, solo tiene
+   que elegir desde dónde trabaja. */
+.de-msg--warn {
+  background: #fffbeb;
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-fg);
+}
+.de-msg__action {
+  margin-left: auto;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-warning-fg);
+  background: var(--color-panel);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.de-msg__action:hover {
+  background: #fef3c7;
+}
 
 /* Confirmación de "Terminar Sesión" — la grilla se vacía a propósito justo
    después (evita que el autosave la resucite), y sin una confirmación bien
@@ -525,19 +536,6 @@
 
 .de-cat-empty strong {
   color: var(--color-text);
-}
-
-.de-ts-pill {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.de-ts-time {
-  display: block;
-  font-size: 10px;
-  color: var(--color-muted);
 }
 
 .de-td-error {
@@ -908,20 +906,6 @@
   white-space: nowrap;
 }
 
-/* ── Otro borrador sin terminar ─────────────────────────── */
-.de-other-draft {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.de-other-draft-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
 /* ── Leyenda de instrucciones ───────────────────────────── */
 .de-legend {
   background: var(--color-panel);
@@ -944,9 +928,23 @@
 .de-legend-toggle:hover {
   background: var(--color-bg-hover);
 }
+.de-legend-more {
+  margin: 0 16px 10px 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-yango);
+  cursor: pointer;
+}
+.de-legend-more:hover {
+  text-decoration: underline;
+}
 .de-legend-steps {
   margin: 0;
-  padding: 0 16px 12px 32px;
+  padding: 0 16px 6px 32px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1161,6 +1159,10 @@
   box-shadow: var(--shadow-xs);
   background: var(--color-panel);
 }
+.de-bracket-group--collapsed > .de-bracket-route-header {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
 /* Estado de la ruta: completa se atenúa (ya no requiere atención), a medias
    avisa con el mismo ámbar que la fila parcial. */
 .de-bracket-group--full {
@@ -1288,19 +1290,6 @@
 }
 .de-timeslot-block:last-child {
   border-bottom: none;
-}
-
-.de-timeslot-heading {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-.de-timeslot-heading .de-ts-pill {
-  font-size: 11px;
-}
-.de-timeslot-heading .de-ts-time {
-  font-size: 10px;
 }
 
 .de-cat-rows {

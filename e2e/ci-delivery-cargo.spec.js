@@ -42,21 +42,20 @@ test.afterEach(async () => {
   await cleanupTestData()
 })
 
-// Marca TODAS las filas visibles como "sin oferta". El botón de cada fila NO
-// desaparece al resolverla (sigue ahí por si el hub se arrepiente), así que
-// hay que iterar por índice y verificar el estado real de cada fila (sus
-// badges de "no data"), no la cantidad de botones — eso fue el primer bug de
-// este mismo test.
+// Marca TODAS las filas como "sin oferta". No se puede iterar por índice:
+// una ruta completa se pliega sola al perder el foco (auto-colapso, revisión
+// UX 2026-09) y sus filas desaparecen del DOM, corriendo los índices. Se
+// toma siempre la PRIMERA fila todavía sin resolver hasta que no quede
+// ninguna; el tope evita un loop infinito si algo no se resuelve.
 async function markAllRowsNoOffer(page) {
-  const rowCount = await page.locator('.de-cat-row').count()
-  for (let i = 0; i < rowCount; i++) {
-    const row = page.locator('.de-cat-row').nth(i)
-    const cells = await row.locator('.de-cell').count()
-    const resolved = await row.locator('.de-nodata-badge').count()
-    if (resolved < cells) {
-      await row.locator('.de-sd-row-btn').click()
-    }
+  for (let guard = 0; guard < 500; guard++) {
+    const pending = page
+      .locator('.de-cat-row')
+      .filter({ has: page.locator('.de-cell:not(.de-cell--na):not(.de-cell--nodata)') })
+    if ((await pending.count()) === 0) return
+    await pending.first().locator('.de-sd-row-btn').click()
   }
+  throw new Error('markAllRowsNoOffer: quedaron filas sin resolver')
 }
 
 test('Delivery: F5 real conserva el borrador sin perder lo tipeado', async ({ page }) => {

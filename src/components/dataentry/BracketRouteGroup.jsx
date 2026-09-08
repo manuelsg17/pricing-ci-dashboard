@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   BRACKET_LABELS,
   getCiCompetitors,
@@ -72,6 +72,27 @@ export default function BracketRouteGroup({
   hideOrigin = false,
 }) {
   const [open, setOpen] = useState(true)
+  // Auto-colapso (revisión UX 2026-09): una ruta completa se pliega sola
+  // cuando el foco SALE de la tarjeta (nunca mientras el hub sigue tipeando
+  // adentro — por eso va por blur y no por efecto sobre `status`). Si el hub
+  // la vuelve a abrir a mano, se respeta hasta que deje de estar completa.
+  const rootRef = useRef(null)
+  const manualOpenRef = useRef(false)
+  useEffect(() => {
+    if (status !== 'full') manualOpenRef.current = false
+  }, [status])
+  function handleBlur(e) {
+    if (status !== 'full' || manualOpenRef.current) return
+    const next = e.relatedTarget
+    if (next && rootRef.current && rootRef.current.contains(next)) return
+    setOpen(false)
+  }
+  function toggleOpen() {
+    setOpen((o) => {
+      if (!o && status === 'full') manualOpenRef.current = true
+      return !o
+    })
+  }
   const ts = timeslot
   const { anchorRef, byCategory } = group
   // Una categoría con TODOS los competidores marcados "no ofrece"
@@ -97,14 +118,16 @@ export default function BracketRouteGroup({
 
   return (
     <div
-      className={`de-bracket-group de-bracket-group--${status}`}
+      ref={rootRef}
+      className={`de-bracket-group de-bracket-group--${status}${open ? '' : ' de-bracket-group--collapsed'}`}
       style={bracketColor ? { '--bracket-color': bracketColor } : undefined}
+      onBlur={handleBlur}
     >
       <button
         type="button"
         className="de-bracket-route-header"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
       >
         <span className="de-bracket-chevron" aria-hidden="true">
           {open ? '▼' : '▶'}

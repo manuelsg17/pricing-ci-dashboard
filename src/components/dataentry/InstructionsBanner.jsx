@@ -12,6 +12,9 @@ const STORAGE_KEY = LEGEND_COLLAPSED_KEY
 // esto es solo para que la MISMA carga de página reaccione al cierre
 // recién ocurrido, sin esperar a la próxima vez que se monte el componente.
 export default function InstructionsBanner({ t, collapseSignal }) {
+  // Los primeros 3 pasos alcanzan para el día a día; InDrive, guardado y
+  // cierre (Aeropuerto "Ambos") van detrás de "Ver más" (revisión UX 2026-09).
+  const [showAll, setShowAll] = useState(false)
   const [open, setOpen] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) !== '1'
@@ -58,11 +61,16 @@ export default function InstructionsBanner({ t, collapseSignal }) {
         {open ? '▲' : '▼'} {t('dataentry.legend_title')}
       </button>
       {open && (
-        <ol className="de-legend-steps">
-          {steps.map((step, i) => (
-            <li key={i}>{step}</li>
-          ))}
-        </ol>
+        <>
+          <ol className="de-legend-steps">
+            {(showAll ? steps : steps.slice(0, 3)).map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
+          <button type="button" className="de-legend-more" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? t('dataentry.legend_less') : t('dataentry.legend_more')}
+          </button>
+        </>
       )}
     </div>
   )
