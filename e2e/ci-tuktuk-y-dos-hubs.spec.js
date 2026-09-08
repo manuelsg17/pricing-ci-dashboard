@@ -165,3 +165,47 @@ test('Dos hubs a la vez sobre Delivery: cada uno guarda lo suyo, sin conflicto n
     await ctx2.close()
   }
 })
+
+test('Mismo hub, dos pestañas: la que trabaja de verdad no pierde el candado tras su propio F5', async ({
+  browser,
+}) => {
+  // Bug real encontrado en navegador (2026-09-07, revisión de código):
+  // `leaseEngaged` contaba `filledCount > 0` como "trabajo propio" aunque el
+  // filledCount viniera de un borrador RESTAURADO que la pestaña nunca creó
+  // (localStorage es compartido entre pestañas del mismo origen). Una
+  // segunda pestaña abierta solo para mirar heredaba ese filledCount y podía
+  // robarle el candado a la pestaña dueña justo en la ventana en que su
+  // candado queda "ocioso" tras un F5 real — la pestaña que sí tenía el
+  // trabajo quedaba en modo lectura después de recargar.
+  //
+  // Mismo CONTEXTO (mismo storage, como dos pestañas reales del mismo hub),
+  // NO dos contextos como el test de "dos hubs" de arriba.
+  const ctx = await browser.newContext({ storageState: './e2e/.auth/admin.json' })
+  const pA = await ctx.newPage()
+  const pB = await ctx.newPage()
+  try {
+    // A abre Cargo, inicia sesión y resuelve una fila — A es la dueña real.
+    await pA.goto('dataentry')
+    await pA.getByRole('button', { name: 'Cargo', exact: true }).click()
+    await pA.getByRole('button', { name: '▶ Start Session' }).first().click()
+    await pA.locator('.de-sd-row-btn').first().click()
+    await expect(pA.locator('.de-msg--warn')).toHaveCount(0)
+
+    // B abre el MISMO frente sin iniciar sesión — solo mirar. Restaura el
+    // mismo borrador compartido (mismo localStorage) y debe quedar en modo
+    // lectura de inmediato: A ya lo tiene.
+    await pB.goto('dataentry')
+    await pB.getByRole('button', { name: 'Cargo', exact: true }).click()
+    await expect(pB.locator('.de-msg--warn')).toBeVisible({ timeout: 10_000 })
+
+    // ── F5 REAL de la pestaña DUEÑA ── — acá reproducía el bug.
+    await pA.reload()
+    await pA.getByRole('button', { name: 'Go there' }).first().click()
+    await expect(pA.getByRole('button', { name: 'Cargo', exact: true })).toHaveClass(/active/)
+    await expect(pA.locator('.de-msg--warn')).toHaveCount(0)
+    // B sigue correctamente en modo lectura — el candado no le llegó por accidente.
+    await expect(pB.locator('.de-msg--warn')).toBeVisible()
+  } finally {
+    await ctx.close()
+  }
+})
