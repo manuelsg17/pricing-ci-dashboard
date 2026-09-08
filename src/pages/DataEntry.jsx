@@ -34,13 +34,14 @@ import {
   buildInsertPayload as buildInsertPayloadRow,
 } from '../lib/dataEntry/rows'
 import { buildCityClusters, computeRevisionInfo } from '../lib/dataEntry/derived'
-import { debeReanudarTramo } from '../lib/sessionPersistence'
 import { useLeaseState, useCiTabLeaseEffects } from '../hooks/useCiTabLease'
 import { useCiHeartbeat } from '../hooks/useCiHeartbeat'
 import { useCiDraftAutosave } from '../hooks/useCiDraftAutosave'
 import { useCiDraftHydration } from '../hooks/useCiDraftHydration'
 import { useCiSessionActions } from '../hooks/useCiSessionActions'
 import { useCiSessionHistory } from '../hooks/useCiSessionHistory'
+import { useCiDraftManagement } from '../hooks/useCiDraftManagement'
+import { useCiSaveAllQueue } from '../hooks/useCiSaveAllQueue'
 import { registrarActividad } from '../lib/idleDetection'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
@@ -55,7 +56,6 @@ import {
 } from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
 import { formatCityZoneLabel } from '../lib/monitoring'
-import { frentesSinGuardar } from '../lib/frentesPendientes'
 import FrentesSinGuardar from '../components/dataentry/FrentesSinGuardar'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
@@ -109,7 +109,6 @@ function todayStr() {
 // (si no, las deps de los effects "cambiarían" en cada render).
 const EMPTY_OBJ = {}
 const EMPTY_SET = new Set()
-const EMPTY_ARR = []
 
 // Ventana durante la cual un auto-load silencioso NO puede reactivar un
 // bucket que este hub acaba de Terminar a propósito. Ver `markBucketJustFinished`.
@@ -1263,139 +1262,35 @@ export default function DataEntry() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, draftKey, draftScanTick])
 
-  function resumeDraft(d) {
-    // Bug real (revisión adversarial 2026-07-23): reanudar OTRO borrador
-    // FUERA del alcance "Ambos" declarado (2+ miembros pendientes) pisaba
-    // `pendingScopeMembers`/`uiCity` sin que el punto abandonado quedara
-    // nunca marcado como terminado — la sesión original no volvía a poder
-    // cerrarse bien. Reanudar un borrador que SÍ es parte del alcance
-    // actual (ej. el otro punto declarado) sigue permitido sin más.
-    const targetUi = d.resume?.uiCity ?? d.city
-    // El alcance vive en espacio bucketKey (ver `resolvedStartMembers`).
-    const targetBucket = d.bucketKey || targetUi
-    // Ya NO hay guard acá: el bloqueo original existía porque reanudar
-    // PISABA el alcance y dejaba los frentes declarados huérfanos. Ahora se
-    // fusiona (ver abajo), así que reanudar es seguro — y mantenerlo era
-    // incoherente con las pestañas, que desde el pedido 2b van libres: el hub
-    // podía pararse en Corp pero no reanudar el borrador de Corp.
-    // Reanudar es una señal explícita de "seguir trabajando" — activar la
-    // sesión ya mismo (mismo criterio que "Abrir" del historial), no esperar
-    // a que la hidratación async lo detecte sola.
-    if (!sessionActive) {
-      // Idem: reanudar un borrador de OTRA fecha, o de una jornada ya
-      // cerrada, arranca un tramo nuevo en vez de heredar el reloj.
-      sessionStartRef.current = debeReanudarTramo({
-        loadDate: d.date,
-        today: todayStr(),
-        timings: d.turnoTimings,
-      })
-        ? earliestTurnoStart(d.turnoTimings) || Date.now()
-        : Date.now()
-      setSessionActive(true)
-    }
-    if (d.resume?.tukTuk) {
-      setUiCity(d.resume.uiCity)
-      setActiveTukTuk(d.resume.zone)
-      setActiveSpecialCat(null)
-    } else if (d.resume?.specialCat) {
-      setUiCity(d.resume.uiCity)
-      setActiveTukTuk(null)
-      setActiveSpecialCat(d.resume.specialCat)
-    } else {
-      setUiCity(d.resume?.uiCity ?? d.city)
-      setActiveTukTuk(null)
-      setActiveSpecialCat(null)
-    }
-    setDate(d.date)
-    setMsg(null)
-    // Reanudar un borrador de-alcance-único (no relanza un "Ambos" — se puede
-    // ampliar a mano con "+ agregar Punto B" si hace falta). Si el borrador
-    // reanudado YA era parte del alcance "Ambos" actual (guard de arriba), no
-    // hay que achicar `pendingScopeMembers` a un solo miembro — el otro
-    // punto declarado sigue pendiente.
-    // FUSIONAR, nunca pisar (bug real, revisión adversarial 2026-07-24):
-    // reemplazar el alcance borraba los frentes declarados que seguían a medias
-    // (ej. Punto A+B) sin registrarlos en ningún lado — "Terminar Sesión"
-    // después cerraba la sesión como final y ese trabajo quedaba abandonado sin
-    // aviso. Sumar es siempre seguro: de más, obliga a cerrar algo que el hub
-    // igual tenía a medias.
-    setPendingScopeMembers((prev) => (prev.includes(targetBucket) ? prev : [...prev, targetBucket]))
-  }
-
-  function discardDraft(d) {
-    try {
-      localStorage.removeItem(d.key)
-    } catch {
-      /* ignore */
-    }
-    markJustFinished(d.key)
-    setActiveDrafts((prev) => prev.filter((x) => x.key !== d.key))
-    setDraftScanTick((tk) => tk + 1)
-    // Bug real (revisión adversarial 2026-07-23): descartar el borrador de
-    // un punto declarado en un alcance "Ambos" (ej. abandonar Punto A
-    // mientras se sigue con Punto B) no lo sacaba de `pendingScopeMembers`
-    // — al terminar el punto que SÍ se completó, `remainingAfterThis` nunca
-    // vaciaba (el descartado seguía "pendiente" para siempre) y la sesión
-    // jamás cerraba, además de reenviar al hub a rellenar desde cero un
-    // punto que él mismo acababa de vaciar. Descartar equivale a decidir
-    // que ese punto ya no forma parte de esta sesión.
-    // El alcance vive en espacio bucketKey (`resolvedStartMembers`), NO en
-    // uiCity. En TukTuk el uiCity es la ciudad BASE ('Lima') mientras el
-    // alcance es 'TT~Lima~Comas'; y en Colombia el uiCity es 'Bogotá' con
-    // dbName 'Bogota'. Filtrando por uiCity el miembro nunca salía del alcance:
-    // `isFinalInScope` no se cumplía NUNCA, el botón decía "Terminar punto"
-    // para siempre, el latido no se borraba y el hub quedaba "en vivo" en
-    // Monitoreo indefinidamente. La única salida era rellenar de cero la grilla
-    // que acababa de descartar.
-    //
-    // Aeropuerto no lo sufría porque ahí uiName === dbName en las configs
-    // sembradas — por eso el fix de 2026-07-23 pareció completo.
-    //
-    // Las dos líneas de abajo YA usaban d.bucketKey: la asimetría delataba el
-    // olvido.
-    const discardedScope = d.bucketKey ?? d.resume?.uiCity ?? d.city
-    setPendingScopeMembers((prev) =>
-      prev.includes(discardedScope) ? prev.filter((m) => m !== discardedScope) : prev
-    )
-    // Mismo criterio para un frente extra (punto 2) descartado: ya no debe
-    // seguir bloqueando "Terminar Sesión" en las demás vistas.
-    if (d.bucketKey) {
-      setPendingExtraFronts((prev) =>
-        prev.includes(d.bucketKey) ? prev.filter((bk) => bk !== d.bucketKey) : prev
-      )
-      // Igual que en handleFinishSession: si sigue "tocado", el efecto de
-      // registro lo vuelve a agregar y el frente descartado revive.
-      setTouchedFronts((prev) => prev.filter((bk) => bk !== d.bucketKey))
-    }
-    // Si el borrador descartado es de la FECHA/contexto actual, su rebanada
-    // puede seguir viva en memoria (y la ciudad marcada como hidratada). Sin
-    // limpiarla, volver a esa pestaña mostraría los datos "descartados" y el
-    // autosave/flush los reescribiría → el borrador resucita (mismo problema que
-    // el fix de Terminar Sesión). Si es de OTRA fecha, no hay rebanada en memoria
-    // (se limpian al cambiar de fecha): alcanza con borrar la clave.
-    if (d.date !== date) return
-    const dc = d.bucketKey // rebanada en memoria = bucketKey (por-distrito en TukTuk)
-    if (!dc) return
-    const dropCity = (setter) =>
-      setter((prev) => {
-        if (!(dc in prev)) return prev
-        const n = { ...prev }
-        delete n[dc]
-        return n
-      })
-    dropCity(setEntriesByCity)
-    dropCity(setIndriveByCity)
-    dropCity(setEtaByCity)
-    dropCity(setDiscByCity)
-    dropCity(setNaByCity)
-    dropCity(setSurgeByCity)
-    dropCity(setErrorKeysByCity)
-    dropCity(setLoadedCombosByCity)
-    dropCity(setTurnoTimingsByCity)
-    // Re-permitir hidratar esa ciudad: al volver, re-lee localStorage (ya vacío)
-    // y muestra la grilla limpia en vez de la rebanada en memoria vieja.
-    hydratedCitiesRef.current.delete(dc)
-  }
+  // Reanudar/descartar un borrador del panel "otros borradores" — extraído
+  // a useCiDraftManagement.js.
+  const { resumeDraft, discardDraft } = useCiDraftManagement({
+    date,
+    sessionActive,
+    sessionStartRef,
+    setSessionActive,
+    setUiCity,
+    setActiveTukTuk,
+    setActiveSpecialCat,
+    setDate,
+    setMsg,
+    setPendingScopeMembers,
+    setPendingExtraFronts,
+    setTouchedFronts,
+    markJustFinished,
+    setActiveDrafts,
+    setDraftScanTick,
+    setEntriesByCity,
+    setIndriveByCity,
+    setEtaByCity,
+    setDiscByCity,
+    setNaByCity,
+    setSurgeByCity,
+    setErrorKeysByCity,
+    setLoadedCombosByCity,
+    setTurnoTimingsByCity,
+    hydratedCitiesRef,
+  })
 
   // Rutas de la vista activa. En TukTuk, solo las de ESE distrito (zone). En el
   // resto, todas las de la ciudad — la Lima normal ya excluye 'TukTuk' de
@@ -2230,8 +2125,6 @@ export default function DataEntry() {
   // (rutas cargadas + borrador hidratado) antes de guardarlo. Guardar antes de
   // tiempo vería la grilla vacía y reportaría "no hay filas completas" sobre
   // un frente lleno.
-  const [colaGuardarTodo, setColaGuardarTodo] = useState(EMPTY_ARR)
-  const guardandoTodo = colaGuardarTodo.length > 0
   // Con un solo frente abierto, "Guardar todo" y "Guardar progreso" harían
   // exactamente lo mismo. Dos botones para una acción no aclaran nada: dan a
   // entender que uno guarda algo que el otro no.
@@ -2242,81 +2135,8 @@ export default function DataEntry() {
     [pendingScopeMembers, pendingExtraFronts, bucketKey]
   )
   const hayOtrosFrentes = frentesAbiertos.length > 1
-  // Reentrada: el efecto de abajo se re-dispara con cada tick mientras la cola
-  // avanza, y sin este candado dispararía un segundo guardado del mismo frente
-  // encima del primero.
-  const colaOcupadaRef = useRef(false)
-  // Dónde estaba parado el hub al apretar el botón, para devolverlo ahí. Que
-  // "guardar" te mueva de pestaña sola es desorientador, y peor todavía si te
-  // deja en un frente que no estabas mirando.
-  const colaOrigenRef = useRef(null)
-  const colaResultadoRef = useRef({ guardados: 0, sinFilas: [] })
-
-  // Los contadores de edición viven en refs para no re-renderizar la grilla en
-  // cada tecleo (CLAUDE.md §5), así que un cambio en ellos no despierta a
-  // React. Mientras la cola avanza hace falta un pulso propio para volver a
-  // mirar si el frente ya terminó de cargar. Solo corre mientras hay cola:
-  // es una acción deliberada de unos segundos, no un sondeo de fondo.
-  const [tickCola, setTickCola] = useState(0)
-  useEffect(() => {
-    if (!guardandoTodo) return
-    const id = setInterval(() => setTickCola((n) => n + 1), 300)
-    return () => clearInterval(id)
-  }, [guardandoTodo])
-
-  useEffect(() => {
-    if (!colaGuardarTodo.length || colaOcupadaRef.current || saving) return
-
-    const objetivo = colaGuardarTodo[0]
-    if (bucketKey !== objetivo) {
-      // Si el destino no existe en el catálogo, `irAFrente` no mueve nada: hay
-      // que sacarlo de la cola igual o se queda girando para siempre.
-      if (!irAFrente(objetivo)) setColaGuardarTodo((c) => c.slice(1))
-      return
-    }
-
-    // Parados en el objetivo, pero puede que todavía esté cargando. Los tres
-    // chequeos son distintos y los tres hacen falta: las rutas se piden por
-    // ciudad (React Query), `refsDbCity` confirma que las que hay en mano son
-    // las de ESTA ciudad y no las de la anterior, y la hidratación es la que
-    // vuelca el borrador de localStorage a la grilla.
-    if (refsLoading || refsDbCity !== dbCity) return
-    if (!hydratedCitiesRef.current.has(bucketKey)) return
-
-    colaOcupadaRef.current = true
-    ;(async () => {
-      try {
-        let ok = true
-        if (savableCount > 0) {
-          ok = await handleSaveProgress()
-          if (ok) colaResultadoRef.current.guardados += 1
-        } else {
-          // Tiene celdas cargadas pero ninguna FILA completa: "Guardar
-          // progreso" nunca manda filas a medias. No es un fallo, pero
-          // callarlo sería decirle al hub "guardé todo" sobre un frente que
-          // quedó entero en localStorage.
-          colaResultadoRef.current.sinFilas.push(bucketKey)
-        }
-        if (!ok) {
-          // Frenar en seco. Seguir con el siguiente frente terminaría en un
-          // cartel de éxito con un frente sin guardar en el medio, que es
-          // exactamente el engaño que esta función vino a eliminar. El
-          // mensaje de error de `performSave` ya está en pantalla.
-          setColaGuardarTodo(EMPTY_ARR)
-          return
-        }
-        setColaGuardarTodo((c) => c.slice(1))
-      } finally {
-        colaOcupadaRef.current = false
-      }
-    })()
-    // `handleSaveProgress` se redefine en cada render (no es useCallback) —
-    // meterlo acá re-dispararía este efecto sin parar. Se lo llama, no se lo
-    // observa.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    colaGuardarTodo,
-    tickCola,
+  // Cola de "Guardar todo" — extraída a useCiSaveAllQueue.js.
+  const { guardandoTodo, handleGuardarTodo } = useCiSaveAllQueue({
     bucketKey,
     saving,
     refsLoading,
@@ -2324,59 +2144,16 @@ export default function DataEntry() {
     dbCity,
     savableCount,
     irAFrente,
-  ])
-
-  // Cierre de la cola: volver a donde estaba el hub y contarle qué pasó.
-  useEffect(() => {
-    if (guardandoTodo || !colaOrigenRef.current) return
-    const origen = colaOrigenRef.current
-    const { guardados, sinFilas } = colaResultadoRef.current
-    colaOrigenRef.current = null
-    colaResultadoRef.current = { guardados: 0, sinFilas: [] }
-    if (origen !== bucketKey) irAFrente(origen)
-    if (guardados > 0) {
-      setMsg({
-        type: 'ok',
-        emphasize: true,
-        text: sinFilas.length
-          ? t('dataentry.save_all_done_partial', {
-              n: guardados,
-              list: sinFilas.map(frontLabel).join(', '),
-            })
-          : guardados === 1
-            ? t('dataentry.save_all_done_one')
-            : t('dataentry.save_all_done', { n: guardados }),
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardandoTodo])
-
-  /**
-   * Arma la cola con TODO lo que tenga trabajo sin asegurar. Se calcula al
-   * apretar el botón (leyendo los refs en ese instante) y no en render: el
-   * usuario tiene que guardar lo que hay AHORA, no lo que se vio hace un tick.
-   */
-  function handleGuardarTodo() {
-    const pendientes = frentesSinGuardar({
-      fronts: frentesAbiertos,
-      llenoPorFrente,
-      editSeq: editSeqRef.current,
-      savedSeq: savedSeqRef.current,
-    }).map((f) => f.bucket)
-    if (!pendientes.length) {
-      notify('ok', 'dataentry.save_all_nothing')
-      return
-    }
-    colaOrigenRef.current = bucketKey
-    colaResultadoRef.current = { guardados: 0, sinFilas: [] }
-    // El frente actual primero: es el que el hub está mirando, y si algo falla
-    // conviene que falle sobre lo que tiene delante.
-    setColaGuardarTodo(
-      pendientes.includes(bucketKey)
-        ? [bucketKey, ...pendientes.filter((b) => b !== bucketKey)]
-        : pendientes
-    )
-  }
+    handleSaveProgress,
+    frentesAbiertos,
+    llenoPorFrente,
+    editSeqRef,
+    savedSeqRef,
+    hydratedCitiesRef,
+    setMsg,
+    t,
+    notify,
+  })
 
   // Latido de sesión activa (Monitoreo) — extraído a useCiHeartbeat.js.
   const { lastHeartbeatOkAt } = useCiHeartbeat({
