@@ -1,19 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { SESSION_ID } from '../lib/supabase'
 import {
   deleteActiveSession,
-  deleteActiveSessionScoped,
-  upsertActiveSession,
   fetchPresence as fetchPresenceRpc,
   fetchSavedObservations,
   countSavedObservations,
-  fetchManualObservations,
   fetchBucketWriteMark,
-  saveCiBatch,
-  closeCiSession,
   fetchSessionHistory,
-  fetchTurnoTimings,
   fetchTukTukZones,
   fetchMyUnfinishedSessions,
 } from '../hooks/useDataEntryPersistence'
@@ -39,22 +32,17 @@ import {
 import {
   buildRowsForSlot,
   buildInsertPayload as buildInsertPayloadRow,
-  collectRouteDeletes,
-  buildRoutesPayload,
 } from '../lib/dataEntry/rows'
 import { buildCityClusters, computeRevisionInfo } from '../lib/dataEntry/derived'
-import { debeReanudarTramo, debeHidratarBorrador } from '../lib/sessionPersistence'
-import {
-  evaluateLease,
-  serializeLease,
-  ownsLease,
-  leaseKey,
-  heartbeatLeaseKey,
-  LEASE_RENEW_MS,
-} from '../lib/tabLease'
-import { duracionDeSesion } from '../lib/sessionDuration'
-import { duracionActiva, registrarActividad, normalizarActividad } from '../lib/idleDetection'
-import { tokenDeCierre, confirmarCierre } from '../lib/sessionCloseToken'
+import { useLeaseState, useCiTabLeaseEffects } from '../hooks/useCiTabLease'
+import { useCiHeartbeat } from '../hooks/useCiHeartbeat'
+import { useCiDraftAutosave } from '../hooks/useCiDraftAutosave'
+import { useCiDraftHydration } from '../hooks/useCiDraftHydration'
+import { useCiSessionActions } from '../hooks/useCiSessionActions'
+import { useCiSessionHistory } from '../hooks/useCiSessionHistory'
+import { useCiDraftManagement } from '../hooks/useCiDraftManagement'
+import { useCiSaveAllQueue } from '../hooks/useCiSaveAllQueue'
+import { registrarActividad } from '../lib/idleDetection'
 import { distanceRefsQueryKey, fetchDistanceRefs } from '../hooks/useDistanceRefs'
 import { useAuth } from '../lib/auth'
 import {
@@ -68,12 +56,9 @@ import {
 } from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
 import { formatCityZoneLabel } from '../lib/monitoring'
-import { frentesSinGuardar } from '../lib/frentesPendientes'
 import FrentesSinGuardar from '../components/dataentry/FrentesSinGuardar'
-import { normalizeCompetitorName } from '../lib/normalize'
 import { getSourceCategory } from '../lib/distanceRefsReplication'
 import { buildRefsByBracket } from '../lib/bracketGrouping'
-import { capIndriveExtraBids } from '../lib/indriveAvg'
 import { getISOYearWeek, toISODate } from '../lib/dateUtils'
 import { turnoBreakdownLabel } from '../lib/timing'
 import { useRushHourConfig } from '../hooks/useRushHourConfig'
@@ -124,7 +109,6 @@ function todayStr() {
 // (si no, las deps de los effects "cambiarían" en cada render).
 const EMPTY_OBJ = {}
 const EMPTY_SET = new Set()
-const EMPTY_ARR = []
 
 // Ventana durante la cual un auto-load silencioso NO puede reactivar un
 // bucket que este hub acaba de Terminar a propósito. Ver `markBucketJustFinished`.
@@ -697,44 +681,6 @@ export default function DataEntry() {
   // El cronómetro (⏱) vive en <SessionTimer> con su propio interval, para que
   // su tick por segundo no re-renderice toda la grilla. Ver SessionLiveStatus.
 
-  // ── Start session ──────────────────────────────────────
-  // `members` = alcance declarado (array de uiCity). En Aeropuerto puede ser
-  // 1 o 2 elementos (Punto A / Punto B / ambos); en el resto de las vistas
-  // siempre es un solo elemento (la vista actual) — comportamiento idéntico
-  // al de antes de este cambio.
-  function handleStartSession(members) {
-    sessionStartRef.current = Date.now()
-
-    // Borrar el latido viejo ANTES de arrancar (SESIONES_HALLAZGOS.md P1-5).
-    //
-    // `ci_active_sessions` tiene PK `user_email` a secas, y su
-    // `ON CONFLICT DO UPDATE` deja `started_at` intacto a propósito (mig 161)
-    // para que los latidos no lo pisen. La consecuencia no buscada: una
-    // sesión que quedó abierta ayer le regala su `started_at` a la de hoy —
-    // el hub arranca a las 09:00 y Monitoreo muestra ~24h, y si un admin la
-    // cierra, `admin_close_ci_session` escribe esa duración en ci_sessions.
-    //
-    // Un "Iniciar Sesión" explícito es la señal inequívoca de que empieza un
-    // tramo nuevo: se borra la fila para que el primer latido la re-cree con
-    // `started_at = now()`. Es el único punto del cliente donde borrar sin
-    // acotar es CORRECTO — justamente se quiere descartar cualquier resto,
-    // sea del bucket que sea.
-    if (userEmail) {
-      deleteActiveSession(userEmail).then(
-        () => {},
-        () => {}
-      )
-    }
-
-    setSessionActive(true)
-    setPendingScopeMembers(members && members.length ? members : [bucketKey])
-    // Lo que el hub haya tipeado ANTES de arrancar (grilla editable sin
-    // sesión) no debe contarse como frente extra de ESTA sesión.
-    setTouchedFronts([])
-    setPendingExtraFronts([])
-    setMsg(null)
-  }
-
   // ── "Ver lo guardado" — lo que YA quedó persistido para la vista/fecha
   // actual, filtrado a lo que cargó ESTE hub (uploaded_by). Consulta directa
   // (RLS ya permite SELECT sin restricción de ciudad, no hace falta RPC) —
@@ -973,32 +919,6 @@ export default function DataEntry() {
   // effect de restauración al detectar el cambio de contexto país+fecha — así se
   // limpia e hidrata la fecha nueva en el orden correcto (ver más abajo).
 
-  // ── "Abrir" sesión del historial → cargar observaciones guardadas ──────
-  // Espera a que las rutas de la ciudad objetivo estén cargadas (refsLoading
-  // false) y a que ciudad+fecha actuales coincidan con lo pedido. Los effects
-  // de reset de arriba ya limpiaron el form; acá solo se vuelca lo de BD.
-  useEffect(() => {
-    if (!pendingLoad) return
-    if (refsLoading) return
-    // Las refs en estado tienen que ser YA las de la ciudad objetivo (no las
-    // de la ciudad anterior en el commit del click). Esto evita mapear la data
-    // contra rutas equivocadas y limpiar pendingLoad antes de tiempo.
-    if (refsDbCity !== pendingLoad.dbCity) return
-    if (pendingLoad.dbCity !== dbCity || pendingLoad.date !== date) return
-    // TukTuk: además la vista tiene que estar en el distrito correcto (mismo
-    // dbCity 'Lima' para todos, pero distinto zone/bucket).
-    if ((pendingLoad.zone ?? null) !== (zone ?? null)) return
-    loadObservationsIntoForm(
-      pendingLoad.dbCity,
-      pendingLoad.date,
-      pendingLoad.zone ?? null,
-      bucketKey,
-      { silent: !!pendingLoad.auto }
-    )
-    setPendingLoad(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingLoad, refsLoading, refsDbCity, dbCity, date, refs, zone, bucketKey])
-
   // ── Autosave a localStorage (draft) ────────────────────
   // Clave por (usuario, country, uiCity, date). Restaura al cambiar a una
   // clave con borrador existente; persiste cada cambio con debounce 2s;
@@ -1137,379 +1057,67 @@ export default function DataEntry() {
 
   // ── Un solo escritor del borrador por navegador (P1-10) ──────────────
   //
-  // El guard de la mig 191 protege la BASE contra dos pestañas del mismo hub.
-  // Esto protege el BORRADOR: las dos escriben la misma clave de localStorage
-  // con su `entries` completo, así que la última en escribir borra las celdas
-  // de la otra.
-  //
-  // Arranca en `true` a propósito: si empezara en false, cada F5 dejaría la
-  // pestaña sin autosave durante el primer tick — justo la ventana donde el
-  // hub teclea sus primeras celdas.
-  //
-  // NO se fusionan borradores, nunca. Fusionar dos `entries` resucita celdas
-  // que el hub borró a propósito, que es el bug con más antecedentes en este
-  // repo (CLAUDE.md §2). Escritor único, y el resto en modo lectura.
-  const [leaseOwner, setLeaseOwner] = useState(true)
-  const leaseOwnerRef = useRef(true)
-  leaseOwnerRef.current = leaseOwner
+  // Candados de pestaña (borrador + latido) — extraídos a useCiTabLease.
+  // El guard de la mig 191 protege la BASE contra dos pestañas del mismo hub;
+  // esto protege el BORRADOR en localStorage. NO se fusionan borradores,
+  // nunca (CLAUDE.md §2). Estado acá arriba porque los refs se usan en
+  // efectos más abajo en este mismo archivo, ANTES de que `filledCount`
+  // exista para calcular `leaseEngaged` — ver useCiTabLease.js.
+  const {
+    leaseOwner,
+    setLeaseOwner,
+    leaseOwnerRef,
+    hbLeaseOwner,
+    setHbLeaseOwner,
+    hbLeaseOwnerRef,
+  } = useLeaseState()
 
   const [lastSaveOkAt, setLastSaveOkAt] = useState(null) // guardado REAL
-  const [lastHeartbeatOkAt, setLastHeartbeatOkAt] = useState(null) // solo conexión
 
-  useEffect(() => {
-    draftHydratedRef.current = false
-    setLastDraftSavedAt(null)
-    const targetCity = bucketKey
-    const ctx = `${country}::${date}`
-    // ¿Cambió el contexto (país/fecha)? Entonces todas las ciudades cargadas son
-    // de la fecha vieja → limpiar TODO y re-permitir hidratar cada ciudad. Se
-    // hace acá (no en un effect aparte) para que el orden limpiar→hidratar sea
-    // correcto: si estuviera en otro effect, este leería datos "por limpiar" y
-    // saltaría la hidratación de la fecha nueva.
-    if (loadedContextRef.current !== ctx) {
-      loadedContextRef.current = ctx
-      hydratedCitiesRef.current = new Set()
-      setEntriesByCity({})
-      setIndriveByCity({})
-      setEtaByCity({})
-      setDiscByCity({})
-      setErrorKeysByCity({})
-      setLoadedCombosByCity({})
-      setSurgeByCity({})
-      setNaByCity({})
-      // Bug real (hallado al generalizar, 2026-07-24): sin esto los timings
-      // por turno de la fecha VIEJA sobrevivían al cambio de fecha, y como el
-      // efecto de estampado nunca pisa un `startedAt` ya existente, la sesión
-      // de la fecha nueva heredaba la hora de inicio de la anterior — una
-      // duración por turno de horas o días, silenciosamente falsa.
-      setTurnoTimingsByCity({})
-      // Los frentes pendientes son de la fecha VIEJA (bucketKey no lleva
-      // fecha): sin limpiarlos, el aviso seguía exigiendo "completá Corp"
-      // pero en la fecha nueva, donde Corp está vacío — y completarlo ahí
-      // escribía observaciones con la fecha equivocada.
-      setTouchedFronts([])
-      setPendingExtraFronts([])
-      setPendingScopeMembers([])
+  // Hidratación del borrador (leerlo al montar / cambiar de ciudad, fecha o
+  // país) — extraída a useCiDraftHydration.js.
+  useCiDraftHydration({
+    bucketKey,
+    country,
+    date,
+    userEmail,
+    draftKey,
+    legacyDraftKey,
+    dbCity,
+    zone,
+    sessionActive,
+    t,
+    setMsg,
+    sincronizarMarcaDesdeBorrador,
+    setPendingLoad,
+    setLastDraftSavedAt,
+    setEntriesByCity,
+    setIndriveByCity,
+    setEtaByCity,
+    setDiscByCity,
+    setNaByCity,
+    setSurgeByCity,
+    setTurnoTimingsByCity,
+    setErrorKeysByCity,
+    setLoadedCombosByCity,
+    setTouchedFronts,
+    setPendingExtraFronts,
+    setPendingScopeMembers,
+    setSessionActive,
+    loadedContextRef,
+    hydratedCitiesRef,
+    sessionStartRef,
+    actividadRef,
+    editSeqRef,
+    savedSeqRef,
+    draftHydratedRef,
+  })
 
-      // Y la SESIÓN también se cierra (SESIONES_HALLAZGOS.md P1-7).
-      //
-      // Hasta acá se limpiaba todo el estado de trabajo pero `sessionActive`
-      // y `sessionStartRef` quedaban intactos: el hub cambiaba la fecha para
-      // corregir algo de ayer y el cronómetro seguía corriendo desde la hora
-      // de la fecha anterior. El próximo "Terminar" insertaba en ci_sessions
-      // una duración que incluía todo el trabajo de OTRO día.
-      //
-      // Cambiar de fecha es tan inequívoco como cambiar de país: se abandona
-      // la sesión en curso. Lo ya guardado con "Guardar Progreso" queda
-      // intacto en la BD; esto solo cierra el estado en vivo.
-      if (sessionActive) {
-        setSessionActive(false)
-        sessionStartRef.current = null
-        if (userEmail) {
-          deleteActiveSession(userEmail).then(
-            () => {},
-            () => {}
-          )
-        }
-      }
-    }
-    // Hidratar esta ciudad UNA vez por contexto. Al intercalar A↔B, la 2da vez
-    // ya está en el set → no se re-hidrata (la memoria, más nueva, manda).
-    //
-    // `userEmail &&` NO es defensivo: es la corrección de una PÉRDIDA DE DATOS
-    // real, reproducida en navegador contra local (2026-08-02).
-    //
-    // `draftKey` lleva el email adentro (`de:draft:<email>:<país>:<vista>:<fecha>`)
-    // y `userEmail` llega ASÍNCRONO, después del primer render. Sin este guard
-    // la secuencia era:
-    //
-    //   1. Monta con userEmail vacío → draftKey queda `de:draft::Peru:Lima:…`
-    //      (segmento del email en blanco) → no encuentra NINGÚN borrador.
-    //   2. Igual marca la ciudad en `hydratedCitiesRef`, así que cuando el
-    //      email llega y `draftKey` cambia, el efecto vuelve a correr pero ya
-    //      NO re-hidrata: el borrador bueno queda huérfano para siempre.
-    //   3. Como `draftApplied` quedó en false, se agenda el auto-load del
-    //      servidor. Ese llega con la grilla en memoria vacía, así que
-    //      `conservarTecleado` cae en la rama `!actual` y REEMPLAZA entero.
-    //   4. El autosave escribe ese estado —el del servidor— encima del
-    //      borrador. El trabajo sin guardar del hub desaparece del disco.
-    //
-    // Medido: borrador con 7 celdas → 4 después de un F5, y un valor editado
-    // (88.88) revertido al del servidor (11.01). Es exactamente el "estado que
-    // debe sobrevivir un F5" de CLAUDE.md §2, y la clase de bug más repetida
-    // del proyecto.
-    //
-    // El guard alcanza porque `draftKey` ya está en las dependencias del
-    // efecto: apenas el email aparece, el efecto se re-dispara y esta vez
-    // hidrata con la clave correcta, ANTES de que nadie marque la ciudad.
-    //
-    // La decisión vive en `debeHidratarBorrador` (src/lib/sessionPersistence.js)
-    // y tiene sus propias pruebas — así la regla no se puede volver a perder
-    // en una línea suelta de este componente.
-    if (
-      debeHidratarBorrador({ userEmail, yaHidratado: hydratedCitiesRef.current.has(targetCity) })
-    ) {
-      hydratedCitiesRef.current.add(targetCity)
-      let draftApplied = false
-      // Momento de la última escritura del borrador — lo necesita R3 para
-      // decidir si la marca del servidor es más vieja que lo que hay acá.
-      let borradorSavedAt = null
-      try {
-        let raw = localStorage.getItem(draftKey)
-        // Migración única de borradores del formato viejo (sin email, previo
-        // a la revisión de aislamiento por usuario) — adoptarlo para QUIEN
-        // esté mirando esta ciudad+fecha ahora mismo, igual que ya pasaba de
-        // hecho hasta hoy, pero de acá en más queda escrito bajo la clave
-        // nueva (por usuario) y la vieja se borra — no vuelve a ser visible
-        // para otro hub que entre después en la misma compu.
-        let migratedFromLegacy = false
-        if (!raw && userEmail) {
-          const legacyRaw = localStorage.getItem(legacyDraftKey)
-          if (legacyRaw) {
-            raw = legacyRaw
-            migratedFromLegacy = true
-          }
-        }
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          const etaFilled = countFilledEntries(parsed.etaEntries)
-          const discFilled = countFilledEntries(parsed.discEntries)
-          const { capped, avgUpdates } = capIndriveExtraBids(parsed.indriveExtra || {})
-          const mergedEntries = { ...parsed.entries, ...avgUpdates }
-          // Contar incluyendo celdas InDrive solo-recomendado (viven en
-          // indriveExtra) — si acá se usara solo countFilledEntries(entries), un
-          // borrador rec-only daría count 0 y NO se restauraría: el recomendado
-          // se perdía en silencio pese a que el autosave sí lo persistió.
-          const restored = countAllFilled(mergedEntries, capped)
-          const naArr = Array.isArray(parsed.naKeys) ? parsed.naKeys : []
-          if (restored > 0 || etaFilled > 0 || discFilled > 0 || naArr.length > 0) {
-            setEntriesByCity((prev) => ({ ...prev, [targetCity]: mergedEntries }))
-            setIndriveByCity((prev) => ({ ...prev, [targetCity]: capped }))
-            setEtaByCity((prev) => ({ ...prev, [targetCity]: parsed.etaEntries || {} }))
-            setDiscByCity((prev) => ({ ...prev, [targetCity]: parsed.discEntries || {} }))
-            if (naArr.length) setNaByCity((prev) => ({ ...prev, [targetCity]: new Set(naArr) }))
-            if (typeof parsed.surge === 'boolean')
-              setSurgeByCity((prev) => ({ ...prev, [targetCity]: parsed.surge }))
-            if (parsed.turnoTimings && typeof parsed.turnoTimings === 'object') {
-              setTurnoTimingsByCity((prev) => ({ ...prev, [targetCity]: parsed.turnoTimings }))
-            }
-            // Se FUSIONA con lo que ya haya en memoria —el hub pudo teclear
-            // antes de que termine la hidratación async— y se normaliza:
-            // `normalizarActividad` ordena y fusiona tramos, así que rehidratar
-            // no inventa un hueco donde no lo hubo.
-            if (Array.isArray(parsed.actividad)) {
-              actividadRef.current[targetCity] = normalizarActividad([
-                ...(actividadRef.current[targetCity] || []),
-                ...parsed.actividad,
-              ])
-            }
-            setLastDraftSavedAt(parsed.savedAt || null)
-            borradorSavedAt = parsed.savedAt || null
-            setMsg({
-              type: 'ok',
-              text: t('dataentry.draft_restored', { n: restored + naArr.length }),
-            })
-            draftApplied = true
-            // Borrador con data real restaurado — activar sesión (mismo
-            // motivo que el auto-load de servidor en loadObservationsIntoForm):
-            // sessionActive no sobrevive un refresh de página, así que sin
-            // esto el hub ve su grilla llena pero solo "Iniciar Sesión" en
-            // vez de Guardar/Terminar, como si nunca hubiera empezado nada.
-            // MISMO guard que el auto-load (debeReanudarTramo). La hidratación
-            // del borrador sembraba el cronómetro desde los turnoTimings sin
-            // mirar de qué FECHA eran: reabrir una sesión del historial de
-            // otro día dejaba un borrador con los timings históricos, y la
-            // siguiente hidratación arrancaba el reloj 4 días atrás.
-            // Reproducido en navegador: ⏱ 99:37:59.
-            const reanudaBorrador = debeReanudarTramo({
-              loadDate: date,
-              today: todayStr(),
-              timings: parsed.turnoTimings,
-            })
-            setSessionActive((prev) => {
-              if (prev) return prev
-              sessionStartRef.current = reanudaBorrador
-                ? earliestTurnoStart(parsed.turnoTimings) || Date.now()
-                : Date.now()
-              return true
-            })
-            // Restaurar el alcance declarado (Aeropuerto "Ambos") si el
-            // borrador lo traía persistido (mig 151-plan, ver autosave más
-            // abajo) — si no, cae al comportamiento de siempre (un solo
-            // miembro: esta vista). Solo si todavía no hay alcance en
-            // memoria, para no pisar el de OTRO miembro ya hidratado antes.
-            setPendingScopeMembers((prev) =>
-              prev.length
-                ? prev
-                : Array.isArray(parsed.pendingScopeMembers) && parsed.pendingScopeMembers.length
-                  ? parsed.pendingScopeMembers
-                  : [targetCity]
-            )
-            // Frentes extra (punto 2) — mismo criterio: solo si todavía no
-            // hay nada en memoria, para no perder lo que ya trajo otra vista
-            // hidratada antes en esta misma sesión de navegador.
-            if (Array.isArray(parsed.pendingExtraFronts) && parsed.pendingExtraFronts.length) {
-              setPendingExtraFronts((prev) => (prev.length ? prev : parsed.pendingExtraFronts))
-            }
-            // Contadores de edición vs. guardado — CLAUDE.md §2: si tiene que
-            // sobrevivir un F5, no puede vivir solo en un ref. Nacen vacíos en
-            // cada montaje, y sin restaurarlos un frente YA guardado volvía a
-            // contarse como pendiente después de cada recarga. Verificado en
-            // navegador: tras F5, Trujillo estaba entero en el servidor y el
-            // aviso igual reclamaba 18 celdas sin guardar. Una alarma que
-            // suena cuando no pasa nada enseña a ignorar la que sí importa.
-            if (Number.isFinite(parsed.editSeq)) {
-              editSeqRef.current[targetCity] = parsed.editSeq
-            }
-            if (Number.isFinite(parsed.savedSeq)) {
-              savedSeqRef.current[targetCity] = parsed.savedSeq
-            }
-          }
-        }
-        if (migratedFromLegacy && draftApplied) {
-          try {
-            localStorage.setItem(draftKey, raw)
-            localStorage.removeItem(legacyDraftKey)
-          } catch {
-            /* si falla la migración, el borrador legacy sigue disponible la próxima vez */
-          }
-        }
-      } catch {
-        /* ignore corrupt draft */
-      }
-      // Sin borrador local (nunca hubo, o ya se borró al Terminar/Descartar):
-      // buscar en BD si esta ciudad+fecha ya tiene datos guardados de una
-      // sesión anterior y traerlos solo, para que reabrir normal (sin pasar
-      // por "Historial de sesiones" → Abrir) nunca muestre una grilla vacía
-      // cuando en realidad ya hay datos guardados — confundía al hub, que
-      // creía que se habían perdido (incidente 2026-07-22, Arequipa Aeropuerto).
-      if (!draftApplied) {
-        setPendingLoad({ dbCity, zone, date, auto: true })
-      } else {
-        // Se restauró un borrador, así que NO se va a llamar a
-        // loadObservationsIntoForm — y esa es la única función que lee la
-        // marca de agua del servidor. Sin esto, la marca queda vacía y el
-        // primer guardado da un CONFLICTO FALSO (durabilidad R3).
-        //
-        // A quién castigaba: al hub que MÁS guarda. Después de un apagón o
-        // de cerrar el navegador, el sessionStorage se pierde (ahí vive la
-        // marca) pero el borrador sobrevive en localStorage. Al volver, ese
-        // hub veía "otra pantalla guardó esto" sin que existiera ninguna
-        // otra pantalla.
-        //
-        // La regla es conservadora a propósito: se adopta la marca del
-        // servidor SOLO si su última escritura es MÁS VIEJA que el borrador
-        // local. Si es más nueva, alguien escribió de verdad después y el
-        // conflicto es legítimo — se deja que aparezca.
-        sincronizarMarcaDesdeBorrador(dbCity, zone, date, borradorSavedAt)
-      }
-    }
-    // Marcar hidratado en el siguiente tick para evitar que el effect de save
-    // dispare con el estado vacío inicial antes de que cargue el draft.
-    const id = setTimeout(() => {
-      draftHydratedRef.current = true
-    }, 0)
-    return () => clearTimeout(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftKey])
-
-  // Techo de espera del autosave (SESIONES_HALLAZGOS/durabilidad R1).
-  //
-  // El debounce era TRAILING PURO: cada tecla cancelaba el timer y lo
-  // reprogramaba a 1500 ms. Un hub que teclea con pausas de menos de 1,5s
-  // —o sea, un hub rápido— NUNCA disparaba el autosave. Simulado: 400 celdas
-  // tecleadas cada 1499 ms = CERO escrituras en 10 minutos. El peor caso no
-  // estaba acotado por 1,5s sino por cuánto aguantaba la persona sin pausar,
-  // y ante un apagón se perdía toda esa racha.
-  //
-  // Con el techo, entre la primera tecla pendiente y la escritura nunca pasan
-  // más de 3 segundos, sin perder el debounce en el uso normal.
-  //
-  // Costo: el JSON.stringify del borrador más grande medido son 0,042 ms, y
-  // la grilla YA re-renderiza en cada tecla (setEntry hace setEntriesByCity y
-  // no hay React.memo en src/components/dataentry/ — verificado). Así que esto
-  // no agrega ninguna reconciliación que no esté ocurriendo, y no entra en
-  // conflicto con los fixes P0/P1 de re-render de CLAUDE.md §5.
-  const DEBOUNCE_BORRADOR_MS = 1500
-  const TECHO_BORRADOR_MS = 3000
-  const pendienteDesdeRef = useRef(null)
-
-  useEffect(() => {
-    if (!draftHydratedRef.current) return
-    if (pendienteDesdeRef.current == null) pendienteDesdeRef.current = Date.now()
-    const espera = Math.max(
-      0,
-      Math.min(DEBOUNCE_BORRADOR_MS, TECHO_BORRADOR_MS - (Date.now() - pendienteDesdeRef.current))
-    )
-    const id = setTimeout(() => {
-      pendienteDesdeRef.current = null
-      // Otra pestaña es la dueña del borrador (P1-10): esta NO escribe. Se
-      // relee del storage y no del estado de React porque el lease pudo
-      // cambiar durante el debounce.
-      if (!leaseOwnerRef.current) return
-      // Recién Terminada/Descartada: no reescribir por unos segundos, sin
-      // importar qué diga `entries` en este momento (ver guardia arriba).
-      if (isJustFinished(draftKey)) return
-      try {
-        const hasData =
-          countFilledEntries(entries) > 0 ||
-          countFilledEntries(etaEntries) > 0 ||
-          countFilledEntries(discEntries) > 0 ||
-          hasMeaningfulIndriveExtra(indriveExtra) ||
-          naKeys.size > 0
-        if (hasData) {
-          const savedAt = Date.now()
-          localStorage.setItem(
-            draftKey,
-            JSON.stringify({
-              entries,
-              indriveExtra,
-              etaEntries,
-              discEntries,
-              surge,
-              naKeys: Array.from(naKeys),
-              // Alcance declarado (Aeropuerto "Ambos") — persistido para que
-              // un refresh a mitad del PRIMER punto no lo "olvide" y deje
-              // terminar la sesión entera con uno solo. Ver restauración en
-              // el efecto de hidratación de arriba.
-              pendingScopeMembers,
-              // Frentes extra (Aeropuerto↔TukTuk simultáneo, punto 2) —
-              // mismo motivo que pendingScopeMembers: sobrevivir un refresh
-              // a mitad de trabajo sin perder el aviso de "todavía falta".
-              pendingExtraFronts,
-              turnoTimings,
-              // LA TRAZA DEBE SOBREVIVIR AL F5 — lo dice idleDetection.js en su
-              // cabecera y CLAUDE.md §2. Vivía SOLO en `actividadRef`, que nace
-              // vacío en cada montaje: tras una recarga, `active_minutes` medía
-              // desde el F5 y todo lo trabajado antes se escribía como
-              // `idle_minutes`, con `actividadMedida = true`. O sea marcado
-              // como medición buena.
-              //
-              // Medido: un F5 a las 12:30 de una jornada de 3 h escribía
-              // active=30 / idle=150. Y `activity_trace` —el dato crudo que se
-              // guarda justamente para recalibrar el umbral— viajaba truncado.
-              actividad: actividadRef.current[bucketKey] || [],
-              // Ver la restauración en el efecto de hidratación: sin esto, el
-              // aviso de "sin guardar" daba falso positivo tras cada F5.
-              editSeq: editSeqRef.current[bucketKey] ?? 0,
-              savedSeq: savedSeqRef.current[bucketKey] ?? -1,
-              savedAt,
-            })
-          )
-          setLastDraftSavedAt(savedAt)
-          setStorageFailed(false)
-        } else {
-          localStorage.removeItem(draftKey)
-          setLastDraftSavedAt(null)
-        }
-      } catch {
-        // Ver `storageFailed`: dejar esto mudo es lo que convertía un
-        // navegador sin espacio en una pérdida silenciosa de trabajo.
-        setStorageFailed(true)
-      }
-    }, espera)
-    return () => clearTimeout(id)
-  }, [
+  // Autosave con debounce+techo, flush síncrono al cambiar de ciudad/fecha o
+  // al cerrar la pestaña — extraído a useCiDraftAutosave.js.
+  // `persistirBorrador` no se usa fuera del hook (sus dos únicos llamadores
+  // -el cleanup del efecto y el pagehide/visibilitychange- viven adentro).
+  const { clearDraft } = useCiDraftAutosave({
     entries,
     indriveExtra,
     etaEntries,
@@ -1517,188 +1125,20 @@ export default function DataEntry() {
     surge,
     naKeys,
     draftKey,
+    bucketKey,
     isJustFinished,
     pendingScopeMembers,
     pendingExtraFronts,
     turnoTimings,
-    // `bucketKey` entró a las dependencias al empezar a persistir la traza de
-    // actividad, que se guarda por bucket. Re-disparar el autosave al cambiar
-    // de bucket es correcto: es lo mismo que ya hace `draftKey`.
-    bucketKey,
-  ])
-
-  // Flush SÍNCRONO del borrador al cambiar de ciudad/fecha o al SALIR de la
-  // página (desmontar / navegar). El autosave con debounce podría no haber
-  // disparado sus últimos ~1.5s; sin este flush, cambiar de ciudad y luego
-  // refrescar perdía las últimas celdas de la ciudad vieja. Se capturan la
-  // ciudad y la clave de ESTA corrida; el cleanup lee la rebanada de ESA ciudad
-  // desde perCityRef (que retiene todas las ciudades), así flushea la ciudad
-  // vieja bajo su clave vieja aunque ya se haya cambiado de ciudad.
-  // Persistencia síncrona del borrador. Se usa desde DOS lugares: el cleanup
-  // del efecto (cambio de ciudad/fecha, navegación interna) y el evento
-  // `pagehide` (cerrar pestaña, cerrar navegador, bfcache, móvil).
-  //
-  // `pagehide` es necesario porque React NO corre cleanups de efectos al
-  // descargar la página, y el `beforeunload` de más abajo solo muestra el
-  // diálogo del navegador: no persiste nada. Sin esto, cerrar la pestaña
-  // perdía todo lo tecleado desde la última escritura del autosave
-  // (durabilidad R2). `pagehide` es el único evento confiable para esto —
-  // `beforeunload` no dispara en móvil ni con bfcache.
-  //
-  // NO ayuda en un apagón: ahí no corre ningún evento. Para eso está el techo
-  // del autosave (R1, arriba).
-  const persistirBorrador = useCallback(
-    (flushCity, flushKey) => {
-      // Corre desde pagehide/visibilitychange y desde el cleanup del efecto:
-      // clausuras que pueden tener un valor viejo. Por eso se lee el ref, que
-      // siempre tiene la verdad del último render.
-      if (!leaseOwnerRef.current) return
-      if (isJustFinished(flushKey)) return
-      try {
-        const m = perCityRef.current
-        const ent = m.entriesByCity[flushCity] || EMPTY_OBJ
-        const ind = m.indriveByCity[flushCity] || EMPTY_OBJ
-        const eta = m.etaByCity[flushCity] || EMPTY_OBJ
-        const disc = m.discByCity[flushCity] || EMPTY_OBJ
-        const na = m.naByCity[flushCity] || EMPTY_SET
-        const hasData =
-          countFilledEntries(ent) > 0 ||
-          countFilledEntries(eta) > 0 ||
-          countFilledEntries(disc) > 0 ||
-          hasMeaningfulIndriveExtra(ind) ||
-          na.size > 0
-        if (hasData) {
-          // Se MERGEA sobre lo que el autosave ya escribió, en vez de
-          // reemplazarlo.
-          //
-          // Bug real (causa del "el contador se les reinicia", 2026-08-01):
-          // este flush escribía un objeto NUEVO de 7 campos y pisaba los 10
-          // del autosave — y como el cleanup del autosave cancela su timer
-          // pendiente, esta era siempre la última escritura de la clave. Se
-          // perdían tres campos, en orden de gravedad:
-          //   · `turnoTimings` → al rehidratar, `earliestTurnoStart` devolvía
-          //     null y `sessionStartRef` caía a Date.now(): cronómetro en
-          //     00:00. Es el bug histórico #2 de sessionStartRef reintroducido
-          //     por otro camino (CLAUDE.md §2).
-          //   · `pendingScopeMembers` → un Aeropuerto con alcance "Ambos"
-          //     volvía a alcance de un solo punto: el hub terminaba en A y la
-          //     sesión cerraba como final SIN avisar que faltaba B, que
-          //     quedaba sin medir y sin que nadie se enterara.
-          //   · `pendingExtraFronts` → mismo problema con frentes simultáneos.
-          //
-          // Mergear en vez de enumerar campos hace que esto no se pueda
-          // volver a romper: si mañana el autosave persiste un campo nuevo,
-          // este flush lo conserva sin necesidad de conocerlo.
-          let previo = {}
-          try {
-            previo = JSON.parse(localStorage.getItem(flushKey) || '{}') || {}
-          } catch {
-            previo = {}
-          }
-          localStorage.setItem(
-            flushKey,
-            JSON.stringify({
-              ...previo,
-              entries: ent,
-              indriveExtra: ind,
-              etaEntries: eta,
-              discEntries: disc,
-              surge: m.surgeByCity[flushCity] ?? false,
-              naKeys: Array.from(na),
-              // El flush cubre los ≤3 s entre el último autosave y el
-              // pagehide: sin la traza acá, ese tramo final se perdía igual.
-              actividad: actividadRef.current[flushCity] || previo.actividad || [],
-              editSeq: editSeqRef.current[flushCity] ?? previo.editSeq ?? 0,
-              savedSeq: savedSeqRef.current[flushCity] ?? previo.savedSeq ?? -1,
-              savedAt: Date.now(),
-            })
-          )
-        }
-      } catch {
-        setStorageFailed(true)
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isJustFinished]
-  )
-
-  useEffect(() => {
-    const flushCity = bucketKey
-    const flushKey = draftKey
-    return () => persistirBorrador(flushCity, flushKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftKey])
-
-  // Cierre de pestaña / navegador / bfcache. Se lee el bucket y la clave de un
-  // ref para que el listener no se re-suscriba en cada cambio de ciudad.
-  const flushScopeRef = useRef({ bucketKey, draftKey })
-  flushScopeRef.current = { bucketKey, draftKey }
-  useEffect(() => {
-    const onPageHide = () => {
-      const f = flushScopeRef.current
-      persistirBorrador(f.bucketKey, f.draftKey)
-      // Al cerrar/recargar, el candado se marca OCIOSO en vez de borrarse.
-      //
-      // React no corre cleanups al descargar, así que sin esto cerrar la
-      // pestaña dejaba el candado tomado hasta el TTL: el hub reabría y se
-      // encontraba en modo lectura dos minutos y medio, sin ninguna otra
-      // pestaña abierta.
-      //
-      // Pero BORRARLO tampoco sirve, y lo verifiqué en navegador: un F5 le
-      // entregaba el candado a la otra pestaña, aunque la que recarga sea la
-      // que tiene el trabajo. Marcarlo ocioso resuelve los dos casos —
-      // `evaluateLease` deja reclamar un candado ocioso a quien SÍ tiene
-      // trabajo, y el dueño original lo recupera solo al volver porque
-      // conserva su SESSION_ID (sessionStorage sobrevive el F5).
-      try {
-        const lk = leaseKey(f.draftKey)
-        if (ownsLease(localStorage.getItem(lk), SESSION_ID)) {
-          localStorage.setItem(
-            lk,
-            serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: false })
-          )
-        }
-      } catch {
-        /* sin storage no hay candado que marcar */
-      }
-    }
-    window.addEventListener('pagehide', onPageHide)
-    // `visibilitychange` cubre el caso de cerrar la tapa de la laptop o pasar
-    // la app a segundo plano en un celular, donde `pagehide` puede no llegar.
-    // `visibilitychange` cubre la DURABILIDAD (tapa de la laptop, app a segundo
-    // plano en el celular, donde `pagehide` puede no llegar): solo persiste el
-    // borrador. NO marca el candado como ocioso.
-    //
-    // POR QUÉ NO. Cambiar de pestaña no es cerrar la pestaña: esta sigue siendo
-    // la que tiene el trabajo. Marcarla ociosa le entregaba el candado a la
-    // otra, y como no hay handler de `visible`, al volver NO se recuperaba —
-    // quedaba en solo lectura, sin autosave ni flush, mientras el hub seguía
-    // tecleando. Todo lo escrito desde ese momento se perdía en el próximo F5.
-    //
-    // Y basta un alt-tab al simulador del competidor, que es el flujo NORMAL de
-    // carga: la otra pestaña de la app ya estaba oculta, nunca vuelve a
-    // disparar `hidden`, y su candado queda vivo para siempre.
-    //
-    // Si la pestaña muere de verdad sin `pagehide`, el candado vence solo por
-    // TTL — que es exactamente para lo que existe el TTL.
-    const onHidden = () => {
-      if (document.visibilityState === 'hidden') {
-        const f = flushScopeRef.current
-        persistirBorrador(f.bucketKey, f.draftKey)
-      }
-    }
-    document.addEventListener('visibilitychange', onHidden)
-    return () => {
-      window.removeEventListener('pagehide', onPageHide)
-      document.removeEventListener('visibilitychange', onHidden)
-    }
-  }, [persistirBorrador])
-
-  const clearDraft = useCallback(() => {
-    try {
-      localStorage.removeItem(draftKey)
-    } catch {}
-  }, [draftKey])
+    draftHydratedRef,
+    leaseOwnerRef,
+    perCityRef,
+    actividadRef,
+    editSeqRef,
+    savedSeqRef,
+    setLastDraftSavedAt,
+    setStorageFailed,
+  })
 
   // ── Aviso del navegador si hay cambios sin guardar ─────
   // Considera TODAS las ciudades en memoria (no solo la activa): con el estado
@@ -1822,139 +1262,35 @@ export default function DataEntry() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, draftKey, draftScanTick])
 
-  function resumeDraft(d) {
-    // Bug real (revisión adversarial 2026-07-23): reanudar OTRO borrador
-    // FUERA del alcance "Ambos" declarado (2+ miembros pendientes) pisaba
-    // `pendingScopeMembers`/`uiCity` sin que el punto abandonado quedara
-    // nunca marcado como terminado — la sesión original no volvía a poder
-    // cerrarse bien. Reanudar un borrador que SÍ es parte del alcance
-    // actual (ej. el otro punto declarado) sigue permitido sin más.
-    const targetUi = d.resume?.uiCity ?? d.city
-    // El alcance vive en espacio bucketKey (ver `resolvedStartMembers`).
-    const targetBucket = d.bucketKey || targetUi
-    // Ya NO hay guard acá: el bloqueo original existía porque reanudar
-    // PISABA el alcance y dejaba los frentes declarados huérfanos. Ahora se
-    // fusiona (ver abajo), así que reanudar es seguro — y mantenerlo era
-    // incoherente con las pestañas, que desde el pedido 2b van libres: el hub
-    // podía pararse en Corp pero no reanudar el borrador de Corp.
-    // Reanudar es una señal explícita de "seguir trabajando" — activar la
-    // sesión ya mismo (mismo criterio que "Abrir" del historial), no esperar
-    // a que la hidratación async lo detecte sola.
-    if (!sessionActive) {
-      // Idem: reanudar un borrador de OTRA fecha, o de una jornada ya
-      // cerrada, arranca un tramo nuevo en vez de heredar el reloj.
-      sessionStartRef.current = debeReanudarTramo({
-        loadDate: d.date,
-        today: todayStr(),
-        timings: d.turnoTimings,
-      })
-        ? earliestTurnoStart(d.turnoTimings) || Date.now()
-        : Date.now()
-      setSessionActive(true)
-    }
-    if (d.resume?.tukTuk) {
-      setUiCity(d.resume.uiCity)
-      setActiveTukTuk(d.resume.zone)
-      setActiveSpecialCat(null)
-    } else if (d.resume?.specialCat) {
-      setUiCity(d.resume.uiCity)
-      setActiveTukTuk(null)
-      setActiveSpecialCat(d.resume.specialCat)
-    } else {
-      setUiCity(d.resume?.uiCity ?? d.city)
-      setActiveTukTuk(null)
-      setActiveSpecialCat(null)
-    }
-    setDate(d.date)
-    setMsg(null)
-    // Reanudar un borrador de-alcance-único (no relanza un "Ambos" — se puede
-    // ampliar a mano con "+ agregar Punto B" si hace falta). Si el borrador
-    // reanudado YA era parte del alcance "Ambos" actual (guard de arriba), no
-    // hay que achicar `pendingScopeMembers` a un solo miembro — el otro
-    // punto declarado sigue pendiente.
-    // FUSIONAR, nunca pisar (bug real, revisión adversarial 2026-07-24):
-    // reemplazar el alcance borraba los frentes declarados que seguían a medias
-    // (ej. Punto A+B) sin registrarlos en ningún lado — "Terminar Sesión"
-    // después cerraba la sesión como final y ese trabajo quedaba abandonado sin
-    // aviso. Sumar es siempre seguro: de más, obliga a cerrar algo que el hub
-    // igual tenía a medias.
-    setPendingScopeMembers((prev) => (prev.includes(targetBucket) ? prev : [...prev, targetBucket]))
-  }
-
-  function discardDraft(d) {
-    try {
-      localStorage.removeItem(d.key)
-    } catch {
-      /* ignore */
-    }
-    markJustFinished(d.key)
-    setActiveDrafts((prev) => prev.filter((x) => x.key !== d.key))
-    setDraftScanTick((tk) => tk + 1)
-    // Bug real (revisión adversarial 2026-07-23): descartar el borrador de
-    // un punto declarado en un alcance "Ambos" (ej. abandonar Punto A
-    // mientras se sigue con Punto B) no lo sacaba de `pendingScopeMembers`
-    // — al terminar el punto que SÍ se completó, `remainingAfterThis` nunca
-    // vaciaba (el descartado seguía "pendiente" para siempre) y la sesión
-    // jamás cerraba, además de reenviar al hub a rellenar desde cero un
-    // punto que él mismo acababa de vaciar. Descartar equivale a decidir
-    // que ese punto ya no forma parte de esta sesión.
-    // El alcance vive en espacio bucketKey (`resolvedStartMembers`), NO en
-    // uiCity. En TukTuk el uiCity es la ciudad BASE ('Lima') mientras el
-    // alcance es 'TT~Lima~Comas'; y en Colombia el uiCity es 'Bogotá' con
-    // dbName 'Bogota'. Filtrando por uiCity el miembro nunca salía del alcance:
-    // `isFinalInScope` no se cumplía NUNCA, el botón decía "Terminar punto"
-    // para siempre, el latido no se borraba y el hub quedaba "en vivo" en
-    // Monitoreo indefinidamente. La única salida era rellenar de cero la grilla
-    // que acababa de descartar.
-    //
-    // Aeropuerto no lo sufría porque ahí uiName === dbName en las configs
-    // sembradas — por eso el fix de 2026-07-23 pareció completo.
-    //
-    // Las dos líneas de abajo YA usaban d.bucketKey: la asimetría delataba el
-    // olvido.
-    const discardedScope = d.bucketKey ?? d.resume?.uiCity ?? d.city
-    setPendingScopeMembers((prev) =>
-      prev.includes(discardedScope) ? prev.filter((m) => m !== discardedScope) : prev
-    )
-    // Mismo criterio para un frente extra (punto 2) descartado: ya no debe
-    // seguir bloqueando "Terminar Sesión" en las demás vistas.
-    if (d.bucketKey) {
-      setPendingExtraFronts((prev) =>
-        prev.includes(d.bucketKey) ? prev.filter((bk) => bk !== d.bucketKey) : prev
-      )
-      // Igual que en handleFinishSession: si sigue "tocado", el efecto de
-      // registro lo vuelve a agregar y el frente descartado revive.
-      setTouchedFronts((prev) => prev.filter((bk) => bk !== d.bucketKey))
-    }
-    // Si el borrador descartado es de la FECHA/contexto actual, su rebanada
-    // puede seguir viva en memoria (y la ciudad marcada como hidratada). Sin
-    // limpiarla, volver a esa pestaña mostraría los datos "descartados" y el
-    // autosave/flush los reescribiría → el borrador resucita (mismo problema que
-    // el fix de Terminar Sesión). Si es de OTRA fecha, no hay rebanada en memoria
-    // (se limpian al cambiar de fecha): alcanza con borrar la clave.
-    if (d.date !== date) return
-    const dc = d.bucketKey // rebanada en memoria = bucketKey (por-distrito en TukTuk)
-    if (!dc) return
-    const dropCity = (setter) =>
-      setter((prev) => {
-        if (!(dc in prev)) return prev
-        const n = { ...prev }
-        delete n[dc]
-        return n
-      })
-    dropCity(setEntriesByCity)
-    dropCity(setIndriveByCity)
-    dropCity(setEtaByCity)
-    dropCity(setDiscByCity)
-    dropCity(setNaByCity)
-    dropCity(setSurgeByCity)
-    dropCity(setErrorKeysByCity)
-    dropCity(setLoadedCombosByCity)
-    dropCity(setTurnoTimingsByCity)
-    // Re-permitir hidratar esa ciudad: al volver, re-lee localStorage (ya vacío)
-    // y muestra la grilla limpia en vez de la rebanada en memoria vieja.
-    hydratedCitiesRef.current.delete(dc)
-  }
+  // Reanudar/descartar un borrador del panel "otros borradores" — extraído
+  // a useCiDraftManagement.js.
+  const { resumeDraft, discardDraft } = useCiDraftManagement({
+    date,
+    sessionActive,
+    sessionStartRef,
+    setSessionActive,
+    setUiCity,
+    setActiveTukTuk,
+    setActiveSpecialCat,
+    setDate,
+    setMsg,
+    setPendingScopeMembers,
+    setPendingExtraFronts,
+    setTouchedFronts,
+    markJustFinished,
+    setActiveDrafts,
+    setDraftScanTick,
+    setEntriesByCity,
+    setIndriveByCity,
+    setEtaByCity,
+    setDiscByCity,
+    setNaByCity,
+    setSurgeByCity,
+    setErrorKeysByCity,
+    setLoadedCombosByCity,
+    setTurnoTimingsByCity,
+    hydratedCitiesRef,
+  })
 
   // Rutas de la vista activa. En TukTuk, solo las de ESE distrito (zone). En el
   // resto, todas las de la ciudad — la Lima normal ya excluye 'TukTuk' de
@@ -2287,191 +1623,18 @@ export default function DataEntry() {
     dbConfigs,
   ])
 
-  // `engaged` = esta pestaña tiene trabajo de verdad. Una pestaña abierta solo
-  // para mirar no puede bloquear a la pestaña donde el hub va a trabajar.
-  const leaseEngaged = sessionActive || filledCount > 0
-
-  // "Usar esta pestaña": el hub reclama el candado a mano (la otra pestaña
-  // se degrada sola por el evento `storage`, así que nunca escriben las dos).
-  // Es la salida para el caso más común — la otra pestaña ya está cerrada y
-  // el lease todavía no venció — sin obligar a recargar.
-  const claimDraftLease = useCallback(() => {
-    const lKey = leaseKey(draftKey)
-    try {
-      localStorage.setItem(
-        lKey,
-        serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: leaseEngaged })
-      )
-      setLeaseOwner(ownsLease(localStorage.getItem(lKey), SESSION_ID))
-    } catch {
-      setLeaseOwner(true)
-    }
-    setMsg(null)
-  }, [draftKey, leaseEngaged])
-  useEffect(() => {
-    const lKey = leaseKey(draftKey)
-    let vivo = true
-
-    const tick = () => {
-      if (!vivo) return
-      let raw = null
-      try {
-        raw = localStorage.getItem(lKey)
-      } catch {
-        // Sin localStorage no hay candado posible. Se sigue como dueño: el
-        // guard de servidor (mig 191) es el backstop, y degradar acá dejaría
-        // a una pestaña única sin autosave — una forma NUEVA de perder datos.
-        setLeaseOwner(true)
-        return
-      }
-
-      const { action } = evaluateLease({
-        raw,
-        mySid: SESSION_ID,
-        now: Date.now(),
-        myEngaged: leaseEngaged,
-      })
-      if (action === 'demote') {
-        setLeaseOwner(false)
-        return
-      }
-      try {
-        localStorage.setItem(
-          lKey,
-          serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: leaseEngaged })
-        )
-        // RELECTURA obligatoria: dos pestañas restauradas en el mismo tick por
-        // el crash-recovery de Chrome leen la clave vacía las dos y escriben
-        // las dos. Sin releer, ambas se creen dueñas y el bug vuelve entero.
-        setLeaseOwner(ownsLease(localStorage.getItem(lKey), SESSION_ID))
-      } catch {
-        setLeaseOwner(true)
-      }
-    }
-
-    tick()
-    const id = setInterval(tick, LEASE_RENEW_MS)
-
-    // Otra pestaña escribió el lease: reaccionar YA. Sin esto la degradación
-    // tarda hasta 30s, y en esa ventana las dos escriben el borrador.
-    const onStorage = (e) => {
-      if (e.key === lKey) tick()
-    }
-    window.addEventListener('storage', onStorage)
-    // Liberar SOLO si es mío: nunca borrar el lease de otra pestaña.
-    const release = () => {
-      try {
-        if (ownsLease(localStorage.getItem(lKey), SESSION_ID)) localStorage.removeItem(lKey)
-      } catch {
-        /* sin storage no hay nada que liberar */
-      }
-    }
-    // F5 / cerrar pestaña NO corren el cleanup del efecto: el lease de la
-    // pestaña vieja quedaba vivo 150s y la misma pestaña recargada (SID
-    // nuevo) se veía a sí misma como "otra" y arrancaba en modo lectura
-    // (feedback user 2026-09-07). `pagehide` sí corre en ambos casos.
-    window.addEventListener('pagehide', release)
-
-    return () => {
-      vivo = false
-      clearInterval(id)
-      window.removeEventListener('storage', onStorage)
-      window.removeEventListener('pagehide', release)
-      release()
-    }
-  }, [draftKey, leaseEngaged])
-
-  // ── Lease del LATIDO, global por hub ──────────────────────────────────
-  // El lease de arriba protege el BORRADOR y su alcance —(usuario, país,
-  // vista, fecha)— es el correcto para eso. El latido escribe otra cosa:
-  // `ci_active_sessions`, con PK `user_email`, UNA fila por hub. Dos pestañas
-  // en frentes distintos son dueñas cada una de su borrador, las dos pasan el
-  // guard de arriba, y las dos laten sobre esa única fila: se pisan el bucket
-  // y corrompen `started_at`. Y es el caso MÁS probable, no el raro — el hub
-  // abre la segunda pestaña justamente porque está en otro frente.
-  //
-  // Recurso distinto, alcance distinto. Ver `heartbeatLeaseKey` para por qué
-  // esto se disputa SOLO entre pestañas que ya son dueñas de su borrador (si
-  // no, hay un empate en el que nadie late y el hub desaparece de "en vivo").
-  const [hbLeaseOwner, setHbLeaseOwner] = useState(true)
-  const hbLeaseOwnerRef = useRef(true)
-  hbLeaseOwnerRef.current = hbLeaseOwner
-
-  useEffect(() => {
-    const hbKey = heartbeatLeaseKey(userEmail)
-    // Sin email todavía no hay a quién atribuirle el latido; `sendHeartbeat`
-    // igual no manda nada sin `sessionActive`.
-    if (!hbKey) return
-    // No soy dueño de mi propio borrador: no compito por el latido. Es la
-    // precondición que evita el empate en el que nadie late.
-    if (!leaseOwner) {
-      setHbLeaseOwner(false)
-      return
-    }
-
-    let vivo = true
-    const tick = () => {
-      if (!vivo) return
-      let raw = null
-      try {
-        raw = localStorage.getItem(hbKey)
-      } catch {
-        // Mismo criterio que el lease de borrador: sin localStorage no hay
-        // candado posible, y degradar dejaría al hub sin latido — o sea,
-        // invisible en Monitoreo. Se sigue como dueño.
-        setHbLeaseOwner(true)
-        return
-      }
-
-      const { action } = evaluateLease({
-        raw,
-        mySid: SESSION_ID,
-        now: Date.now(),
-        // Para el latido, "engaged" es tener la sesión activa: una pestaña sin
-        // sesión no tiene nada que reportar y le cede el turno a la que sí.
-        myEngaged: sessionActive,
-      })
-      if (action === 'demote') {
-        setHbLeaseOwner(false)
-        return
-      }
-      try {
-        localStorage.setItem(
-          hbKey,
-          serializeLease({ sid: SESSION_ID, now: Date.now(), engaged: sessionActive })
-        )
-        // Misma relectura obligatoria que arriba: dos pestañas restauradas en
-        // el mismo tick leen la clave vacía las dos y escriben las dos.
-        setHbLeaseOwner(ownsLease(localStorage.getItem(hbKey), SESSION_ID))
-      } catch {
-        setHbLeaseOwner(true)
-      }
-    }
-
-    tick()
-    const id = setInterval(tick, LEASE_RENEW_MS)
-    const onStorage = (e) => {
-      if (e.key === hbKey) tick()
-    }
-    window.addEventListener('storage', onStorage)
-
-    const release = () => {
-      try {
-        if (ownsLease(localStorage.getItem(hbKey), SESSION_ID)) localStorage.removeItem(hbKey)
-      } catch {
-        /* sin storage no hay nada que liberar */
-      }
-    }
-    window.addEventListener('pagehide', release)
-
-    return () => {
-      vivo = false
-      clearInterval(id)
-      window.removeEventListener('storage', onStorage)
-      window.removeEventListener('pagehide', release)
-      release()
-    }
-  }, [userEmail, leaseOwner, sessionActive])
+  // Efectos de los dos candados (tick, storage, pagehide) — extraídos a
+  // useCiTabLease.js. `claimDraftLease` es "Usar esta pestaña" del aviso de
+  // pestaña duplicada.
+  const claimDraftLease = useCiTabLeaseEffects({
+    draftKey,
+    userEmail,
+    sessionActive,
+    filledCount,
+    leaseOwner,
+    setLeaseOwner,
+    setHbLeaseOwner,
+  })
 
   // Progreso POR TURNO (Mañana/Tarde/Noche) — para el header colapsable de
   // cada TurnoSection. Mismo criterio que filledCount/countAllFilled de
@@ -2601,879 +1764,52 @@ export default function DataEntry() {
     return { hasPartial, hasEmpty, errorCount: newErrors.size }
   }
 
-  // ── Save shared logic ──────────────────────────────────
-  // `isFinalInScope` (default true): en un "Terminar Sesión" de Aeropuerto con
-  // alcance "Ambos", el PRIMER punto se guarda con isFinish=true pero
-  // isFinalInScope=false — cierra ESE punto (fila en ci_sessions, borrador
-  // limpio) sin apagar la sesión/cronómetro todavía, porque queda el otro
-  // punto pendiente. Para todo lo demás (Guardar Progreso, o un Terminar de
-  // alcance único — el 99% de los casos) el valor por defecto reproduce el
-  // comportamiento de siempre.
-  async function performSave(
-    rowsToInsert,
-    isFinish = false,
-    isFinalInScope = true,
-    forceOverwrite = false
-  ) {
-    // Distrito de TukTuk bloqueado (ver pill en el render, de-airport-subtab--
-    // locked): ese guard solo cubre el click para ENTRAR al distrito — resumir
-    // un borrador local o reabrir una sesión del historial navega directo a
-    // `activeTukTuk` sin pasar por ahí, así que hace falta el mismo chequeo acá,
-    // en el único punto por el que pasa TODO guardado, para bloquear de verdad
-    // escribir data NUEVA en un distrito bloqueado sin importar cómo se llegó.
-    if (isTukTuk && zone && !isTukTukDistrictEnabled(zone)) {
-      notify('err', 'dataentry.err_tuktuk_district_locked')
-      return false
-    }
-    setSaving(true)
-    setMsg(null)
-
-    // Hora REAL de captura (mig 148): una sola marca por click de Guardar
-    // Progreso/Terminar, aplicada a TODAS las filas de este guardado — no
-    // por celda individual (el hub puede tipear varios minutos antes de
-    // guardar; trackear por celda sería mucho más invasivo para un
-    // beneficio marginal). `timeslot` (buildInsertPayload) es quien sigue
-    // identificando a qué turno pertenece cada fila.
-    const capturedTime = new Date().toTimeString().slice(0, 5)
-
-    // Descriptores de RUTA EXACTA a limpiar (dbCat, franja, bracket, point_a,
-    // point_b, zone) — nunca por categoría/franja completa: varias rutas
-    // comparten categoría+bracket y difieren solo en los puntos (TukTuk por
-    // distrito), y un borrado más amplio se llevaba puesta una ruta hermana a
-    // medias (CLAUDE.md §2). `timeslot` es la ETIQUETA estable del turno (mig
-    // 148), no la hora real de captura. Solo al TERMINAR se suman las rutas
-    // cargadas del historial (loadedCombos) para borrar las que el hub vació
-    // tras reabrir; "Guardar progreso" nunca borra lo que no re-guarda.
-    // Implementación en src/lib/dataEntry/rows.js.
-    const routeDels = collectRouteDeletes(rowsToInsert, {
-      isFinish,
-      loadedCombos,
-      resolveDbCategory,
-    })
-
-    // DELETE + INSERT en UNA transacción del servidor (migs 182/186).
-    //
-    // Antes esto eran N DELETEs en paralelo y después INSERTs en lotes de 200.
-    // Los dos pasos chequeaban su error, pero NO eran atómicos: si fallaba el
-    // lote 2 de 3, las filas ya estaban borradas y solo se había reinsertado
-    // una parte — la ruta quedaba a medias en la BD. Estaba mitigado (el
-    // borrador local sobrevive y reintentar arregla), pero si el hub cerraba la
-    // laptop en vez de reintentar, esos datos se perdían y nadie se enteraba.
-    //
-    // El cuerpo de una función plpgsql corre en una sola transacción: si el
-    // INSERT falla, el DELETE se revierte solo. Verificado en local — ver el
-    // bloque de pruebas de la mig 186.
-    //
-    // La función es SECURITY INVOKER, así que las políticas RLS de
-    // pricing_observations siguen aplicando igual que con el acceso directo.
-    //
-    // Los competidores VISIBLES se siguen calculando ACÁ, no en SQL: dependen
-    // de la config del cliente (getCiCompetitors/ciHidden), y duplicar esa
-    // lógica en la base sería exactamente el tipo de divergencia que ya causó
-    // problemas con la normalización (CLAUDE.md §4). Un competidor marcado
-    // "no ofrece" conserva su histórico: si no está visible, no entra en el
-    // acote y por lo tanto no se borra.
-    const routesPayload = buildRoutesPayload(routeDels, {
-      competitorsFor: (uiCat) => getCiCompetitors(uiCity, uiCat, null, country, dbConfigs),
-      dbCity,
-    })
-
-    const payloads = rowsToInsert.map((r) => buildInsertPayload(r, capturedTime))
-    // Se captura el contador de ediciones ACÁ, junto con el payload — no
-    // después del await. Un guardado de 324 celdas tarda segundos, y todo lo
-    // que el hub teclee mientras viaja NO está en este payload: sellarlo al
-    // volver lo marcaría como guardado siendo mentira.
-    const seqEnviado = editSeqRef.current[bucketKey] ?? 0
-
-    const { data: saveRes, error: saveErr } = await saveCiBatch({
-      country,
-      dbCity,
-      date,
-      // La zona CONSTANTE de la vista (el distrito activo en TukTuk, null en el
-      // resto) — NUNCA la de la fila individual. Hay ~76k filas manuales con
-      // zona no-null fuera de TukTuk (Aeropuerto por Excel) que un borrado sin
-      // este acote se llevaba puestas en silencio.
-      zone: zone ?? null,
-      // Sin email se cae a solo-las-sin-dueño, nunca a un borrado sin predicado
-      // de dueño (mig 139).
-      userEmail,
-      routes: routesPayload,
-      rows: payloads,
-      // Guard de concurrencia (mig 191): identidad de ESTA pestaña + la marca
-      // de agua con la que se sincronizó. Si otra pestaña —u otro
-      // dispositivo con la misma cuenta— escribió este bucket después, el
-      // servidor aborta el guardado ENTERO en vez de borrar sus filas.
-      sessionId: SESSION_ID,
-      expectedSeq: readSyncSeq(),
-      force: forceOverwrite === true,
-    })
-    if (saveErr) {
-      // 55006 = otra pestaña/dispositivo escribió este bucket. El servidor NO
-      // borró ni insertó nada: la data de la otra sigue intacta.
-      if (saveErr.code === '55006') {
-        setSaveConflict({ at: saveErr.details || null, isFinish })
-        notify('err', 'dataentry.err_save_conflict', null, { emphasize: true })
-        setSaving(false)
-        // NO se marca guardado, NO se limpia el borrador, NO se inserta en
-        // ci_sessions y NO se borra el latido: el hub no perdió nada.
-        return false
-      }
-      // Mensaje ACCIONABLE para el hub (no el .message crudo de Postgres —
-      // jerga técnica tipo "duplicate key value violates..." no le dice qué
-      // hacer). El detalle técnico va a consola para diagnóstico nuestro.
-      console.error('[performSave] save_ci_batch error:', saveErr)
-      notify('err', 'dataentry.err_save_failed')
-      setSaving(false)
-      return false
-    }
-    if (saveRes && Number.isFinite(Number(saveRes.seq))) writeSyncSeq(Number(saveRes.seq))
-    setSaveConflict(null)
-    setEarlyConflictHint(null)
-    // Guardado confirmado en servidor de verdad (no solo local) — ver
-    // indicador en el header.
-    setLastSaveOkAt(Date.now())
-    // Sella SOLO lo que viajó en este payload, y solo para este bucket.
-    savedSeqRef.current[bucketKey] = seqEnviado
-
-    if (isFinish) {
-      const now = new Date()
-      // La duración YA NO sale del cronómetro de reloj de pared.
-      //
-      // `sessionStartRef` se pisa con `Date.now()` en cinco lugares (cerrar
-      // el Punto A de "Ambos", abrir una sesión del historial, cambiar de
-      // fecha, y las dos siembras que caen al fallback), y cada uno producía
-      // una duración falsa. El caso que reportó el user: el hub llena
-      // Aeropuerto A y B en la misma sentada y cierra los dos seguidos —
-      // entre un Terminar y el otro pasan SEGUNDOS, así que B (una hora de
-      // trabajo) se guardaba como 0.1 min.
-      //
-      // Ahora se deriva de `turnoTimings`, que mide el trabajo real por turno
-      // y sobrevive al F5. Ver src/lib/sessionDuration.js para el porqué
-      // completo y scripts/test-session-duration.mjs para las simulaciones.
-      // `sessionStartRef` queda solo como último recurso (sesión sin una sola
-      // celda llena), y en ese caso la duración se marca no confiable.
-      const medicion = duracionDeSesion({
-        turnoTimings,
-        inicioReloj: sessionStartRef.current,
-        fin: now,
-      })
-      // `minutos: null` = no se pudo saber. Se persiste null a propósito en
-      // vez de un 0: un 0 entra en cualquier promedio y hace creer que el
-      // corte fue instantáneo — es exactamente el dato que rompía la métrica.
-      const dur = medicion.minutos
-      // El inicio guardado es el del PRIMER trabajo real, no el del reloj:
-      // así `started_at`/`ended_at` describen la ventana de trabajo del
-      // bucket que cierra, no la de la pestaña.
-      const start = medicion.inicio ?? sessionStartRef.current ?? now.getTime()
-
-      // Cuánto de esa ventana fue TRABAJO (P1-6). NO reemplaza a `medicion`:
-      // el techo de 4h sigue mandando en `duration_minutes` para no cambiarle
-      // el significado a una columna que ya tiene histórico y dashboards
-      // encima (CLAUDE.md §4). Los minutos activos van en columnas propias.
-      const actividad = duracionActiva({
-        turnoTimings,
-        actividad: actividadRef.current[bucketKey] || [],
-        fin: now,
-      })
-
-      // Clave de idempotencia del cierre (P2-11, mig 197). Se genera UNA vez
-      // por intento y se reusa en cada reintento — incluso después de un F5,
-      // porque vive en localStorage. Así, un INSERT que el servidor ya
-      // ejecutó y cuya respuesta se perdió NO se duplica. Un cierre nuevo
-      // (reabrir para corregir) trae token nuevo y sí inserta: ese rastro de
-      // revisiones es deliberado.
-      const cierre = tokenDeCierre({ userEmail, bucketKey, fecha: date })
-
-      const { error: sessErr } = await closeCiSession(cierre.token, {
-        country,
-        city: dbCity,
-        // Distrito TukTuk (null en el resto) → el historial distingue "Lima
-        // TukTuk · Comas" de "Lima TukTuk · SJM" aunque ambas guarden city='Lima'.
-        zone,
-        observed_date: date,
-        user_email: userEmail,
-        started_at: new Date(start).toISOString(),
-        ended_at: now.toISOString(),
-        duration_minutes: dur,
-        // La marca de confianza (mig 195). `duracionDeSesion` YA la calculaba
-        // y se tiraba a la basura al escribir la fila: un número capado por el
-        // techo de 4h entraba a la base indistinguible de uno exacto, y
-        // cualquier promedio los mezclaba. Con esto, el dashboard puede
-        // promediar SOLO lo confiable y el resto queda auditable en vez de
-        // silenciosamente mal.
-        duration_confiable: medicion.confiable,
-        duration_motivo: medicion.motivo,
-        rows_saved: payloads.length,
-        // Mismo valor que ya manda el heartbeat en vivo (mig 146) — persistido
-        // para que Monitoreo pueda mostrar "filas guardadas / disponibles"
-        // (mig 155) sin tener que recalcularlo del lado del servidor.
-        total_expected: totalExpected,
-        // Timestamps de inicio/fin por turno (pedido user 2026-07-24) — mismo
-        // criterio: persistido acá para que sobreviva al DELETE del latido de
-        // ci_active_sessions al cerrar. Solo se guardan los turnos con AMBOS
-        // timestamps del turno actual (isFinalInScope puede cerrar solo un
-        // punto de "Ambos"; los turnos de otro miembro del alcance viven en
-        // SU PROPIO bucketKey/sesión, no se mezclan acá).
-        turno_timings: turnoTimings,
-        // NULL explícito cuando no hubo traza utilizable: "no lo pude
-        // medir" y "no trabajó" no son lo mismo, y un 0 se promedia.
-        active_minutes: actividad.actividadMedida ? actividad.minutos : null,
-        idle_minutes: actividad.actividadMedida ? actividad.descontados : null,
-        // La traza cruda se guarda para poder RECALIBRAR el umbral de 5 min
-        // contra datos reales dentro de unas semanas, sin haber perdido el
-        // detalle. Hoy es una hipótesis fundada, no una medición.
-        activity_trace: actividad.actividadMedida ? actividadRef.current[bucketKey] || [] : null,
-      })
-      // supabase-js NO lanza excepción cuando un insert falla: devuelve
-      // { error }. Sin este chequeo, un fallo (RLS, red, timeout) seguía de
-      // largo y el hub veía "Sesión terminada" con el borrador ya limpiado,
-      // mientras la sesión NUNCA aparecía en Monitoreo ni en el Historial.
-      // Fallo silencioso en el flujo más crítico del proyecto — justo la
-      // clase de bug que documenta CLAUDE.md §2.
-      //
-      // Importante para el mensaje: los PRECIOS ya están guardados a esta
-      // altura (el insert a pricing_observations de arriba sí chequea error y
-      // aborta). Lo que falló es el REGISTRO de la sesión. Por eso no se
-      // avisa "no se guardó nada" —sería falso y haría que el hub recargue
-      // todo al pedo— sino que no se pudo cerrar, y se lo deja reintentar:
-      // NO se limpia el borrador, NO se marca la sesión como cerrada y NO se
-      // borra el latido. Reintentar Terminar es seguro porque el re-guardado
-      // es idempotente (DELETE+INSERT por ruta exacta).
-      if (sessErr) {
-        console.error('[performSave] ci_sessions insert error:', sessErr)
-        notify('err', 'dataentry.err_session_not_closed', null, { emphasize: true })
-        setSaving(false)
-        return false
-      }
-
-      // Cierre CONFIRMADO por el servidor: se retira el token para que el
-      // próximo "Terminar" de este bucket sea un cierre nuevo y no un
-      // reintento.
-      //
-      // Va acá y NO en el camino de error, a propósito: retirarlo tras un
-      // fallo haría que el reintento mandara un token DISTINTO y duplicara
-      // justamente la fila que el servidor quizá ya escribió — que es el bug
-      // que esto viene a cerrar.
-      confirmarCierre({ userEmail, bucketKey, fecha: date })
-      actividadRef.current[bucketKey] = []
-
-      // Limpiar el latido de sesión-activa (mig 146) SOLO si esto cierra la
-      // sesión de VERDAD (isFinalInScope) — en Aeropuerto "Ambos", terminar el
-      // primer punto no debe hacer desaparecer al hub de "en vivo" en
-      // Monitoreo: sigue trabajando, le queda el otro punto declarado.
-      // Best-effort + una re-limpieza tardía (mismo criterio que
-      // justFinishedRef/markJustFinished de arriba): un latido en vuelo
-      // podría escribir después de este DELETE, así que se repite a los ~10s
-      // por si acaso.
-      if (isFinalInScope && userEmail) {
-        try {
-          await deleteActiveSession(userEmail)
-        } catch {
-          /* best-effort */
-        }
-        // Re-limpieza tardía acotada a ESTA sesión exacta (country/city/zone/
-        // fecha) — si el hub ya arrancó una sesión NUEVA dentro de esos 10s
-        // (ej. otro distrito TukTuk), este delete tardío no debe borrarle el
-        // latido recién creado (mismo bug que se corrigió del lado servidor
-        // en admin_close_ci_session, mig 156, ahora también acá).
-        const closedCountry = country
-        const closedCity = dbCity
-        const closedZone = zone
-        const closedDate = date
-        setTimeout(() => {
-          deleteActiveSessionScoped({
-            userEmail,
-            country: closedCountry,
-            city: closedCity,
-            zone: closedZone,
-            date: closedDate,
-          }).then(
-            () => {},
-            () => {}
-          )
-        }, 10_000)
-      }
-      if (isFinalInScope) {
-        setSessionActive(false)
-        setLegendCollapseSignal((n) => n + 1)
-        // `emphasize` (pedido user 2026-07-24, incidente real de Raisa): la
-        // grilla se vacía a propósito apenas termina la sesión (ver
-        // dropCity más abajo) para que el autosave no la "resucite" — pero
-        // sin una confirmación bien visible, ese vaciado se siente como
-        // pérdida de datos aunque el guardado en servidor ya esté
-        // confirmado. Mensaje grande y persistente en vez del pill chico.
-        setMsg({
-          type: 'ok',
-          text: t('dataentry.session_finished', { min: dur, n: payloads.length }),
-          emphasize: true,
-        })
-      } else {
-        // Alcance "Ambos" de Aeropuerto: este punto quedó cerrado, pero la
-        // sesión/cronómetro sigue viva para el punto que falta — el hub NO
-        // debe volver a ver "Iniciar Sesión" a mitad de camino.
-        setMsg({
-          type: 'ok',
-          text: t('dataentry.scope_point_done', { n: payloads.length }),
-          emphasize: true,
-        })
-      }
-    } else {
-      setMsg({
-        type: 'ok',
-        text: t('dataentry.progress_saved', { n: payloads.length }),
-      })
-    }
-
-    // SOLO "Terminar Sesión" limpia el borrador local. "Guardar progreso" NO
-    // lo borra: es un checkpoint intermedio y el hub sigue trabajando. Si lo
-    // limpiáramos acá, un refresh después de "Guardar progreso" dejaría la
-    // grilla vacía (el form no recarga lo ya guardado en la BD) y el hub
-    // creería que perdió todo. El re-guardado es idempotente (DELETE+INSERT
-    // por categoría/franja), así que conservar el borrador es seguro.
-    if (isFinish) {
-      clearDraft()
-      markJustFinished(draftKey)
-      markBucketJustFinished(bucketKey, date)
-      setLastDraftSavedAt(null)
-      // Limpiar la rebanada EN MEMORIA de la ciudad recién terminada. Sin esto,
-      // el flush/autosave/beforeunload vuelven a escribir el borrador que
-      // clearDraft() acaba de borrar (la grilla seguía en memoria) → una sesión
-      // terminada reaparecía como "borrador activo". Al vaciar la ciudad, el
-      // autosave la ve vacía y no reescribe nada. Los datos ya están en la BD
-      // (y en "sesiones pasadas"): reabrir desde el historial los recarga.
-      const finishedCity = bucketKey
-      const dropCity = (setter) =>
-        setter((prev) => {
-          if (!(finishedCity in prev)) return prev
-          const n = { ...prev }
-          delete n[finishedCity]
-          return n
-        })
-      dropCity(setEntriesByCity)
-      dropCity(setIndriveByCity)
-      dropCity(setEtaByCity)
-      dropCity(setDiscByCity)
-      dropCity(setNaByCity)
-      dropCity(setSurgeByCity)
-      dropCity(setErrorKeysByCity)
-      dropCity(setLoadedCombosByCity)
-
-      // Los tiempos de turno y la marca de hidratación TAMBIÉN se limpian
-      // (SESIONES_HALLAZGOS.md P1-8). `discardDraft` ya hacía las dos cosas;
-      // acá faltaban, y juntas formaban un circuito silencioso:
-      //
-      //   1. El hub termina Lima 11:00 (turno Mañana con startedAt=09:00).
-      //   2. Vuelve 15:00 a esa misma pestaña a corregir una celda.
-      //   3. El bucket seguía marcado como "ya hidratado", así que no se
-      //      re-lee nada; y los turnoTimings viejos seguían vivos en memoria,
-      //      así que el autosave los vuelve a persistir en el borrador.
-      //   4. Un F5 siembra sessionStartRef desde esas 09:00.
-      //   → 5 minutos de corrección quedan registrados como 360.
-      dropCity(setTurnoTimingsByCity)
-      hydratedCitiesRef.current.delete(finishedCity)
-
-      // Re-escanear la lista de borradores (el terminado ya no está).
-      setDraftScanTick((tk) => tk + 1)
-    }
-    setSaving(false)
-    return true
-  }
-
-  // ── Guardar progreso ───────────────────────────────────
-  // Checkpoint: se puede guardar EN CUALQUIER MOMENTO. Guarda todas las filas
-  // completas que haya (categoría×ruta×franja con todos sus competidores
-  // resueltos) sin bloquear por filas a medias — esas quedan en el borrador
-  // para terminarlas después. El re-guardado es idempotente (DELETE+INSERT por
-  // categoría/franja), así que guardar seguido es seguro. Solo "Terminar
-  // Sesión" exige la grilla completa/S-D.
-  /**
-   * Guarda el frente donde el hub está parado AHORA. Devuelve true solo si el
-   * servidor confirmó — "Guardar todo" recorre una cola de frentes y tiene que
-   * frenar en el primero que falle, no seguir de largo dejando atrás un frente
-   * sin guardar con un cartel de éxito al final.
-   *
-   * `forceOverwrite` llega como evento de React cuando el botón pasa esta
-   * función directo a onClick; `performSave` lo compara con `=== true`, así que
-   * un SyntheticEvent NO fuerza nada.
-   */
-  async function handleSaveProgress(forceOverwrite = false) {
-    // La mig 191 ya protegería la BD, pero rebotaría como conflicto y le
-    // ofrecería al hub el botón de forzar — o sea, un botón para pisarle el
-    // trabajo a la otra pestaña. Mejor cortar antes, con un motivo claro.
-    if (!leaseOwnerRef.current) {
-      notify('err', 'dataentry.lease_readonly_body', null, { emphasize: true })
-      return false
-    }
-    // Collect all full rows
-    const rowsToInsert = []
-    for (const uiCat of categories) {
-      for (const ref of refsByUICat[uiCat] || []) {
-        for (const ts of timeslots) {
-          if (rowState(uiCat, ref, ts) === 'full') {
-            rowsToInsert.push(...buildRows(uiCat, ref, ts))
-          }
-        }
-      }
-    }
-    if (!rowsToInsert.length) {
-      notify('err', 'dataentry.err_no_full')
-      return false
-    }
-    return await performSave(rowsToInsert, false, true, forceOverwrite)
-  }
-
-  // ── Terminar sesión ────────────────────────────────────
-  // "Terminar Sesión" exige TODA la grilla llena (los 3 turnos) de la vista
-  // actual — sin esto no debía existir un modo permisivo a medio-camino: un
-  // distrito de TukTuk, o un Punto de Aeropuerto, se dan por completos o no
-  // se dan. En Aeropuerto con alcance "Ambos" (`pendingScopeMembers` con 2
-  // elementos), este botón cierra el PUNTO ACTUAL uno a la vez: la sesión
-  // sigue activa y el hub pasa automáticamente al punto que falta, y recién
-  // al terminar el ÚLTIMO se cierra la sesión de verdad (ver
-  // `isFinalInScope` en `performSave`).
-  async function handleFinishSession(forceOverwrite = false) {
-    // Peor que Guardar: cierra el turno, sella la duración y borra el latido
-    // con lo que tiene ESTA pestaña. Un alcance decidido por la pestaña
-    // equivocada cierra la jornada con menos puntos de los que el hub midió.
-    if (!leaseOwnerRef.current) {
-      notify('err', 'dataentry.lease_readonly_body', null, { emphasize: true })
-      return
-    }
-    const { hasPartial, hasEmpty } = validateAndCollectErrors(true)
-    if (hasPartial || hasEmpty) {
-      notify('err', 'dataentry.err_finish')
-      return
-    }
-    const rowsToInsert = []
-    for (const uiCat of categories) {
-      for (const ref of refsByUICat[uiCat] || []) {
-        for (const ts of timeslots) {
-          rowsToInsert.push(...buildRows(uiCat, ref, ts))
-        }
-      }
-    }
-    if (!rowsToInsert.length) {
-      notify('err', 'dataentry.err_no_full')
-      return
-    }
-    const remainingAfterThis = pendingScopeMembers.filter((m) => m !== bucketKey)
-    // Frentes extra (pedido user 2026-07-24, puntos 2/2b): cualquier bucket
-    // que el hub haya tocado sin declararlo de antemano — Corp, Normal,
-    // TukTuk u otra ciudad. Mismo criterio que `remainingAfterThis`: la
-    // sesión solo cierra de verdad si TAMBIÉN queda vacío.
-    const remainingExtraAfterThis = pendingExtraFronts.filter((bk) => bk !== bucketKey)
-    const isFinalInScope = remainingAfterThis.length === 0 && remainingExtraAfterThis.length === 0
-    const ok = await performSave(rowsToInsert, true, isFinalInScope, forceOverwrite)
-    if (!ok) return
-    // Updaters funcionales: `remaining*AfterThis` son snapshots de ANTES del
-    // await de performSave (que puede tardar segundos). Aplicarlos como array
-    // plano pisaba cualquier frente que el hub hubiera empezado mientras
-    // giraba el guardado.
-    setPendingScopeMembers((prev) => prev.filter((m) => m !== bucketKey))
-    setPendingExtraFronts((prev) => prev.filter((bk) => bk !== bucketKey))
-    // Reiniciar el cronómetro para el frente SIGUIENTE (bug real de datos,
-    // revisión adversarial 2026-07-24): `sessionStartRef` se seteaba una sola
-    // vez al Iniciar Sesión, así que cada frente cerrado escribía en
-    // ci_sessions `started_at` = arranque global. Un hub que cerraba 3 frentes
-    // a las 10:00/11:00/12:00 habiendo arrancado a las 09:00 generaba
-    // duraciones de 60+120+180 = 360 min para 180 min reales, y en Monitoreo
-    // cada ciudad figuraba empezando a las 09:00.
-    if (!isFinalInScope) sessionStartRef.current = Date.now()
-    // Sin esto el efecto de registro vuelve a agregar el bucket recién
-    // cerrado a `pendingExtraFronts` (sigue "tocado") y la sesión no cierra
-    // nunca — el frente reaparecería como pendiente para siempre.
-    setTouchedFronts((prev) => prev.filter((bk) => bk !== bucketKey))
-    // El salto automático es SOLO para el par Punto A↔B declarado (están
-    // acoplados por ventana horaria: conviene medirlos seguidos). Cerrar un
-    // frente extra no debe teletransportar al hub a ningún lado — el aviso
-    // de arriba de la grilla le dice qué le falta y él elige a dónde ir.
-    if (
-      !isFinalInScope &&
-      remainingAfterThis.length > 0 &&
-      pendingScopeMembers.includes(bucketKey)
-    ) {
-      // Prioriza volver al Punto de Aeropuerto que falta (comportamiento de
-      // siempre). Si solo queda un frente extra (TukTuk) pendiente, no hay
-      // "siguiente" obvio (no es A→B) — se deja que el hub elija a qué
-      // distrito ir; el aviso de abajo (`pendingExtraFronts.length > 0`)
-      // se lo recuerda.
-      // `remainingAfterThis` sale de `pendingScopeMembers`, que está en espacio
-      // bucketKey; `setUiCity` espera un uiCity. Pasarle el bucketKey directo
-      // dejaba la app en una "ciudad" que no existe en el catálogo: grilla
-      // vacía, y el latido reportando a Monitoreo una ciudad inventada.
-      //
-      // La primera versión de este fix hacía `dbCityToUiCity[nextBucket] ?? nextBucket`
-      // y tapaba SOLO el caso aeropuerto: para TukTuk la clave es 'TT~Lima~Comas',
-      // que no está en ese mapa, así que el `??` devolvía el bucketKey crudo y el
-      // bug quedaba igual — justo por el camino más fácil de alcanzar (el botón
-      // "Ir ahí" de un borrador de otro distrito mete un segundo bucketKey en el
-      // alcance). Hay que DESARMAR la clave, que es lo que ya hace
-      // `openHistorySession` 45 líneas más abajo.
-      irAFrente(remainingAfterThis[0])
-      // Si no está en el catálogo no se salta a ningún lado (`irAFrente`
-      // devuelve false): el aviso de frentes pendientes ya le dice al hub qué
-      // le falta, y mandarlo a una pestaña inexistente es peor que dejarlo
-      // donde está.
-    }
-  }
-
-  // ── Abrir una sesión pasada para editar/agregar ───────
-  function openHistorySession(s) {
-    // Reabrir la MISMA sesión que ya está en pantalla (misma ciudad/fecha/
-    // zona) es un no-op peligroso: como dbCity/date/zone no cambian, el
-    // effect de pendingLoad se dispara YA (nada que esperar) y
-    // loadObservationsIntoForm SOBREESCRIBE entriesByCity con lo último
-    // guardado en servidor — sin fusionar. Cualquier cambio tipeado después
-    // del último "Guardar progreso" (aunque ya viva en el borrador local)
-    // se perdía en silencio, y el próximo autosave lo confirmaba borrado.
-    // Detectado en revisión adversarial 2026-07-23. Si es la misma sesión,
-    // no hay nada que recargar: lo que se ve en pantalla YA es lo más
-    // reciente.
-    if (s.city === dbCity && s.observed_date === date && (s.zone ?? null) === (zone ?? null)) {
-      setShowHistory(false)
-      notify('ok', 'dataentry.already_viewing_session')
-      return
-    }
-    const targetUi = dbCityToUiCity[s.city] || s.city
-    // Sin guard, mismo motivo que en resumeDraft: el bloqueo tapaba que esta
-    // función PISARA el alcance; ahora fusiona, así que abrir una sesión
-    // pasada para corregirla nunca puede abandonar un frente declarado.
-    // Arrancar una sesión para que aparezcan Guardar/Terminar y el HP pueda
-    // editar y re-guardar (el guardado es idempotente: DELETE+INSERT por
-    // categoría/franja, así que re-guardar la misma fecha la actualiza).
-    // El cronómetro SIEMPRE se reinicia acá, sin condicionarlo a
-    // `sessionActive` — reabrir una sesión ya finalizada para corregirla es su
-    // propio tramo de tiempo, nunca debe heredar minutos de otra cosa en la
-    // que el hub ya estuviera trabajando (bug real: antes, si `sessionActive`
-    // ya era true por otro motivo, el cronómetro de esta corrección arrancaba
-    // contaminado con tiempo ajeno).
-    sessionStartRef.current = Date.now()
-    setSessionActive(true)
-    // s.zone puede ser un distrito de TukTuk O una categoría propia
-    // (Delivery/Cargo, ver SPECIAL_CATEGORY_ZONES) — ci_sessions no guarda
-    // cuál de los dos es, así que se distingue por el nombre reservado.
-    const zoneIsSpecialCat = s.zone != null && SPECIAL_CATEGORY_ZONES.has(s.zone)
-    const targetBucketKey = bucketKeyFor(
-      s.city,
-      s.zone ?? null,
-      Boolean(s.zone) && !zoneIsSpecialCat
-    )
-    // Fusionar, nunca pisar: reemplazar el alcance borraba los frentes que
-    // seguían a medias (ej. Punto A+B declarados) sin dejar rastro, y la
-    // sesión después cerraba como final abandonándolos en silencio.
-    setPendingScopeMembers((prev) =>
-      prev.includes(targetBucketKey) ? prev : [...prev, targetBucketKey]
-    )
-    setShowHistory(false)
-    if (zoneIsSpecialCat) {
-      // Sesión de Delivery/Cargo: sin distrito, la ciudad base ya es la
-      // correcta (nunca cambia de uiCity).
-      setUiCity(targetUi)
-      setActiveTukTuk(null)
-      setActiveSpecialCat(s.zone)
-    } else if (s.zone) {
-      // Sesión de TukTuk por distrito: volver a la ciudad base con TukTuk + el
-      // distrito guardado en la sesión.
-      setUiCity(tukTukInfo?.baseUiCity || targetUi)
-      setActiveTukTuk(s.zone)
-      setActiveSpecialCat(null)
-    } else {
-      setUiCity(targetUi)
-      setActiveTukTuk(null)
-      setActiveSpecialCat(null)
-    }
-    setDate(s.observed_date)
-    // Seedear turnoTimings desde la sesión histórica ANTES de que el efecto
-    // de estampado corra sobre la grilla recién cargada — si no, reabrir una
-    // sesión con turnos ya completos estamparía un startedAt/endedAt falso de
-    // "ahora mismo" (0 min) en vez de conservar el tiempo real original.
-    setTurnoTimingsByCity((prev) => ({
-      ...prev,
-      [targetBucketKey]:
-        s.turno_timings && typeof s.turno_timings === 'object' ? s.turno_timings : {},
-    }))
-    setPendingLoad({ dbCity: s.city, zone: s.zone ?? null, date: s.observed_date })
-    notify('ok', 'dataentry.loading_session')
-  }
-
-  // Trae las observaciones manuales de (ciudad, fecha) y las vuelca al form,
-  // mapeando cada fila de BD de vuelta a (uiCat, refId, franja, competidor).
-  // Las filas que no se puedan mapear (ruta borrada, franja fuera del set,
-  // etc.) se saltan en silencio — nunca rompen la carga del resto.
-  async function loadObservationsIntoForm(
-    loadDbCity,
-    loadDate,
-    loadZone = null,
-    targetBucket = null,
-    { silent = false } = {}
-  ) {
-    const bucket = targetBucket ?? loadDbCity
-    // Un auto-load SILENCIOSO nunca debe resucitar un bucket que este hub
-    // acaba de Terminar a propósito (ver `markBucketJustFinished` — causa
-    // raíz real del bug "2 borradores reaparecidos" de Raisa, 2026-07-24).
-    // Una apertura EXPLÍCITA (Historial → Abrir, openHistorySession) nunca
-    // pasa `silent`, así que sigue funcionando sin cambios.
-    if (silent && isBucketJustFinished(bucket, loadDate)) {
-      // Pero SÍ se explica por qué la grilla está vacía (P2-15). El guard
-      // funciona como se diseñó; el problema era que salía en silencio: el
-      // hub volvía 2 minutos después de Terminar, veía 0/162 y el botón
-      // "Iniciar Sesión", y eso es indistinguible de "perdí todo mi trabajo".
-      // Sus datos están guardados y a un clic en "Ver lo guardado".
-      notify('ok', 'dataentry.just_finished_note')
-      return
-    }
-    // Marca de agua PRIMERO, filas después (mig 191). El orden importa: si el
-    // otro escritor entra entre las dos lecturas, quedo con una marca vieja →
-    // el próximo guardado conflictúa, que es la dirección SEGURA. Al revés
-    // estaría avalando datos que no llegué a ver.
-    //
-    // Si la lectura falla NO se inventa una marca: sin marca el guard avisa
-    // en vez de dejar pasar. Un error de red nunca debe traducirse en
-    // "seguí, todo bien".
-    if (userEmail) {
-      const { data: wm, error: wmErr } = await fetchBucketWriteMark({
-        userEmail,
-        country,
-        city: loadDbCity,
-        zone: loadZone,
-        date: loadDate,
-      })
-      writeSyncSeqFor(
-        country,
-        loadDbCity,
-        loadZone,
-        loadDate,
-        !wmErr && wm ? Number(wm.write_seq) : null
-      )
-    }
-
-    // TukTuk: acotar al distrito (zone). Vistas normales: sin filtro de zona (y
-    // el guard de categorías de abajo descarta cualquier fila de TukTuk).
-    // Cargar solo las filas propias (+ legacy sin dueño) para editar. Si se
-    // cargaran también las de otro hub, al re-guardar se insertarían como
-    // propias (el DELETE no borra las del otro dueño) → duplicados (mig 139).
-    // Mismo criterio simétrico que el DELETE del guardado (siempre por dueño).
-    const obsQuery = fetchManualObservations({
-      country,
-      city: loadDbCity,
-      date: loadDate,
-      zone: loadZone,
-      userEmail,
-    })
-    const [{ data, error }, { data: historicTimings }] = await Promise.all([
-      obsQuery,
-      // Relevo entre hubs (pedido user 2026-07-24, punto 3) + caso general de
-      // "sin draft local pero con data ya guardada" (cambio de dispositivo):
-      // trae el turno_timings más reciente para este contexto SIN IMPORTAR
-      // quién lo generó (RPC de solo lectura, mig 160 — RLS de ci_sessions
-      // normalmente no dejaría ver la fila de otro hub). Se usa como semilla
-      // más abajo SOLO si este bucket todavía no tiene timings propios (ver
-      // guard `prev[bucket]`) — así nunca pisa lo que openHistorySession ya
-      // seedeó con más precisión (la fila exacta que el hub clickeó "Abrir").
-      fetchTurnoTimings({ country, city: loadDbCity, zone: loadZone, date: loadDate }),
-    ])
-    if (error) {
-      setMsg({ type: 'err', text: `${t('dataentry.err_load_session')} ${error.message}` })
-      return
-    }
-    if (historicTimings && typeof historicTimings === 'object') {
-      setTurnoTimingsByCity((prev) => {
-        if (prev[bucket] && Object.keys(prev[bucket]).length > 0) return prev
-        return { ...prev, [bucket]: historicTimings }
-      })
-    }
-
-    // (categoría|bracket|A|B) → ref; fallback a (categoría|bracket) solo si es
-    // único (si hay 2+ rutas por bracket, ej. TukTuk por distrito, no hay forma
-    // confiable de adivinar cuál, así que no se usa el fallback).
-    const refByFull = {}
-    const refByCatBracket = {}
-    for (const r of refs) {
-      refByFull[`${r.category}|${r.bracket}|${r.point_a ?? ''}|${r.point_b ?? ''}`] = r
-      const cb = `${r.category}|${r.bracket}`
-      refByCatBracket[cb] = cb in refByCatBracket ? null : r
-    }
-    // dbTimeslot ('Morning'/'Midday'/'Evening', mig 148) → ts.label ('Mañana'/
-    // 'Tarde'/'Noche'). Filas viejas sin `timeslot` poblado (excepción rara —
-    // el backfill de la mig ya cubrió el histórico) caen al fallback: derivar
-    // el mismo dbTimeslot desde su observed_time canónico con la misma
-    // función que usa buildInsertPayload.
-    const tsByDbTimeslot = {}
-    for (const ts of timeslots) {
-      tsByDbTimeslot[timeslotLabel(ts.start_time?.slice(0, 5))] = ts.label
-    }
-    const compMapByCat = {} // uiCat → { nombreNormalizado: nombreCatálogo }
-
-    const newEntries = {}
-    const newEta = {}
-    const newDisc = {}
-    const newIndrive = {}
-    const newNa = new Set()
-    // Descriptores de RUTA de lo que se cargó → para acotar el DELETE al
-    // re-guardar/terminar a la ruta exacta (incluidos point_a/point_b). Keyed por
-    // (cat, franja, bracket, A, B) para deduplicar; el valor lleva los campos
-    // crudos de la BD (así el DELETE matchea exactamente lo que está guardado).
-    const combos = new Map()
-    let mapped = 0
-
-    for (const row of data || []) {
-      const uiCat = dbCatToUICat[row.category]
-      if (!uiCat) continue
-      // Solo categorías de la vista activa: en la Lima normal esto descarta las
-      // filas de TukTuk (ahora viven en su pestaña por distrito); en TukTuk solo
-      // entra 'TukTuk'. Y en TukTuk, además, solo el distrito cargado.
-      if (!categories.includes(uiCat)) continue
-      if (loadZone != null && (row.zone ?? null) !== loadZone) continue
-      const ref =
-        refByFull[
-          `${row.category}|${row.distance_bracket}|${row.point_a ?? ''}|${row.point_b ?? ''}`
-        ] || refByCatBracket[`${row.category}|${row.distance_bracket}`]
-      if (!ref) continue
-      // dbTimeslot: preferir la columna `timeslot` guardada (mig 148); si es
-      // NULL (fila legacy de antes de la migración), derivarlo de la hora
-      // canónica que esa fila SIEMPRE tuvo hasta ahora en observed_time.
-      const dbTimeslot = row.timeslot || timeslotLabel((row.observed_time || '').slice(0, 5))
-      const tsLabel = tsByDbTimeslot[dbTimeslot]
-      if (!tsLabel) continue
-
-      if (!compMapByCat[uiCat]) {
-        const map = {}
-        for (const c of getCiCompetitors(uiCity, uiCat, null, country, dbConfigs)) {
-          map[normalizeCompetitorName(c, { city: loadDbCity })] = c
-        }
-        compMapByCat[uiCat] = map
-      }
-      // Solo cargar competidores VISIBLES en CI. Una fila de un competidor
-      // marcado "no ofrece" (ciHidden) — o removido de la config — no se vuelca
-      // al formulario (no se muestra, no cuenta, no entra a loadedCombos); su
-      // fila histórica queda intacta en BD (el DELETE al re-guardar está acotado
-      // a los competidores visibles). Antes se cargaba como celda fantasma
-      // invisible que inflaba el contador de progreso.
-      const comp = compMapByCat[uiCat][row.competition_name]
-      if (!comp) continue
-
-      const comboKey = `${row.category}${dbTimeslot}${row.distance_bracket}${row.point_a ?? ''}${row.point_b ?? ''}`
-      if (!combos.has(comboKey))
-        combos.set(comboKey, {
-          uiCat,
-          dbCat: row.category,
-          timeslot: dbTimeslot,
-          bracket: row.distance_bracket,
-          pa: row.point_a ?? null,
-          pb: row.point_b ?? null,
-          zone: row.zone ?? null,
-        })
-      const k = priceKey(uiCat, ref.id, tsLabel, comp)
-      // Fila "sin data" (S/D): restaurar la marca, sin volcar precio/eta/desc.
-      if (row.no_data) {
-        newNa.add(k)
-        mapped++
-        continue
-      }
-      if (row.price_without_discount != null) newEntries[k] = String(row.price_without_discount)
-      if (row.price_with_discount != null) newDisc[k] = String(row.price_with_discount)
-      if (row.eta_min != null) newEta[k] = String(row.eta_min)
-      if (isInDriveVariant(comp)) {
-        const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5]
-          .filter((b) => b != null)
-          .map((b) => String(b))
-        newIndrive[indKey(uiCat, ref.id, tsLabel, comp)] = {
-          bids: bids.length ? bids : [''],
-          minBid: row.minimal_bid != null ? String(row.minimal_bid) : '',
-          rec: row.recommended_price != null ? String(row.recommended_price) : '',
-        }
-      }
-      mapped++
-    }
-
-    // Surge: es un flag de la sesión estampado en cada fila. Restaurarlo del
-    // valor guardado — si no, reabrir una sesión con surge y re-guardar volvía a
-    // estampar surge=false en TODAS las filas (incluidos turnos que el hub no
-    // tocó), corrompiendo en silencio el filtro SURGE del dashboard.
-    const newSurge = (data || []).some((r) => r.surge === true)
-
-    // Vuelca lo cargado en la rebanada de la ciudad objetivo (loadDbCity).
-    //
-    // En el auto-load SILENCIOSO lo tecleado por el hub SIEMPRE gana
-    // (SESIONES_HALLAZGOS.md P2-12). Antes esto era un reemplazo total: si el
-    // hub entraba a una ciudad ya guardada y empezaba a tipear de inmediato,
-    // la carga en curso resolvía unos segundos después y le borraba de la
-    // pantalla todo lo que había escrito. Es visible, y se lee como "se me
-    // borró todo".
-    //
-    // Es la regla de CLAUDE.md §2: un refresco en segundo plano nunca pisa
-    // una acción explícita y reciente del usuario. Un "Abrir" del historial
-    // (silent=false) SÍ reemplaza, porque ahí el hub lo pidió.
-    const conservarTecleado = (nuevos) => (prev) => {
-      const actual = prev[bucket]
-      if (!silent || !actual) return { ...prev, [bucket]: nuevos }
-      const fusion = { ...nuevos }
-      for (const [k, v] of Object.entries(actual)) {
-        if (v !== '' && v != null) fusion[k] = v
-      }
-      return { ...prev, [bucket]: fusion }
-    }
-
-    setEntriesByCity(conservarTecleado(newEntries))
-    setEtaByCity(conservarTecleado(newEta))
-    setDiscByCity(conservarTecleado(newDisc))
-    setIndriveByCity(conservarTecleado(newIndrive))
-    // Las marcas "sin data" se UNEN: son decisiones explícitas del hub
-    // ("revisé y no había oferta"), así que una carga de fondo no puede
-    // borrarlas.
-    setNaByCity((prev) => {
-      const actual = prev[bucket]
-      if (!silent || !actual || actual.size === 0) return { ...prev, [bucket]: newNa }
-      return { ...prev, [bucket]: new Set([...newNa, ...actual]) }
-    })
-    // Mismo criterio que `conservarTecleado` y que la unión de `naKeys`: un
-    // auto-load silencioso NO puede pisar una acción explícita y reciente del
-    // hub (CLAUDE.md §2). Esta línea se había quedado afuera del fix de P2-12.
-    //
-    // Importa más de lo que parece: el hub entra a una ciudad+fecha sin
-    // borrador, prende el switch de SURGE y empieza a teclear; la query resuelve
-    // 1-2 s después, las celdas se conservan pero `surge` vuelve al valor del
-    // servidor. Al guardar, TODAS las filas se estampan con surge=false, y el
-    // propio código documenta que corromper ese campo rompe en silencio el
-    // filtro SURGE del dashboard.
-    //
-    // Solo protege el `true`: si el hub lo prendió, gana él. Un "Abrir" del
-    // historial (silent=false) sigue mandando.
-    setSurgeByCity((prev) =>
-      silent && prev[bucket] === true ? prev : { ...prev, [bucket]: newSurge }
-    )
-    setLoadedCombosByCity((prev) => ({ ...prev, [bucket]: combos.size ? combos : null }))
-    setErrorKeysByCity((prev) => ({ ...prev, [bucket]: new Set() }))
-    // En el auto-cargado silencioso (ver hidratación arriba) no hay nada que
-    // avisar si esta ciudad+fecha está genuinamente vacía — solo mostrar el
-    // mensaje si de verdad se trajo algo, o si fue un "Abrir" explícito.
-    if (!silent || mapped > 0) {
-      setMsg({ type: 'ok', text: t('dataentry.session_loaded', { n: mapped }) })
-    }
-    // Si se cargó data real, la sesión pasa a activa — si no, el hub ve su
-    // grilla llena (celdas con precios, contador de progreso > 0) pero solo
-    // el botón "Iniciar Sesión" en vez de Guardar/Terminar, como si nunca
-    // hubiera arrancado nada (pasa siempre que recarga la página con datos
-    // ya guardados: sessionActive es estado de React, no sobrevive un
-    // refresh). "Abrir" desde Historial ya lo activa explícito antes de
-    // llegar acá; esto cubre el auto-load silencioso al reabrir.
-    if (mapped > 0 && !sessionActive) {
-      // El cronómetro reanuda el tramo histórico SOLO si esto es de verdad
-      // una continuación (misma fecha y jornada sin cerrar). Si no, arranca
-      // en cero: mirar un día pasado o volver a una ciudad ya terminada es un
-      // tramo NUEVO. Ver debeReanudarTramo() y su test — esta rama sembraba
-      // el reloj con el inicio de otro día y mostraba 30:00:00.
-      sessionStartRef.current = debeReanudarTramo({
-        loadDate,
-        today: todayStr(),
-        timings: historicTimings,
-      })
-        ? earliestTurnoStart(historicTimings) || Date.now()
-        : Date.now()
-      setSessionActive(true)
-      setPendingScopeMembers((prev) => (prev.length ? prev : [bucket]))
-    }
-  }
+  // Reabrir una sesión del historial + auto-load del servidor — extraído a
+  // useCiSessionHistory.js. `loadObservationsIntoForm` no se usa fuera del
+  // hook (su único llamador es el efecto de `pendingLoad`, que vive adentro).
+  const { openHistorySession } = useCiSessionHistory({
+    dbCity,
+    date,
+    zone,
+    uiCity,
+    country,
+    userEmail,
+    bucketKey,
+    sessionActive,
+    refsLoading,
+    refsDbCity,
+    refs,
+    dbConfigs,
+    categories,
+    timeslots,
+    dbCityToUiCity,
+    dbCatToUICat,
+    tukTukInfo,
+    pendingLoad,
+    setPendingLoad,
+    t,
+    notify,
+    setMsg,
+    writeSyncSeqFor,
+    isBucketJustFinished,
+    sessionStartRef,
+    setShowHistory,
+    setSessionActive,
+    setPendingScopeMembers,
+    setUiCity,
+    setActiveTukTuk,
+    setActiveSpecialCat,
+    setDate,
+    setTurnoTimingsByCity,
+    setEntriesByCity,
+    setEtaByCity,
+    setDiscByCity,
+    setIndriveByCity,
+    setNaByCity,
+    setSurgeByCity,
+    setLoadedCombosByCity,
+    setErrorKeysByCity,
+  })
 
   // ── Total expected rows ────────────────────────────────
   const totalExpected = useMemo(() => {
@@ -3497,6 +1833,69 @@ export default function DataEntry() {
     }
     return n
   }, [refsByUICat, categories, uiCity, country, dbConfigs])
+
+  // Ciclo de vida de sesión (arrancar, guardar progreso, terminar) —
+  // extraído a useCiSessionActions.js.
+  const { handleStartSession, handleSaveProgress, handleFinishSession } = useCiSessionActions({
+    isTukTuk,
+    zone,
+    dbCity,
+    uiCity,
+    dbConfigs,
+    country,
+    date,
+    userEmail,
+    bucketKey,
+    draftKey,
+    totalExpected,
+    turnoTimings,
+    loadedCombos,
+    pendingScopeMembers,
+    pendingExtraFronts,
+    categories,
+    refsByUICat,
+    timeslots,
+    t,
+    leaseOwnerRef,
+    editSeqRef,
+    savedSeqRef,
+    sessionStartRef,
+    actividadRef,
+    hydratedCitiesRef,
+    notify,
+    readSyncSeq,
+    writeSyncSeq,
+    resolveDbCategory,
+    buildInsertPayload,
+    buildRows,
+    validateAndCollectErrors,
+    rowState,
+    clearDraft,
+    markJustFinished,
+    markBucketJustFinished,
+    irAFrente,
+    setSaving,
+    setMsg,
+    setSaveConflict,
+    setEarlyConflictHint,
+    setLastSaveOkAt,
+    setSessionActive,
+    setLegendCollapseSignal,
+    setLastDraftSavedAt,
+    setEntriesByCity,
+    setIndriveByCity,
+    setEtaByCity,
+    setDiscByCity,
+    setNaByCity,
+    setSurgeByCity,
+    setErrorKeysByCity,
+    setLoadedCombosByCity,
+    setTurnoTimingsByCity,
+    setDraftScanTick,
+    setPendingScopeMembers,
+    setPendingExtraFronts,
+    setTouchedFronts,
+  })
 
   // ── Estampado de tiempo por turno (pedido user 2026-07-24) ──────────────
   // Primer fill de un turno (0→1) → startedAt. 100% relleno → endedAt. Nunca
@@ -3639,23 +2038,6 @@ export default function DataEntry() {
     [presence, dbCity, zone, activeAirportMembers, isTukTuk]
   )
 
-  // ── Latido de sesión activa (para Monitoreo) ───────────
-  // Mientras sessionActive, avisa periódicamente "sigo acá, en tal ciudad/
-  // distrito, con tanto progreso" — ver mig 146 (tabla ci_active_sessions +
-  // RPC upsert_ci_active_session). Nunca debe afectar el flujo real del hub:
-  // todo en try/catch silencioso, jamás toca setMsg ni bloquea el guardado.
-  const heartbeatRef = useRef(null)
-  // Alcance declarado (mig 151, solo Aeropuerto) — para que Monitoreo
-  // muestre "Aeropuerto A+B" en vez de solo la pestaña momentánea, que
-  // confunde cuando el hub está alternando entre Punto A y Punto B dentro de
-  // la MISMA sesión declarada como "Ambos".
-  const scopeLabel =
-    activeAirportMembers && pendingScopeMembers.length
-      ? activeAirportMembers
-          .filter((m) => pendingScopeMembers.includes(bucketKeyOf(m.uiCity)))
-          .map((m) => m.side)
-          .join('+')
-      : null
   // Memoria del total de cada frente visitado (ver `totalByBucket`).
   useEffect(() => {
     if (!totalExpected) return
@@ -3743,8 +2125,6 @@ export default function DataEntry() {
   // (rutas cargadas + borrador hidratado) antes de guardarlo. Guardar antes de
   // tiempo vería la grilla vacía y reportaría "no hay filas completas" sobre
   // un frente lleno.
-  const [colaGuardarTodo, setColaGuardarTodo] = useState(EMPTY_ARR)
-  const guardandoTodo = colaGuardarTodo.length > 0
   // Con un solo frente abierto, "Guardar todo" y "Guardar progreso" harían
   // exactamente lo mismo. Dos botones para una acción no aclaran nada: dan a
   // entender que uno guarda algo que el otro no.
@@ -3755,81 +2135,8 @@ export default function DataEntry() {
     [pendingScopeMembers, pendingExtraFronts, bucketKey]
   )
   const hayOtrosFrentes = frentesAbiertos.length > 1
-  // Reentrada: el efecto de abajo se re-dispara con cada tick mientras la cola
-  // avanza, y sin este candado dispararía un segundo guardado del mismo frente
-  // encima del primero.
-  const colaOcupadaRef = useRef(false)
-  // Dónde estaba parado el hub al apretar el botón, para devolverlo ahí. Que
-  // "guardar" te mueva de pestaña sola es desorientador, y peor todavía si te
-  // deja en un frente que no estabas mirando.
-  const colaOrigenRef = useRef(null)
-  const colaResultadoRef = useRef({ guardados: 0, sinFilas: [] })
-
-  // Los contadores de edición viven en refs para no re-renderizar la grilla en
-  // cada tecleo (CLAUDE.md §5), así que un cambio en ellos no despierta a
-  // React. Mientras la cola avanza hace falta un pulso propio para volver a
-  // mirar si el frente ya terminó de cargar. Solo corre mientras hay cola:
-  // es una acción deliberada de unos segundos, no un sondeo de fondo.
-  const [tickCola, setTickCola] = useState(0)
-  useEffect(() => {
-    if (!guardandoTodo) return
-    const id = setInterval(() => setTickCola((n) => n + 1), 300)
-    return () => clearInterval(id)
-  }, [guardandoTodo])
-
-  useEffect(() => {
-    if (!colaGuardarTodo.length || colaOcupadaRef.current || saving) return
-
-    const objetivo = colaGuardarTodo[0]
-    if (bucketKey !== objetivo) {
-      // Si el destino no existe en el catálogo, `irAFrente` no mueve nada: hay
-      // que sacarlo de la cola igual o se queda girando para siempre.
-      if (!irAFrente(objetivo)) setColaGuardarTodo((c) => c.slice(1))
-      return
-    }
-
-    // Parados en el objetivo, pero puede que todavía esté cargando. Los tres
-    // chequeos son distintos y los tres hacen falta: las rutas se piden por
-    // ciudad (React Query), `refsDbCity` confirma que las que hay en mano son
-    // las de ESTA ciudad y no las de la anterior, y la hidratación es la que
-    // vuelca el borrador de localStorage a la grilla.
-    if (refsLoading || refsDbCity !== dbCity) return
-    if (!hydratedCitiesRef.current.has(bucketKey)) return
-
-    colaOcupadaRef.current = true
-    ;(async () => {
-      try {
-        let ok = true
-        if (savableCount > 0) {
-          ok = await handleSaveProgress()
-          if (ok) colaResultadoRef.current.guardados += 1
-        } else {
-          // Tiene celdas cargadas pero ninguna FILA completa: "Guardar
-          // progreso" nunca manda filas a medias. No es un fallo, pero
-          // callarlo sería decirle al hub "guardé todo" sobre un frente que
-          // quedó entero en localStorage.
-          colaResultadoRef.current.sinFilas.push(bucketKey)
-        }
-        if (!ok) {
-          // Frenar en seco. Seguir con el siguiente frente terminaría en un
-          // cartel de éxito con un frente sin guardar en el medio, que es
-          // exactamente el engaño que esta función vino a eliminar. El
-          // mensaje de error de `performSave` ya está en pantalla.
-          setColaGuardarTodo(EMPTY_ARR)
-          return
-        }
-        setColaGuardarTodo((c) => c.slice(1))
-      } finally {
-        colaOcupadaRef.current = false
-      }
-    })()
-    // `handleSaveProgress` se redefine en cada render (no es useCallback) —
-    // meterlo acá re-dispararía este efecto sin parar. Se lo llama, no se lo
-    // observa.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    colaGuardarTodo,
-    tickCola,
+  // Cola de "Guardar todo" — extraída a useCiSaveAllQueue.js.
+  const { guardandoTodo, handleGuardarTodo } = useCiSaveAllQueue({
     bucketKey,
     saving,
     refsLoading,
@@ -3837,140 +2144,38 @@ export default function DataEntry() {
     dbCity,
     savableCount,
     irAFrente,
-  ])
+    handleSaveProgress,
+    frentesAbiertos,
+    llenoPorFrente,
+    editSeqRef,
+    savedSeqRef,
+    hydratedCitiesRef,
+    setMsg,
+    t,
+    notify,
+  })
 
-  // Cierre de la cola: volver a donde estaba el hub y contarle qué pasó.
-  useEffect(() => {
-    if (guardandoTodo || !colaOrigenRef.current) return
-    const origen = colaOrigenRef.current
-    const { guardados, sinFilas } = colaResultadoRef.current
-    colaOrigenRef.current = null
-    colaResultadoRef.current = { guardados: 0, sinFilas: [] }
-    if (origen !== bucketKey) irAFrente(origen)
-    if (guardados > 0) {
-      setMsg({
-        type: 'ok',
-        emphasize: true,
-        text: sinFilas.length
-          ? t('dataentry.save_all_done_partial', {
-              n: guardados,
-              list: sinFilas.map(frontLabel).join(', '),
-            })
-          : guardados === 1
-            ? t('dataentry.save_all_done_one')
-            : t('dataentry.save_all_done', { n: guardados }),
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guardandoTodo])
-
-  /**
-   * Arma la cola con TODO lo que tenga trabajo sin asegurar. Se calcula al
-   * apretar el botón (leyendo los refs en ese instante) y no en render: el
-   * usuario tiene que guardar lo que hay AHORA, no lo que se vio hace un tick.
-   */
-  function handleGuardarTodo() {
-    const pendientes = frentesSinGuardar({
-      fronts: frentesAbiertos,
-      llenoPorFrente,
-      editSeq: editSeqRef.current,
-      savedSeq: savedSeqRef.current,
-    }).map((f) => f.bucket)
-    if (!pendientes.length) {
-      notify('ok', 'dataentry.save_all_nothing')
-      return
-    }
-    colaOrigenRef.current = bucketKey
-    colaResultadoRef.current = { guardados: 0, sinFilas: [] }
-    // El frente actual primero: es el que el hub está mirando, y si algo falla
-    // conviene que falle sobre lo que tiene delante.
-    setColaGuardarTodo(
-      pendientes.includes(bucketKey)
-        ? [bucketKey, ...pendientes.filter((b) => b !== bucketKey)]
-        : pendientes
-    )
-  }
-
-  heartbeatRef.current = {
+  // Latido de sesión activa (Monitoreo) — extraído a useCiHeartbeat.js.
+  const { lastHeartbeatOkAt } = useCiHeartbeat({
+    sessionActive,
+    userEmail,
+    leaseOwnerRef,
+    hbLeaseOwnerRef,
     country,
-    city: dbCity,
+    dbCity,
     zone,
     date,
     filledCount,
     totalExpected,
     fronts,
-    // Desglose por turno (mig 150) — para que Monitoreo muestre en qué
-    // turno está cada hub, no solo el total agregado.
-    // `timings` viaja en el mismo jsonb que ya usa Monitoreo (turno_progress) —
-    // clave nueva, aditiva: LiveSessionsPanel solo lee .filled/.total_per_turno,
-    // no rompe nada. Persiste en vivo cada heartbeat (~25s) para no perder el
-    // dato si el navegador se cierra antes de Terminar Sesión.
-    turnoProgress: {
-      total_per_turno: totalExpectedPerTimeslot,
-      filled: filledByTimeslot,
-      timings: turnoTimings,
-    },
-    scopeLabel,
-  }
-  // Fallos de latido consecutivos (mig 149) — contador puramente local, se
-  // reporta en el próximo latido exitoso para que Monitoreo (admin) pueda
-  // distinguir "esta sesión tuvo problemas intermitentes de red" de "el hub
-  // cerró la laptop" — ambos se ven idénticos si solo se mira last_seen_at.
-  const heartbeatFailStreakRef = useRef(0)
-
-  const sendHeartbeat = useCallback(async () => {
-    // `ci_active_sessions` tiene PK `user_email`: UNA sola fila por hub. Dos
-    // pestañas latiendo la hacen saltar entre buckets y corrompen
-    // `started_at`, que es la fuente de la duración.
-    //
-    // Se corta el ENVÍO, NO se borra la fila: borrarla al degradarse repetiría
-    // el bug P1-4 (el hub desaparece de "en vivo" y se pierde el inicio real).
-    //
-    // DOS candados, porque el de borrador NO alcanza: su alcance incluye la
-    // vista y la fecha, así que dos pestañas del mismo hub en frentes
-    // distintos lo pasan las dos. El del latido es global por hub, que es el
-    // alcance de la fila que se está por escribir.
-    if (!leaseOwnerRef.current || !hbLeaseOwnerRef.current) return
-    const p = heartbeatRef.current
-    if (!p || !p.city) return
-    try {
-      const failures = heartbeatFailStreakRef.current
-      const { error } = await upsertActiveSession(p, failures)
-      // supabase-js NO tira excepción por un error a nivel Postgres/RPC (solo
-      // por fallos de red) — sin este chequeo explícito, un error del lado del
-      // servidor (RLS, función ambigua, etc.) se contaba como latido exitoso.
-      if (error) throw error
-      heartbeatFailStreakRef.current = 0
-      // Confirmación real de servidor — ver indicador "confirmado en
-      // servidor" en el header. Un latido exitoso ya prueba que el backend
-      // nos escucha, no hace falta esperar a un guardado explícito.
-      setLastHeartbeatOkAt(Date.now())
-    } catch {
-      // best-effort: un fallo acá nunca debe interrumpir al hub (el
-      // indicador de servidor simplemente no se refresca y va envejeciendo
-      // hasta mostrar el aviso — ver umbral abajo). Sí se cuenta para
-      // reportarlo en el próximo latido exitoso (ver arriba).
-      heartbeatFailStreakRef.current += 1
-    }
-  }, [])
-
-  // Piso de confiabilidad: late cada ~25s mientras la sesión esté activa,
-  // sin importar si el hub está tipeando (evita que last_seen_at se vea
-  // "viejo" solo porque está mirando distancias/fotos sin escribir).
-  useEffect(() => {
-    if (!sessionActive || !userEmail) return
-    sendHeartbeat()
-    const id = setInterval(sendHeartbeat, 25_000)
-    return () => clearInterval(id)
-  }, [sessionActive, userEmail, sendHeartbeat])
-
-  // Ping extra con el mismo debounce que el autosave del borrador — refleja
-  // un cambio de distrito/progreso más rápido que el intervalo de 25s.
-  useEffect(() => {
-    if (!sessionActive || !userEmail) return
-    const id = setTimeout(sendHeartbeat, 1500)
-    return () => clearTimeout(id)
-  }, [sessionActive, userEmail, bucketKey, date, filledCount, sendHeartbeat])
+    totalExpectedPerTimeslot,
+    filledByTimeslot,
+    turnoTimings,
+    activeAirportMembers,
+    pendingScopeMembers,
+    bucketKeyOf,
+    bucketKey,
+  })
 
   // Limpieza al desmontar/navegar fuera de la página (best-effort — un
   // refresh duro no garantiza que esto corra, igual que el flush del
@@ -4536,7 +2741,14 @@ export default function DataEntry() {
             <strong>{t('dataentry.lease_readonly_title')}</strong>{' '}
             {t('dataentry.lease_readonly_body')}
           </span>
-          <button type="button" className="de-msg__action" onClick={claimDraftLease}>
+          <button
+            type="button"
+            className="de-msg__action"
+            onClick={() => {
+              claimDraftLease()
+              setMsg(null)
+            }}
+          >
             {t('dataentry.lease_readonly_take')}
           </button>
         </div>
