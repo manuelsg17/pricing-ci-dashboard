@@ -15,14 +15,19 @@
 // evento, qué queda persistido y qué se pierde.
 //
 // ⚠️ LÍMITE HONESTO — LEER ANTES DE CONFIAR EN ESTE ARCHIVO
-// La lógica del borrador NO está extraída de DataEntry.jsx: vive dentro de
-// tres `useEffect` del god-component (CLAUDE.md §1) y no se puede importar ni
-// ejecutar sin un navegador. Lo de acá es un MODELO de esos efectos, escrito
-// a mano leyendo el código. Un modelo que se desincroniza del código miente
-// peor que no tener nada, así que el bloque final [10] verifica contra el
-// FUENTE REAL las cinco propiedades sobre las que se apoya el modelo. Si
-// alguien cambia el debounce, le agrega persistencia al `beforeunload` o
-// rompe el merge del flush, ese bloque falla y obliga a actualizar el modelo.
+// El autosave/flush/pagehide SÍ se extrajeron (refactor 2026-09) a
+// src/hooks/useCiDraftAutosave.js — son funciones importables y ya no
+// requieren un navegador para ejecutarse. Aun así este script sigue
+// siendo un MODELO escrito a mano, no una llamada directa a esas
+// funciones (harían falta refs/localStorage simulados; no se rehizo al
+// extraer, para no inflar el refactor). La hidratación del borrador
+// (leerlo al montar) SIGUE sin extraer, entrelazada en DataEntry.jsx con
+// demasiado estado de sesión (CLAUDE.md §1). Un modelo que se desincroniza
+// del código miente peor que no tener nada, así que el bloque final [10]
+// verifica contra el FUENTE REAL —de cada archivo— las propiedades sobre
+// las que se apoya el modelo. Si alguien cambia el debounce, le agrega
+// persistencia al `beforeunload` o rompe el merge del flush, ese bloque
+// falla y obliga a actualizar el modelo.
 //
 // Lo que este script NO prueba y solo se puede ver en un navegador real:
 //   · Que React de verdad no corre los cleanups al descargar la página.
@@ -430,7 +435,11 @@ console.log('[5] F · auto-reload por deploy')
   // CORREGIDO 2026-08-03, mismo motivo que [2]: el auto-reload por deploy es
   // un cierre ORDENADO. Esto es justamente lo que baja la gravedad de P1-9 a
   // una molestia de experiencia y no una pérdida de datos.
-  eq(perdidas(previa, m), [], 'el auto-reload tampoco pierde nada (cierre ordenado, igual que el F5)')
+  eq(
+    perdidas(previa, m),
+    [],
+    'el auto-reload tampoco pierde nada (cierre ordenado, igual que el F5)'
+  )
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -557,15 +566,23 @@ console.log('[9] Cambio de contexto (el flush sí corre)')
 console.log('[10] Invariantes verificadas contra el fuente real')
 
 const src = readFileSync(join(RAIZ, 'src/pages/DataEntry.jsx'), 'utf8')
+// El autosave/flush/pagehide se extrajeron a un hook propio (refactor
+// 2026-09, useCiDraftAutosave.js) — la hidratación del borrador y el
+// beforeunload se quedaron en DataEntry.jsx (ver el comentario del propio
+// hook sobre por qué). Los bloques [10] de acá abajo leen cada uno del
+// archivo donde vive de verdad, si no las anclas dejan de existir y todo
+// este archivo miente en verde (exactamente lo que este bloque existe para
+// evitar).
+const autosaveSrc = readFileSync(join(RAIZ, 'src/hooks/useCiDraftAutosave.js'), 'utf8')
 
-function bloque(desde, hasta, etiqueta) {
-  const i = src.indexOf(desde)
-  const j = src.indexOf(hasta, i + 1)
+function bloque(desde, hasta, etiqueta, texto = src) {
+  const i = texto.indexOf(desde)
+  const j = texto.indexOf(hasta, i + 1)
   if (i < 0 || j < 0) {
     ok(false, `[ancla perdida] no se encontró el bloque ${etiqueta} — revisar este script`)
     return ''
   }
-  return src.slice(i, j)
+  return texto.slice(i, j)
 }
 
 // 1. El autosave es un debounce CON TECHO (R1, 2026-08-01).
@@ -574,15 +591,12 @@ function bloque(desde, hasta, etiqueta) {
 // y el debounce pasó a ser dinámico. Es exactamente para lo que existe — el
 // modelo de los bloques [1]-[9] se apoya en estas propiedades, y si el fuente
 // cambia sin actualizar el modelo, las simulaciones dejan de significar algo.
-const bAutosave = bloque('── Autosave a localStorage (draft)', 'Flush SÍNCRONO', 'autosave')
+const bAutosave = bloque('Techo de espera del autosave', 'Flush SÍNCRONO', 'autosave', autosaveSrc)
 ok(
   /TECHO_BORRADOR_MS/.test(bAutosave) && /\}, espera\)/.test(bAutosave),
   'el autosave tiene TECHO de espera (ya no es un debounce puro sin maxWait)'
 )
-ok(
-  /DEBOUNCE_BORRADOR_MS = 1500/.test(bAutosave),
-  'el debounce base sigue siendo de 1500ms'
-)
+ok(/DEBOUNCE_BORRADOR_MS = 1500/.test(bAutosave), 'el debounce base sigue siendo de 1500ms')
 ok(
   /TECHO_BORRADOR_MS = 3000/.test(bAutosave),
   'el techo es de 3000ms (si cambia, actualizar el peor caso de [4] APAGÓN)'
@@ -624,7 +638,7 @@ ok(
 ok(/clearTimeout\(id\)/.test(bAutosave), 'el cleanup del autosave sigue cancelando el timer')
 
 // 2. El flush del cleanup sigue mergeando sobre lo ya escrito (fix P0-2).
-const bFlush = bloque('Flush SÍNCRONO', 'const clearDraft', 'flush')
+const bFlush = bloque('Flush SÍNCRONO', 'const clearDraft', 'flush', autosaveSrc)
 ok(/\.\.\.previo/.test(bFlush), 'el flush sigue mergeando sobre el borrador previo (fix P0-2)')
 
 // 3. El beforeunload sigue sin persistir NADA: solo muestra el diálogo.
@@ -652,10 +666,11 @@ ok(
 const bPageHide = bloque(
   'const onPageHide = () => {',
   "window.addEventListener('pagehide'",
-  'pagehide'
+  'pagehide',
+  autosaveSrc
 )
 ok(
-  /addEventListener\('pagehide'/.test(src),
+  /addEventListener\('pagehide'/.test(autosaveSrc),
   'sigue habiendo un listener de pagehide registrado'
 )
 ok(
@@ -663,7 +678,7 @@ ok(
   'el handler de pagehide PERSISTE el borrador (no solo marca el candado ocioso)'
 )
 ok(
-  /visibilitychange/.test(src),
+  /visibilitychange/.test(autosaveSrc),
   'visibilitychange cubre cerrar la tapa o pasar a segundo plano en celular'
 )
 ok(
