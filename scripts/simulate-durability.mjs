@@ -574,6 +574,11 @@ const src = readFileSync(join(RAIZ, 'src/pages/DataEntry.jsx'), 'utf8')
 // este archivo miente en verde (exactamente lo que este bloque existe para
 // evitar).
 const autosaveSrc = readFileSync(join(RAIZ, 'src/hooks/useCiDraftAutosave.js'), 'utf8')
+// Hidratación del borrador (leerlo al montar/cambiar de ciudad) — extraída
+// en el cuarto corte del refactor (useCiDraftHydration.js). El resto de la
+// identidad de sesión (sessionActive, loadObservationsIntoForm, la marca de
+// agua) se quedó en DataEntry.jsx.
+const hydrationSrc = readFileSync(join(RAIZ, 'src/hooks/useCiDraftHydration.js'), 'utf8')
 
 function bloque(desde, hasta, etiqueta, texto = src) {
   const i = texto.indexOf(desde)
@@ -688,7 +693,7 @@ ok(
 
 // 4. Restaurar el borrador sigue salteando la consulta al servidor.
 ok(
-  /if \(!draftApplied\) \{\s*setPendingLoad\(/.test(src),
+  /if \(!draftApplied\) \{\s*setPendingLoad\(/.test(hydrationSrc),
   'con borrador restaurado se sigue salteando loadObservationsIntoForm'
 )
 
@@ -697,7 +702,12 @@ ok(
 // El ancla NO incluye el `if (` de adelante a propósito: prettier parte esa
 // línea cuando pasa de los 100 caracteres, y un ancla que depende del formato
 // se rompe sola en el próximo commit (pasó el 2026-08-02).
-const bHidratacion = bloque('debeHidratarBorrador({', 'if (!draftApplied)', 'hidratación')
+const bHidratacion = bloque(
+  'debeHidratarBorrador({',
+  'if (!draftApplied)',
+  'hidratación',
+  hydrationSrc
+)
 ok(
   !/writeSyncSeq/.test(bHidratacion),
   'la restauración del borrador sigue sin re-sincronizar la marca de agua (causa del falso conflicto)'
@@ -710,11 +720,11 @@ ok(
 //     —bloqueando el reintento— y dejaba que el auto-load del servidor pisara
 //     el trabajo sin guardar. Medido: 7 celdas → 4 tras un F5.
 ok(
-  /debeHidratarBorrador\(\{\s*userEmail/.test(src),
+  /debeHidratarBorrador\(\{\s*userEmail/.test(hydrationSrc),
   'la hidratación sigue guardada por la identidad del usuario (no vuelve el bug del F5)'
 )
 ok(
-  !/if \(!hydratedCitiesRef\.current\.has\(targetCity\)\) \{/.test(src),
+  !/if \(!hydratedCitiesRef\.current\.has\(targetCity\)\) \{/.test(hydrationSrc),
   'y ya no queda el guard viejo, que ignoraba el email'
 )
 
