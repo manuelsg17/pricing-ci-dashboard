@@ -101,6 +101,16 @@ export function CountryProvider({ children }) {
   // pueden querer mostrar spinner antes de leer countryConfig.
   const [loading, setLoading] = useState(true)
   const fetchedRef = useRef(false)
+  // true si el fetch más reciente volvió vacío — bajo RLS eso pasa cuando
+  // el request corre ANTES de que el cliente de Supabase tenga el JWT de
+  // sesión adjunto. Un usuario CON cache previo en localStorage no lo nota
+  // (dbConfigs arranca poblado del cache y este early-return no lo pisa),
+  // pero uno sin cache (primer login en un navegador limpio) se queda
+  // pegado en {} para siempre, porque nada volvía a pedir la config después
+  // de que la sesión terminara de resolver. Bug real 2026-09-09: primer
+  // login de una cuenta nueva mostraba el Dashboard con categorías
+  // incompletas (fallback hardcoded de constants.js) hasta un F5 manual.
+  const needsAuthRetryRef = useRef(false)
 
   const fetchAllConfigs = useCallback(async () => {
     try {
@@ -115,7 +125,11 @@ export function CountryProvider({ children }) {
         console.warn('[CountryContext] Could not load country_config:', error.message)
         return
       }
-      if (!data?.length) return
+      if (!data?.length) {
+        needsAuthRetryRef.current = true
+        return
+      }
+      needsAuthRetryRef.current = false
 
       // bot_rules en vivo, agrupado por país — pisa el snapshot JSONB de
       // country_config.bot_rules (dbConfigToInternal) para que un edit en
@@ -152,6 +166,19 @@ export function CountryProvider({ children }) {
   // Load on mount — cache de localStorage cubre el primer render
   useEffect(() => {
     fetchAllConfigs()
+  }, [fetchAllConfigs])
+
+  // Reintento cuando la sesión termina de resolver: cubre el caso descrito
+  // arriba (needsAuthRetryRef) sin generar refetches de más en cada
+  // TOKEN_REFRESHED — solo reintenta mientras el fetch anterior siguió
+  // vacío, y se apaga solo apenas uno vuelve con datos.
+  useEffect(() => {
+    const { data: listener } = sb.auth.onAuthStateChange((_event, session) => {
+      if (session?.user && needsAuthRetryRef.current) {
+        fetchAllConfigs()
+      }
+    })
+    return () => listener.subscription.unsubscribe()
   }, [fetchAllConfigs])
 
   // El reporte de errores (mig 185) corre desde class components y desde
