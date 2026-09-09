@@ -304,7 +304,11 @@
   border-bottom: none;
 }
 
-/* Cabecera de columnas (períodos) */
+/* Cabecera de columnas (períodos). height fija (no solo padding): la tabla
+   "Precio" agrega un botón de pin dentro del <th> (#41) que las otras dos
+   tablas del bloque "Promedio general" no tienen — sin una altura común, su
+   <thead> queda más alto y desalinea verticalmente el tbody de las 3 tablas
+   aunque el grid externo iguale la altura total de cada wrap. */
 .matrix-table thead th {
   background: #f7f9fc;
   color: var(--color-muted);
@@ -315,6 +319,8 @@
   top: 0;
   z-index: 2;
   border-bottom: 2px solid var(--color-border);
+  height: 30px;
+  box-sizing: border-box;
 }
 
 /* Primera columna: etiquetas de competidor */

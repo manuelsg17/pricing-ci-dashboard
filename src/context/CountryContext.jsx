@@ -47,6 +47,7 @@ const REQUIRED_KEYS = [
   'categoriesByCity',
   'competitorsByDbCityCategory',
   'ciHiddenByDbCityCategory',
+  'analysisHiddenByDbCityCategory',
   'currency',
 ]
 

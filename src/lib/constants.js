@@ -769,6 +769,15 @@ export function dbConfigToInternal(row) {
   // el dashboard/leyendas/histórico. Lista paralela para no cambiar el shape de
   // `competitors`. Default [] = todos ofrecen (retrocompatible).
   const ciHiddenByDbCityCategory = {}
+  // Competidores a ocultar en Dashboard/Análisis/Rentabilidad (getCompetitors) —
+  // distinto de ciHidden, que solo afecta "Ingresar CI". Caso real: Didi en
+  // Delivery/Cargo Lima (config añadida por un bot_rule activo desde el
+  // 2026-08-14, mig 245) sin una sola fila en pricing_observations — el hub
+  // pidió sacarlo de las tablas de análisis mientras el bot_rule sigue
+  // corriendo en segundo plano (decisión explícita: no desactivarlo). Si el
+  // bot llega a traer data real, sacar a Didi de este array lo vuelve a
+  // mostrar sin perder nada. Default [] = todos visibles (retrocompatible).
+  const analysisHiddenByDbCityCategory = {}
   // Notas libres por competidor dentro de una categoría — caso real: Cabify
   // tuvo XL en Lima_Airport_A hasta el 27-jul y dejó de actualizarse (sigue
   // vivo en Lima_Airport_B). El competidor SIGUE listado (no es ciHidden, no
@@ -779,11 +788,15 @@ export function dbConfigToInternal(row) {
   cities.forEach((city) => {
     competitorsByDbCityCategory[city.dbName] = {}
     ciHiddenByDbCityCategory[city.dbName] = {}
+    analysisHiddenByDbCityCategory[city.dbName] = {}
     competitorNotesByDbCityCategory[city.dbName] = {}
     ;(city.categories || []).forEach((cat) => {
       competitorsByDbCityCategory[city.dbName][cat.dbName] = cat.competitors || []
       ciHiddenByDbCityCategory[city.dbName][cat.dbName] = Array.isArray(cat.ciHidden)
         ? cat.ciHidden
+        : []
+      analysisHiddenByDbCityCategory[city.dbName][cat.dbName] = Array.isArray(cat.analysisHidden)
+        ? cat.analysisHidden
         : []
       competitorNotesByDbCityCategory[city.dbName][cat.dbName] =
         cat.competitorNotes && typeof cat.competitorNotes === 'object' ? cat.competitorNotes : {}
@@ -826,6 +839,7 @@ export function dbConfigToInternal(row) {
     categoryDbMap,
     competitorsByDbCityCategory,
     ciHiddenByDbCityCategory,
+    analysisHiddenByDbCityCategory,
     competitorNotesByDbCityCategory,
     yangoDisplayName,
     weightCities: ['all', ...dbCities],
@@ -860,14 +874,18 @@ export function getCompetitors(uiCity, uiCategory, subCategory, country, dbConfi
     country,
     dbConfigs
   )
-  return config.competitorsByDbCityCategory[dbCity]?.[dbCategory] || []
+  const all = config.competitorsByDbCityCategory[dbCity]?.[dbCategory] || []
+  const hidden = config.analysisHiddenByDbCityCategory?.[dbCity]?.[dbCategory]
+  if (!hidden || hidden.length === 0) return all
+  const hiddenSet = new Set(hidden)
+  return all.filter((c) => !hiddenSet.has(c))
 }
 
 // Competidores a MOSTRAR en "Ingresar CI": igual que getCompetitors pero sin los
-// marcados "no ofrece" (ciHidden) para esa ciudad×categoría. Se usa SOLO en la
-// grilla de carga (y su validación/conteo/guardado); el dashboard/histórico
-// siguen usando getCompetitors (lista completa). Si no hay ciHidden configurado
-// devuelve la lista completa (retrocompatible).
+// marcados "no ofrece" (ciHidden) para esa ciudad×categoría — un filtro
+// independiente de analysisHidden (getCompetitors arriba). Se usa SOLO en la
+// grilla de carga (y su validación/conteo/guardado). Si no hay ciHidden
+// configurado devuelve la lista completa (retrocompatible).
 // Categorías donde el hub NO carga ETA (pedido user 2026-09-07): Delivery y
 // Cargo — el precio es el único dato que importa ahí, y agregar un campo que
 // nunca se llena solo estorba. `uiCategory` porque es lo que la grilla conoce
