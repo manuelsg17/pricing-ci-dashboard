@@ -105,13 +105,6 @@
   color: var(--color-text);
 }
 
-/* Tablas anchas (matriz de escenarios, desglose): scroll horizontal en vez
-   de romper el layout en pantallas chicas. */
-.rent-scroll-x {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
 @media (max-width: 640px) {
   .rent-panel {
     padding: 12px;

@@ -744,14 +744,6 @@
     flex-wrap: wrap;
   }
 
-  /* Las tarjetas de KPI a 2 columnas: a una sola quedan 8 pantallazos de
-     scroll para leer 8 números; a 3 no entra el texto. */
-  .kpi-grid,
-  .dashboard__kpis {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
   /* Cualquier grilla de 2-3 columnas que haya sobrevivido al tramo de 1200px
      pasa a una sola. */
   .bracket-section__tables,

@@ -3,58 +3,6 @@
   flex: 1;
 }
 
-/* ── Shared config action buttons ───────────────────────── */
-.btn-save-sm {
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 600;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--color-yango);
-  color: #fff;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.btn-save-sm:hover {
-  background: var(--color-yango-dark);
-}
-.btn-save-sm:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.btn-delete-sm {
-  height: 26px;
-  padding: 0 8px;
-  font-size: 11px;
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-panel);
-  color: var(--color-danger);
-  cursor: pointer;
-}
-.btn-delete-sm:hover {
-  background: var(--color-danger-bg);
-}
-
-.save-msg {
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  margin-bottom: 10px;
-}
-.save-msg--ok {
-  background: var(--color-success-bg-subtle);
-  border: 1px solid var(--color-success-border);
-  color: var(--color-success-fg);
-}
-.save-msg--err {
-  background: var(--color-danger-bg-subtle);
-  border: 1px solid var(--color-danger-border);
-  color: var(--color-danger-fg);
-}
-
 .config-loading {
   padding: 20px;
   color: var(--color-muted);
@@ -67,41 +15,6 @@
   margin-bottom: 16px;
   color: var(--color-text);
   letter-spacing: -0.3px;
-}
-
-/* ── Tabs ───────────────────────────────────────────── */
-.config-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 2px solid var(--color-border);
-  margin-bottom: 16px;
-}
-
-.config-tab {
-  padding: 8px 18px;
-  border: none;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    background 0.15s;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-}
-
-.config-tab:hover {
-  color: var(--color-text);
-  background: var(--color-yango-mid);
-}
-
-.config-tab.active {
-  color: var(--color-yango);
-  font-weight: 700;
-  border-bottom-color: var(--color-yango);
 }
 
 /* ── Config section ────────────────────────────────── */
@@ -192,29 +105,6 @@
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--color-border-soft);
-}
-
-.config-save-ok {
-  color: var(--sem-green-fg);
-  font-size: 12px;
-  font-weight: 600;
-}
-.config-save-err {
-  color: var(--sem-red-fg);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-/* ── Weights ───────────────────────────────────────── */
-.weight-sum {
-  font-size: 12px;
-  font-weight: 700;
-}
-.weight-sum.ok {
-  color: var(--sem-green-fg);
-}
-.weight-sum.warn {
-  color: #856404;
 }
 
 /* ── Threshold selector ────────────────────────────── */
