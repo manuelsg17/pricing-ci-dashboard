@@ -73,6 +73,7 @@
     "test:date-iso": "node scripts/test-date-iso.mjs",
     "simulate:ventana-duracion": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-ventana-duracion.sql",
     "simulate:zona-aeropuerto": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-zona-aeropuerto.sql",
+    "simulate:bracket-tuktuk": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-bracket-tuktuk.sql",
     "simulate:limpieza-duplicados": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-limpieza-duplicados.sql",
     "test:chunk-retry": "node scripts/test-chunk-retry.mjs",
     "simulate:bot-nulls": "docker exec -i supabase_db_pricing-ci-dashboard psql -U postgres -X < scripts/simulate-bot-nulls-not-distinct.sql",
