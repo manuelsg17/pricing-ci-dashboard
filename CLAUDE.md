@@ -456,3 +456,19 @@ Reglas de honestidad, todas con antecedente en este proyecto:
   pasó con una fuga de RLS que era un falso positivo del advisory y con una supuesta
   discrepancia del dashboard que era un artefacto de la query de verificación. El costo
   de un diagnóstico equivocado que se sostiene es mucho mayor que el de admitirlo.
+- **Un archivo de migración SQL leído aislado no es el estado real — nunca lo es.**
+  Antecedente (2026-09-11): un hallazgo de auditoría dio por hecho que un trigger
+  normalizaba nombres de competidor con espacio ('Cabify Lite') porque así lo hacía
+  la migración `20250101011000`, sin ver que DOS migraciones posteriores
+  (`011200` mig 72, `013700` mig 97) ya habían reemplazado esa misma función con
+  `CREATE OR REPLACE` — el comportamiento real en producción era otro. Se reportó
+  como bug real antes de verificarlo contra la base. Regla: antes de afirmar qué
+  hace una función/trigger/vista SQL, o bien (a) `grep` todas las migraciones que la
+  redefinen y quedarse con la de timestamp más alto, o (b) consultar
+  `pg_get_functiondef` / `pg_get_viewdef` contra la base real (local o prod) — nunca
+  las dos cosas por separado dando por buena la primera que aparece. Esto aplica
+  igual de fuerte a "¿qué hace este componente hoy?" en frontend: un comentario o un
+  nombre de archivo describen una intención pasada, no necesariamente el código
+  vigente — si la afirmación es la base de una acción (fix, migración, deploy), se
+  lee el archivo completo y actual antes de actuar, no se cita de memoria ni de un
+  grep parcial.
