@@ -60,6 +60,15 @@ jobs:
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:54321
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          # Sin esto, el CSP de index.html (connect-src 'self'
+          # https://*.supabase.co %VITE_CSP_EXTRA_CONNECT_SRC%) solo permite
+          # Supabase-en-la-nube y bloquea la conexión a 127.0.0.1:54321 —
+          # primera corrida real en CI (run 34693833222) falló con "We
+          # couldn't load your profile / connection problem" en las 8 specs
+          # por esto exacto. Mismo valor que .env.local usa en desarrollo.
+          VITE_CSP_EXTRA_CONNECT_SRC: >-
+            http://127.0.0.1:54321 ws://127.0.0.1:54321
+            http://localhost:54321 ws://localhost:54321
         run: npx playwright test
 
       - name: Upload trace on failure
