@@ -17,7 +17,13 @@ const getNav = (t) => [
     children: [
       { id: 'market', label: t('nav.market') },
       { id: 'competitividad', label: t('nav.competitividad') },
-      { id: 'routemonitor', label: t('nav.routemonitor') },
+      // section: 'competitividad' — RouteMonitor reusa esa sección de permisos
+      // a propósito (ver App.jsx ROUTES), no tiene una entrada propia en
+      // ALL_SECTIONS. Sin el `section` acá, canShow() preguntaba por
+      // canAccess('routemonitor') (que no existe en ningún rol salvo admin)
+      // y el link quedaba invisible para cualquiera que sí tuviera acceso
+      // real a la página (entraba solo por URL directa) — bug real, 2026-09-12.
+      { id: 'routemonitor', label: t('nav.routemonitor'), section: 'competitividad' },
       { id: 'rentabilidad', label: t('nav.rentabilidad') },
     ],
   },
@@ -39,7 +45,6 @@ const getNav = (t) => [
     label: t('nav.config_group'),
     icon: '⚙️',
     children: [
-      { id: 'events', label: t('nav.events') },
       { id: 'distances', label: t('nav.distances') },
       { id: 'config', label: t('nav.config') },
       { id: 'access', label: t('nav.access') },
@@ -180,7 +185,7 @@ export default function Topbar({
   // Un ítem de nav visible: los `adminOnly` (ej. Monitoreo) se gatean por isAdmin
   // — no por canAccess ni por permisos de sección (así no se puede "regalar" a
   // otro rol desde la UI de Roles). El resto, por canAccess.
-  const canShow = (item) => (item.adminOnly ? isAdmin : canAccess(item.id))
+  const canShow = (item) => (item.adminOnly ? isAdmin : canAccess(item.section ?? item.id))
   const { lang, setLang, languages, t } = useI18n()
   const { country, setCountry, countryConfig, dbConfigs } = useCountry()
   // Prioridad: countryConfig.iso2 / nativeLabel (de DB) → COUNTRY_CONFIG

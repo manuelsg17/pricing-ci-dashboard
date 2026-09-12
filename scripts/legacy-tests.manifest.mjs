@@ -75,6 +75,7 @@ export const LEGACY_TESTS = [
   { name: 'data-entry-derived', cmd: ['node', 'scripts/test-data-entry-derived.mjs'] },
   { name: 'config-table', cmd: ['node', 'scripts/test-config-table.mjs'] },
   { name: 'migration-collisions', cmd: ['node', 'scripts/check-migration-collisions.mjs'] },
+  { name: 'nav-sections-drift', cmd: ['node', 'scripts/check-nav-sections-drift.mjs'] },
   // Único no-Node: corre sin red/DB/psycopg2 (ver cabecera del script propio).
   { name: 'bot-sync-py', cmd: ['python3', 'scripts/bot-sync/test_bot_sync.py'] },
 ]
