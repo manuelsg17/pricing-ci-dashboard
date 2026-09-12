@@ -1,0 +1,71 @@
+name: E2E (Ingresar CI)
+
+# Primera pieza de CLAUDE.md §1 "Tests E2E de navegador: pendiente de
+# adopción, ya no es un 'no'" (2026-09-12) — hasta ahora la suite de
+# e2e/*.spec.js solo corría a mano contra Supabase local, dependiendo de
+# que alguien se acordara. Corre en su propio workflow, separado de
+# deploy.yml, para no arriesgar el pipeline de deploy con una pieza nueva
+# todavía sin historial de estabilidad en CI.
+#
+# Corre SIEMPRE contra un Supabase LOCAL levantado en el runner (nunca
+# contra producción) — mismo criterio que playwright.config.js exige para
+# correrlo a mano.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # ubuntu-latest ya trae el daemon de Docker — a diferencia de macOS
+      # local, acá no hace falta Colima.
+      - name: Start Supabase local (aplica todas las migraciones + seed)
+        run: supabase start
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Mismas claves DEMO fijas y públicas que supabase start genera
+      # siempre para instancias locales (documentadas por Supabase, ver
+      # e2e/global-setup.mjs) — no son secretos, solo sirven contra
+      # 127.0.0.1:54321 dentro de este runner efímero.
+      - name: Run E2E suite
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+        run: npx playwright test
+
+      - name: Upload trace on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
