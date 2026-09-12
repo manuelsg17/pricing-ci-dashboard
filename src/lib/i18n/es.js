@@ -445,7 +445,6 @@ export default {
   'nav.rawdata': '🗃 Data Raw',
   'nav.coverage': '🛡️ Cobertura',
   'nav.config_group': '⚙️ Config.',
-  'nav.events': '📌 Eventos',
   'nav.distances': '📍 Distancias Ref.',
   'nav.config': '⚙️ Configuración',
   'nav.access': '🔐 Accesos',
@@ -1227,7 +1226,6 @@ export default {
   'sections.upload': '📤 Cargar Data',
   'sections.rawdata': '🗃 Data Raw',
   'sections.coverage': '🛡️ Cobertura',
-  'sections.events': '📌 Eventos',
   'sections.distances': '📍 Distancias Ref.',
   'sections.config': '⚙️ Configuración',
   'sections.access': '🔐 Gestión de Accesos',
@@ -1248,7 +1246,10 @@ export default {
   'access.create': 'Crear',
   'access.register': '💾 Registrar',
   'access.no_users': 'Sin usuarios registrados.',
-  'access.confirm_delete_user': '¿Eliminar este usuario?',
+  'access.confirm_delete_user_title': 'Eliminar usuario permanentemente',
+  'access.confirm_delete_user':
+    'Esta acción es IRREVERSIBLE: se borrará por completo el acceso de {email} — su perfil y su cuenta de acceso, no solo el perfil. No podrá volver a iniciar sesión con esas credenciales. ¿Confirmás que querés eliminar a este usuario para siempre?',
+  'access.confirm_delete_user_btn': 'Sí, eliminar permanentemente',
   'access.confirm_delete_role': '¿Eliminar este rol? Los usuarios asignados perderán su rol.',
   // Qué puede ESCRIBIR cada sección (section_write_grants, migs 187/192).
   // Sin esto el user elige secciones a ciegas: la pantalla muestra un check
@@ -1433,31 +1434,6 @@ export default {
   'competitividad.week_range.26': 'Últimas 26 semanas',
 
   // ── Market Events page ─────────────────────────────────────────────
-  'market_events.title': 'Anotaciones de Mercado',
-  'market_events.desc':
-    'Registra eventos externos (huelgas, lluvia, feriados, promos) que puedan explicar variaciones en los precios. Los eventos aparecen en los gráficos del Dashboard en vista diaria.',
-  'market_events.add_event': '+ Nuevo evento',
-  'market_events.count': { one: '{n} evento', other: '{n} eventos' },
-  'market_events.col_type': 'Tipo',
-  'market_events.col_description': 'Descripción',
-  'market_events.empty_title': 'Sin eventos en este período',
-  'market_events.empty_message':
-    'Haz clic en "+ Nuevo evento" para agregar uno. Los eventos aparecen sobre los gráficos del Dashboard en vista diaria.',
-  'market_events.description_placeholder': 'Describe el evento…',
-  'market_events.delete_confirm_title': 'Eliminar evento',
-  'market_events.delete_confirm_message':
-    '¿Eliminar este evento de mercado? Esta acción no se puede deshacer.',
-  'market_events.err_empty_description': 'La descripción no puede estar vacía.',
-  'market_events.saved_toast': 'Evento guardado.',
-  'market_events.save_error': 'Error al guardar: {msg}',
-  'market_events.deleted_toast': 'Evento eliminado.',
-  'market_events.delete_error': 'Error al eliminar: {msg}',
-  'market_events.type.huelga': 'Huelga',
-  'market_events.type.lluvia': 'Lluvia',
-  'market_events.type.feriado': 'Feriado',
-  'market_events.type.promo_competidor': 'Promo competidor',
-  'market_events.type.regulacion': 'Regulación',
-  'market_events.type.otro': 'Otro',
 
   // ── Raw Data page ──────────────────────────────────────────────────
   'rawdata.error': '⚠ Error: {error}',

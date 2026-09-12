@@ -20,7 +20,6 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
-  ReferenceLine,
   ReferenceArea,
   Brush,
 } from 'recharts'
@@ -31,8 +30,6 @@ import { prettyCompetitor } from '../../lib/normalize'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
-const IMPACT_COLORS = { alto: '#dc2626', medio: '#d97706', bajo: '#94a3b8' }
-
 function MiniChart({
   title,
   data,
@@ -41,7 +38,6 @@ function MiniChart({
   currency = '',
   yFormatter,
   isPercent = false,
-  events = [],
   chartType = 'line',
   hiddenComps,
   setHiddenComps,
@@ -54,7 +50,6 @@ function MiniChart({
   const { t } = useI18n()
   const chartCardRef = useRef(null)
   const hasData = data && data.length > 0 && competitors.some((c) => data.some((d) => d[c] != null))
-  const periodKeys = new Set((data || []).map((d) => d.period))
   const visibleComps = competitors.filter((c) => !hiddenComps?.has(c))
 
   const toggleHide = (comp) => {
@@ -233,29 +228,6 @@ function MiniChart({
                   strokeOpacity={0}
                 />
               )}
-
-              {/* Market events — filtramos antes de mapear para no inyectar
-                  `null` como child de ChartComponent (recharts puede crashear
-                  haciendo introspección de children con null en algunos paths). */}
-              {events
-                .filter((evt) => evt && evt.event_date && periodKeys.has(evt.event_date))
-                .map((evt) => (
-                  <ReferenceLine
-                    key={evt.id}
-                    x={evt.event_date}
-                    stroke={IMPACT_COLORS[evt.impact] || '#f97316'}
-                    strokeDasharray="4 2"
-                    strokeWidth={1.5}
-                    label={{
-                      value:
-                        evt.event_type === 'huelga' ? 'H' : evt.event_type === 'lluvia' ? 'L' : '●',
-                      position: 'top',
-                      fill: IMPACT_COLORS[evt.impact] || '#f97316',
-                      fontSize: 8,
-                      fontWeight: 'bold',
-                    }}
-                  />
-                ))}
 
               {visibleComps.map((comp) => renderSeries(comp))}
 

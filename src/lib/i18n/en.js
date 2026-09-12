@@ -442,7 +442,6 @@ export default {
   'nav.rawdata': '🗃 Raw Data',
   'nav.coverage': '🛡️ Coverage',
   'nav.config_group': '⚙️ Config.',
-  'nav.events': '📌 Events',
   'nav.distances': '📍 Distance Refs.',
   'nav.config': '⚙️ Configuration',
   'nav.access': '🔐 Access',
@@ -1208,7 +1207,6 @@ export default {
   'sections.upload': '📤 Upload Data',
   'sections.rawdata': '🗃 Raw Data',
   'sections.coverage': '🛡️ Coverage',
-  'sections.events': '📌 Events',
   'sections.distances': '📍 Ref. Distances',
   'sections.config': '⚙️ Settings',
   'sections.access': '🔐 Access Management',
@@ -1228,7 +1226,10 @@ export default {
   'access.create': 'Create',
   'access.register': '💾 Register',
   'access.no_users': 'No registered users.',
-  'access.confirm_delete_user': 'Delete this user?',
+  'access.confirm_delete_user_title': 'Permanently delete user',
+  'access.confirm_delete_user':
+    'This action is IRREVERSIBLE: it will fully remove access for {email} — their profile AND their login account, not just the profile. They will not be able to sign in again with those credentials. Confirm you want to delete this user forever?',
+  'access.confirm_delete_user_btn': 'Yes, delete permanently',
   'access.confirm_delete_role': 'Delete this role? Assigned users will lose their role.',
   'access.writes': 'Writes',
   'access.writes_none': 'Read only',
@@ -1405,30 +1406,6 @@ export default {
   'competitividad.week_range.26': 'Last 26 weeks',
 
   // ── Market Events page ─────────────────────────────────────────────
-  'market_events.title': 'Market Annotations',
-  'market_events.desc':
-    'Log external events (strikes, rain, holidays, promos) that could explain price swings. Events show up on the Dashboard charts in daily view.',
-  'market_events.add_event': '+ New event',
-  'market_events.count': { one: '{n} event', other: '{n} events' },
-  'market_events.col_type': 'Type',
-  'market_events.col_description': 'Description',
-  'market_events.empty_title': 'No events in this period',
-  'market_events.empty_message':
-    'Click "+ New event" to add one. Events show up over the Dashboard charts in daily view.',
-  'market_events.description_placeholder': 'Describe the event…',
-  'market_events.delete_confirm_title': 'Delete event',
-  'market_events.delete_confirm_message': 'Delete this market event? This action cannot be undone.',
-  'market_events.err_empty_description': 'Description cannot be empty.',
-  'market_events.saved_toast': 'Event saved.',
-  'market_events.save_error': 'Save error: {msg}',
-  'market_events.deleted_toast': 'Event deleted.',
-  'market_events.delete_error': 'Delete error: {msg}',
-  'market_events.type.huelga': 'Strike',
-  'market_events.type.lluvia': 'Rain',
-  'market_events.type.feriado': 'Holiday',
-  'market_events.type.promo_competidor': 'Competitor promo',
-  'market_events.type.regulacion': 'Regulation',
-  'market_events.type.otro': 'Other',
 
   // ── Raw Data page ──────────────────────────────────────────────────
   'rawdata.error': '⚠ Error: {error}',

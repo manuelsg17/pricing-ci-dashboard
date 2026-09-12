@@ -462,7 +462,6 @@ export default {
   'nav.rawdata': '🗃 Сырые данные',
   'nav.coverage': '🛡️ Покрытие',
   'nav.config_group': '⚙️ Настройки',
-  'nav.events': '📌 События',
   'nav.distances': '📍 Дистанции',
   'nav.config': '⚙️ Конфигурация',
   'nav.access': '🔐 Доступ',
@@ -1237,7 +1236,6 @@ export default {
   'sections.upload': '📤 Загрузка данных',
   'sections.rawdata': '🗃 Сырые данные',
   'sections.coverage': '🛡️ Покрытие',
-  'sections.events': '📌 События',
   'sections.distances': '📍 Эталонные расстояния',
   'sections.config': '⚙️ Настройки',
   'sections.access': '🔐 Управление доступом',
@@ -1258,7 +1256,10 @@ export default {
   'access.create': 'Создать',
   'access.register': '💾 Зарегистрировать',
   'access.no_users': 'Нет зарегистрированных пользователей.',
-  'access.confirm_delete_user': 'Удалить этого пользователя?',
+  'access.confirm_delete_user_title': 'Безвозвратное удаление пользователя',
+  'access.confirm_delete_user':
+    'Это действие НЕОБРАТИМО: будет полностью удалён доступ пользователя {email} — его профиль И учётная запись входа, а не только профиль. Он больше не сможет войти с этими данными. Подтверждаете удаление этого пользователя навсегда?',
+  'access.confirm_delete_user_btn': 'Да, удалить навсегда',
   'access.confirm_delete_role': 'Удалить эту роль? Назначенные пользователи потеряют свою роль.',
   'access.writes': 'Запись',
   'access.writes_none': 'Только чтение',
@@ -1442,36 +1443,6 @@ export default {
   'competitividad.week_range.26': 'Последние 26 недель',
 
   // ── Market Events page ─────────────────────────────────────────────
-  'market_events.title': 'Рыночные события',
-  'market_events.desc':
-    'Записывайте внешние события (забастовки, дождь, праздники, промо), которые могут объяснить колебания цен. События отображаются на графиках Дашборда в дневном виде.',
-  'market_events.add_event': '+ Новое событие',
-  'market_events.count': {
-    one: '{n} событие',
-    few: '{n} события',
-    many: '{n} событий',
-    other: '{n} события',
-  },
-  'market_events.col_type': 'Тип',
-  'market_events.col_description': 'Описание',
-  'market_events.empty_title': 'Нет событий за этот период',
-  'market_events.empty_message':
-    'Нажмите «+ Новое событие», чтобы добавить. События отображаются на графиках Дашборда в дневном виде.',
-  'market_events.description_placeholder': 'Опишите событие…',
-  'market_events.delete_confirm_title': 'Удалить событие',
-  'market_events.delete_confirm_message':
-    'Удалить это рыночное событие? Это действие нельзя отменить.',
-  'market_events.err_empty_description': 'Описание не может быть пустым.',
-  'market_events.saved_toast': 'Событие сохранено.',
-  'market_events.save_error': 'Ошибка сохранения: {msg}',
-  'market_events.deleted_toast': 'Событие удалено.',
-  'market_events.delete_error': 'Ошибка удаления: {msg}',
-  'market_events.type.huelga': 'Забастовка',
-  'market_events.type.lluvia': 'Дождь',
-  'market_events.type.feriado': 'Праздник',
-  'market_events.type.promo_competidor': 'Промо конкурента',
-  'market_events.type.regulacion': 'Регулирование',
-  'market_events.type.otro': 'Другое',
 
   // ── Raw Data page ──────────────────────────────────────────────────
   'rawdata.error': '⚠ Ошибка: {error}',

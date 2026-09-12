@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
 import { usePricingData } from '../hooks/usePricingData'
-import { useDashboardMarketEvents } from '../hooks/useMarketEvents'
 import { useBotOutlierTotal } from '../hooks/useBotCoverage'
 import FilterBar from '../components/dashboard/FilterBar'
 import BracketSection from '../components/dashboard/BracketSection'
@@ -276,9 +275,6 @@ function DashboardContent() {
       rawChartData,
       rawDeltaChartData,
     ])
-
-  // Market events for daily view (consulta en useMarketEvents.js)
-  const marketEvents = useDashboardMarketEvents(filters)
 
   // ── KPI computations ────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -919,7 +915,6 @@ function DashboardContent() {
                   compareVs={filters.compareVs}
                   chartData={chartData[bracket] || EMPTY_ARR}
                   deltaChartData={deltaChartData[bracket] || EMPTY_ARR}
-                  events={marketEvents}
                   semaforoBands={dbSemaforo}
                   frozenWeeks={frozenWeeks}
                   staleWeeks={staleWeeks}

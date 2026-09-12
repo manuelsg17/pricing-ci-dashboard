@@ -13,7 +13,6 @@ export const ALL_SECTIONS = [
   'upload',
   'rawdata',
   'coverage',
-  'events',
   'distances',
   'config',
   'access',

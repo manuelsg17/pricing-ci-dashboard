@@ -22,7 +22,6 @@ const RawData = lazyConReintento(() => import('./pages/RawData'), 'rawdata')
 const DataEntry = lazyConReintento(() => import('./pages/DataEntry'), 'dataentry')
 const Projects = lazyConReintento(() => import('./pages/Projects'), 'projects')
 const Rentabilidad = lazyConReintento(() => import('./pages/Rentabilidad'), 'rentabilidad')
-const MarketEvents = lazyConReintento(() => import('./pages/MarketEvents'), 'marketevents')
 const AccessManagement = lazyConReintento(
   () => import('./pages/AccessManagement'),
   'accessmanagement'
@@ -50,7 +49,6 @@ const ROUTES = [
   // una sección nueva obligaría al user a concederla a mano en Accesos antes
   // de que la pantalla sirva de algo (ya pasó con `projects`).
   { path: 'routemonitor', Component: RouteMonitor, section: 'competitividad' },
-  { path: 'events', Component: MarketEvents, section: 'events' },
   { path: 'rawdata', Component: RawData, section: 'rawdata' },
   { path: 'config', Component: Config, section: 'config' },
   { path: 'upload', Component: Upload, section: 'upload' },

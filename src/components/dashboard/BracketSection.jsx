@@ -159,7 +159,6 @@ function BracketSection({
   compareVs,
   chartData,
   deltaChartData,
-  events = [],
   currency = '',
   semaforoBands = [],
   frozenWeeks,
@@ -928,7 +927,6 @@ function BracketSection({
                 compareVs={compareVs}
                 currency={currency}
                 yFormatter={(v) => v.toFixed(1)}
-                events={events}
                 chartType={chartType}
                 hiddenComps={hiddenComps}
                 setHiddenComps={setHiddenComps}
@@ -945,7 +943,6 @@ function BracketSection({
                 currency={currency}
                 yFormatter={(v) => `${v.toFixed(0)}%`}
                 isPercent
-                events={events}
                 chartType={chartType}
                 hiddenComps={hiddenComps}
                 setHiddenComps={setHiddenComps}
