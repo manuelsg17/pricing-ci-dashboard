@@ -191,6 +191,10 @@ function BracketSection({
   const deltaWrapRef = useRef(null)
   const diffWrapRef = useRef(null)
   const tableRef = useRef(null)
+  // Bandera para el scroll-sync manual (ver useEffect de abajo): evita el
+  // eco infinito de que sincronizar A→B dispare el listener de B, que
+  // sincronizaría B→A, etc.
+  const syncingScrollRef = useRef(false)
 
   const [showSamples, setShowSamples] = useState(false)
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
@@ -253,6 +257,29 @@ function BracketSection({
     }
   }, [periods, collapsed])
 
+  // Scroll horizontal sincronizado entre las 3 tablas (Precio/%Delta/Diff):
+  // el efecto de arriba solo iguala el scroll al cargar/resize — si el user
+  // scrollea UNA tabla a mano, las otras dos se quedaban quietas y las
+  // columnas (períodos) dejaban de corresponderse visualmente entre tablas
+  // (auditoría UI 2026-09-12).
+  useEffect(() => {
+    if (collapsed) return
+    const wraps = [priceWrapRef, deltaWrapRef, diffWrapRef]
+    const handlers = wraps.map((ref) => () => {
+      if (syncingScrollRef.current || !ref.current) return
+      syncingScrollRef.current = true
+      const left = ref.current.scrollLeft
+      wraps.forEach((other) => {
+        if (other !== ref && other.current) other.current.scrollLeft = left
+      })
+      syncingScrollRef.current = false
+    })
+    wraps.forEach((ref, i) => ref.current?.addEventListener('scroll', handlers[i]))
+    return () => {
+      wraps.forEach((ref, i) => ref.current?.removeEventListener('scroll', handlers[i]))
+    }
+  }, [collapsed])
+
   // #2 — column hover via direct DOM class toggle
   const handleColEnter = useCallback((idx) => {
     const tables = tableRef.current?.querySelectorAll('.matrix-table')
@@ -297,6 +324,15 @@ function BracketSection({
           padding: '2px 8px',
           fontWeight: 700,
           fontSize: 11,
+          // lineHeight explícito — sin esto, el navegador calcula la altura
+          // de línea distinto según el contexto: el mismo badge medía
+          // 20.5px dentro del <div style={{display:'flex'}}> que también
+          // tiene el Sparkline (tabla de Precio) pero 17px suelto en un
+          // <td> (Delta/Diff) — esa diferencia de contexto, no el
+          // sparkline en sí, era la causa real del desalineamiento entre
+          // las 3 tablas (auditoría UI 2026-09-12, medido con
+          // getBoundingClientRect en las 3 tablas).
+          lineHeight: '13px',
           whiteSpace: 'nowrap',
           letterSpacing: 0.2,
         }}
@@ -554,7 +590,7 @@ function BracketSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {competitors.map((comp) => (
+                  {sortedCompetitors.map((comp) => (
                     <tr key={`samples-${comp}`}>
                       <td className="col-label">{compBadge(comp)}</td>
                       {periods.map((p) => {

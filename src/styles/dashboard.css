@@ -300,6 +300,24 @@
   letter-spacing: 0;
 }
 
+/* Altura de fila fija — mismo motivo y misma técnica que ya se usaba en
+   thead th (ver comentario de abajo): las 3 tablas de un bracket (Precio/
+   %Delta/Diff) son <table> independientes una al lado de la otra. Antes
+   solo la fila de encabezado tenía una altura común; el <tbody> quedaba
+   100% orgánico (auditoría UI 2026-09-12, reporte real del user: "en
+   delta Cabify está a la altura de InDrive"). Medido con
+   getBoundingClientRect: la causa real no era el sparkline en sí, sino
+   que el MISMO badge de competidor medía 20.5px dentro del <div
+   style={{display:'flex'}}> que lo envuelve junto al sparkline (tabla de
+   Precio) pero 17px suelto en un <td> (Delta/Diff) — el line-height por
+   defecto se calcula distinto según el contexto de formato. Ya fijado
+   con un lineHeight explícito en compBadge() — este height cubre ese
+   badge (17px) + padding con margen de sobra. */
+.matrix-table tbody td {
+  height: 30px;
+  box-sizing: border-box;
+}
+
 .matrix-table tbody tr:last-child td {
   border-bottom: none;
 }
