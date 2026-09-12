@@ -58,17 +58,45 @@ export function RealtimeSyncProvider({ children }) {
   // ejecutando el bundle viejo hasta que el usuario haga F5; este hook
   // les avisa con un toast sticky.
   //
-  // Auto-reload pasivo: tras 60s muestra el toast, recargamos automáticamente.
+  // Auto-reload pasivo: tras 60s de INACTIVIDAD recargamos automáticamente.
   // El usuario puede cerrar el toast (× icon) → cancela el auto-reload via
   // dismiss(). El próximo poll (5 min) NO reabre el toast (dismissedRef
   // mantiene memoria) hasta el siguiente deploy.
+  //
+  // SESIONES_HALLAZGOS.md P1-9 (2026-08-02, quedó abierto): el timer era fijo
+  // desde que aparecía el toast, sin mirar si el hub seguía tecleando — la
+  // pérdida de datos ya estaba cubierta (el borrador sobrevive el F5 forzado),
+  // pero la recarga podía caer a mitad de una celda. Fix acá: cada tecla o
+  // click reinicia la cuenta de 60s, así el reload solo dispara cuando el hub
+  // de verdad hizo una pausa — igual que el resto de la app trata "sigue
+  // trabajando" (ver src/lib/idleDetection.js), sin construir un sistema de
+  // actividad nuevo para esto: son 2 listeners de DOM crudos, acotados a este
+  // toast. Tope duro de 10 min para que un hub tecleando sin parar (o un bot
+  // de prueba) no evite el reload indefinidamente — algunos deploys traen
+  // cambios de esquema que sí necesitan el bundle nuevo.
   useBuildVersionCheck({
     enabled: !!session,
     onNewVersion: ({ dismiss }) => {
       let cancelled = false
-      const autoReload = setTimeout(() => {
+      const startedAt = Date.now()
+      const HARD_CAP_MS = 10 * 60 * 1000
+      let autoReload = null
+
+      const doReload = () => {
         if (!cancelled) window.location.reload()
-      }, 60_000)
+      }
+      const scheduleReload = () => {
+        clearTimeout(autoReload)
+        const remaining = HARD_CAP_MS - (Date.now() - startedAt)
+        autoReload = setTimeout(doReload, Math.max(0, Math.min(60_000, remaining)))
+      }
+      scheduleReload()
+
+      const onActivity = () => {
+        if (!cancelled) scheduleReload()
+      }
+      document.addEventListener('keydown', onActivity)
+      document.addEventListener('pointerdown', onActivity)
 
       toast.push({
         type: 'info',
@@ -83,13 +111,19 @@ export function RealtimeSyncProvider({ children }) {
         // pasa nada porque ya recargó.
       })
 
+      const cleanup = () => {
+        cancelled = true
+        clearTimeout(autoReload)
+        document.removeEventListener('keydown', onActivity)
+        document.removeEventListener('pointerdown', onActivity)
+      }
+
       // Sí queremos cancelar el auto-reload si la pestaña se oculta
       // (el user fue a otra ventana — molesto recargar ahí). Recheck
       // pasará en el próximo polling.
       const onVisibility = () => {
         if (document.visibilityState === 'hidden') {
-          cancelled = true
-          clearTimeout(autoReload)
+          cleanup()
           dismiss()
           document.removeEventListener('visibilitychange', onVisibility)
         }

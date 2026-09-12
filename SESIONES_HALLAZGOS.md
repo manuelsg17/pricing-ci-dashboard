@@ -7,6 +7,11 @@ Se encontraron **16 problemas**. En esa sesión se arreglaron los **dos P0**, qu
 son la causa del síntoma reportado. Los otros 14 quedan acá documentados con
 repro concreto, sin tocar.
 
+> **Estado 2026-09-12: los 16 están cerrados.** El último abierto (P1-9) se
+> arregló hoy — ver la tabla de la auditoría del 2026-08-02 más abajo. Este
+> archivo se conserva como referencia histórica del repro de cada uno, no
+> porque quede trabajo pendiente acá.
+
 Regla de lectura: lo que más importa no es el cronómetro en sí, sino los casos
 donde el hub **pierde datos** o **cree que guardó y no guardó**.
 
@@ -18,22 +23,22 @@ El cuerpo de este documento quedó viejo: describe como pendientes cosas que ya
 se arreglaron entre el 1 y el 2 de agosto. Se auditó **cada uno** contra el
 código de `main` y contra producción. Resultado: **13 de 14 cerrados, 1 abierto.**
 
-| Issue                                    | Estado         | Evidencia                                                     |
-| ---------------------------------------- | -------------- | ------------------------------------------------------------- |
-| P1-3 · nunca siembra desde el latido     | ✅             | `ci_started_from_timings` + `earliestTurnoStart`              |
-| P1-4 · desmontar borra el latido         | ✅             | `markBucketJustFinished` / `isBucketJustFinished`             |
-| P1-5 · `started_at` heredado de ayer     | ✅             | `debeReanudarTramo` + techo de 12 h (mig 194)                 |
-| P1-6 · laptop cerrada infla la duración  | ✅             | techo de 4 h + `turno_recortado` + `activity_trace`           |
-| P1-7 · cambiar la fecha no toca el reloj | ✅             | `hydratedCitiesRef` + cascada de contexto                     |
-| P1-8 · `turnoTimingsByCity` no se limpia | ✅             | `setTurnoTimingsByCity` en el cierre                          |
-| **P1-9 · auto-reload por deploy**        | ⚠️ **ABIERTO** | ver abajo                                                     |
-| P1-10 · dos pestañas se pisan            | ✅             | candado + 86 aserciones + **verificado en 2 pestañas reales** |
-| P2-11 · reintento duplica la sesión      | ✅             | `close_token` (mig 197) — 0 duplicados reales en producción   |
-| P2-12 · el auto-load pisa lo tipeado     | ✅             | `conservarTecleado`                                           |
-| P2-13 · el botón promete de más          | ✅             | `savableCount`                                                |
-| P2-14 · el indicador miente              | ✅             | `estadoDeServidor`                                            |
-| P2-15 · tras Terminar queda muda         | ✅             | `just_finished_note`                                          |
-| P2-16 · "Guardando…" colgado             | ✅             | `fetchConTimeout` (45 s)                                      |
+| Issue                                    | Estado          | Evidencia                                                                                       |
+| ---------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------- |
+| P1-3 · nunca siembra desde el latido     | ✅              | `ci_started_from_timings` + `earliestTurnoStart`                                                |
+| P1-4 · desmontar borra el latido         | ✅              | `markBucketJustFinished` / `isBucketJustFinished`                                               |
+| P1-5 · `started_at` heredado de ayer     | ✅              | `debeReanudarTramo` + techo de 12 h (mig 194)                                                   |
+| P1-6 · laptop cerrada infla la duración  | ✅              | techo de 4 h + `turno_recortado` + `activity_trace`                                             |
+| P1-7 · cambiar la fecha no toca el reloj | ✅              | `hydratedCitiesRef` + cascada de contexto                                                       |
+| P1-8 · `turnoTimingsByCity` no se limpia | ✅              | `setTurnoTimingsByCity` en el cierre                                                            |
+| P1-9 · auto-reload por deploy            | ✅ (2026-09-12) | `RealtimeSyncProvider.jsx` — el timer de 60s se reinicia con cada tecla/click, tope duro 10 min |
+| P1-10 · dos pestañas se pisan            | ✅              | candado + 86 aserciones + **verificado en 2 pestañas reales**                                   |
+| P2-11 · reintento duplica la sesión      | ✅              | `close_token` (mig 197) — 0 duplicados reales en producción                                     |
+| P2-12 · el auto-load pisa lo tipeado     | ✅              | `conservarTecleado`                                                                             |
+| P2-13 · el botón promete de más          | ✅              | `savableCount`                                                                                  |
+| P2-14 · el indicador miente              | ✅              | `estadoDeServidor`                                                                              |
+| P2-15 · tras Terminar queda muda         | ✅              | `just_finished_note`                                                                            |
+| P2-16 · "Guardando…" colgado             | ✅              | `fetchConTimeout` (45 s)                                                                        |
 
 ### P1-9, lo único abierto — y lo que cambió
 
