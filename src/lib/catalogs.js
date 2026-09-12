@@ -2,6 +2,7 @@
 // (Node ESM strict, sin Vite/bundler) pueda resolver el módulo. Vite
 // resuelve sin extensión, pero Node puro requiere la extensión.
 import { toSnakeCase } from './normalize.js'
+import { COMPETITOR_COLORS } from './competitorColors.js'
 
 // Catálogos canónicos — fuente de verdad para dropdowns en /config y wizard
 // de nuevo país. Previene typos (Economi → Economy, Indrive → InDrive, etc.).
@@ -49,16 +50,19 @@ export const CATALOG_CATEGORIES = [
   { value: 'Aeropuerto', label: 'Aeropuerto', aliases: ['aeropuerto', 'airport', 'aeroporto'] },
 ]
 
+// SIN `color` propio a propósito (hasta 2026-09-11 cada entrada tenía el
+// suyo, y divergía del real: Uber #1F2937 acá vs #276EF1 en COMPETITOR_COLORS
+// de constants.js, que es la paleta que de hecho se pinta en pantalla — el
+// mismo patrón de bug ya encontrado y corregido en BracketMix.jsx con
+// BRACKET_COLORS). `getCompetitorColor()` abajo lee de COMPETITOR_COLORS.
 export const CATALOG_COMPETITORS = [
   {
     value: 'Yango',
-    color: '#E53935',
     botApps: ['yango', 'yango_api'],
     aliases: ['yango', 'yango_api'],
   },
   {
     value: 'YangoComfort',
-    color: '#C62828',
     botApps: ['yango'],
     aliases: ['yangocomfort', 'yango_comfort'],
   },
@@ -67,70 +71,60 @@ export const CATALOG_COMPETITORS = [
   // de configuración. Las formas con espacio quedan solo como alias de entrada.
   {
     value: 'YangoEconomy',
-    color: '#E53935',
     botApps: ['yango'],
     aliases: ['yango_economy', 'yangoeconomy', 'yango economy'],
   },
   {
     value: 'YangoPremier',
-    color: '#B71C1C',
     botApps: ['yango'],
     aliases: ['yango_premier', 'yangopremier', 'yango premier'],
   },
   {
     value: 'YangoComfort+',
-    color: '#D32F2F',
     botApps: ['yango'],
     aliases: ['yango_comfort+', 'yango comfort+', 'yangocomfortplus'],
   },
   {
     value: 'YangoPlus',
-    color: '#C62828',
     botApps: ['yango'],
     aliases: ['yango_plus', 'yangoplus', 'yango plus'],
   },
   {
     value: 'YangoXL',
-    color: '#EF5350',
     botApps: ['yango'],
     aliases: ['yango_xl', 'yangoxl', 'yango xl'],
   },
-  { value: 'Uber', color: '#1F2937', botApps: ['uber'], aliases: ['uber'] },
-  { value: 'Didi', color: '#FF7E1B', botApps: ['didi'], aliases: ['didi', 'didi_express'] },
+  { value: 'Uber', botApps: ['uber'], aliases: ['uber'] },
+  { value: 'Didi', botApps: ['didi'], aliases: ['didi', 'didi_express'] },
   {
     value: 'InDrive',
-    color: '#00C853',
     botApps: ['indrive', 'indriver'],
     aliases: ['indrive', 'in_drive', 'indriver'],
   },
-  { value: 'Cabify', color: '#7B1FA2', botApps: ['cabify'], aliases: ['cabify'] },
+  { value: 'Cabify', botApps: ['cabify'], aliases: ['cabify'] },
   {
     value: 'CabifyLite',
-    color: '#9C27B0',
     botApps: ['cabify'],
     aliases: ['cabify_lite', 'cabifylite', 'cabify lite'],
   },
   {
     value: 'CabifyExtraComfort',
-    color: '#6A1B9A',
     botApps: ['cabify'],
     aliases: ['cabify_extra_comfort', 'cabifyextracomfort', 'cabify extra comfort'],
   },
   {
     value: 'CabifyXL',
-    color: '#AB47BC',
     botApps: ['cabify'],
     aliases: ['cabify_xl', 'cabifyxl', 'cabify xl'],
   },
-  { value: 'Picap', color: '#FB923C', botApps: ['picap'], aliases: ['picap'] },
-  { value: 'Beat', color: '#0EA5E9', botApps: ['beat'], aliases: ['beat'] },
-  { value: 'Bolt', color: '#84CC16', botApps: ['bolt'], aliases: ['bolt'] },
-  { value: 'Rappi', color: '#FF1744', botApps: ['rappi'], aliases: ['rappi'] },
+  { value: 'Picap', botApps: ['picap'], aliases: ['picap'] },
+  { value: 'Beat', botApps: ['beat'], aliases: ['beat'] },
+  { value: 'Bolt', botApps: ['bolt'], aliases: ['bolt'] },
+  { value: 'Rappi', botApps: ['rappi'], aliases: ['rappi'] },
   // Delivery/Cargo (2026-09): forma canónica sin espacio, mismo criterio que
   // las sub-marcas Yango — el nombre es la clave contra pricing_observations.
   {
     value: 'PedidosYa',
-    color: '#FF0F3A',
     botApps: ['pedidosya'],
     aliases: ['pedidosya', 'pedidos ya', 'peya', 'pedidos_ya'],
   },
@@ -141,49 +135,41 @@ export const CATALOG_COMPETITORS = [
   // mig 239/242) — solo carga manual del hub.
   {
     value: 'YangoCargoXP',
-    color: '#EF9A9A',
     botApps: [],
     aliases: ['camion extra pequeño', 'camion extra pequeno', 'yango cargo xp'],
   },
   {
     value: 'YangoCargoPickup',
-    color: '#E57373',
     botApps: [],
     aliases: ['minivan', 'minivan/pickup', 'yango cargo pickup'],
   },
   {
     value: 'YangoCargoM',
-    color: '#E53935',
     botApps: [],
     aliases: ['camion mediano', 'yango cargo mediano', 'yango cargo m'],
   },
   {
     value: 'YangoCargoXL',
-    color: '#B71C1C',
     botApps: [],
     aliases: ['camion grande', 'yango cargo grande', 'yango cargo xl'],
   },
   {
     value: 'InDriveCargoPickup',
-    color: '#A5D6A7',
     botApps: [],
     aliases: ['pickup y suv', 'pickup/suv', 'indrive cargo pickup'],
   },
   {
     value: 'InDriveCargoVan',
-    color: '#66BB6A',
     botApps: [],
     aliases: ['van', 'indrive cargo van'],
   },
   {
     value: 'InDriveCargoLiviano',
-    color: '#2E7D32',
     botApps: [],
     aliases: ['camion liviano', 'indrive cargo liviano'],
   },
   {
     value: 'InDriveCargoGrande',
-    color: '#1B5E20',
     botApps: [],
     aliases: ['camion', 'indrive cargo camion', 'indrive cargo grande'],
   },
@@ -200,33 +186,41 @@ export const INDRIVE_CARGO_VARIANTS = [
   'InDriveCargoGrande',
 ]
 
-// Nombre corto para la columna de la grilla (el nombre completo va en el
-// title/tooltip) — pedido user 2026-09-07, "que los nombres no sean tan
-// largos". Solo cubre las subcategorías de Cargo; cualquier otro competidor
-// sin entrada acá muestra su nombre completo, como siempre.
-export const COMPETITOR_SHORT_LABEL = {
-  YangoCargoXP: 'XP',
-  YangoCargoPickup: 'Pickup',
-  YangoCargoM: 'Mediano',
-  YangoCargoXL: 'Grande',
-  InDriveCargoPickup: 'Pickup/SUV',
-  InDriveCargoVan: 'Van',
-  InDriveCargoLiviano: 'Liviano',
-  InDriveCargoGrande: 'Camión',
+// Competidores que tienen nombre corto/completo separado (subcategorías de
+// Cargo — pedido user 2026-09-07, "que los nombres no sean tan largos").
+// Las claves de traducción viven en i18n ('competitor.short.<value>' /
+// 'competitor.full.<value>') — hasta 2026-09-11 el texto en español vivía
+// hardcodeado acá mismo, sin pasar por t() (regla i18n §6 del proyecto).
+// Ver getCompetitorShortLabel/getCompetitorFullLabel más abajo.
+export const COMPETITOR_SHORT_LABEL_KEYS = new Set([
+  'YangoCargoXP',
+  'YangoCargoPickup',
+  'YangoCargoM',
+  'YangoCargoXL',
+  'InDriveCargoPickup',
+  'InDriveCargoVan',
+  'InDriveCargoLiviano',
+  'InDriveCargoGrande',
+])
+
+/**
+ * Nombre corto para la columna de la grilla, vía t(). Si el competidor no
+ * tiene entrada (no es una subcategoría de Cargo), devuelve su nombre tal
+ * cual, como siempre.
+ */
+export function getCompetitorShortLabel(t, comp) {
+  if (COMPETITOR_SHORT_LABEL_KEYS.has(comp)) return t(`competitor.short.${comp}`)
+  return comp
 }
 
-// Nombre completo para el tooltip del badge (CompBadge.jsx) — el nombre
-// corto de arriba no alcanza para distinguir "Mediano" de "Grande" sin
-// contexto la primera vez que un hub ve la grilla.
-export const COMPETITOR_FULL_LABEL = {
-  YangoCargoXP: 'Camión Extra Pequeño',
-  YangoCargoPickup: 'Minivan/Pickup',
-  YangoCargoM: 'Camión Mediano',
-  YangoCargoXL: 'Camión Grande',
-  InDriveCargoPickup: 'Pickup y SUV',
-  InDriveCargoVan: 'Van',
-  InDriveCargoLiviano: 'Camión Liviano',
-  InDriveCargoGrande: 'Camión',
+/**
+ * Nombre completo para el tooltip del badge (CompBadge.jsx) — el nombre
+ * corto no alcanza para distinguir "Mediano" de "Grande" sin contexto la
+ * primera vez que un hub ve la grilla.
+ */
+export function getCompetitorFullLabel(t, comp) {
+  if (COMPETITOR_SHORT_LABEL_KEYS.has(comp)) return t(`competitor.full.${comp}`)
+  return null
 }
 
 // Lookup mapas — construidos una vez al cargar el módulo
@@ -272,13 +266,14 @@ export function normalizeCompetitor(input) {
 
 /**
  * Devuelve el color asignado al competidor, con fallback determinístico.
+ * Fuente única: COMPETITOR_COLORS (constants.js) — la misma paleta que
+ * pinta toda la UI. No mantener un color propio acá (ver comentario sobre
+ * CATALOG_COMPETITORS más arriba).
  */
 export function getCompetitorColor(name) {
   const canonical = normalizeCompetitor(name)
-  if (canonical) {
-    const entry = CATALOG_COMPETITORS.find((c) => c.value === canonical)
-    if (entry?.color) return entry.color
-  }
+  if (canonical && COMPETITOR_COLORS[canonical]) return COMPETITOR_COLORS[canonical]
+  if (COMPETITOR_COLORS[name]) return COMPETITOR_COLORS[name]
   // Hash determinístico para no-catalogados
   if (!name) return '#94a3b8'
   let h = 0

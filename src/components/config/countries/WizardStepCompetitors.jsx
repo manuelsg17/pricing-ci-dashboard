@@ -1,4 +1,4 @@
-import { CATALOG_COMPETITORS } from '../../../lib/catalogs'
+import { CATALOG_COMPETITORS, getCompetitorColor } from '../../../lib/catalogs'
 import { Button } from '../../ui/shadcn/button'
 import { stepHeadingTightStyle, emptyHintStyle } from './wizardStyles'
 
@@ -29,6 +29,7 @@ export default function WizardStepCompetitors({ t, draft, toggleCompetitor }) {
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
                   {CATALOG_COMPETITORS.map((comp) => {
                     const active = cat.competitors.includes(comp.value)
+                    const color = getCompetitorColor(comp.value)
                     return (
                       <Button
                         key={comp.value}
@@ -38,9 +39,9 @@ export default function WizardStepCompetitors({ t, draft, toggleCompetitor }) {
                         style={
                           active
                             ? {
-                                background: comp.color,
+                                background: color,
                                 color: '#fff',
-                                borderColor: comp.color,
+                                borderColor: color,
                               }
                             : { color: '#475569', borderColor: '#cbd5e1' }
                         }

@@ -79,7 +79,10 @@ console.log('\n══ Catalog tests ══')
   console.log('\n[3] getCompetitorColor: tiene fallback determinista')
   assert(getCompetitorColor('Yango')    === '#E53935',  'Yango → color canónico')
   assert(getCompetitorColor('yango')    === '#E53935',  'yango (lowercase) → color canónico')
-  assert(getCompetitorColor('Indrive')  === '#00C853',  'Indrive (typo) → color canónico InDrive')
+  // #2E7D32 es el color real de InDrive en COMPETITOR_COLORS (el que pinta
+  // la UI). Hasta 2026-09-11 catalogs.js tenía su propio #00C853 divergente
+  // — este test verificaba el valor equivocado.
+  assert(getCompetitorColor('Indrive')  === '#2E7D32',  'Indrive (typo) → color canónico InDrive')
   // Color determinista para no-catalogados
   const c1 = getCompetitorColor('NuevoCompetidor')
   const c2 = getCompetitorColor('NuevoCompetidor')

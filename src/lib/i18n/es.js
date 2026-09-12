@@ -612,6 +612,25 @@ export default {
   'legend.col_range': 'Rango (km)',
 
   // ── DataEntry ──────────────────────────────────────
+  // Nombres corto/completo de las subcategorías de Cargo en CompBadge.jsx —
+  // hasta 2026-09-11 vivían hardcodeados en español en catalogs.js, sin
+  // pasar por t() (violación de la regla de i18n del proyecto).
+  'competitor.short.YangoCargoXP': 'XP',
+  'competitor.short.YangoCargoPickup': 'Pickup',
+  'competitor.short.YangoCargoM': 'Mediano',
+  'competitor.short.YangoCargoXL': 'Grande',
+  'competitor.short.InDriveCargoPickup': 'Pickup/SUV',
+  'competitor.short.InDriveCargoVan': 'Van',
+  'competitor.short.InDriveCargoLiviano': 'Liviano',
+  'competitor.short.InDriveCargoGrande': 'Camión',
+  'competitor.full.YangoCargoXP': 'Camión Extra Pequeño',
+  'competitor.full.YangoCargoPickup': 'Minivan/Pickup',
+  'competitor.full.YangoCargoM': 'Camión Mediano',
+  'competitor.full.YangoCargoXL': 'Camión Grande',
+  'competitor.full.InDriveCargoPickup': 'Pickup y SUV',
+  'competitor.full.InDriveCargoVan': 'Van',
+  'competitor.full.InDriveCargoLiviano': 'Camión Liviano',
+  'competitor.full.InDriveCargoGrande': 'Camión',
   'dataentry.title': 'Ingresar CI',
   'dataentry.start_session': '▶ Iniciar Sesión',
   'dataentry.end_session': '⏹ Terminar Sesión',
