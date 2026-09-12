@@ -45,6 +45,7 @@ import {
   BarChart3,
   Loader2,
   Info,
+  X,
 } from 'lucide-react'
 import '../styles/dashboard.css'
 
@@ -68,6 +69,18 @@ function DashboardContent() {
   const { t, locale } = useI18n()
   const { currency } = countryConfig
   const [filterBarVisible, setFilterBarVisible] = useState(true)
+
+  // Aviso de metodología (corte Ponderado→Simple): antes quedaba fijo en
+  // pantalla para siempre — útil las primeras veces, ruido permanente
+  // después (auditoría UI 2026-09-12). Se puede cerrar y queda cerrado.
+  const WA_BANNER_DISMISS_KEY = 'dashboard:wa-banner-dismissed'
+  const [waBannerDismissed, setWaBannerDismissed] = useState(
+    () => localStorage.getItem(WA_BANNER_DISMISS_KEY) === '1'
+  )
+  function dismissWaBanner() {
+    localStorage.setItem(WA_BANNER_DISMISS_KEY, '1')
+    setWaBannerDismissed(true)
+  }
 
   // #26 — drag & drop section order
   const [sectionOrder, setSectionOrder] = useState(null) // null = default
@@ -802,8 +815,8 @@ function DashboardContent() {
             margin: '0 16px 8px',
             padding: '8px 12px',
             borderRadius: 10,
-            background: '#fffdf5',
-            border: '1px solid #fde9b8',
+            background: 'var(--color-warning-bg)',
+            border: '1px solid var(--color-warning-border-soft)',
             borderLeft: '3px solid #f59e0b',
             fontSize: 12,
             color: '#78350f',
@@ -861,30 +874,42 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* Aviso de metodología: hasta W24 Promedio Ponderado, desde W25 Simple. */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              margin: '0 16px 8px',
-              padding: '8px 12px',
-              borderRadius: 10,
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              borderLeft: '3px solid #3b82f6',
-              fontSize: 12,
-              color: '#1e3a8a',
-            }}
-          >
-            <Info size={14} style={{ flexShrink: 0 }} />
-            <span>
-              <strong>{t('dashboard.wa_banner_weighted')}</strong>{' '}
-              {t('dashboard.wa_banner_weighted_until', { date: WA_CUTOFF_WEIGHTED_LABEL })} ·{' '}
-              <strong>{t('dashboard.wa_banner_simple')}</strong>{' '}
-              {t('dashboard.wa_banner_simple_since', { date: WA_CUTOFF_SIMPLE_LABEL })}
-            </span>
-          </div>
+          {/* Aviso de metodología: hasta W24 Promedio Ponderado, desde W25 Simple.
+              Dismissable con memoria (localStorage) — ver WA_BANNER_DISMISS_KEY. */}
+          {!waBannerDismissed && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                margin: '0 16px 8px',
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: 'var(--color-info-bg)',
+                border: '1px solid var(--color-info-border)',
+                borderLeft: '3px solid var(--color-info)',
+                fontSize: 12,
+                color: '#1e3a8a',
+              }}
+            >
+              <Info size={14} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>
+                <strong>{t('dashboard.wa_banner_weighted')}</strong>{' '}
+                {t('dashboard.wa_banner_weighted_until', { date: WA_CUTOFF_WEIGHTED_LABEL })} ·{' '}
+                <strong>{t('dashboard.wa_banner_simple')}</strong>{' '}
+                {t('dashboard.wa_banner_simple_since', { date: WA_CUTOFF_SIMPLE_LABEL })}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={dismissWaBanner}
+                title={t('dashboard.wow_callouts.hide_title')}
+                className="h-auto w-auto flex-shrink-0 p-1 leading-none text-blue-800 hover:bg-transparent hover:text-blue-900"
+              >
+                <X size={15} />
+              </Button>
+            </div>
+          )}
 
           {/* #26 — draggable sections.
               Key incluye viewMode para forzar remount cuando se cambia

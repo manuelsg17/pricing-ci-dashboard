@@ -92,6 +92,12 @@
 
   --color-warning-fg: #92400e;
   --color-warning-border: #fcd34d;
+  /* Antes no existía — 3 banners del Dashboard (anomalías, WoW, semanas
+     congeladas) hardcodeaban el mismo #fffdf5/#fde9b8 por separado, cada
+     uno con su propio literal (auditoría UI 2026-09-12). Mismo valor
+     exacto, ahora centralizado — cero cambio visual, un solo origen. */
+  --color-warning-bg: #fffdf5;
+  --color-warning-border-soft: #fde9b8;
 
   --color-info: #2563eb;
   --color-info-fg: #1d4ed8;
