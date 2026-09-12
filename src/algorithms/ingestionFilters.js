@@ -47,13 +47,6 @@ const COMPETITOR_YANGO_MASTER_FLATTEN = {
   YangoPremier: 'Yango',
   'YangoComfort+': 'Yango',
 }
-// Compat: callers externos pueden seguir leyendo el dict combinado en
-// contexto NO-Corp. NO mutar.
-export const COMPETITOR_NORMALIZE = {
-  ...COMPETITOR_CASING_FIXES,
-  ...COMPETITOR_YANGO_MASTER_FLATTEN,
-}
-
 export const BRACKET_NORMALIZE = {
   'Very short': 'very_short',
   'Very Short': 'very_short',
@@ -128,7 +121,7 @@ export function normalizeRow(rawRow) {
  * Bloqueantes: city, observed_date, competition_name, category.
  * Sin precio efectivo tampoco aporta — se descarta.
  */
-export function isCompleteRow(row) {
+function isCompleteRow(row) {
   if (!row) return false
   if (!row.city) return false
   if (!row.observed_date) return false
@@ -144,7 +137,7 @@ export function isCompleteRow(row) {
  *  - ok=true  → la fila pasa
  *  - ok=false → fila bloqueada por outlier (caller decide: omitir, marcar para revisión, etc.)
  */
-export function checkPriceRange(row, rules) {
+function checkPriceRange(row, rules) {
   const value = pickPrice(row)
   if (value == null)
     return { ok: false, field: null, value: null, threshold: null, reason: 'no_price' }

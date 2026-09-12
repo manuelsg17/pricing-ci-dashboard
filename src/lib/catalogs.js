@@ -192,7 +192,7 @@ export const INDRIVE_CARGO_VARIANTS = [
 // 'competitor.full.<value>') — hasta 2026-09-11 el texto en español vivía
 // hardcodeado acá mismo, sin pasar por t() (regla i18n §6 del proyecto).
 // Ver getCompetitorShortLabel/getCompetitorFullLabel más abajo.
-export const COMPETITOR_SHORT_LABEL_KEYS = new Set([
+const COMPETITOR_SHORT_LABEL_KEYS = new Set([
   'YangoCargoXP',
   'YangoCargoPickup',
   'YangoCargoM',

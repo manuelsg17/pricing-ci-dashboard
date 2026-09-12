@@ -62,7 +62,3 @@ export function normalizeTukTukDistrict(raw) {
   if (raw == null || raw === '') return null
   return ALIASES[strip(raw)] || null
 }
-
-export function isTukTukDistrict(raw) {
-  return normalizeTukTukDistrict(raw) != null
-}

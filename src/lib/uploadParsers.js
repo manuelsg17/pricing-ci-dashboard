@@ -23,7 +23,7 @@ import { normalizeTukTukDistrict } from './tuktukDistricts.js'
 // — son derivados de observed_date vía el trigger trg_assign_computed_fields.
 // Antes los Excel del campo traían WEEKNUM con offset distinto al ISO 8601 y
 // contaminaban la columna week con valores -1 del real.
-export const COL_MAP = {
+const COL_MAP = {
   'Rush Hour': 'rush_hour',
   'Rush hour': 'rush_hour',
   'Point A': 'point_a',
@@ -187,7 +187,7 @@ export function parseExcelTime(val) {
 // Columnas que deben ser números en la BD.
 // Mig 136 re-agregó bid_4/bid_5 (hasta 5 bids InDrive). discount_offer/diff
 // siguen dropeados (mig 98) — no van en el INSERT.
-export const NUMERIC_COLS = new Set([
+const NUMERIC_COLS = new Set([
   'distance_km',
   'travel_time_min',
   'eta_min',
@@ -203,10 +203,10 @@ export const NUMERIC_COLS = new Set([
 ])
 
 // Columnas que deben ser enteros
-export const INT_COLS = new Set(['year', 'week'])
+const INT_COLS = new Set(['year', 'week'])
 
 // Columnas de fecha/hora — necesitan el valor RAW (no convertido a string)
-export const RAW_COLS = new Set(['observed_date', 'observed_time'])
+const RAW_COLS = new Set(['observed_date', 'observed_time'])
 
 // Separador decimal vs separador de miles. UN SOLO criterio para TODOS los
 // caminos de entrada (CLAUDE.md §4: ninguna normalización puede vivir en un
@@ -468,7 +468,7 @@ export function parseRows(sheetData, city) {
 //
 //   Si la fila NO tiene Zone, el trigger intenta detectar por keyword en
 //   point_a/point_b (mig 78). Si tampoco matchea, queda en city base.
-export const SHEET_CITY_MAP = {
+const SHEET_CITY_MAP = {
   lima_pricing_ci_corp_final: 'Corp',
   lima_pricing_ci_corp: 'Corp',
   lima_corp: 'Corp',

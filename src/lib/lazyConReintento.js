@@ -51,7 +51,7 @@ const CLAVE_MIGA = 'de:chunk-retry:pendiente'
 
 // Cuánto se espera a que la recarga se concrete antes de rendirse y dejar que
 // el error llegue al boundary (guarda 4).
-export const ESPERA_RECARGA_MS = 4000
+const ESPERA_RECARGA_MS = 4000
 
 function leer(k) {
   try {

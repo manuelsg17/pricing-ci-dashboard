@@ -616,7 +616,7 @@ export const COUNTRY_CONFIG = {
   },
 }
 
-export const CITY_DISPLAY_NAMES = {
+const CITY_DISPLAY_NAMES = {
   Lima: 'Lima',
   Trujillo: 'Trujillo',
   Arequipa: 'Arequipa',

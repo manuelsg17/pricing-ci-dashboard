@@ -15,7 +15,7 @@ export function calcIndriveAvg(bids) {
 // Guarda de seguridad al restaurar un borrador de localStorage: si por
 // cualquier motivo trae más de 5 bids, se truncan a 5 (y se recalcula el
 // promedio) para que la UI no muestre algo que el guardado va a cortar.
-export const MAX_INDRIVE_BIDS = 5
+const MAX_INDRIVE_BIDS = 5
 
 export function capIndriveExtraBids(indriveExtra) {
   const capped = {}

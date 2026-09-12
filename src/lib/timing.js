@@ -20,16 +20,6 @@ export const TOAST_DURATION_MS = Object.freeze({
   err: 6000,
 })
 
-// TTL del cache de useStaleWhileRevalidate.
-// `config`: tablas de configuración (bracket_weights, thresholds, etc.) —
-//   5 min porque cambian raro y el live-sync ya refresca on-change.
-// `country`: catálogo de países / ciudades / categorías — 24h porque solo
-//   cambia cuando se agrega/quita un país (event raro).
-export const SWR_TTL_MS = Object.freeze({
-  config: 5 * 60 * 1000,
-  country: 24 * 60 * 60 * 1000,
-})
-
 // Desglose de minutos por turno a partir de `ci_sessions.turno_timings`
 // (mig 159 — jsonb `{ [label]: { startedAt, endedAt } }`, estampado una sola
 // vez por turno, nunca sobreescrito). Compartido entre el Historial propio de

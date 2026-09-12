@@ -16,7 +16,7 @@
 // esto SÍ hay que testearlo (ver scripts/test-frentes-pendientes.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-export const EMPTY_FRENTES = []
+const EMPTY_FRENTES = []
 
 /**
  * ¿Este frente está 100% en el servidor?

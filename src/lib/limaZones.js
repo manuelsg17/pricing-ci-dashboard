@@ -1138,7 +1138,7 @@ export const LIMA_ZONES = [
 
 // Matriz GMV origen→destino (de allPolygonsData.gmv en Lima_map.html). Es el
 // insumo exacto que usa gmvInsideRatio(). Unidades: GMV (moneda) por par O→D.
-export const LIMA_GMV_MATRIX = {
+const LIMA_GMV_MATRIX = {
   lima_0_71283998: {
     lima_0_71283998: 39210.5,
     lima_12_5781905: 2175.1,
@@ -1333,8 +1333,8 @@ export const LIMA_GMV_MATRIX = {
 export const MI_ZONA_GAMMA = 1.0874372386932374
 export const MI_ZONA_RATIO_MIN = 0.25113318691468045
 export const MI_ZONA_MAX_PCT = 9.0
-export const MI_ZONA_MIN_PCT = 0.0
-export const MI_ZONA_MIN_POLYGONS = 2
+const MI_ZONA_MIN_PCT = 0.0
+const MI_ZONA_MIN_POLYGONS = 2
 
 // gmvInsideRatio — RÉPLICA EXACTA de getCommissionForSelection() del HTML.
 // Devuelve la fracción [0,1] del GMV que, saliendo de las zonas seleccionadas,
@@ -1358,7 +1358,7 @@ export function gmvInsideRatio(selectedIds) {
 // commissionForRatio — RÉPLICA EXACTA de commissionForRatio() del HTML.
 // ratio≤min → 9%; ratio≥1 → 0%; intermedio = 9·(1 − t^gamma) con
 // t=(ratio−min)/(1−min). null si ratio es null/undefined.
-export function commissionForRatio(ratio) {
+function commissionForRatio(ratio) {
   if (ratio === null || ratio === undefined) return null
   if (ratio <= MI_ZONA_RATIO_MIN) return MI_ZONA_MAX_PCT
   if (ratio >= 1.0) return MI_ZONA_MIN_PCT

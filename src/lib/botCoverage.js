@@ -3,8 +3,8 @@
 // solo componentes). Usados por BotCoverageMatrix.jsx y BotCoverageCard.jsx.
 import { BRACKETS } from './constants.js'
 
-export const STALE_WARN_MIN = 60 // amarillo si va >1h detrás del más fresco de su ciudad
-export const STALE_BAD_MIN = 180 // rojo si va >3h detrás
+const STALE_WARN_MIN = 60 // amarillo si va >1h detrás del más fresco de su ciudad
+const STALE_BAD_MIN = 180 // rojo si va >3h detrás
 
 export function cellInstant(row) {
   if (!row?.last_date || !row?.last_time) return null

@@ -9,17 +9,17 @@ import { isInDriveVariant } from './constants.js'
 // (CV ≈ 0.17 estándar / 0.19 InDrive) para un margen de error de ±10% (piso) y
 // ±5% (óptimo): n = (1.96 · CV / E)^2. Ajustables acá sin tocar la migración
 // (el RPC solo devuelve conteos crudos).
-export const REP_FLOOR = { standard: 10, indrive: 14 }
-export const REP_OPTIMO = { standard: 40, indrive: 55 }
+const REP_FLOOR = { standard: 10, indrive: 14 }
+const REP_OPTIMO = { standard: 40, indrive: 55 }
 
 // Salud del semáforo de la tarjeta según el % de celdas representables.
-export const HEALTH_OK = 0.95
-export const HEALTH_WARN = 0.8
+const HEALTH_OK = 0.95
+const HEALTH_WARN = 0.8
 
 // isInDriveVariant (constants.js) generaliza esto a las 4 subcategorías de
 // InDrive en Cargo (mismo CV/varianza que InDrive a secas) — hallazgo de la
 // revisión adversarial 2026-09-07, antes solo comparaba el nombre exacto.
-export function isIndrive(comp) {
+function isIndrive(comp) {
   return isInDriveVariant(comp)
 }
 export function cellFloor(comp) {

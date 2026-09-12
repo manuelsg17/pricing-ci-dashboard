@@ -24,7 +24,7 @@ export const TASK_STATUSES = ['todo', 'doing', 'blocked', 'done']
 export const UNASSIGNED = '__unassigned__'
 
 /** Días hábiles en curso a partir de los cuales una tarea se marca estancada. */
-export const STALLED_BUSINESS_DAYS = 10
+const STALLED_BUSINESS_DAYS = 10
 
 /** Días trabada a partir de los cuales se escala visualmente. */
 export const BLOCKED_ESCALATE_DAYS = 3

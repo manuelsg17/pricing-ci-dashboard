@@ -111,15 +111,3 @@ export function installGlobalErrorHandlers() {
     })
   })
 }
-
-/** Solo para tests: devuelve el estado interno de los limitadores. */
-export function __getLimiterState() {
-  return { sentCount, throttled: lastSentAt.size, sending }
-}
-
-/** Solo para tests: reinicia los limitadores. */
-export function __resetLimiter() {
-  lastSentAt.clear()
-  sentCount = 0
-  sending = false
-}
