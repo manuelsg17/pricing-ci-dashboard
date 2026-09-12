@@ -36,8 +36,33 @@ export async function setUserProfileRole(userId, roleId) {
     .eq('id', userId)
 }
 
+// Vía Edge Function `delete-user` (service_role, igual que createUserAccount)
+// — antes esto era `sb.from('user_profiles').delete()` desde el cliente:
+// borraba el perfil pero dejaba viva la cuenta de Supabase Auth para
+// siempre (bug real, auditoría 2026-09-12: `auth.users` con 1 cuenta
+// huérfana en prod). No era explotable — sin perfil, canAccess() falla
+// cerrado (useAccessControl.js) — pero la credencial nunca se revocaba.
 export async function deleteUserProfile(id) {
-  return sb.from('user_profiles').delete().eq('id', id)
+  const {
+    data: { session: currentSession },
+  } = await sb.auth.getSession()
+  const token = currentSession?.access_token
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+      Authorization: token ? `Bearer ${token}` : `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ user_profile_id: id }),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: { message: json?.error || `Error ${res.status}` } }
+  return { error: null }
 }
 
 // Alta de cuenta vía Edge Function `create-user` (service_role queda del lado

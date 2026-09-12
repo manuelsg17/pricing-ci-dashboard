@@ -94,15 +94,22 @@ function UsersTab({ roles }) {
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(user) {
+    // Mensaje explícito de irreversibilidad (pedido del user 2026-09-12):
+    // "Eliminar" ahora borra TAMBIÉN la cuenta de Supabase Auth vía la Edge
+    // Function delete-user (antes solo borraba el perfil y la credencial
+    // quedaba viva para siempre — bug real, ver useUserProfiles.js). Como
+    // ahora sí es una acción sin vuelta atrás, el diálogo lo dice con esas
+    // palabras y nombra al usuario puntual para que no haya ambigüedad de
+    // "cuál" se está por borrar.
     const ok = await confirm({
-      title: 'Eliminar usuario',
-      message: t('access.confirm_delete_user'),
+      title: t('access.confirm_delete_user_title'),
+      message: t('access.confirm_delete_user', { email: user.email }),
       danger: true,
-      confirmText: 'Eliminar',
+      confirmText: t('access.confirm_delete_user_btn'),
     })
     if (!ok) return
-    const { error } = await deleteUserProfile(id)
+    const { error } = await deleteUserProfile(user.id)
     if (error) toast.err(`Error al eliminar: ${error.message}`)
     else {
       toast.ok('Usuario eliminado.')
@@ -241,7 +248,7 @@ function UsersTab({ roles }) {
                     variant="outline"
                     size="sm"
                     className="border-red-300 bg-red-100 text-red-800 hover:bg-red-200"
-                    onClick={() => handleDelete(u.id)}
+                    onClick={() => handleDelete(u)}
                   >
                     {t('app.delete')}
                   </Button>
