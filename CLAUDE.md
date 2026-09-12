@@ -362,6 +362,23 @@ chicos.
   acción específica (tabla, filas, motivo) — una autorización general ("arreglá todo")
   no cubre por sí sola un DELETE en una tabla compartida; confirmar la acción puntual
   antes de ejecutarla.
+- **Migraciones nuevas**: numerar correlativamente (ver el último archivo en
+  `supabase/migrations/` para el próximo número — nunca hardcodear "la próxima es
+  la N" en un doc, se desactualiza solo). Header en comentario con CONTEXTO +
+  QUÉ HACE + POR QUÉ (causa raíz) + VERIFICACIÓN, mismo criterio que un mensaje de
+  commit. RPCs nuevas con `require_country_access` al inicio si aplica (§3). Toda
+  función `SECURITY DEFINER` con `SET search_path = public, pg_temp` (§3). Espejo
+  obligatorio en `supabase/migrations/` — la CLI solo aplica esos (§1, §7). Antes
+  de cerrar: `check:rls-drift` si tocó políticas.
+- **Mensajes de commit**: `tipo(scope): título corto` + body con CONTEXTO + QUÉ
+  HACE + POR QUÉ + VALIDACIÓN — el estilo ya usado en este repo. Co-authored-by
+  Claude. El pre-commit hook corre `eslint --fix --max-warnings 0` + `prettier
+--write`; si bloquea, arreglar el warning, nunca `--no-verify`.
+- **Componentes nuevos**: usar las primitivas de `src/components/ui/shadcn/*` y
+  `<Button>` compartido — no reinventar. Tailwind utility classes preferido sobre
+  CSS inline. Configs read-only vía `useConfigContext()`; CRUD de configs vía
+  `useConfig()` o un fetcher con dirty-row preservation (`AirportMarkersTable.jsx`
+  como canónico).
 
 ---
 
