@@ -671,10 +671,30 @@ export function getCountryIso(country) {
 // Callers nuevos deberían pasar dbConfigs desde `useCountry()` para
 // que los overrides editados en /config se reflejen inmediatamente.
 const _warned = new Set()
+// Auditoría 2026-09-11: se comparó COUNTRY_CONFIG.Peru (hardcoded, abajo) contra
+// country_config en BD y hay drift real y ya grande — el hardcoded le faltan
+// categorías enteras que hoy sí existen en DB (Cargo, Delivery, "Espera y
+// Ahorra") y difiere en competidores para categorías que sí tiene (ej.
+// Arequipa Comfort+ trae Cabify acá y no en DB). Mantenerlos sincronizados a
+// mano no es viable — country_config cambia seguido desde /config y este
+// archivo no. Por eso, cuando se usa el hardcoded PUDIENDO haber DB (se pasó
+// dbConfigs pero no tenía este país todavía — ej. carrera del primer fetch,
+// cache de localStorage vacía, o el fetch falló), se avisa fuerte en vez de
+// mostrar en silencio una lista de competidores vieja como si fuera la
+// vigente. Antes solo se avisaba si el país no estaba en NINGÚN lado.
 export function getCountryConfig(country, dbConfigs = null) {
   if (dbConfigs && dbConfigs[country]) return dbConfigs[country]
-  if (COUNTRY_CONFIG[country]) return COUNTRY_CONFIG[country]
-  // No encontrado — warning una sola vez por país
+  if (COUNTRY_CONFIG[country]) {
+    if (dbConfigs && country && !_warned.has(`stale:${country}`)) {
+      _warned.add(`stale:${country}`)
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[getCountryConfig] "${country}" se está sirviendo desde el fallback hardcoded de constants.js, NO desde country_config (BD). Es un dato conocido como desactualizado (ver comentario arriba) — puede faltar categorías o competidores reales. Señal de que dbConfigs todavía no cargó este país, o que el fetch falló.`
+      )
+    }
+    return COUNTRY_CONFIG[country]
+  }
+  // No encontrado en ningún lado — warning una sola vez por país
   if (country && !_warned.has(country)) {
     _warned.add(country)
     // eslint-disable-next-line no-console
