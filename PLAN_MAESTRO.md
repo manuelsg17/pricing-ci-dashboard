@@ -1,5 +1,13 @@
 # Plan maestro — todo lo encontrado, y en qué orden se arregla
 
+> ⚠️ **DESACTUALIZADO desde 2026-08-05.** La serie de migraciones siguió hasta
+> mig 247 (2026-09-11/12: auditoría del diccionario "competidor", integridad
+> de `pricing_observations`, primer workflow de E2E en CI) sin que este
+> archivo se volviera a tocar. Todo lo que describe abajo (migs 183-214)
+> sigue siendo cierto como HISTORIA — la cuarta ronda adversarial realmente
+> pasó y encontró lo que dice — pero no es el estado actual del proyecto. Para
+> eso: `git log --oneline` y la memoria de sesión.
+>
 > **Actualizado 2026-08-03 (tarde) — cuarta ronda cerrada.**
 >
 > **✅ EN PRODUCCIÓN:** migraciones **200–214** y el frontend. No queda nada

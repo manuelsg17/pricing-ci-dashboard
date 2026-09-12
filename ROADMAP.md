@@ -2,6 +2,14 @@
 
 Documento de handoff entre sesiones. Última actualización: **2026-08-05**.
 
+> ⚠️ **DESACTUALIZADO desde 2026-08-05** (más de 30 migraciones atrás — la
+> serie llegó a mig 247 el 2026-09-11/12). Confirma exactamente la advertencia
+> de la regla de mantenimiento de abajo: se volvió a dejar sin tocar. No
+> confiar en "Estado actual" ni "Pendientes" de este archivo — usar
+> `git log --oneline` y la memoria de sesión para el estado real. Se conserva
+> el archivo por su valor histórico (decisiones y contexto de esa fecha), no
+> como fuente de verdad vigente.
+
 > Regla de mantenimiento: este archivo se queda obsoleto rápido si no se toca.
 > La versión anterior quedó **296 commits y ~2 meses atrás** sin actualizarse.
 > Antes de cerrar una sesión grande de trabajo, actualizar la sección
