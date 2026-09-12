@@ -43,10 +43,11 @@ jobs:
         run: npm run lint
 
       - name: Run unit tests
-        # Tests sin framework — corren con `node` plano. Si fallan, el
-        # deploy se aborta (previene regresiones en bot_mapping,
-        # bracket normalization y paridad SQL↔JS — todos bugs reales
-        # ya observados en producción).
+        # Vitest (2026-09-12) corre los 48 scripts de scripts/*.mjs + el
+        # Python de bot-sync como un solo test runner real — ver CLAUDE.md §1
+        # y scripts/legacy-tests.manifest.mjs. Si fallan, el deploy se aborta
+        # (previene regresiones en bot_mapping, bracket normalization y
+        # paridad SQL↔JS — todos bugs reales ya observados en producción).
         run: npm run test:all
 
       - name: Build

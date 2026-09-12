@@ -33,13 +33,25 @@ un cambio: repasar el checklist de la sección 7 completo, no una versión abrev
   - `tailwind.config.js` tiene **preflight deshabilitado** — los breakpoints (`sm:`,
     `md:`…) funcionan igual, pero no hay reset de estilos base: verificar en navegador,
     no asumir.
-- **Tests E2E de navegador: pendiente de adopción, ya no es un "no".** La decisión
-  original se tomó cuando no había un entorno local reproducible; desde que
-  `supabase start` funciona (2026-07-31) el motivo desapareció. La clase de bug más
-  cara y más repetida de este proyecto (supervivencia de estado a un F5 real,
+- **Tests E2E de navegador: ADOPTADOS desde 2026-09-12** (`.github/workflows/e2e.yml`,
+  separado de `deploy.yml`, corre en cada push a `main` y en cada PR). La decisión
+  original de "no E2E" se tomó cuando no había un entorno local reproducible; desde
+  que `supabase start` funciona (2026-07-31) el motivo desapareció. La clase de bug
+  más cara y más repetida de este proyecto (supervivencia de estado a un F5 real,
   guards anti-resurrección, sesiones compartidas) es exactamente la que un E2E caza y
-  un test unitario no. Ver §7.6: hoy ese flujo se cubre a mano y depende de que alguien
-  se acuerde de hacerlo.
+  un test unitario no. Sigue el criterio de §7.6 al pie de la letra: Supabase local
+  en el runner, nunca contra producción.
+- **Tests unitarios: Vitest, no scripts sueltos.** Hasta 2026-09-12,
+  `npm run test:all` era una cadena de 47 `&&` (`node scripts/test-*.mjs` +
+  1 Python) — funcionaba porque cada script fija su exit code, pero un solo fallo
+  cortaba la cadena y ocultaba cuántos más estaban rotos, sin paralelismo ni reporte
+  estructurado. Ahora `test:all`/`npm test` corren `vitest run`, que ejecuta cada
+  script del manifiesto (`scripts/legacy-tests.manifest.mjs`) como proceso hijo vía
+  `scripts/legacy-tests.test.js` — la lógica de cada test NO cambió (siguen siendo la
+  fuente de verdad sus propias aserciones), solo el harness que los corre y reporta.
+  Agregar un test nuevo: una línea en el manifiesto, no una nueva key de `package.json`
+  encadenada con `&&` (los alias `test:<nombre>` individuales se conservan para debug
+  puntual de un solo script).
 - **RPCs como patrón canónico** para lógica de negocio no trivial o que cruza tablas —
   no lógica de negocio duplicada en el cliente si ya existe una RPC equivalente.
   Los RPCs de dashboard con sufijo `_fast` leen materialized views (MV), no las tablas
@@ -289,9 +301,10 @@ chicos.
 
 1. **`npm run lint`** — cero warnings, no solo cero errores (`--max-warnings 0`).
 2. **`npm run build`** — sin errores de compilación.
-3. **`npm run test:all`** — las 21 suites en verde. Si el cambio afecta lógica pura
-   (parseo, normalización, cálculo), agregar un test nuevo al set en vez de confiar
-   solo en verificación manual.
+3. **`npm run test:all`** (Vitest — ver §1) — las 48 suites en verde. Si el cambio
+   afecta lógica pura (parseo, normalización, cálculo), agregar un test nuevo al
+   manifiesto (`scripts/legacy-tests.manifest.mjs`) en vez de confiar solo en
+   verificación manual.
 4. **Si el cambio toca RLS/políticas/permisos**: `check:rls-drift` local Y prod,
    `pg_class.relacl` para objetos nuevos, `pg_proc.proconfig` para funciones
    `SECURITY DEFINER` nuevas.
