@@ -131,7 +131,7 @@ export default {
   'login.submit': 'Sign in',
   'login.default_error': 'Incorrect credentials',
 
-  // ── Dashboard — WowCallouts / BonusSummaryByCity / PositionTimeline ──
+  // ── Dashboard — WowCallouts / BonusSummaryByCity ──
   'dashboard.wow_callouts.header': 'WoW changes {prev} → {last}',
   'dashboard.wow_callouts.hide_title': 'Hide',
   'dashboard.bonus_summary.segment_active': 'Active',
@@ -152,21 +152,6 @@ export default {
   'dashboard.bonus_summary.all_cities_tag': '(all cities)',
   'dashboard.bonus_summary.footer':
     "Edit this in Config → Bonuses. Yango's % GMV bonus is adjusted in the Yango Bonus (% GMV) sub-tab.",
-  'dashboard.position_timeline.no_data': 'Not enough data for the position timeline.',
-  'dashboard.position_timeline.quick_read_label': 'Quick read:',
-  'dashboard.position_timeline.conclusion_now': 'Today Yango is #{rank} cheapest out of {total}',
-  'dashboard.position_timeline.conclusion_stable': '{now} — stable position in the range.',
-  'dashboard.position_timeline.conclusion_improving':
-    '{now}, improving: started the range at #{first}.',
-  'dashboard.position_timeline.conclusion_worsening':
-    '{now}, worsening: started the range at #{first}.',
-  'dashboard.position_timeline.axis_label': 'Position',
-  'dashboard.position_timeline.tooltip_no_data': 'No data',
-  'dashboard.position_timeline.tooltip_position_label': 'Yango position',
-  'dashboard.position_timeline.tooltip_value': '#{rank} of {total}',
-  'dashboard.position_timeline.tooltip_period_label': 'Period: {label}',
-  'dashboard.position_timeline.footer':
-    "Yango's price ranking week by week (#1 = cheapest in the market). The dashed yellow line marks the podium (top 3). Going up in the chart = improving.",
   'dashboard.what_for_label': 'What is this for?',
   'dashboard.anomaly_digest.header': {
     one: '{n} outlier this week:',
@@ -184,19 +169,6 @@ export default {
     one: '{n} critical alert',
     other: '{n} critical alerts',
   },
-  'dashboard.leadership.no_data': 'Not enough data to calculate leadership. Load more periods.',
-  'dashboard.leadership.conclusion_strong': 'Yango is almost always the cheapest in {brackets}',
-  'dashboard.leadership.conclusion_weak': 'rarely leads in {brackets}',
-  'dashboard.leadership.conclusion_balanced':
-    'Yango competes evenly across all distances: leads between 30% and 60% of weeks.',
-  'dashboard.leadership.conclusion_joiner': '; but ',
-  'dashboard.leadership.tooltip_no_data': 'No data',
-  'dashboard.leadership.tooltip_label': 'Leadership',
-  'dashboard.leadership.tooltip_value': '{pct}% ({leadCount}/{totalValid} periods)',
-  'dashboard.leadership.tooltip_result_label': 'Yango leads',
-  'dashboard.leadership.tooltip_bracket_label': 'Bracket: {label}',
-  'dashboard.leadership.footer':
-    'Each bar = % of weeks in the range where Yango was the cheapest competitor for that distance. Green = almost always leads (≥60%), yellow = sometimes (30-60%), red = almost never (<30%). The dashed line marks 50%.',
   'dashboard.head_to_head.no_rivals':
     'No comparable competitors for this filter. Change city/category/period.',
   'dashboard.head_to_head.what_for_body':

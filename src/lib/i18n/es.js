@@ -134,7 +134,7 @@ export default {
   'login.submit': 'Ingresar',
   'login.default_error': 'Credenciales incorrectas',
 
-  // ── Dashboard — WowCallouts / BonusSummaryByCity / PositionTimeline ──
+  // ── Dashboard — WowCallouts / BonusSummaryByCity ──
   'dashboard.wow_callouts.header': 'Cambios WoW {prev} → {last}',
   'dashboard.wow_callouts.hide_title': 'Ocultar',
   'dashboard.bonus_summary.segment_active': 'Activo',
@@ -155,21 +155,6 @@ export default {
   'dashboard.bonus_summary.all_cities_tag': '(todas las ciudades)',
   'dashboard.bonus_summary.footer':
     'Se edita en Config → Bonos. El bono de Yango por % de GMV se ajusta en la sub-pestaña Bono Yango (% GMV).',
-  'dashboard.position_timeline.no_data': 'Sin data suficiente para el timeline de posición.',
-  'dashboard.position_timeline.quick_read_label': 'Lectura rápida:',
-  'dashboard.position_timeline.conclusion_now': 'Hoy Yango es el #{rank} más barato de {total}',
-  'dashboard.position_timeline.conclusion_stable': '{now} — posición estable en el rango.',
-  'dashboard.position_timeline.conclusion_improving':
-    '{now}, mejorando: arrancó el rango en #{first}.',
-  'dashboard.position_timeline.conclusion_worsening':
-    '{now}, empeorando: arrancó el rango en #{first}.',
-  'dashboard.position_timeline.axis_label': 'Posición',
-  'dashboard.position_timeline.tooltip_no_data': 'Sin data',
-  'dashboard.position_timeline.tooltip_position_label': 'Posición Yango',
-  'dashboard.position_timeline.tooltip_value': '#{rank} de {total}',
-  'dashboard.position_timeline.tooltip_period_label': 'Período: {label}',
-  'dashboard.position_timeline.footer':
-    'Ranking de precio de Yango semana a semana (#1 = el más barato del mercado). La línea punteada amarilla marca el podio (top 3). Subir en el gráfico = mejorar.',
   'dashboard.what_for_label': '¿Para qué sirve?',
   'dashboard.anomaly_digest.header': {
     one: '{n} atípico esta semana:',
@@ -187,20 +172,6 @@ export default {
     one: '{n} alerta crítica',
     other: '{n} alertas críticas',
   },
-  'dashboard.leadership.no_data':
-    'Sin data suficiente para calcular liderazgo. Cargá más períodos.',
-  'dashboard.leadership.conclusion_strong': 'Yango casi siempre es el más barato en {brackets}',
-  'dashboard.leadership.conclusion_weak': 'rara vez lidera en {brackets}',
-  'dashboard.leadership.conclusion_balanced':
-    'Yango compite parejo en todas las distancias: lidera entre el 30% y 60% de las semanas.',
-  'dashboard.leadership.conclusion_joiner': '; pero ',
-  'dashboard.leadership.tooltip_no_data': 'Sin data',
-  'dashboard.leadership.tooltip_label': 'Liderazgo',
-  'dashboard.leadership.tooltip_value': '{pct}% ({leadCount}/{totalValid} períodos)',
-  'dashboard.leadership.tooltip_result_label': 'Yango líder',
-  'dashboard.leadership.tooltip_bracket_label': 'Bracket: {label}',
-  'dashboard.leadership.footer':
-    'Cada barra = % de las semanas del rango en que Yango fue el competidor más barato en esa distancia. Verde = casi siempre líder (≥60%), amarillo = a veces (30-60%), rojo = casi nunca (<30%). La línea punteada marca el 50%.',
   'dashboard.head_to_head.no_rivals':
     'No hay competidores comparables en este filtro. Cambiá city/category/período.',
   'dashboard.head_to_head.what_for_body':

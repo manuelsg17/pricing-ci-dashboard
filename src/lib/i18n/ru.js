@@ -135,7 +135,7 @@ export default {
   'login.submit': 'Войти',
   'login.default_error': 'Неверные учётные данные',
 
-  // ── Дашборд — WowCallouts / BonusSummaryByCity / PositionTimeline ──
+  // ── Дашборд — WowCallouts / BonusSummaryByCity ──
   'dashboard.wow_callouts.header': 'Изменения WoW {prev} → {last}',
   'dashboard.wow_callouts.hide_title': 'Скрыть',
   'dashboard.bonus_summary.segment_active': 'Активный',
@@ -156,21 +156,6 @@ export default {
   'dashboard.bonus_summary.all_cities_tag': '(все города)',
   'dashboard.bonus_summary.footer':
     'Редактируется в Настройки → Бонусы. Бонус Yango в % от GMV настраивается во вкладке Бонус Yango (% GMV).',
-  'dashboard.position_timeline.no_data': 'Недостаточно данных для таймлайна позиции.',
-  'dashboard.position_timeline.quick_read_label': 'Краткий вывод:',
-  'dashboard.position_timeline.conclusion_now': 'Сегодня Yango — #{rank} по дешевизне из {total}',
-  'dashboard.position_timeline.conclusion_stable': '{now} — позиция стабильна в этом диапазоне.',
-  'dashboard.position_timeline.conclusion_improving':
-    '{now}, улучшение: диапазон начался с #{first}.',
-  'dashboard.position_timeline.conclusion_worsening':
-    '{now}, ухудшение: диапазон начался с #{first}.',
-  'dashboard.position_timeline.axis_label': 'Позиция',
-  'dashboard.position_timeline.tooltip_no_data': 'Нет данных',
-  'dashboard.position_timeline.tooltip_position_label': 'Позиция Yango',
-  'dashboard.position_timeline.tooltip_value': '#{rank} из {total}',
-  'dashboard.position_timeline.tooltip_period_label': 'Период: {label}',
-  'dashboard.position_timeline.footer':
-    'Рейтинг цены Yango неделя за неделей (#1 = самый дешёвый на рынке). Жёлтая пунктирная линия отмечает подиум (топ-3). Подъём на графике = улучшение.',
   'dashboard.what_for_label': 'Для чего это нужно?',
   'dashboard.anomaly_digest.header': {
     one: '{n} аномалия на этой неделе:',
@@ -194,20 +179,6 @@ export default {
     many: '{n} критических алертов',
     other: '{n} критических алертов',
   },
-  'dashboard.leadership.no_data':
-    'Недостаточно данных для расчёта лидерства. Загрузите больше периодов.',
-  'dashboard.leadership.conclusion_strong': 'Yango почти всегда самый дешёвый в {brackets}',
-  'dashboard.leadership.conclusion_weak': 'редко лидирует в {brackets}',
-  'dashboard.leadership.conclusion_balanced':
-    'Yango конкурирует ровно на всех дистанциях: лидирует в 30–60% недель.',
-  'dashboard.leadership.conclusion_joiner': '; но ',
-  'dashboard.leadership.tooltip_no_data': 'Нет данных',
-  'dashboard.leadership.tooltip_label': 'Лидерство',
-  'dashboard.leadership.tooltip_value': '{pct}% ({leadCount}/{totalValid} периодов)',
-  'dashboard.leadership.tooltip_result_label': 'Yango лидирует',
-  'dashboard.leadership.tooltip_bracket_label': 'Диапазон: {label}',
-  'dashboard.leadership.footer':
-    'Каждая полоса = % недель в диапазоне, когда Yango был самым дешёвым конкурентом на этой дистанции. Зелёный = почти всегда лидирует (≥60%), жёлтый = иногда (30-60%), красный = почти никогда (<30%). Пунктирная линия отмечает 50%.',
   'dashboard.head_to_head.no_rivals':
     'Нет сравнимых конкурентов для этого фильтра. Смените город/категорию/период.',
   'dashboard.head_to_head.what_for_body':

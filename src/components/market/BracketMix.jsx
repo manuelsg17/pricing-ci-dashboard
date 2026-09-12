@@ -1,15 +1,12 @@
 import { useMemo } from 'react'
-import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS, BRACKET_COLORS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 
-const BRACKET_COLORS = {
-  very_short: '#0ea5e9',
-  short: '#22c55e',
-  median: '#eab308',
-  average: '#f97316',
-  long: '#ef4444',
-  very_long: '#7c3aed',
-}
+// La paleta de brackets viene de constants.js y de ningún otro lado. Hasta
+// 2026-09-11 este archivo declaraba la suya propia, y no coincidía: `median`
+// era verde oliva en Ingresar CI y amarillo acá, `very_long` rojo allá y
+// violeta acá. El mismo bracket pintado de dos colores según la pantalla no
+// es una decisión de diseño, es un diccionario duplicado que se desincronizó.
 
 export default function BracketMix({ sampleMatrix = {}, periods = [], competitors = [] }) {
   const { t } = useI18n()
