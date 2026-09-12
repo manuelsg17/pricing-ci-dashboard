@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import '../../styles/dashboard.css' // usa .state-box/.filter-bar/.semaforo-*: no depender de que otra página lo cargue
 import { AlertTriangle } from 'lucide-react'
 import { sb } from '../../lib/supabase'
+import { isInDriveVariant } from '../../lib/constants'
 import { mapBotRows } from '../../lib/botMapping'
 import { useCountry } from '../../context/CountryContext'
 import { usePriceRules } from '../../hooks/usePriceRules'
@@ -46,13 +47,13 @@ export default function BotUpload() {
         // · No-InDrive: necesita price_without_discount
         // · InDrive:    necesita recommended_price (bids son opcionales)
         const validRows = ok.filter((r) =>
-          r.competition_name === 'InDrive'
+          isInDriveVariant(r.competition_name)
             ? r.recommended_price != null
             : r.price_without_discount != null
         )
         const noPriceRows = ok
           .filter((r) =>
-            r.competition_name === 'InDrive'
+            isInDriveVariant(r.competition_name)
               ? r.recommended_price == null
               : r.price_without_discount == null
           )

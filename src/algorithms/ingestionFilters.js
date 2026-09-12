@@ -10,17 +10,18 @@
 // Import con extensión explícita para que tests Node ESM (sin Vite) puedan
 // resolver el módulo. Vite resuelve sin extensión, Node puro no.
 import { normalizeCompetitorName, normalizeBracket } from '../lib/normalize.js'
+import { isInDriveVariant } from '../lib/constants.js'
 
 // Diccionarios públicos — duplicados de Upload.jsx para que ambos pipelines
 // los compartan. Mantén estos como única fuente de verdad para la
 // normalización de strings.
 export const CATEGORY_NORMALIZE = {
-  'Economy/Comfort':  'Economy/Comfort',
-  'Comfort+':         'Comfort+',
+  'Economy/Comfort': 'Economy/Comfort',
+  'Comfort+': 'Comfort+',
   'Comfort/Comfort+': 'Comfort+',
   'Comfort+/Premier': 'Premier',
-  'Economy':          'Economy/Comfort',
-  'Comfort':          'Comfort+',
+  Economy: 'Economy/Comfort',
+  Comfort: 'Comfort+',
 }
 
 // Atención: este diccionario hace dos cosas distintas y es la fuente del
@@ -37,14 +38,14 @@ export const CATEGORY_NORMALIZE = {
 // Por eso ahora hay DOS dicts y la lógica en normalizeRow decide cuál
 // aplicar según city='Corp' o no.
 const COMPETITOR_CASING_FIXES = {
-  'Indrive':         'InDrive',
-  'DiDi':            'Didi',
+  Indrive: 'InDrive',
+  DiDi: 'Didi',
 }
 const COMPETITOR_YANGO_MASTER_FLATTEN = {
-  'Yango premier':   'Yango',
-  'Yango  premier':  'Yango',
-  'YangoPremier':    'Yango',
-  'YangoComfort+':   'Yango',
+  'Yango premier': 'Yango',
+  'Yango  premier': 'Yango',
+  YangoPremier: 'Yango',
+  'YangoComfort+': 'Yango',
 }
 // Compat: callers externos pueden seguir leyendo el dict combinado en
 // contexto NO-Corp. NO mutar.
@@ -56,34 +57,40 @@ export const COMPETITOR_NORMALIZE = {
 export const BRACKET_NORMALIZE = {
   'Very short': 'very_short',
   'Very Short': 'very_short',
-  'Short':      'short',
-  'Median':     'median',
-  'Average':    'average',
-  'Long':       'long',
-  'Very long':  'very_long',
-  'Very Long':  'very_long',
+  Short: 'short',
+  Median: 'median',
+  Average: 'average',
+  Long: 'long',
+  'Very long': 'very_long',
+  'Very Long': 'very_long',
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 function pickPrice(row) {
-  if (row.competition_name === 'InDrive') {
-    if (row.recommended_price       != null) return row.recommended_price
-    if (row.price_without_discount  != null) return row.price_without_discount
+  if (isInDriveVariant(row.competition_name)) {
+    if (row.recommended_price != null) return row.recommended_price
+    if (row.price_without_discount != null) return row.price_without_discount
     return row.price_with_discount
   }
   if (row.price_without_discount != null) return row.price_without_discount
-  if (row.price_with_discount    != null) return row.price_with_discount
+  if (row.price_with_discount != null) return row.price_with_discount
   return row.recommended_price
 }
 
 function findThreshold(rules, city, category, competitor) {
   if (!rules?.length) return null
-  const exact = rules.find(r => r.city === city && r.category === category && r.competition === competitor)
+  const exact = rules.find(
+    (r) => r.city === city && r.category === category && r.competition === competitor
+  )
   if (exact) return exact.max_price
-  const cityCat = rules.find(r => r.city === city && r.category === category && r.competition === 'all')
+  const cityCat = rules.find(
+    (r) => r.city === city && r.category === category && r.competition === 'all'
+  )
   if (cityCat) return cityCat.max_price
-  const cityAll = rules.find(r => r.city === city && r.category === 'all' && r.competition === 'all')
+  const cityAll = rules.find(
+    (r) => r.city === city && r.category === 'all' && r.competition === 'all'
+  )
   if (cityAll) return cityAll.max_price
   return null
 }
@@ -92,7 +99,7 @@ function findThreshold(rules, city, category, competitor) {
 
 export function normalizeRow(rawRow) {
   const row = { ...rawRow }
-  if (row.category)         row.category         = CATEGORY_NORMALIZE[row.category]         ?? row.category
+  if (row.category) row.category = CATEGORY_NORMALIZE[row.category] ?? row.category
   if (row.competition_name) {
     // (1) Fixes de casing siempre (Indrive→InDrive, DiDi→Didi).
     let legacy = COMPETITOR_CASING_FIXES[row.competition_name] ?? row.competition_name
@@ -108,8 +115,8 @@ export function normalizeRow(rawRow) {
     row.competition_name = normalizeCompetitorName(legacy, { city: row.city })
   }
   if (row.distance_bracket) {
-    row.distance_bracket = BRACKET_NORMALIZE[row.distance_bracket]
-                        ?? normalizeBracket(row.distance_bracket)
+    row.distance_bracket =
+      BRACKET_NORMALIZE[row.distance_bracket] ?? normalizeBracket(row.distance_bracket)
   }
   return row
 }
@@ -123,10 +130,10 @@ export function normalizeRow(rawRow) {
  */
 export function isCompleteRow(row) {
   if (!row) return false
-  if (!row.city)             return false
-  if (!row.observed_date)    return false
+  if (!row.city) return false
+  if (!row.observed_date) return false
   if (!row.competition_name) return false
-  if (!row.category)         return false
+  if (!row.category) return false
   if (pickPrice(row) == null) return false
   return true
 }
@@ -139,7 +146,8 @@ export function isCompleteRow(row) {
  */
 export function checkPriceRange(row, rules) {
   const value = pickPrice(row)
-  if (value == null) return { ok: false, field: null, value: null, threshold: null, reason: 'no_price' }
+  if (value == null)
+    return { ok: false, field: null, value: null, threshold: null, reason: 'no_price' }
 
   const threshold = findThreshold(rules, row.city, row.category, row.competition_name)
   if (threshold == null) return { ok: true, field: null, value, threshold: null, reason: 'no_rule' }
@@ -166,14 +174,20 @@ export function checkPriceRange(row, rules) {
 export function sanitizeBatch(rawRows, rules = [], opts = {}) {
   const dropOutliers = opts.dropOutliers !== false
   const accepted = []
-  const dropped  = []
-  const stats    = { total: rawRows.length, ok: 0, missingFields: 0, missingPrice: 0, outliers: 0 }
+  const dropped = []
+  const stats = { total: rawRows.length, ok: 0, missingFields: 0, missingPrice: 0, outliers: 0 }
 
   rawRows.forEach((raw, idx) => {
     const row = normalizeRow(raw)
 
     if (!isCompleteRow(row)) {
-      if (pickPrice(row) == null && row.city && row.observed_date && row.competition_name && row.category) {
+      if (
+        pickPrice(row) == null &&
+        row.city &&
+        row.observed_date &&
+        row.competition_name &&
+        row.category
+      ) {
         stats.missingPrice++
         dropped.push({ idx, row, reason: 'missing_price' })
       } else {

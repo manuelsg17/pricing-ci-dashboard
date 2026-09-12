@@ -1,3 +1,5 @@
+import { isInDriveVariant } from '../lib/constants.js'
+
 /**
  * `NULL` de la base ⇄ JS. Un `''` que viene de un Excel parseado es una celda
  * vacía, o sea un NULL, NO un cero — `Number('')` da 0 y eso rompería el
@@ -35,15 +37,15 @@ function col(v) {
  *
  * Mig 136 (2026-07-20): bid_4/bid_5 re-agregados — el promedio va sobre bid_1..5.
  *
- * PENDIENTE (revisión adversarial 2026-09-07): las 4 subcategorías de InDrive
- * en Cargo (InDriveCargoPickup/Van/Liviano/Grande) también cargan bids, pero
- * acá y en la vista `v_effective_price` se sigue comparando
- * `competition_name = 'InDrive'` literal — hoy es inofensivo porque el
- * cliente (rows.js) siempre precalcula el promedio en `price_without_discount`
- * antes de guardar, así que el ELSE ya da el resultado correcto. Si Cargo
- * alguna vez gana un camino de ingesta que NO precalcule ese promedio (bot,
- * import de Excel), esta función y la vista SQL hay que generalizarlas juntas
- * — cambiar solo una repetiría el bug que el comentario de arriba describe.
+ * RESUELTO (2026-09-11, era "PENDIENTE" desde la revisión adversarial
+ * 2026-09-07): las 4 subcategorías de InDrive en Cargo (InDriveCargoPickup/
+ * Van/Liviano/Grande) también cargan bids. Acá y en la vista
+ * `v_effective_price` (mig 247) ahora las dos usan el mismo criterio —
+ * isInDriveVariant() — en vez de comparar `competition_name = 'InDrive'`
+ * literal. Verificado contra las 332 filas de Cargo con bids en producción
+ * antes de aplicar: el resultado no cambia (rows.js ya precalculaba el
+ * mismo promedio en price_without_discount), así que este cambio es una
+ * corrección hacia adelante, no un backfill.
  *
  * @param {Object} row — fila de pricing_observations (o su equivalente parseado)
  * @returns {number|null}
@@ -54,7 +56,7 @@ export function computeEffectivePrice(row) {
   // COALESCE de verdad: se queda con el primero NO NULO, aunque valga 0.
   const fallback = pwd != null ? pwd : rec
 
-  if (row.competition_name === 'InDrive') {
+  if (isInDriveVariant(row.competition_name)) {
     const bids = [row.bid_1, row.bid_2, row.bid_3, row.bid_4, row.bid_5].map((b) => col(b) ?? 0)
     // El SQL abre la rama con la suma de TODOS los bids (coalesce a 0), no con
     // "hay alguno positivo". Con bids sanos es lo mismo; se replica igual para
