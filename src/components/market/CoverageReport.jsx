@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 
 const SAMPLE_LOW = 30
@@ -155,7 +155,7 @@ export default function CoverageReport({ sampleMatrix = {}, periods = [], compet
                     </td>
                   )}
                   <td style={{ ...tdFixed, fontSize: 10, color: 'var(--color-muted)' }}>
-                    {BRACKET_LABELS[b]}
+                    {t(`bracket.${b}`)}
                   </td>
                   {periods.map((p) => {
                     const n = sampleMatrix?.[comp]?.[p.key]?.[b] || 0

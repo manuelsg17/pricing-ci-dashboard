@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { rivalsOf } from '../../lib/normalize'
 
@@ -184,7 +184,7 @@ export default function AnomalyDigest({
                   </span>
                   {a.bracket === '_wa'
                     ? t('market.anomaly_digest.wa_all_brackets')
-                    : BRACKET_LABELS[a.bracket] || a.bracket}{' '}
+                    : t(`bracket.${a.bracket}`) || a.bracket}{' '}
                   <strong style={{ color: a.pct < 0 ? '#15803d' : '#b91c1c' }}>
                     {a.pct >= 0 ? '+' : ''}
                     {a.pct.toFixed(1)}%

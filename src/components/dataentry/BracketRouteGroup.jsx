@@ -1,10 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import {
-  BRACKET_LABELS,
-  getCiCompetitors,
-  categoryTracksEta,
-  isInDriveVariant,
-} from '../../lib/constants'
+import { getCiCompetitors, categoryTracksEta, isInDriveVariant } from '../../lib/constants'
 import { sanitizeDecimalInput } from '../../lib/format'
 import CompBadge from './CompBadge'
 import InDriveCell from './InDriveCell'
@@ -140,7 +135,7 @@ export default function BracketRouteGroup({
             {t('dataentry.route_n_of', { i: routeIndex, n: routeTotal })}
           </span>
         )}
-        <span className="de-bracket-label">{BRACKET_LABELS[bracket] || bracket}</span>
+        <span className="de-bracket-label">{t(`bracket.${bracket}`) || bracket}</span>
         <span className="de-route-line">
           {!hideOrigin && (
             <>

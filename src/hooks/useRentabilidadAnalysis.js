@@ -17,6 +17,7 @@ export function useRentabilidadAnalysis({
   pricesByCat,
   country,
   dbCity,
+  dbConfigs,
   refTierCat,
   yangoKeyFor,
   metric,
@@ -62,9 +63,9 @@ export function useRentabilidadAnalysis({
     () =>
       catMap.filter(
         ({ dbCategory }) =>
-          pricesByCat[dbCategory]?.[getYangoDisplayName(country, dbCity, dbCategory)]
+          pricesByCat[dbCategory]?.[getYangoDisplayName(country, dbCity, dbCategory, dbConfigs)]
       ),
-    [catMap, pricesByCat, country, dbCity]
+    [catMap, pricesByCat, country, dbCity, dbConfigs]
   )
   const refTier = useMemo(() => {
     if (refTierCat) {

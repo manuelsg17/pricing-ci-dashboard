@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { BRACKETS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { rivalsOf } from '../../lib/normalize'
 
@@ -72,7 +72,7 @@ export default function WinLossByBracket({
             <th style={th}>{t('market.win_loss.col_period')}</th>
             {BRACKETS.map((b) => (
               <th key={b} style={th}>
-                {BRACKET_LABELS[b]}
+                {t(`bracket.${b}`)}
               </th>
             ))}
             <th style={th}>{t('market.col_total')}</th>

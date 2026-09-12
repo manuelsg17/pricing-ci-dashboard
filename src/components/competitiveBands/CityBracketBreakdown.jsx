@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { BRACKETS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 
 function cellColor(withinPct) {
@@ -45,7 +45,7 @@ export default function CityBracketBreakdown({ breakdown, onCellClick }) {
               <th style={{ textAlign: 'left' }}>{t('competitiveBands.breakdown.col_city')}</th>
               {BRACKETS.map((b) => (
                 <th key={b} scope="col">
-                  {BRACKET_LABELS[b]}
+                  {t(`bracket.${b}`)}
                 </th>
               ))}
             </tr>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { COMPETITOR_COLORS, BRACKETS } from '../../lib/constants'
 import { Search, ArrowRight } from 'lucide-react'
 import { Button } from '../ui/shadcn/button'
 import { useI18n } from '../../context/LanguageContext'
@@ -102,7 +102,7 @@ export default function AnomalyDigestCompact({ priceMatrix = {}, periods = [], c
             >
               {a.comp}
             </span>
-            {a.bracket === '_wa' ? 'WA' : BRACKET_LABELS[a.bracket] || a.bracket}
+            {a.bracket === '_wa' ? 'WA' : t(`bracket.${a.bracket}`) || a.bracket}
             <strong style={{ color: a.pct < 0 ? '#15803d' : '#b91c1c' }}>
               {a.pct >= 0 ? '+' : ''}
               {a.pct.toFixed(1)}%

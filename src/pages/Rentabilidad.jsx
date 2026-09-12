@@ -161,6 +161,7 @@ export default function Rentabilidad() {
   } = useRentabilidadEngine({
     dbCity,
     country,
+    dbConfigs,
     tools,
     archetype,
     hoursPerWeek,
@@ -198,6 +199,7 @@ export default function Rentabilidad() {
     pricesByCat,
     country,
     dbCity,
+    dbConfigs,
     refTierCat,
     yangoKeyFor,
     metric,

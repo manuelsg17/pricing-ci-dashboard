@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { COMPETITOR_COLORS, BRACKETS, BRACKET_LABELS, BRACKET_COLORS } from '../../lib/constants'
+import { COMPETITOR_COLORS, BRACKETS, BRACKET_COLORS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 
 // La paleta de brackets viene de constants.js y de ningún otro lado. Hasta
@@ -90,7 +90,7 @@ export default function BracketMix({ sampleMatrix = {}, periods = [], competitor
                   <div
                     key={b}
                     title={t('market.bracket_mix.tooltip', {
-                      label: BRACKET_LABELS[b],
+                      label: t(`bracket.${b}`),
                       pct: pct.toFixed(1),
                       count: r.counts[b].toLocaleString(),
                     })}
@@ -132,7 +132,7 @@ export default function BracketMix({ sampleMatrix = {}, periods = [], competitor
                     marginRight: 4,
                   }}
                 />
-                {BRACKET_LABELS[b]}
+                {t(`bracket.${b}`)}
               </th>
             ))}
             <th style={th}>{t('market.col_total')}</th>

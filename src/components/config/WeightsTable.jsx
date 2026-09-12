@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
+import { BRACKETS, getCountryConfig } from '../../lib/constants'
 import { SIMPLE_AVG_SINCE } from '../../algorithms/weightedAverage'
 import { isoWeekMonday } from '../../lib/dateUtils'
 import SaveStatusBanner from './SaveStatusBanner'
@@ -269,7 +269,7 @@ export default function WeightsTable({ weights, onSave, saving, country }) {
             const dirty = isDirty(b)
             return (
               <tr key={b}>
-                <td>{BRACKET_LABELS[b]}</td>
+                <td>{t(`bracket.${b}`)}</td>
                 <td>
                   <input
                     type="number"

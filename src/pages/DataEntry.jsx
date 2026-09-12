@@ -52,7 +52,6 @@ import {
   isInDriveVariant,
   BRACKET_COLORS,
   BRACKET_SHORT,
-  BRACKET_LABELS,
 } from '../lib/constants'
 import { buildFronts, frontLabel, parseBucketKey } from '../lib/sessionFronts'
 import { formatCityZoneLabel } from '../lib/monitoring'
@@ -2903,7 +2902,7 @@ export default function DataEntry() {
                 return {
                   bracket,
                   id: `de-band-${ts.label}-${bracket}`,
-                  label: BRACKET_LABELS[bracket] || bracket,
+                  label: t(`bracket.${bracket}`) || bracket,
                   short: BRACKET_SHORT[bracket] || bracket,
                   color: BRACKET_COLORS[bracket],
                   done: items.filter((x) => x === 'full').length,

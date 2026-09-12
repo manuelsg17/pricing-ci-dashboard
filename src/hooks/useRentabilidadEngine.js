@@ -28,6 +28,7 @@ import { isYangoBrand as isYango } from '../lib/normalize'
 export function useRentabilidadEngine({
   dbCity,
   country,
+  dbConfigs,
   tools,
   archetype,
   hoursPerWeek,
@@ -63,9 +64,15 @@ export function useRentabilidadEngine({
   const yangoCommission = yangoBasePct + YANGO_PARTNER_PCT + yangoExtraPct
 
   // Clave de Yango para una categoría (Corp usa 'YangoEconomy', resto 'Yango').
+  // dbConfigs explícito: sin él, getYangoDisplayName cae siempre al fallback
+  // hardcodeado de constants.js (documentado ahí como desactualizado — le
+  // faltan categorías reales de países creados por wizard). Bug real
+  // encontrado en auditoría 2026-09-12: esta era la única de las 4 funciones
+  // hermanas (getCompetitors/getCiCompetitors/resolveDbParams) que no lo
+  // propagaba, pese a tenerlo disponible.
   const yangoKeyFor = useCallback(
-    (dbCategory) => getYangoDisplayName(country, dbCity, dbCategory),
-    [country, dbCity]
+    (dbCategory) => getYangoDisplayName(country, dbCity, dbCategory, dbConfigs),
+    [country, dbCity, dbConfigs]
   )
 
   // ── Cálculo de ganancia ─────────────────────────────────────────────────

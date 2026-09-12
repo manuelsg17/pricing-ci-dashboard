@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { BRACKET_LABELS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { Button } from '../ui/shadcn/button'
 
@@ -87,7 +86,7 @@ export default function WeeklyCoveragePanel({
               <tr>
                 <th style={{ textAlign: 'left' }}>{t('monitoring.coverage_col_type')}</th>
                 {brackets.map((b) => (
-                  <th key={b}>{BRACKET_LABELS[b]}</th>
+                  <th key={b}>{t(`bracket.${b}`)}</th>
                 ))}
               </tr>
             </thead>

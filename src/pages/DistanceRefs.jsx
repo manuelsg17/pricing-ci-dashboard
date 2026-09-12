@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
 import { useDistanceRefs } from '../hooks/useDistanceRefs'
-import { BRACKETS, BRACKET_LABELS, getCityLabel } from '../lib/constants'
+import { BRACKETS, getCityLabel } from '../lib/constants'
 import { applyFillIfMissingCascade } from '../lib/distanceRefsReplication'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
@@ -315,7 +315,7 @@ export default function DistanceRefs() {
                         <option value="">{t('distancerefs.choose_placeholder')}</option>
                         {BRACKETS.map((b) => (
                           <option key={b} value={b}>
-                            {BRACKET_LABELS[b]}
+                            {t(`bracket.${b}`)}
                           </option>
                         ))}
                       </select>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { BRACKETS, BRACKET_LABELS, getCountryConfig } from '../../lib/constants'
+import { BRACKETS, getCountryConfig } from '../../lib/constants'
 import SaveStatusBanner from './SaveStatusBanner'
 import UnsavedChangesBanner from './UnsavedChangesBanner'
 import { dbErrorText } from '../../lib/dbErrorText'
@@ -261,7 +261,7 @@ export default function ThresholdsTable({ thresholds, onSave, saving, country })
             const inputCls = err ? 'config-dirty--error' : dirty ? 'config-dirty' : undefined
             return (
               <tr key={b}>
-                <td>{BRACKET_LABELS[b]}</td>
+                <td>{t(`bracket.${b}`)}</td>
                 <td>
                   <input
                     type="number"

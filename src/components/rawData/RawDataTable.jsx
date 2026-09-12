@@ -1,4 +1,3 @@
-import { BRACKET_LABELS } from '../../lib/constants'
 import { Button } from '../ui/shadcn/button'
 import { useI18n } from '../../context/LanguageContext'
 
@@ -187,7 +186,7 @@ export default function RawDataTable({
               <td className="col-bracket">
                 {r.distance_bracket ? (
                   <span className="bracket-pill">
-                    {BRACKET_LABELS[r.distance_bracket] ?? r.distance_bracket}
+                    {t(`bracket.${r.distance_bracket}`) ?? r.distance_bracket}
                   </span>
                 ) : (
                   <span className="badge-no">—</span>

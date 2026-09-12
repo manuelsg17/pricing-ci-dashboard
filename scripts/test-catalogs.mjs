@@ -9,6 +9,7 @@ import {
   normalizeCategory, normalizeCompetitor, getCompetitorColor,
   BOT_RULES_TEMPLATES, getBotRulesTemplate,
 } from '../src/lib/catalogs.js'
+import { CANONICAL_COMPETITOR_NAMES } from '../src/lib/competitorColors.js'
 
 let pass = 0, fail = 0, failures = []
 function assert(cond, label) {
@@ -121,6 +122,23 @@ console.log('\n══ Catalog tests ══')
 
   const xyz = getBotRulesTemplate('XYZ')
   assert(Array.isArray(xyz) && xyz.length === 0, 'Currency desconocida devuelve [] (no crashea)')
+}
+
+// — CATALOG_COMPETITORS (selectores de Config) vs CANONICAL_COMPETITOR_NAMES
+// (derivada de la paleta de colores, usada por CommissionsConfig). Son dos
+// fuentes paralelas para "qué competidores existen" — hoy son idénticas,
+// pero nada lo garantiza: agregar un competidor con color y sin catálogo (o
+// viceversa) desincroniza dos pantallas de Config EN SILENCIO. Auditoría
+// 2026-09-12, hallazgo 4.2 — este test convierte esa divergencia futura en
+// un fallo ruidoso.
+{
+  console.log('\n[6] CATALOG_COMPETITORS y CANONICAL_COMPETITOR_NAMES coinciden')
+  const fromCatalog = new Set(CATALOG_COMPETITORS.map(c => c.value))
+  const fromColors = new Set(CANONICAL_COMPETITOR_NAMES)
+  const soloEnCatalog = [...fromCatalog].filter(c => !fromColors.has(c))
+  const soloEnColores = [...fromColors].filter(c => !fromCatalog.has(c))
+  assert(soloEnCatalog.length === 0, `Sin competidores solo en CATALOG_COMPETITORS (encontrados: ${soloEnCatalog.join(', ') || 'ninguno'})`)
+  assert(soloEnColores.length === 0, `Sin competidores solo en CANONICAL_COMPETITOR_NAMES (encontrados: ${soloEnColores.join(', ') || 'ninguno'})`)
 }
 
 console.log(`\nResultado: ${pass} pasados / ${fail} fallidos`)

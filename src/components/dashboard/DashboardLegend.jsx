@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useDistanceThresholds } from '../../hooks/useDistanceThresholds'
-import { getCountryConfig, BRACKET_LABELS, BRACKETS, COMPETITOR_COLORS } from '../../lib/constants'
+import { getCountryConfig, BRACKETS, COMPETITOR_COLORS } from '../../lib/constants'
 import { useI18n } from '../../context/LanguageContext'
 import { useCountry } from '../../context/CountryContext'
 import { Info } from 'lucide-react'
@@ -267,18 +267,18 @@ export default function DashboardLegend({ country, dbCity, dbCategory }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {orderedThresholds.map((t, i) => {
+                  {orderedThresholds.map((row, i) => {
                     const prev = i > 0 ? orderedThresholds[i - 1].max_km : 0
                     const range =
-                      t.max_km == null
+                      row.max_km == null
                         ? `> ${prev}`
                         : i === 0
-                          ? `≤ ${t.max_km}`
-                          : `${prev} – ${t.max_km}`
+                          ? `≤ ${row.max_km}`
+                          : `${prev} – ${row.max_km}`
                     return (
-                      <tr key={t.bracket}>
+                      <tr key={row.bracket}>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid #e2e8f0' }}>
-                          {BRACKET_LABELS[t.bracket] || t.bracket}
+                          {t(`bracket.${row.bracket}`) || row.bracket}
                         </td>
                         <td
                           style={{

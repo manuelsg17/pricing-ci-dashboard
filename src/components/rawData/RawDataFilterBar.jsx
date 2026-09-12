@@ -1,10 +1,10 @@
-import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { BRACKETS } from '../../lib/constants'
 import { Button } from '../ui/shadcn/button'
 import { useI18n } from '../../context/LanguageContext'
 
 const BRACKET_OPTIONS = [
   { value: '', labelKey: 'access.all_m' },
-  ...BRACKETS.map((b) => ({ value: b, label: BRACKET_LABELS[b] })),
+  ...BRACKETS.map((b) => ({ value: b, labelKey: `bracket.${b}` })),
 ]
 
 const SURGE_OPTIONS = [

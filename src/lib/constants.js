@@ -15,14 +15,10 @@ export {
 // ── Brackets (globales) ───────────────────────────────────
 export const BRACKETS = ['very_short', 'short', 'median', 'average', 'long', 'very_long']
 
-export const BRACKET_LABELS = {
-  very_short: 'Very Short',
-  short: 'Short',
-  median: 'Median',
-  average: 'Average',
-  long: 'Long',
-  very_long: 'Very Long',
-}
+// Etiquetas visibles de bracket: van por i18n (`bracket.<id>`, 3 locales) —
+// antes había un BRACKET_LABELS hardcodeado en inglés que competía con esas
+// claves (un hub ruso nunca las veía traducidas). Ver `bracket.*` en
+// src/lib/i18n/{es,en,ru}.js.
 
 // Color por bracket (2026-09, revisión UX de Ingresar CI): escala frío→cálido
 // de más corto a más largo, para que las 36 tarjetas de una jornada (12 rutas
@@ -894,9 +890,13 @@ export function getCiCompetitors(uiCity, uiCategory, subCategory, country, dbCon
 // Devuelve el label específico que Yango usa para una ciudad/categoría dada.
 // Recibe dbCity/dbCategory porque los matrices del dashboard ya operan en
 // espacio DB. Si no hay override configurado devuelve 'Yango'.
-export function getYangoDisplayName(country, dbCity, dbCategory) {
+// dbConfigs (de useCountry()) es OBLIGATORIO propagarlo — sin él,
+// getCountryConfig cae siempre al fallback hardcodeado de COUNTRY_CONFIG,
+// que ya está documentado más abajo como desactualizado respecto de la BD
+// (le faltan categorías reales de países creados por wizard).
+export function getYangoDisplayName(country, dbCity, dbCategory, dbConfigs = null) {
   if (!country || !dbCity || !dbCategory) return 'Yango'
-  const config = getCountryConfig(country)
+  const config = getCountryConfig(country, dbConfigs)
   return config?.yangoDisplayName?.[dbCity]?.[dbCategory] || 'Yango'
 }
 

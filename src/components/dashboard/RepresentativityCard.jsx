@@ -3,7 +3,6 @@ import { useCountry } from '../../context/CountryContext'
 import { useI18n } from '../../context/LanguageContext'
 import CollapsibleSection from '../market/CollapsibleSection'
 import { computeRepresentativity } from '../../lib/representativity'
-import { BRACKET_LABELS } from '../../lib/constants'
 
 // Panel de Representatividad de la data para la ventana principal del dashboard.
 // Muestra, para la SEMANA ISO en curso, cuántas celdas (ciudad × categoría ×
@@ -166,7 +165,7 @@ export default function RepresentativityCard() {
                   <tr key={`${c.city}|${c.category}|${c.bracket}|${c.comp}|${i}`}>
                     <td>{c.city}</td>
                     <td>{c.category}</td>
-                    <td>{BRACKET_LABELS[c.bracket] || c.bracket}</td>
+                    <td>{t(`bracket.${c.bracket}`) || c.bracket}</td>
                     <td>{c.comp}</td>
                     <td>
                       <strong style={{ color: '#991b1b' }}>{c.total}</strong>

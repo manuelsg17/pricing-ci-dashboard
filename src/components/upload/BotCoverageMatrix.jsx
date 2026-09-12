@@ -1,4 +1,4 @@
-import { BRACKETS, BRACKET_LABELS } from '../../lib/constants'
+import { BRACKETS } from '../../lib/constants'
 import { cellInstant, hhmm, staleColors, pivotByCity } from '../../lib/botCoverage'
 
 // Matriz presentacional ciudad × bracket con la última observación por celda,
@@ -20,7 +20,7 @@ export default function BotCoverageMatrix({ rows, t }) {
             <th style={{ textAlign: 'left' }}>{t('botdbsync.coverage_col_city')}</th>
             {BRACKETS.map((b) => (
               <th key={b} style={{ textAlign: 'center' }}>
-                {BRACKET_LABELS[b] || b}
+                {t(`bracket.${b}`) || b}
               </th>
             ))}
           </tr>
